@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../app/main';
 import { addAsChildren, makeElement } from '../common/dom';
 import { redrawLivePreviewPageDisplayCanvas } from '../pages/live_preview';
@@ -200,7 +202,7 @@ function makeTextBlockOptions_basicOptions(textBlockOptions, onFlavorChange) {
 		'Render flavor:',
 		`Choose how the live preview is rendered:
 		<br><br>
-		<b>Glyphr Studio</b> &ndash; draws your glyph outlines directly to a
+		<b>ANY-INK</b> &ndash; draws your glyph outlines directly to a
 		canvas, exactly as you've designed them. Best for inspecting your work
 		with bounding boxes, baselines, and other guides.
 		<br><br>
@@ -295,7 +297,7 @@ function makeTextBlockOptions_basicOptions(textBlockOptions, onFlavorChange) {
 // Render flavor IDs map to the previewFlavor stored in TextBlockOptions.
 // 'gs' uses the display-canvas renderer; 'otf' / 'ttf' use the native
 // font-preview renderer (FontFlux-generated font binary).
-const RENDER_FLAVOR_NAMES = { gs: 'Glyphr Studio', otf: 'OTF', ttf: 'TTF' };
+const RENDER_FLAVOR_NAMES = { gs: 'ANY-INK', otf: 'OTF', ttf: 'TTF' };
 
 function makeRenderFlavorChooser(textBlockOptions, onFlavorChange) {
 	const currentFlavor = textBlockOptions.previewFlavor || 'gs';

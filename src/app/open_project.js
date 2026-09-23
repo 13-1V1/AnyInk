@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { addAsChildren, makeElement } from '../common/dom.js';
-import logoVertical from '../common/graphics/logo-wordmark-vertical.svg?raw';
+import logoVertical from '../common/graphics/anyink-wordmark-vertical.svg?raw';
 import { closeEveryTypeOfDialog, showError, showToast } from '../controls/dialogs/dialogs.js';
 import { makeProgressIndicator } from '../controls/progress-indicator/progress_indicator.js';
 import { cancelDefaultEventActions } from '../edit_canvas/events.js';
@@ -34,12 +36,7 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 	// log(`makePage_OpenProject`, 'start');
 	// log(`secondProjectFlag: ${secondProjectFlag}`);
 	isSecondProject = secondProjectFlag;
-	const recent = 1000 * 60 * 60 * 24 * 7; // seven days in milliseconds
-	let recentMessage = '';
 	const app = getGlyphrStudioApp();
-	if (Date.now() - app.versionDate < recent) {
-		recentMessage = ` - <a href="https://www.glyphrstudio.com/help/about/updates.html" target="_blank">recently updated!</a>`;
-	}
 
 	const content = makeElement({
 		tag: 'div',
@@ -49,12 +46,11 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 				<div id="open-project__left-area" vertical-align="middle">
 					<div id="open-project__logo">${logoVertical}</div>
 					<span class="open-project__version-name">${app.versionName}</span>
-					<span class="open-project__version-number">${app.version}${recentMessage}</span>
+					<span class="open-project__version-number">A personal, purely visual font editor</span>
 					<div class="open-project__blurb">
-						For more information visit <a href="http://www.glyphrstudio.com" target="_blank">www.glyphrstudio.com</a><br>
-						Glyphr Studio is licensed under a <a href="https://www.gnu.org/licenses/gpl.html" target="_blank">GNU General Public License</a>,
-						which is a free / open source "copyleft" license. You are free to use, distribute, and modify Glyphr Studio as long as
-						this license and its freeness stays intact.
+						Built on Glyphr Studio v2 by Matthew LaGrandeur, under the
+						<a href="https://www.gnu.org/licenses/gpl.html" target="_blank">GNU General Public License</a>.
+						See Help &gt; About for credits.
 					</div>
 				</div>
 				<div id="open-project__right-area" vertical-align="middle"></div>
@@ -129,7 +125,7 @@ export function makeOpenProjectTabs() {
 	const tabContentNew = makeElement({
 		id: 'tab-content__new',
 		className: 'open-project__tab-content',
-		innerHTML: '<h2>Start a new Glyphr Studio project</h2>\nProject name: &nbsp;',
+		innerHTML: '<h2>Start a new project</h2>\nProject name: &nbsp;',
 		style: 'display: none;',
 	});
 
@@ -160,7 +156,7 @@ export function makeOpenProjectTabs() {
 	const dropTarget = makeElement({
 		id: 'open-project__drop-target',
 		innerHTML: `
-			Glyphr Studio Project &ensp;(.gs2, .txt)<br>
+			ANY-INK project &ensp;(.gs2, .txt)<br>
 			Open Type, True Type, or WOFF&ensp;(.otf, .ttf, .woff)<br>
 			SVG Font &ensp;(.svg)
 		`,
@@ -240,7 +236,7 @@ export function makeOpenProjectTabs() {
 
 	const contentOblegg = makeElement({
 		tag: 'div',
-		innerHTML: `Oblegg is the GSv2 project we use to test all the various Glyphr Studio features:<br><br>`,
+		innerHTML: `Oblegg is the upstream sample project that exercises every editor feature:<br><br>`,
 	});
 
 	const buttonOblegg = makeElement({

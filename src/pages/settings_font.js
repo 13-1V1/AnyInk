@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject } from '../app/main';
 import { addAsChildren, makeElement, textToNode } from '../common/dom';
 import { closeEveryTypeOfDialog, showModalDialog } from '../controls/dialogs/dialogs';
@@ -18,7 +20,7 @@ export function makeSettingsTabContentFont() {
 			<h1>Font metadata</h1>
 			<p>
 				These settings will be exported with any font you save,
-				and will be used around Glyphr Studio while you are making edits.
+				and will be used around ANY-INK while you are making edits.
 			</p>
 		`,
 	});

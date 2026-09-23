@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { charToHex, charsToHexArray, hexesToChars } from '../common/character_ids.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
@@ -189,7 +191,7 @@ function makeKerningFirstRunContent() {
 			<p>
 				Font files encode kerning values as three pieces of information: a left character, a right
 				character, and a horizontal adjustment value. Fonts with many characters can end up having
-				a huge amount of kern pairs. Glyphr Studio uses a system called Class-based Kerning, where
+				a huge amount of kern pairs. ANY-INK uses a system called Class-based Kerning, where
 				groups of characters with similar edges (like
 					<code>V</code><code>v</code><code>W</code><code>w</code>
 					)

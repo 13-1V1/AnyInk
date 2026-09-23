@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
 import { decToHex } from '../../common/character_ids.js';
 import { addAsChildren, makeElement, textToNode } from '../../common/dom.js';
@@ -75,10 +77,6 @@ export function makePage_GlobalActions() {
 								ranges may be linked to Component Instances outside of selected ranges. Moving or scaling Component
 								Roots may have effects outside of selected ranges.</li>
 						</ul>
-					</span>
-					<span class="panel__card full-width">
-						Have an idea for a new global action?  They are easy for us to add - email us your idea!
-						<a href="mailto:mail@glyphrstudio.com">mail@glyphrstudio.com</a>
 					</span>
 				</div>
 			</div>

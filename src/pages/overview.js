@@ -1,11 +1,10 @@
-import { emailLink } from '../app/app.js';
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
-import { showModalDialog } from '../controls/dialogs/dialogs.js';
 import { makeAllItemTypeChooserContent } from '../panels/item_chooser.js';
 import { makeNavButton, toggleNavDropdown } from '../project_editor/navigator.js';
-import { makeContributeContent } from './about.js';
 
 /**
  * Page > Overview
@@ -77,17 +76,10 @@ export function makePage_Overview() {
 	welcomeCard.appendChild(
 		makeElement({
 			innerHTML: `
-		<h2>Welcome to Glyphr Studio!</h2>
+		<h2>Welcome to ANY-INK</h2>
 		<p>
-			You can stay up to date on the latest news over at the
-			<a href="https://www.glyphrstudio.com/blog" target="_blank">Glyphr Studio Blog</a>.
-			We also have a
-			<a href="https://www.glyphrstudio.com/help/tutorial" target="_blank">tutorial</a>
-			over on the Help and Docs site that will help you walk through some of the key steps
-			to designing your first font.
-			<br><br>
-			As always, if you find any bugs, or have an suggestions about functionality, please email us!
-			${emailLink()}
+			Draw, space, and export your own fonts by clicking, dragging, and looking.
+			Pick a character on the right to start drawing, or open Help for the keyboard shortcuts.
 		</p>
 	`,
 		})
@@ -122,27 +114,8 @@ export function makePage_Overview() {
 		})
 	);
 
-	const contributeCard = makeElement({
-		className: 'panel__card full-width more-padding',
-		innerHTML: `
-			Glyphr Studio is open source and community supported.
-			<br>
-			`,
-	});
-	contributeCard.appendChild(
-		makeElement({
-			tag: 'fancy-button',
-			innerHTML: 'Learn how you can help Glyphr Studio!',
-			attributes: { secondary: '' },
-			onClick: () => {
-				showModalDialog(makeContributeContent(), 500);
-			},
-		})
-	);
-
 	panelArea.appendChild(projectSummaryCard);
 	panelArea.appendChild(welcomeCard);
-	panelArea.appendChild(contributeCard);
 
 	return content;
 }

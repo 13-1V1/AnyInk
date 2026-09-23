@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 
 /**
@@ -81,7 +83,7 @@ async function saveTextFileDirectly(fileSuffix, fileContent, fileHandle = false)
 		suggestedName: fileName,
 		types: [
 			{
-				description: 'Glyphr Studio Project file',
+				description: 'ANY-INK project file',
 				accept: { 'application/json': ['.gs2'] },
 			},
 		],
@@ -116,7 +118,6 @@ export function makeFileName(suffix, includeDateString = false) {
 	let fileName = project.settings.project.name;
 
 	if (suffix === 'gs2') {
-		fileName += ' - Glyphr Studio Project';
 		if (includeDateString) fileName += ` - ${makeFileDateString()}`;
 	} else if (suffix === 'svg') {
 		fileName += ` - SVG Font - ${makeFileDateString()}`;

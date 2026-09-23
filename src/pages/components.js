@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
@@ -223,7 +225,7 @@ function makeComponentsFirstRunContent() {
 		innerHTML: `
 			<h1>There are no components in your project</h1>
 			<p>
-				Components are a Glyphr Studio feature that lets you re-use a collection of paths
+				Components are a ANY-INK feature that lets you re-use a collection of paths
 				across many different glyphs. The root is called a 'Component' and these are added
 				by reference to other glyphs, where they are called 'Component Instances'.
 				Updating the root component will also update all component instances.

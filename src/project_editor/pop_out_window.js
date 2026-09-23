@@ -1,7 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../app/main';
 import colorStyle from '../common/colors.css?inline';
 import { addAsChildren, makeElement } from '../common/dom';
-import logo from '../common/graphics/logo-icon.svg?raw';
+import logo from '../common/graphics/anyink-icon.svg?raw';
 import resetStyle from '../common/resets.css?inline';
 import { closeEveryTypeOfDialog, makeModalDialog, showToast } from '../controls/dialogs/dialogs';
 import dialogStyle from '../controls/dialogs/dialogs.css?inline';
@@ -29,7 +31,7 @@ export function openPopOutWindow() {
 	// @ts-expect-error 'property does exist'
 	let popDoc = editor.popOutWindow.document;
 
-	popDoc.head.appendChild(makeElement({ tag: 'title', content: 'Live Preview - Glyphr Studio' }));
+	popDoc.head.appendChild(makeElement({ tag: 'title', content: 'Live Preview - ANY-INK' }));
 
 	const resets = makeElement({ tag: 'style', innerHTML: resetStyle });
 	popDoc.head.appendChild(resets);

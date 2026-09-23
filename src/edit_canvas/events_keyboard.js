@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
@@ -74,7 +76,7 @@ export function handleKeyPress(event) {
 	// o
 	if (ehd.isCtrlDown && key === 'o') {
 		cancelDefaultEventActions(event);
-		window.open('http://glyphrstudio.com/app', '_blank');
+		window.open(window.location.href, '_blank');
 	}
 
 	// q

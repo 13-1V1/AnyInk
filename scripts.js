@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { readFileSync, writeFile } from 'fs';
 
 /**
@@ -10,7 +12,7 @@ export function build() {
 
 	console.log(`
 ============================================================
-Glyphr Studio: ${config.version}`);
+ANY-INK ${config.anyinkVersion} (Glyphr Studio core ${config.version})`);
 	config.versionDate = getShipDate();
 	console.log(`============================================================\n\n`);
 	writeFile(path, JSON.stringify(config, null, 2), (error) => {
@@ -30,7 +32,7 @@ export function stage() {
 
 	console.log(`
 ============================================================
-Glyphr Studio: ${config.version}`);
+ANY-INK ${config.anyinkVersion} (Glyphr Studio core ${config.version})`);
 	config.versionDate = 'STAGED BUILD';
 	console.log(`============================================================\n\n`);
 	writeFile(path, JSON.stringify(config, null, 2), (error) => {

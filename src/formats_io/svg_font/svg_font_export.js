@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getGlyphrStudioApp } from '../../app/main.js';
 import { decToHex, hexesToXMLHexes } from '../../common/character_ids.js';
 import { escapeXMLValues, round } from '../../common/functions.js';
@@ -35,9 +37,8 @@ export function ioSVG_exportSVGfont() {
 	<metadata>
 		Project: ${project.settings.project.name}
 		Font exported on ${timeOutputString}
-		Created with Glyphr Studio - the free, web-based font editor
-		Version: ${app.version}
-		Find out more at www.glyphrstudio.com
+		Created with ANY-INK ${app.anyinkVersion}, built on Glyphr Studio ${app.version}
+		Glyphr Studio: www.glyphrstudio.com
 	</metadata>
 	<defs>
 		<font id="${familyID}" horiz-adv-x="${fontSettings.upm}">

@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getGlyphrStudioApp } from '../app/main.js';
 import { FontFlux } from 'font-flux-js';
 import { XMLtoJSON } from '@mattlag/xmltojson';
@@ -84,7 +86,7 @@ export async function validateSingleFileInput(fileInput, callback) {
 	} else {
 		return failWithError(`
 			Unrecognized file type (.${validationResult.fileSuffix}).
-			Try loading a Glyphr Studio Project file, or a font file.
+			Try loading an ANY-INK project file, or a font file.
 			[FR1]
 		`);
 	}
@@ -158,7 +160,7 @@ function readerValidateSVG() {
 	if (!font) {
 		return failWithError(`
 			The SVG file you tried to load was not a SVG Font file.
-			See Glyphr Studio help for more information. [SVG1]`);
+			See Help for more information. [SVG1]`);
 	} else {
 		validationResult.content = font;
 	}
@@ -181,7 +183,7 @@ function readerValidateTXTandGS2() {
 		projectData = JSON.parse(file);
 	} catch (e) {
 		return failWithError(`
-			The file could not be read. Expecting a Glyphr Studio Project file
+			The file could not be read. Expecting an ANY-INK project file
 			in JSON format. [PF0]
 			<hr>
 			${e.message}
@@ -192,7 +194,7 @@ function readerValidateTXTandGS2() {
 	if (!projectData.settings && !projectData.projectsettings) {
 		return failWithError(`
 		The provided text file is missing project settings.
-		It may not be a Glyphr Studio Project file. [PF1]
+		It may not be an ANY-INK project file. [PF1]
 		`);
 	}
 
@@ -200,7 +202,7 @@ function readerValidateTXTandGS2() {
 	if (!projectData?.settings?.project?.latestVersion && !projectData?.projectsettings?.versionnum) {
 		return failWithError(`
 			The provided text file has no version information associated with it.
-			It may not be a Glyphr Studio Project file. [PF2]
+			It may not be an ANY-INK project file. [PF2]
 		`);
 	}
 
@@ -219,8 +221,8 @@ function readerValidateTXTandGS2() {
 	let thisGlyphrStudioVersion = parseSemVer(getGlyphrStudioApp().version);
 	if (isSemVerLessThan(thisGlyphrStudioVersion, version)) {
 		return failWithError(`
-			This Glyphr Studio project file was created with a future version of
-			Glyphr Studio (0_o) As with most software, Glyphr Studio is not forwards-compatible. [PF4]
+			This project file was created with a newer version of ANY-INK or
+			Glyphr Studio than this build. Update the app and try again. [PF4]
 		`);
 	}
 
@@ -231,9 +233,9 @@ function readerValidateTXTandGS2() {
 
 	if (isSemVerLessThan(version, [1, 13, 2])) {
 		return failWithError(`
-			Only Glyphr Studio Project files with version 1.13.2 and above can be
-			imported into Glyphr Studio v2. For versions 1.13.1 and below, open and re-save
-			the project file with Glyphr Studio v1 App (which will update it). [PF5]
+			Only Glyphr Studio project files with version 1.13.2 and above can be
+			imported into ANY-INK. For versions 1.13.1 and below, open and re-save
+			the project file with the Glyphr Studio v1 app (which will update it). [PF5]
 		`);
 	}
 

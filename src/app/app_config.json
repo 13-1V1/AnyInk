@@ -1,5 +1,6 @@
 {
   "version": "2.10.5",
   "versionDate": 1789758000000,
-  "devMode": false
+  "devMode": false,
+  "anyinkVersion": "0.1.0"
 }

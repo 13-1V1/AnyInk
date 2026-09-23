@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
@@ -44,14 +46,17 @@ export class GlyphrStudioApp {
 				testOnLoad: function () {}, // code to run on load
 				testOnRedraw: function () {}, // code to run on Edit Canvas redraw
 			},
-			telemetry: true, // Load google analytics
+			telemetry: false, // ANY-INK: never load analytics
 		};
 
 		// Version
+		// `version` stays the upstream Glyphr Studio version: project files compare against it.
 		this.version = config.version;
 		this.versionDate = config.versionDate;
+		this.anyinkVersion = config.anyinkVersion;
 		const semVer = parseSemVer(config.version);
-		this.versionName = `Version ${semVer.major}.${semVer.minor}`;
+		this.upstreamVersionName = `Glyphr Studio ${semVer.major}.${semVer.minor}`;
+		this.versionName = `ANY-INK ${config.anyinkVersion}`;
 
 		// Project Editors
 		this.projectEditors = [];
@@ -383,12 +388,9 @@ export function showAppErrorPage(friendlyMessage = '', errorObject = { message: 
 		<div id="app__landing-page">
 		<div class="error-page__wrapper">
 			<div class="error-page__table-flip">(╯°▢°）╯︵ ┻━┻</div>
-				<h1>${friendlyMessage || 'Glyphr Studio ran into a problem'}</h1>
+				<h1>${friendlyMessage || 'ANY-INK ran into a problem'}</h1>
 				<br>
-				Please send us an email, hopefully we'll be able to help:
-				<a
-					href="mailto:mail@glyphrstudio.com&subject=[${getGlyphrStudioApp().version}] Feedback"
-					>mail@glyphrstudio.com</a>
+				Reload the app to keep working. The details below help track down the cause.
 				<br><br><br>
 				<pre>${errorObject.stack.replaceAll('<', '&lt;')}</pre>
 			</div>
@@ -403,11 +405,9 @@ export function showAppErrorPage(friendlyMessage = '', errorObject = { message: 
  * @param {String} displayText - what text to show
  * @returns {String} - mailto link
  */
-export function emailLink(displayText = 'mail@glyphrstudio.com') {
-	let app = getGlyphrStudioApp();
-	return `
-		<a class="mailto" href="mailto:mail@glyphrstudio.com?subject=[${app.version}] Feedback">${displayText}</a>
-	`;
+export function emailLink(displayText = 'ANY-INK') {
+	// ANY-INK is a personal build with no support address; kept for upstream compatibility.
+	return `<span class="mailto">${displayText}</span>`;
 }
 
 /**
@@ -417,7 +417,7 @@ export function emailLink(displayText = 'mail@glyphrstudio.com') {
 export function makeEmailContent() {
 	const con = `Have a feature idea or ran into an issue%3F We'd be happy to help!
 	%0A%0A%0A%0A___________________________________________%0A
-	version %09Glyphr Studio  ${getGlyphrStudioApp().version} %0A
+	version %09ANY-INK ${getGlyphrStudioApp().anyinkVersion} (Glyphr Studio ${getGlyphrStudioApp().version}) %0A
 	user agent %09 ${encodeURIComponent(navigator.userAgent)} %0A`;
 
 	// log(con);

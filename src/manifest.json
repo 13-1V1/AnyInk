@@ -1,15 +1,18 @@
 {
-  "name": "Glyphr Studio v2",
+  "name": "ANY-INK",
+  "short_name": "ANY-INK",
+  "description": "A personal, purely visual font editor.",
   "icons": [
     {
-      "src": "common/graphics/logo-icon-color.svg",
+      "src": "common/graphics/anyink-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     }
   ],
-  "start_url": "https://www.glyphrstudio.com/app/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "theme_color": "#29b7ff",
-  "background_color": "white"
+  "theme_color": "#111318",
+  "background_color": "#111318"
 }

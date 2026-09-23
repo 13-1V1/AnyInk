@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { addCrossProjectCopyShapeOptionControls } from '../app/cross_project_actions/action_copy_shapes.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
@@ -369,8 +371,8 @@ export function clipboardPaste() {
 
 			let toastMessage =
 				len === 1
-					? 'Pasted from the Glyphr Studio clipboard'
-					: `Pasted ${len} shapes<br>from the Glyphr Studio clipboard`;
+					? 'Pasted from the ANY-INK clipboard'
+					: `Pasted ${len} shapes<br>from the ANY-INK clipboard`;
 
 			if (circularReferenceNote.length) {
 				circularReferenceNote = circularReferenceNote.replaceAll(' ', ', ');
@@ -383,7 +385,7 @@ export function clipboardPaste() {
 			editor.publish('currentItem', editor.selectedItem);
 		} else {
 			showError(
-				`No shapes from the Glyphr Studio clipboard could be pasted to this item. Pasting component instances that would cause circular references is not allowed.`
+				`No shapes from the ANY-INK clipboard could be pasted to this item. Pasting component instances that would cause circular references is not allowed.`
 			);
 		}
 		return true;
@@ -429,8 +431,8 @@ export function makeActionButtonPasteTooltip(clipBoardPathCount) {
 }
 
 export function makeActionButtonClearClipboardTooltip(clipBoardPathCount) {
-	let re = `Clear Glyphr Studio Clipboard\n`;
-	re += `In order to use your Operating System clipboard for copy / paste, the Glyphr Studio clipboard must be empty.\n\n`;
+	let re = `Clear ANY-INK Clipboard\n`;
+	re += `In order to use your Operating System clipboard for copy / paste, the ANY-INK clipboard must be empty.\n\n`;
 	re += `Currently ${clipBoardPathCount} Path${
 		clipBoardPathCount === 1 ? '' : 's'
 	} on the clipboard.`;

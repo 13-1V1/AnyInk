@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { getFilesFromFilePicker } from '../app/open_project.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -230,7 +232,7 @@ export function getActionData(name) {
 			},
 			{
 				iconName: 'exportGlyphSVG',
-				title: `Export glyph SVG File\nGenerate a SVG file that only includes the SVG outline for this glyph. This file can be dragged and dropped directly to another Glyphr Studio project edit canvas, allowing for copying glyph paths between projects.`,
+				title: `Export glyph SVG File\nGenerate a SVG file that only includes the SVG outline for this glyph. This file can be dragged and dropped directly to another ANY-INK project edit canvas, allowing for copying glyph paths between projects.`,
 				onClick: () => {
 					const editor = getCurrentProjectEditor();
 					let content = makeGlyphSVGforExport(editor.selectedItem);

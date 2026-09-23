@@ -1,7 +1,8 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../../common/dom';
 import { countItems, duplicates } from '../../common/functions';
 import { ProjectEditor } from '../../project_editor/project_editor';
-import { emailLink } from '../app';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../main';
 import { updateContent_addComponents, updateFooter_addComponents } from './action_add_components';
 import { updateContent_addKernGroups, updateFooter_addKernGroups } from './action_add_kern_groups';
@@ -61,10 +62,6 @@ export function makePage_CrossProjectActions() {
 						<br>
 						<div id="cross-project-actions__welcome-flipper"></div>
 						<br><br>
-						New cross-project actions are easy to add. If you have any ideas for other capabilities,
-						please send us an email: ${emailLink()}
-						<br><br>
-						<a href="https://www.glyphrstudio.com/help/getting-started/working-with-multiple-projects.html" target="_blank">More help about working with multiple projects</a>
 					</div>
 				</div>
 				<div id="cross-project-actions__page-footer">

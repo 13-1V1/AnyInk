@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /* Web Components */
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
@@ -10,7 +12,7 @@ import { DisplayCanvas } from '../display_canvas/display_canvas.js';
 import { EditCanvas } from '../edit_canvas/edit_canvas.js';
 
 /* Other stuff */
-import asciiLogo from '../common/graphics/ascii-wordmark-vertical.txt?raw';
+import asciiLogo from '../common/graphics/anyink-ascii-wordmark.txt?raw';
 import { closeAllInfoBubbles, closeAllOptionChoosers } from '../controls/dialogs/dialogs.js';
 import { GlyphrStudioProject } from '../project_data/glyphr_studio_project.js';
 import { closeAllNavMenus } from '../project_editor/navigator.js';
@@ -49,7 +51,7 @@ export function glyphrStudioOnLoad() {
 		}
 		// log(`glyphrStudioOnLoad`, 'end');
 	} catch (e) {
-		showAppErrorPage('Glyphr Studio failed to load!', e);
+		showAppErrorPage('ANY-INK failed to load!', e);
 		console.error(e);
 	}
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!-- ANY-INK top-bar wordmark: nib mark plus the name. Text color follows the chrome via currentColor. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 32" width="168" height="32" class="anyink-wordmark">
+  <g transform="translate(2 1) scale(0.03)" stroke="none">
+    <path fill="#16A34A" d="M500 815 L292 505 C292 335 380 235 500 235 C620 235 708 335 708 505 Z"/>
+    <path d="M500 800 L500 540" stroke="#7C3AED" stroke-width="28" stroke-linecap="round" fill="none"/>
+    <circle cx="500" cy="480" r="54" fill="#7C3AED"/>
+  </g>
+  <text x="38" y="23" font-family="'Segoe UI', system-ui, sans-serif" font-size="20" font-weight="600" letter-spacing="2" fill="currentColor" stroke="none">ANY-INK</text>
+</svg>
