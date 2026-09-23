@@ -213,3 +213,23 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+#############
+## ANY-INK
+#############
+# Build output is produced by CI / GitHub Pages, not committed
+dist/
+# Never commit font project files or exported fonts (test fixtures live in test/)
+*.gs2
+!src/samples/*.gs2
+*.otf
+*.ttf
+*.woff
+*.woff2
+!test/**/*.otf
+!test/**/*.ttf
+!test/**/*.woff
+!test/**/*.woff2
+!src/**/*.woff2
+# Local scratch
+.vite/
