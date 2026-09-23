@@ -19,6 +19,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 - `npx vitest run` — run the suite once (`npm test` is watch mode).
   Upstream baseline at fork: 30 files, 613 tests, all pass.
 - `npm run lint` / `npm run fix` — eslint.
+- `npm run pages` — Vite on port 5174 serving the minimal test pages in `tests/` (launch config `anyink-tests`).
 
 ## Layout (upstream, details in src/README.md)
 - `src/project_data` — font data model. Project > Settings / Kerning / Components /
@@ -48,13 +49,15 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 - Units: font units for glyph coords, points for type size, inches for anything
   physical. No metric in the UI.
 - Never commit font project files (`*.gs2`) or exported fonts, except test fixtures.
-- Studio docs live in `docs/`: BRIEF, RESEARCH, DECISIONS, DESIGN_DOC, ROADMAP,
-  TEST_LOG, FACTCHECK_LOG, AUDIT.
+- Studio docs live in `docs/`: BRIEF, RESEARCH (with SOURCES), AUDIT-VISUAL, DECISIONS,
+  DESIGN_DOC, ROADMAP, TEST_LOG, FACTCHECK_LOG, and later AUDIT. Read DESIGN_DOC and
+  DECISIONS before building any milestone.
+- No telemetry, ever. The upstream analytics loader was deleted (D-025).
 
 ## Milestones
 1. Fork and run — DONE 09/23/2026 (builds, 613 tests pass, runs unchanged).
 2. Rename — DONE 09/23/2026 (visible branding, About credits, new nib icon + wordmark; internal identifiers kept, see docs/DECISIONS.md D-001)
-3. Visual audit — pending
+3. Visual audit — DONE 09/23/2026 (docs/AUDIT-VISUAL.md; every text/code entry point mapped to a milestone)
 4. Reskin — pending
 5. Visual editing (metrics, kerning, preview strip, undo gaps) — pending
 6. Files (FSA open/save, autosave, crash recovery, OTF export, format) — pending

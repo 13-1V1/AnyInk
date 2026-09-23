@@ -46,7 +46,6 @@ export class GlyphrStudioApp {
 				testOnLoad: function () {}, // code to run on load
 				testOnRedraw: function () {}, // code to run on Edit Canvas redraw
 			},
-			telemetry: false, // ANY-INK: never load analytics
 		};
 
 		// Version
@@ -113,10 +112,6 @@ export class GlyphrStudioApp {
 		}
 		// log(editor);
 		// log(editor.nav.page);
-
-		if (this.settings.telemetry && !dev.mode) {
-			addTelemetry();
-		}
 
 		// Load the Open Project page
 		if (dev.mode && dev.currentPage) {
@@ -314,25 +309,6 @@ export class GlyphrStudioApp {
 		this.setLocalStorage('autoSaves', newSaves);
 		// log(`addAutoSaveState`, 'end');
 	}
-}
-
-/**
- * Conditionally load Google Telemetry
- */
-function addTelemetry() {
-	let gScript = document.createElement('script');
-	gScript.setAttribute('src', 'https://www.googletagmanager.com/gtag/js?id=G-L8S3D8WCC9');
-	gScript.setAttribute('async', '');
-	document.head.appendChild(gScript);
-
-	// @ts-expect-error 'property does exist'
-	window.dataLayer = window.dataLayer || [];
-	function gtag() {
-		// @ts-expect-error 'property does exist'
-		window.dataLayer.push(arguments);
-	}
-	gtag('js', new Date());
-	gtag('config', 'G-L8S3D8WCC9');
 }
 
 // --------------------------------------------------------------

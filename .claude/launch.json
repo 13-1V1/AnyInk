@@ -4,8 +4,25 @@
     {
       "name": "anyink-dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "serve", "./src/", "--port", "5173", "--strictPort"],
+      "runtimeArgs": [
+        "vite",
+        "serve",
+        "./src/",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
       "port": 5173
+    },
+    {
+      "name": "anyink-tests",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--config",
+        "tests/vite.config.js"
+      ],
+      "port": 5174
     }
   ]
 }
