@@ -24,6 +24,11 @@
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="./common/graphics/anyink-icon.svg" />
 		<link rel="manifest" href="manifest.json" />
+		<script type="module">
+			// Apply the remembered canvas theme before anything paints (ANY-INK).
+			import { initTheme } from './anyink/theme/theme.js';
+			initTheme();
+		</script>
 		<script src="app/main.js" type="module"></script>
 		<script type="module">
 			import { glyphrStudioOnLoad, getGlyphrStudioApp, log } from './app/main.js';
@@ -131,6 +136,7 @@
 				user-select: text;
 			}
 		</style>
+		<link rel="stylesheet" type="text/css" href="./anyink/theme/tokens.css" />
 		<link rel="stylesheet" type="text/css" href="./app/app.css" />
 		<link rel="stylesheet" type="text/css" href="./common/resets.css" />
 		<link rel="stylesheet" type="text/css" href="./common/colors.css" />

@@ -1,0 +1,154 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	ANY-INK theme tokens. This is the ONLY file that may contain a color literal.
+	Two jobs, two hues:
+	  --touch      green  = what you are touching: selection, active tool, primary buttons, current glyph
+	  --structure  purple = structure: bezier handles, guides, metrics lines, kerning marks
+	Chrome tokens live on :root. Canvas tokens switch with html[data-canvas="light|dark"].
+	Canvas JS reads these through src/anyink/theme/theme.js token(); never hard-code a color there.
+*/
+
+:root {
+	/* ---- chrome surfaces (dark) ---- */
+	--chrome-bg: #141519;            /* app background */
+	--chrome-bg-raised: #1c1d23;     /* cards, panels, menus */
+	--chrome-bg-sunken: #0f1013;     /* top bar, wells, fields */
+	--chrome-bg-hover: #23242c;      /* row / button hover */
+	--chrome-border: #2a2b33;        /* hairline dividers */
+	--chrome-border-strong: #3a3c46; /* field and control borders */
+	--chrome-text: #e8e9ec;
+	--chrome-text-muted: #9a9da6;
+	--chrome-text-faint: #83868f;    /* eyebrows, hints (4.5:1 on chrome-bg) */
+	--chrome-text-inverse: #141519;  /* text on green buttons */
+	--chrome-scrollbar: #33353f;
+
+	/* ---- touch (green) ---- */
+	--touch: #16a34a;
+	--touch-hover: #22c55e;
+	--touch-active: #15803d;
+	--touch-soft: rgba(22, 163, 74, 0.16);   /* selected row / tile tint */
+	--touch-soft-strong: rgba(22, 163, 74, 0.32);
+	--touch-focus-ring: rgba(34, 197, 94, 0.55);
+
+	/* ---- structure (purple), lifted one step so it reads on dark chrome ---- */
+	--structure: #a78bfa;
+	--structure-strong: #c4b5fd;
+	--structure-deep: #7c3aed;
+	--structure-soft: rgba(167, 139, 250, 0.18);
+
+	/* ---- status ---- */
+	--danger: #ef4444;
+	--danger-hover: #f87171;
+	--danger-soft: rgba(239, 68, 68, 0.18);
+	--warning: #f59e0b;
+	--warning-soft: rgba(245, 158, 11, 0.18);
+
+	/* ---- fields ---- */
+	--field-bg: var(--chrome-bg-sunken);
+	--field-border: var(--chrome-border-strong);
+	--field-border-focus: var(--touch);
+	--field-text: var(--chrome-text);
+	--field-placeholder: var(--chrome-text-faint);
+	--field-disabled-bg: var(--chrome-bg);
+	--field-disabled-text: var(--chrome-text-faint);
+
+	/* ---- shape ---- */
+	--radius-sm: 4px;
+	--radius: 6px;
+	--radius-lg: 10px;
+	--hairline: 1px solid var(--chrome-border);
+	--shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+	--focus-ring: 0 0 0 2px var(--touch-focus-ring);
+	--overlay: rgba(10, 10, 14, 0.6);
+
+	/* ---- spacing ---- */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+
+	/* ---- motion ---- */
+	--global-transition: all 80ms ease;
+	--animate-fade-duration: 140ms;
+	--animate-fade-in-slide-down: var(--animate-fade-duration) ease-in fade-slide-in;
+	--animate-fade-in: var(--animate-fade-duration) ease-in fade-in;
+	--animate-fade-out: var(--animate-fade-duration) ease-out fade-out;
+	--animate-fade-update: var(--animate-fade-duration) ease-in fade-in-update;
+
+	/* ---- type ---- */
+	--font-ui: 'FiraGo', 'Segoe UI', system-ui, sans-serif;
+	--font-mono: 'Cascadia Code', Consolas, monospace;
+	--text-xs: 11px;
+	--text-sm: 12px;
+	--text-base: 14px;
+	--text-lg: 18px;
+	--text-xl: 24px;
+	--eyebrow-spacing: 0.12em;
+}
+
+/* ---- canvas: ink on paper (default) ---- */
+:root,
+:root[data-canvas='light'] {
+	--canvas-bg: #ffffff;
+	--canvas-paper-edge: rgba(0, 0, 0, 0.35);        /* shadow around the sheet */
+	--canvas-ink: #111318;                            /* filled glyph */
+	--canvas-ink-outline: #2f3038;                    /* outline mode stroke */
+	--canvas-ink-faint: rgba(17, 19, 24, 0.28);       /* context characters, new-shape preview */
+	--canvas-grid: rgba(124, 58, 237, 0.1);
+	--canvas-guide: #7c3aed;                          /* metrics + custom guides */
+	--canvas-guide-muted: rgba(124, 58, 237, 0.4);
+	--canvas-guide-label: #6d28d9;
+	--canvas-guide-hover: #16a34a;                    /* the line you are about to drag */
+	--canvas-handle: #7c3aed;                         /* bezier handle lines and dots */
+	--canvas-handle-fill: #ffffff;
+	--canvas-point: #7c3aed;                          /* unselected on-curve point */
+	--canvas-point-fill: #ffffff;
+	--canvas-point-selected: #16a34a;
+	--canvas-point-selected-fill: #16a34a;
+	--canvas-selection: #16a34a;                      /* bounding box, selected path outline */
+	--canvas-selection-soft: rgba(22, 163, 74, 0.08); /* drag-select box */
+	--canvas-multiselect: rgba(22, 163, 74, 0.6);
+	--canvas-component: #0e7490;                      /* component instance outline (teal, structure-adjacent) */
+	--canvas-kern: #7c3aed;
+	--canvas-kern-positive: rgba(124, 58, 237, 0.14);
+	--canvas-kern-negative: rgba(124, 58, 237, 0.34);
+	--canvas-link: #7c3aed;                           /* clickable context-character labels */
+	--canvas-label-halo: #ffffff;
+	--canvas-error: #ef4444;
+	--canvas-trace-frame: #7c3aed;
+}
+
+/* ---- canvas: chalk on slate ---- */
+:root[data-canvas='dark'] {
+	--canvas-bg: #1b1c22;
+	--canvas-paper-edge: rgba(0, 0, 0, 0.6);
+	--canvas-ink: #f3f4f6;
+	--canvas-ink-outline: #d1d5db;
+	--canvas-ink-faint: rgba(243, 244, 246, 0.28);
+	--canvas-grid: rgba(167, 139, 250, 0.14);
+	--canvas-guide: #a78bfa;
+	--canvas-guide-muted: rgba(167, 139, 250, 0.4);
+	--canvas-guide-label: #c4b5fd;
+	--canvas-guide-hover: #22c55e;
+	--canvas-handle: #a78bfa;
+	--canvas-handle-fill: #1b1c22;
+	--canvas-point: #a78bfa;
+	--canvas-point-fill: #1b1c22;
+	--canvas-point-selected: #22c55e;
+	--canvas-point-selected-fill: #22c55e;
+	--canvas-selection: #22c55e;
+	--canvas-selection-soft: rgba(34, 197, 94, 0.1);
+	--canvas-multiselect: rgba(34, 197, 94, 0.6);
+	--canvas-component: #22d3ee;
+	--canvas-kern: #a78bfa;
+	--canvas-kern-positive: rgba(167, 139, 250, 0.16);
+	--canvas-kern-negative: rgba(167, 139, 250, 0.36);
+	--canvas-link: #a78bfa;
+	--canvas-label-halo: #1b1c22;
+	--canvas-error: #f87171;
+	--canvas-trace-frame: #a78bfa;
+}
