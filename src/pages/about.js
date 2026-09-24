@@ -166,6 +166,32 @@ function makeCreditsInfo() {
 			<br>
 			Copyright © 2026, Matthew LaGrandeur
 		</div>
+
+		<div class="page__card">
+			<h3>Potrace</h3>
+			Auto-trace turns images into outlines with Potrace, the bitmap tracer by Peter Selinger.
+			<br>
+			<a href="https://potrace.sourceforge.net/" target="_blank">potrace.sourceforge.net</a>.
+			<br>
+			Licensed under the
+			<a href='https://www.gnu.org/licenses/old-licenses/gpl-2.0.html' target='_blank'>GNU General Public License, version 2 or (at your option) any later version</a>.
+			<br>
+			Copyright © 2001 - 2019, Peter Selinger
+		</div>
+
+		<div class="page__card">
+			<h3>esm-potrace-wasm</h3>
+			Potrace compiled to WebAssembly for the browser, by Thomas Steiner.
+			Available on
+			<a href="https://github.com/tomayac/esm-potrace-wasm" target="_blank">GitHub</a>
+			and
+			<a href="https://www.npmjs.com/package/esm-potrace-wasm" target="_blank">NPM</a>.
+			<br>
+			Licensed under the
+			<a href='https://www.gnu.org/licenses/old-licenses/gpl-2.0.html' target='_blank'>GNU General Public License, version 2 or (at your option) any later version</a>.
+			<br>
+			Copyright © 2021, Thomas Steiner
+		</div>
 	`,
 	});
 

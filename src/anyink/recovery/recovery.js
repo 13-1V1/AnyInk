@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /**
@@ -48,8 +50,7 @@
 	                                 and redo; no source = the current editor
 	  markClean(editor)              files track, after a successful save; deletes that
 	                                 session's record -> Promise<Boolean>
-	  getDirtyGeneration()           counts markDirty() calls (a save compares it before
-	                                 serializing and after the write)
+	  getDirtyGeneration()           counts edits across editors for safe PWA updates
 	  snapshotNow(reason, source)    write right now -> Promise<Boolean> (true when written)
 	  stopRecovery()                 end every session (locks released), drop listeners
 	  listRecoverableSessions()      dirty snapshots whose lock is not held and that are not
@@ -79,6 +80,9 @@
 */
 
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../../app/main.js';
+import { autosaveNow, scheduleAutosave, cancelAutosave, stopAutosave } from '../files/autosave.js';
+import { getSaveStatus, setSaveStatus, markSaveDirty } from '../files/save_status.js';
+import { adoptFileVersion } from '../files/save_queue.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { recClear, recDel, recEntries, recGet, recSet } from '../storage/kv.js';
@@ -95,7 +99,7 @@ import {
 /** Trailing debounce after the last edit before a snapshot is written. */
 export const SNAPSHOT_DELAY_MS = 3000;
 /** Longest an edit waits for a snapshot while edits keep coming. */
-export const SNAPSHOT_MAX_WAIT_MS = 15000;
+export const SNAPSHOT_MAX_WAIT_MS = 3000;
 /** A failed snapshot write toasts at most this often. */
 export const FAILURE_TOAST_INTERVAL_MS = 60000;
 /** Dead snapshots kept per project id (newest first); older ones are deleted. */
@@ -127,9 +131,8 @@ const state = {
 	lastError: null, // { message, time } of the last failed snapshot write
 	lastFailureToast: -Infinity,
 	restoring: false, // syncSessions() called from restoreSession: no orphan toast
-	// Counts every markDirty() for the life of the tab. A save compares the value taken
-	// before it serialized the project with the value after the write: when they differ,
-	// an edit landed mid-save and the project must stay dirty.
+	// Counts edits across the tab so PWA checkpoints can detect intervening edits.
+	// File saves use each editor’s own revision instead.
 	generation: 0,
 };
 
@@ -225,12 +228,18 @@ export function getDirtyGeneration() {
  */
 export function markDirty(source) {
 	state.generation++;
+	const changedEditor = source
+		? liveEditors().find((editor) => editor === source || editor.history === source)
+		: safeGetEditor();
+	if (changedEditor) markSaveDirty(changedEditor);
 	if (!state.started) return;
 	syncSessions();
 	const session = findSession(source);
 	if (!session) return;
 	session.dirty = true;
+	if (session.editor !== changedEditor) markSaveDirty(session.editor);
 	scheduleTimers(session);
+	scheduleAutosave(session.editor);
 }
 
 /**
@@ -245,6 +254,7 @@ export function markClean(editor) {
 	const session = findSession(editor);
 	if (!session) return Promise.resolve(false);
 	session.dirty = false;
+	cancelAutosave(session.editor);
 	clearTimers(session);
 	return enqueue(() => deleteOwnRecords(session));
 }
@@ -305,13 +315,19 @@ export async function restoreSession(id) {
 	const editor = safeGetEditor();
 	// The queue recorded with this project describes exactly this project. Must run
 	// synchronously after 'editor.project = x' (ProjectEditor made a fresh History).
-	if (typeof editor?.history?.adoptSnapshot === 'function') editor.history.adoptSnapshot(record.history);
+	if (typeof editor?.history?.adoptSnapshot === 'function')
+		editor.history.adoptSnapshot(record.history);
 	if (typeof editor?.assets?.loadBlobMap === 'function') editor.assets.loadBlobMap(record.assets);
 	if (editor) editor.loadedFileHandle = record.fileHandle || false;
+	if (editor) {
+		adoptFileVersion(editor, editor.loadedFileHandle, record.fileVersion ?? null);
+		markSaveDirty(editor);
+	}
 	editor?.setProjectAsUnsaved?.();
 
 	const session = startRestoredSession(editor, key, record);
 	if (session) snapshotSession(session, 'restore');
+	if (editor) scheduleAutosave(editor);
 
 	if (typeof editor?.publish === 'function') {
 		editor.publish('projectFile', {
@@ -462,6 +478,7 @@ function startSession(editor, meta) {
 function endSession(session) {
 	if (session.ended) return;
 	session.ended = true;
+	stopAutosave(session.editor);
 	clearTimers(session);
 	if (state.sessions.get(session.editor) === session) {
 		state.sessions.delete(session.editor);
@@ -555,7 +572,9 @@ async function warnAboutOrphans(session) {
 	);
 	if (orphan) {
 		deps.toast(
-			`Unsaved work from an earlier session exists for ${escapeHTML(session.name)}. Open the Recover tab to restore it.`
+			`Unsaved work from an earlier session exists for ${escapeHTML(
+				session.name
+			)}. Open the Recover tab to restore it.`
 		);
 	}
 }
@@ -571,7 +590,10 @@ function subscribeEditor(editor) {
 		subscriberID: SUBSCRIBER_ID,
 		callback: () => {
 			const session = state.sessions.get(editor);
-			if (session?.dirty) snapshotSession(session, 'glyphSwitch');
+			if (session?.dirty && editor.history === session.history) {
+				snapshotSession(session, 'glyphSwitch');
+				void autosaveNow(editor);
+			}
 		},
 	});
 }
@@ -659,6 +681,7 @@ async function writeSession(session, reason) {
 	if (session.ended) return false;
 	if (reason !== 'manual' && !session.dirty) return false;
 	const editor = session.editor;
+	const revision = getSaveStatus(editor).revision;
 	if (editor.history?.isRestoring) {
 		if (session.dirty) scheduleTimers(session);
 		return false;
@@ -676,10 +699,18 @@ async function writeSession(session, reason) {
 		await recSet(session.key, record);
 	} catch (error) {
 		reportWriteFailure(error);
+		if (!session.ended) setSaveStatus(editor, { recovery: 'failed' });
 		if (session.dirty && !session.ended) armMaxWait(session); // try again later
 		return false;
 	}
 	state.writes++;
+	if (
+		!session.ended &&
+		editor.history === session.history &&
+		getSaveStatus(editor).revision === revision
+	) {
+		setSaveStatus(editor, { recovery: 'saved' });
+	}
 	state.lastWrite = { key: session.key, id: record.id, time: record.time, reason };
 	const firstWrite = !session.recorded;
 	session.recorded = true;

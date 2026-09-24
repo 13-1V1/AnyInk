@@ -19,8 +19,10 @@
 	  glyph gets a trace with the default placement, or keeps its placement when the image
 	  is replaced; one history entry ('Added a trace image' / 'Replaced the trace image');
 	  'traceLayer' and 'currentItem' published; the Trace panel opened so the controls are
-	  in view. The item is remembered by id: if the user opens something else while a big
-	  photo decodes, nothing is added (the history entry would land on the wrong item).
+	  in view. A new image (M8 fix) also scrolls the panel back to its top, where the Trace
+	  image card holds 'Start auto-trace', and the toast says to press it. The item is
+	  remembered by id: if the user opens something else while a big photo decodes,
+	  nothing is added (the history entry would land on the wrong item).
 	  Resolves false, never rejects, when nothing was added.
 	- pickTraceImage: showOpenFilePicker (id 'anyink-trace', starts in Pictures the first
 	  time) called synchronously inside the click, before any await (transient user
@@ -57,7 +59,9 @@ export const LOADING_MESSAGE = 'Loading the image. A big photo takes a few secon
 export const SWITCHED_MESSAGE =
 	'You opened something else while the image was loading, so it was not added. Try again.';
 export const ADDED_MESSAGE =
-	'Added a trace image. It is only for reference: it is saved with the project but never exported in the font.';
+	'Added a trace image. Press Start auto-trace to turn it into outlines. The image itself is only for reference: it is saved with the project but never exported in the font.';
+/** The added toast says two things, so it stays up longer than the default 3 s, in ms. */
+export const ADDED_TOAST_MS = 6000;
 export const REPLACED_MESSAGE = 'Replaced the trace image.';
 export const REMOVED_MESSAGE = 'Removed the trace image. Undo brings it back.';
 export const PICK_AGAIN_MESSAGE = 'Click "Choose an image..." again to pick a file.';
@@ -251,7 +255,11 @@ async function runImport(file, editor, item) {
 	editor.publish('traceLayer', live);
 	editor.publish('currentItem', live);
 	showTracePanel(editor);
-	showToast(previous ? REPLACED_MESSAGE : ADDED_MESSAGE);
+	if (previous) showToast(REPLACED_MESSAGE);
+	else {
+		showPanelTop();
+		showToast(ADDED_MESSAGE, ADDED_TOAST_MS);
+	}
 	return true;
 }
 
@@ -289,6 +297,16 @@ function showTracePanel(editor) {
 	} else {
 		refreshPanel();
 	}
+}
+
+/**
+ * A new image: the panel shows its top, the Trace image card with 'Start auto-trace' (the
+ * Auto-trace card itself is below the fold on most windows).
+ */
+function showPanelTop() {
+	if (typeof document === 'undefined') return;
+	const area = document.querySelector('#editor-page__panel');
+	if (area?.scrollTop) area.scrollTop = 0;
 }
 
 // --------------------------------------------------------------

@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { getGlyphrStudioApp } from '../app/main.js';
@@ -18,6 +20,7 @@ const validationResult = {
 	fileType: '',
 	fileHandle: false,
 	sourceHandle: false,
+	sourceFile: false,
 	errorMessage: '',
 	content: false,
 };
@@ -28,6 +31,7 @@ function resetValidationResult() {
 	validationResult.fileType = '';
 	validationResult.fileHandle = false;
 	validationResult.sourceHandle = false;
+	validationResult.sourceFile = false;
 	validationResult.errorMessage = '';
 	validationResult.content = false;
 }
@@ -53,7 +57,7 @@ export async function validateSingleFileInput(fileInput, callback) {
 	resetValidationResult();
 	postValidationCallback = callback;
 
-	if(!fileInput) {
+	if (!fileInput) {
 		return failWithError('The file could not be read. [FR-NULL]');
 	}
 
@@ -78,6 +82,7 @@ export async function validateSingleFileInput(fileInput, callback) {
 		file = fileInput;
 	}
 	// log(file);
+	validationResult.sourceFile = file;
 	validationResult.fileName = file.name;
 	let fileSuffix = file.name.split('.');
 	fileSuffix = fileSuffix[fileSuffix.length - 1].toLowerCase();

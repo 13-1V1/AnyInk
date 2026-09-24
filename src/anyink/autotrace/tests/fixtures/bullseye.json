@@ -1,0 +1,30 @@
+{
+  "svg": "bullseye.svg",
+  "width": 120,
+  "height": 120,
+  "drawing": "canvas 120 x 120, white fill, black ring (arc radius 50 with a reversed arc radius 35, nonzero fill) plus a black disc radius 20, all centered at (60, 60)",
+  "expect": {
+    "pathElements": 2,
+    "subpaths": 3,
+    "centerPx": {
+      "x": 60,
+      "y": 60
+    },
+    "outerRadiusPx": 50,
+    "holeRadiusPx": 35,
+    "islandRadiusPx": 20,
+    "note": "outer ring, its hole, and a separate island inside the hole"
+  },
+  "potraceOptions": {
+    "turdsize": 2,
+    "alphamax": 1,
+    "opttolerance": 0.2,
+    "turnpolicy": "minority",
+    "pathonly": false,
+    "extractcolors": false
+  },
+  "potraceOptionsNote": "opticurve 1 (esm-potrace-wasm default); turnpolicy 'minority' = potrace 4 (the worker maps it)",
+  "tracer": "esm-potrace-wasm 0.5.1 in src/anyink/autotrace/potrace.worker.js through potrace_client.js, Chrome, tests/autotrace.html (port 5174), 09/24/2026",
+  "binarize": "inline (track B fixture script): Rec. 601 luma (alpha on white) < 128 is ink, pixels written back as pure black / white, alpha 255",
+  "svgUnits": "potrace output: <g transform='translate(0,height) scale(0.1,-0.1)'>, path coordinates in tenth-pixels, y-up; after the transform they are image pixels, y-down"
+}

@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import {
@@ -46,7 +48,7 @@ export function makeAppTopBar() {
 	menus.appendChild(makeMenu('Projects'));
 	menus.appendChild(makeMenu('Help'));
 
-	addAsChildren(topBar, [logo, menus]);
+	addAsChildren(topBar, [logo, menus, document.createElement('anyink-save-status')]);
 
 	return topBar;
 }

@@ -206,6 +206,25 @@ describe('importTraceImage', () => {
 		expect(document.querySelector('#editor-page__panel .anyink-trace-panel')).not.toBeNull();
 	});
 
+	it('a new image: the toast points at Start auto-trace and the panel shows its top card (fix)', async () => {
+		const area = document.querySelector('#editor-page__panel');
+		area.scrollTop = 300;
+		await importTraceImage(jpeg(), { editor });
+		expect(ADDED_MESSAGE).toContain('Press Start auto-trace to turn it into outlines.');
+		expect(toastText()).toBe(ADDED_MESSAGE);
+		// The Trace image card, where Start auto-trace sits, is the panel's first card
+		expect(area.scrollTop).toBe(0);
+		expect(area.querySelector('.panel__card h3').textContent).toBe('Trace image');
+	});
+
+	it('a replaced image leaves the panel where the user had it', async () => {
+		await importTraceImage(jpeg(), { editor });
+		const area = document.querySelector('#editor-page__panel');
+		area.scrollTop = 300;
+		expect(await importTraceImage(jpeg('better.png', 'image/png'), { editor })).toBe(true);
+		expect(area.scrollTop).toBe(300);
+	});
+
 	it('undo removes the trace but keeps the Blob; redo brings the trace back', async () => {
 		await importTraceImage(jpeg(), { editor });
 		const id = editor.assets.ids()[0];

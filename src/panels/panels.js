@@ -92,6 +92,8 @@ function unsubscribeExcept(panelName = '') {
 	if (panelName !== 'guidesPanel') editor.unsubscribe({ idToRemove: 'guidesPanel' });
 	// ANY-INK (M7): every Trace panel subscriber id starts with 'anyink.trace.panel'
 	if (panelName !== 'tracePanel') editor.unsubscribe({ idToRemove: 'anyink.trace.panel' });
+	// ANY-INK (M8): the Auto-trace card inside the Trace panel: ids start 'anyink.autotrace.panel'
+	if (panelName !== 'tracePanel') editor.unsubscribe({ idToRemove: 'anyink.autotrace.panel' });
 }
 
 /**

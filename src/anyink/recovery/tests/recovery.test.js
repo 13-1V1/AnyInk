@@ -1,9 +1,18 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { publish, subscribe, unsubscribe } from '../../../project_editor/pub_sub.js';
 import { AssetStore } from '../../assets/asset_store.js';
-import { recClear, recEntries, recGet, recKeys, recSet, setStorageDriver } from '../../storage/kv.js';
+import {
+	recClear,
+	recEntries,
+	recGet,
+	recKeys,
+	recSet,
+	setStorageDriver,
+} from '../../storage/kv.js';
 import { fakeDriver } from '../../storage/tests/fake_driver.js';
 import {
 	FAILURE_TOAST_INTERVAL_MS,
@@ -131,7 +140,7 @@ afterEach(() => {
 });
 
 describe('markDirty and the snapshot timers', () => {
-	it('writes one dirty snapshot 3 s after the last edit, with project, assets and undo history', async () => {
+	it('writes within 3 s of the first edit, with project, assets and undo history', async () => {
 		const blob = new Blob(['img'], { type: 'image/png' });
 		editor.assets.add(blob, { id: 'img-a' });
 		editor.loadedFileHandle = { kind: 'file', name: 'font.gs2' };
@@ -139,7 +148,7 @@ describe('markDirty and the snapshot timers', () => {
 		markDirty(editor.history);
 		await vi.advanceTimersByTimeAsync(1000);
 		markDirty(editor.history); // resets the trailing timer
-		await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS - 100);
+		await vi.advanceTimersByTimeAsync(SNAPSHOT_MAX_WAIT_MS - 1100);
 		expect(await recKeys()).toEqual([]);
 
 		await vi.advanceTimersByTimeAsync(100);
@@ -158,9 +167,13 @@ describe('markDirty and the snapshot timers', () => {
 		expect(record.project.glyphs['glyph-0x41'].advanceWidth).toBe(600);
 		expect(record.assets['img-a']).toEqual({ type: 'image/png', blob });
 		// the undo queue travels in the same record as the project it describes
-		expect(record.history).toEqual({ version: 3, queue: [{ title: 'A width 600' }], redoQueue: [] });
+		expect(record.history).toEqual({
+			version: 3,
+			queue: [{ title: 'A width 600' }],
+			redoQueue: [],
+		});
 		expect(getRecoveryStatus().writes).toBe(1);
-		expect(getRecoveryStatus().lastWrite.reason).toBe('timer');
+		expect(getRecoveryStatus().lastWrite.reason).toBe('maxWait');
 	});
 
 	it('does nothing before a project is loaded', async () => {
@@ -183,8 +196,8 @@ describe('markDirty and the snapshot timers', () => {
 	});
 
 	// Finding 3: the trailing debounce never fired while edits kept coming.
-	it('snapshots every edit within 15 s during continuous editing (max-wait)', async () => {
-		expect(SNAPSHOT_MAX_WAIT_MS).toBe(15000);
+	it('snapshots every edit within 3 s during continuous editing (max-wait)', async () => {
+		expect(SNAPSHOT_MAX_WAIT_MS).toBe(3000);
 		useDeps({ now: () => Date.now() }); // fake timers move Date too
 		const start = Date.now();
 		initRecovery();
@@ -196,7 +209,8 @@ describe('markDirty and the snapshot timers', () => {
 			edits.push(Date.now() - start);
 			const before = getRecoveryStatus().writes;
 			await vi.advanceTimersByTimeAsync(2000);
-			if (getRecoveryStatus().writes > before) writes.push(getRecoveryStatus().lastWrite.time - start);
+			if (getRecoveryStatus().writes > before)
+				writes.push(getRecoveryStatus().lastWrite.time - start);
 		}
 		expect(writes.length).toBeGreaterThanOrEqual(3);
 		expect(writes[0]).toBeLessThanOrEqual(SNAPSHOT_MAX_WAIT_MS);
@@ -207,7 +221,7 @@ describe('markDirty and the snapshot timers', () => {
 		}
 		// the streak ends: the trailing debounce writes the last state
 		await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS);
-		expect(getRecoveryStatus().lastWrite.reason).toBe('timer');
+		expect(['timer', 'maxWait']).toContain(getRecoveryStatus().lastWrite.reason);
 		const [[, record]] = await recordFor('p1');
 		expect(record.project.glyphs['glyph-0x41'].advanceWidth).toBe(658);
 	});
@@ -242,7 +256,7 @@ describe('markClean', () => {
 
 	// Finding 2: opening the saved file of a project with an unlocked dirty snapshot, then a
 	// habitual Ctrl+S (or one edit), used to overwrite that snapshot.
-	it('never writes to, overwrites or deletes an earlier session\'s snapshot of the same project', async () => {
+	it("never writes to, overwrites or deletes an earlier session's snapshot of the same project", async () => {
 		const orphan = {
 			id: 'p1',
 			name: 'Test Font',
@@ -310,7 +324,7 @@ describe('two live copies of one project (same project id)', () => {
 	});
 
 	// Finding 1, two tabs: tab one holds its session lock; this tab opens the same id.
-	it('lists another tab\'s snapshot once that tab dies, even while this tab has the same project open', async () => {
+	it("lists another tab's snapshot once that tab dies, even while this tab has the same project open", async () => {
 		const otherKey = 'session:p1:tabOne';
 		const otherLock = 'anyink-session:p1:tabOne';
 		const tabOneCrashes = locks.hold(otherLock);
@@ -417,7 +431,10 @@ describe('snapshot write failures', () => {
 		expect(toast).toHaveBeenCalledWith(
 			'Crash recovery could not save a snapshot (the quota has been exceeded). Save your work with Ctrl+S.'
 		);
-		expect(getRecoveryStatus().lastError).toMatchObject({ message: 'the quota has been exceeded', time: now });
+		expect(getRecoveryStatus().lastError).toMatchObject({
+			message: 'the quota has been exceeded',
+			time: now,
+		});
 		expect(getRecoveryStatus().writes).toBe(0);
 
 		now += 30000;
@@ -487,7 +504,8 @@ describe('dead snapshots of one font are capped', () => {
 	});
 
 	it('never counts or deletes a live record or another font', async () => {
-		for (let t = 1; t <= 4; t++) await recSet(`session:p7:t${t}`, deadRecord('p7', t, `anyink-session:p7:t${t}`));
+		for (let t = 1; t <= 4; t++)
+			await recSet(`session:p7:t${t}`, deadRecord('p7', t, `anyink-session:p7:t${t}`));
 		await recSet('session:p7:live', deadRecord('p7', 9, 'anyink-session:p7:live'));
 		await recSet('session:p8:x', deadRecord('p8', 1, 'anyink-session:p8:x'));
 		locks.hold('anyink-session:p7:live'); // another tab is editing it
@@ -504,7 +522,8 @@ describe('dead snapshots of one font are capped', () => {
 
 	it('deletes nothing without the Web Locks API (another tab could own any record)', async () => {
 		useDeps({ locks: () => undefined });
-		for (let t = 1; t <= 5; t++) await recSet(`session:p7:t${t}`, deadRecord('p7', t, `anyink-session:p7:t${t}`));
+		for (let t = 1; t <= 5; t++)
+			await recSet(`session:p7:t${t}`, deadRecord('p7', t, `anyink-session:p7:t${t}`));
 		expect(await listRecoverableSessions()).toHaveLength(5);
 		expect(await recKeys()).toHaveLength(5);
 	});
@@ -535,7 +554,7 @@ describe('Web Lock per live editor', () => {
 		expect(await listRecoverableSessions()).toEqual([]);
 	});
 
-	it('replacing an editor\'s project ends that session: its lock goes, a new session starts clean', async () => {
+	it("replacing an editor's project ends that session: its lock goes, a new session starts clean", async () => {
 		initRecovery();
 		markDirty(editor.history);
 		await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS);
@@ -545,10 +564,16 @@ describe('Web Lock per live editor', () => {
 		await flush();
 		expect(locks.held.has('anyink-session:p1:s1')).toBe(false);
 		expect(locks.held.has('anyink-session:p2:s2')).toBe(true);
-		expect(getRecoveryStatus().session).toMatchObject({ key: 'session:p2:s2', id: 'p2', dirty: false });
+		expect(getRecoveryStatus().session).toMatchObject({
+			key: 'session:p2:s2',
+			id: 'p2',
+			dirty: false,
+		});
 		expect(getRecoveryStatus().timerPending).toBe(false);
 		// the dropped project's unsaved work is now recoverable
-		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual(['session:p1:s1']);
+		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual([
+			'session:p1:s1',
+		]);
 	});
 
 	it('reopening the same project id in the same editor starts a new session', async () => {
@@ -578,7 +603,13 @@ describe('Web Lock per live editor', () => {
 
 describe('listRecoverableSessions', () => {
 	async function seed() {
-		await recSet('session:held', { id: 'held', name: 'Open elsewhere', time: 3, dirty: true, project: {} });
+		await recSet('session:held', {
+			id: 'held',
+			name: 'Open elsewhere',
+			time: 3,
+			dirty: true,
+			project: {},
+		});
 		await recSet('session:crashed', {
 			id: 'crashed',
 			name: 'Crashed',
@@ -587,7 +618,13 @@ describe('listRecoverableSessions', () => {
 			hasFile: true,
 			project: {},
 		});
-		await recSet('session:older', { id: 'older', name: 'Older', time: 1, dirty: true, project: {} });
+		await recSet('session:older', {
+			id: 'older',
+			name: 'Older',
+			time: 1,
+			dirty: true,
+			project: {},
+		});
 		await recSet('session:clean', { id: 'clean', name: 'Saved', time: 9, dirty: false });
 		await recSet('handle:stray', { kind: 'file' });
 	}
@@ -597,18 +634,40 @@ describe('listRecoverableSessions', () => {
 		locks.hold('anyink-project-held'); // an older build's tab
 		const sessions = await listRecoverableSessions();
 		expect(sessions).toEqual([
-			{ id: 'session:crashed', projectId: 'crashed', name: 'Crashed', time: 2, dirty: true, hasFile: true },
-			{ id: 'session:older', projectId: 'older', name: 'Older', time: 1, dirty: true, hasFile: false },
+			{
+				id: 'session:crashed',
+				projectId: 'crashed',
+				name: 'Crashed',
+				time: 2,
+				dirty: true,
+				hasFile: true,
+			},
+			{
+				id: 'session:older',
+				projectId: 'older',
+				name: 'Older',
+				time: 1,
+				dirty: true,
+				hasFile: false,
+			},
 		]);
 	});
 
 	it('uses the lock name stored in a record', async () => {
-		await recSet('session:p9:x', { id: 'p9', lock: 'anyink-session:p9:x', time: 1, dirty: true, project: {} });
+		await recSet('session:p9:x', {
+			id: 'p9',
+			lock: 'anyink-session:p9:x',
+			time: 1,
+			dirty: true,
+			project: {},
+		});
 		const release = locks.hold('anyink-session:p9:x');
 		expect(await listRecoverableSessions()).toEqual([]);
 		release();
 		await flush();
-		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual(['session:p9:x']);
+		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual([
+			'session:p9:x',
+		]);
 	});
 
 	it('treats every dirty snapshot as recoverable without a locks API', async () => {
@@ -618,7 +677,7 @@ describe('listRecoverableSessions', () => {
 		expect(ids).toEqual(['session:held', 'session:crashed', 'session:older']);
 	});
 
-	it('hides this tab\'s own live sessions, even without a locks API', async () => {
+	it("hides this tab's own live sessions, even without a locks API", async () => {
 		useDeps({ locks: () => undefined });
 		initRecovery();
 		markDirty(editor.history);
@@ -626,7 +685,9 @@ describe('listRecoverableSessions', () => {
 		expect(await listRecoverableSessions()).toEqual([]);
 		stopRecovery();
 		await flush();
-		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual(['session:p1:s1']);
+		expect((await listRecoverableSessions()).map((session) => session.id)).toEqual([
+			'session:p1:s1',
+		]);
 	});
 });
 
@@ -669,7 +730,11 @@ describe('restoreSession', () => {
 		const { target, importProject } = restoreTarget();
 		initRecovery();
 		const projectFile = vi.fn();
-		target.subscribe({ topic: 'projectFile', subscriberID: 'anyink.test.file', callback: projectFile });
+		target.subscribe({
+			topic: 'projectFile',
+			subscriberID: 'anyink.test.file',
+			callback: projectFile,
+		});
 		const changed = vi.fn();
 		window.addEventListener(RECOVERY_CHANGE_EVENT, changed);
 
@@ -703,7 +768,7 @@ describe('restoreSession', () => {
 		window.removeEventListener(RECOVERY_CHANGE_EVENT, changed);
 	});
 
-	it('keeps the old record when the restored session\'s first snapshot fails', async () => {
+	it("keeps the old record when the restored session's first snapshot fails", async () => {
 		const driver = fakeDriver();
 		const restoreDriver = setStorageDriver(driver);
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -727,15 +792,28 @@ describe('restoreSession', () => {
 	});
 
 	it('falls back to no handle and escapes the name in the toast', async () => {
-		await recSet('session:x', { id: 'x', name: '<b>Bold</b>', time: now, dirty: true, project: {} });
+		await recSet('session:x', {
+			id: 'x',
+			name: '<b>Bold</b>',
+			time: now,
+			dirty: true,
+			project: {},
+		});
 		await restoreSession('session:x');
 		expect(editor.loadedFileHandle).toBe(false);
-		expect(toast).toHaveBeenCalledWith('Recovered &lt;b&gt;Bold&lt;/b&gt; from less than a minute ago');
+		expect(toast).toHaveBeenCalledWith(
+			'Recovered &lt;b&gt;Bold&lt;/b&gt; from less than a minute ago'
+		);
 	});
 
 	it('rejects with a "gone" error when the record is missing, clean, or live in another tab', async () => {
 		await recSet('session:clean', { id: 'clean', dirty: false });
-		await recSet('session:live:t', { id: 'live', lock: 'anyink-session:live:t', dirty: true, project: {} });
+		await recSet('session:live:t', {
+			id: 'live',
+			lock: 'anyink-session:live:t',
+			dirty: true,
+			project: {},
+		});
 		locks.hold('anyink-session:live:t');
 		const changed = vi.fn();
 		window.addEventListener(RECOVERY_CHANGE_EVENT, changed);

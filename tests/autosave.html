@@ -1,0 +1,36 @@
+<!-- Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!DOCTYPE html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<title>ANY-INK native autosave checks</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body {
+			background: var(--chrome-bg);
+			color: var(--chrome-text);
+			font: 16px system-ui;
+			margin: 2rem;
+		}
+		button {
+			background: var(--touch);
+			color: var(--chrome-text-inverse);
+			padding: 1rem;
+			border: 0;
+		}
+		pre {
+			white-space: pre-wrap;
+			color: var(--chrome-text);
+		}
+	</style>
+	<h1>Native autosave and recovery</h1>
+	<p>
+		Uses real Chrome origin-private file handles, exclusive writable streams, Web Locks and
+		IndexedDB. Creates only disposable fixtures inside this local test origin. Permission-loss tests
+		run separately in Vitest.
+	</p>
+	<button id="run">Run native storage checks</button>
+	<button id="recover">Restore last test snapshot</button>
+	<pre id="result">Ready.</pre>
+	<script type="module" src="./autosave-browser.js"></script>
+</html>

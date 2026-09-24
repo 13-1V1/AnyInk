@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /**
@@ -19,6 +21,8 @@
 	Older builds wrote one record per project under 'session:<projectId>' without key,
 	lock or history; those stay listable and restorable.
 */
+
+import { savedFileVersion } from '../files/save_queue.js';
 
 export const SESSION_PREFIX = 'session:';
 
@@ -81,6 +85,7 @@ export function makeSessionRecord(
 		dirty: !!dirty,
 		hasFile: !!handle,
 		fileHandle: handle,
+		fileVersion: savedFileVersion(editor),
 	};
 	if (includeProject) {
 		record.project = project.save();

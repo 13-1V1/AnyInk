@@ -36,8 +36,16 @@
 	Drops (fix): the panel host takes file drops (trace_drop.js) and hands them to the
 	canvas's own drop handler, so a photo dropped on the card is traced exactly as on the
 	canvas, and the cards light up while a file is over them.
+
+	Milestone 8 hook: build() appends makeAutoTraceCard({ editor, item, startSlot }) after the
+	Size and position card when it returns an element. The card is rebuilt with the other
+	cards (item, image, or trace presence changed); it keeps its own state in
+	autotrace_session.js. startSlot is the Trace image card's button row: the Auto-trace
+	card puts its 'Start auto-trace' there too, first, because that card is in view right
+	after an image is added and the Auto-trace card is below the fold (M8 fix).
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
+import { makeAutoTraceCard } from '../autotrace/autotrace_panel.js';
 import { makeElement } from '../../common/dom.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { handleDropSVGonEditCanvas } from '../../edit_canvas/events_drag_drop_paste.js';
@@ -194,6 +202,15 @@ function build(panel) {
 	host.appendChild(makeImageCard(panel, trace));
 	host.appendChild(makeLookCard(panel, trace));
 	host.appendChild(makePositionCard(panel));
+	// ANY-INK (M8): the Auto-trace card (src/anyink/autotrace/autotrace_panel.js), last, only
+	// when it returns an element (null while the item has no trace). It also puts a Start
+	// button in the Trace image card's button row (startSlot), where it is in view
+	const autoTraceCard = makeAutoTraceCard({
+		editor,
+		item,
+		startSlot: panel.controls.imageButtons,
+	});
+	if (autoTraceCard) host.appendChild(autoTraceCard);
 	updateValues(panel);
 }
 
@@ -304,6 +321,8 @@ function makeImageCard(panel, trace) {
 		})
 	);
 	card.appendChild(buttons);
+	// The Auto-trace card adds its Start button here (build)
+	controls.imageButtons = buttons;
 	return card;
 }
 

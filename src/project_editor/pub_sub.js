@@ -32,6 +32,8 @@ import { glyphChanged } from './cross_item_actions.js';
 		* - 'projectFile' - file handle or saved state changed: title, menu, recents (Milestone 6)
 		* - 'traceLayer' - the current item's trace image changed: added, moved, resized,
 		*                  opacity / visible / locked / invert, removed (Milestone 7)
+		* - 'autoTrace' - the auto-trace preview session changed: started, options, tracing,
+		*                 result ready, error, applied, canceled (Milestone 8)
 */
 const allTopics = [
 	'editCanvasView',
@@ -65,6 +67,8 @@ const allTopics = [
 	'projectFile', // file handle or saved state changed: title, menu, recents
 	// ANY-INK topics (Milestone 7)
 	'traceLayer', // trace image changed (per drag tick, slider tick, add / replace / remove)
+	// ANY-INK topics (Milestone 8)
+	'autoTrace', // auto-trace preview session changed (src/anyink/autotrace/autotrace_session.js)
 ];
 
 /**

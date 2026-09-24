@@ -1,0 +1,46 @@
+<!-- Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>ANY-INK PWA recovery gate</title>
+	</head>
+	<body>
+		<h1>Isolated update recovery gate</h1>
+		<p>
+			This page simulates recovery delays and failures. It does not register a service worker or
+			reload.
+		</p>
+		<label><input id="fail" type="checkbox" />Fail recovery write</label>
+		<button id="update">Update and reload (simulation)</button>
+		<p id="status" role="status">Ready</p>
+		<script type="module">
+			import { checkpoint, makeSafeReload } from '../src/anyink/pwa/checkpoint.js';
+			const status = document.querySelector('#status');
+			const editors = [{ history: {} }];
+			const update = makeSafeReload({
+				protect: () =>
+					checkpoint({
+						getEditors: () => editors,
+						getStatus: () => ({ started: true, generation: 1, sessions: [{ key: 'demo' }] }),
+						snapshot: async () => {
+							status.textContent = 'Writing recovery…';
+							await new Promise((resolve) => setTimeout(resolve, 1200));
+							return !document.querySelector('#fail').checked;
+						},
+					}),
+				activate: async () => {
+					status.textContent = 'Recovery committed; activation allowed.';
+				},
+				reload: () => {
+					status.textContent += ' Reload allowed.';
+				},
+			});
+			document.querySelector('#update').onclick = () =>
+				update().catch((error) => {
+					status.textContent = error.message;
+				});
+		</script>
+	</body>
+</html>

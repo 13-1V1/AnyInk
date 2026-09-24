@@ -185,6 +185,10 @@ badging refit glyphs, and never re-offsetting a refit result.
 open/close despeckle; sliders map to alphamax, turdsize (dpi-scaled), opttolerance. Credit Potrace
 (Peter Selinger, GPL-2.0-or-later) on the About page.
 **Because:** Potrace is what Inkscape and FontForge use and produces the fewest nodes on type.
+**Amended 09/24/2026 (M8):** Photo mode is not plain Bradley-Roth. Bradley-Roth alone hollows out
+any stroke wider than its window (a marker ring in a 1000 px crop filled only 39% of its stroke),
+so Photo mode also counts as ink anything darker than half the local paper brightness; that ring
+now fills 100%. Details, and every slider mapping as built, are in D-029.
 
 ## D-017: Handwriting sheet uses ArUco markers and no OpenCV
 **Decided:** 09/23/2026
@@ -267,6 +271,18 @@ ids in ANY-INK modules are prefixed `anyink.` and never a substring of another i
 upstream's `unsubscribe` matches by substring.
 **Because:** `pathonly: true` returns bare paths in tenth-pixel y-up units with no transform;
 mixing the two paths produced contradictory research sketches.
+**Amended 09/24/2026 (M8):** the SVG still goes through `ioSVG_convertSVGTagsToGlyph` with
+`pathonly: false` and the transform group kept (showErrors off, so a blank image gives no
+shapes and no error box), but `flipNS()` and `reverseWinding()` are replaced by one affine
+mapping from image pixels to font units: `fontX = x + (px + offsetX) * scale`,
+`fontY = y - (py + offsetY) * scale` (`src/anyink/autotrace/svg_to_shapes.js`). No
+`reverseWinding()`: upstream's `flipNS()` already reverses the point order while it mirrors, so
+upstream's `flipNS()` + `reverseWinding()` is a pure mirror, and the direct y-flip is the same
+pure mirror. Outer contours run counterclockwise in font units and holes clockwise (the CFF
+convention). Checked, not assumed: under the nonzero rule a traced O, A, bullseye and i keep
+every hole on the edit canvas (`drawGlyph` fills `'nonzero'`) and in the exported OTF read back
+with FontFlux (`svg_to_shapes.test.js`, `autotrace_export.test.js`), and a traced R exported
+from the dev app and drawn by Chrome has paper in its bowl. The subscriber-id rule is unchanged.
 
 ## D-025: Delete the analytics loader
 **Decided:** 09/23/2026
@@ -485,3 +501,107 @@ is what the brief asks for.
 move handle at its center), if M9 sheet scans need more than one image per glyph (their assets
 must also join the saved set, or a save drops them), or when M8 auto-trace reads the image (it
 should use the same asset Blob and `bitmap_cache`).
+
+## D-029: Auto-trace pipeline and controls
+**Decided:** 09/24/2026 (Milestone 8)
+**Options considered:**
+- *Preview:* temporary shapes written into the glyph (every slider tick an undo entry or a
+  history hack) | a separate preview pane | an overlay drawn on the edit canvas over the image.
+- *Which part of the image:* the whole image | the pixels inside the glyph box (the first
+  contract) | the glyph box plus a margin, keeping whole shapes whose middle is in the box.
+- *Direction of the outlines:* upstream's paste recipe (`flipNS()` + `reverseWinding()`) | one
+  affine pixel-to-font-unit mapping.
+- *The trace's own Invert colors:* flip what is traced (what you see is traced) | ignore it.
+- *Photo mode:* Bradley-Roth alone | Bradley-Roth plus "darker than half the local paper".
+- *Where binarize runs:* in the potrace worker | on the main thread.
+**Chose:**
+- **Pipeline** (`src/anyink/autotrace/`): pixels read from the trace's asset Blob through the
+  bitmap cache (`trace_pixels.js`, copied out at once; a miss decodes once and closes) ->
+  `binarize.js` (Rec. 601 gray with alpha on white, Otsu, optional Bradley-Roth, 3x3 open then
+  close) -> pure black-on-white pixels -> `potrace.worker.js` (esm-potrace-wasm 0.5.1, module
+  worker, `init()` once) -> `svg_to_shapes.js` -> upstream Paths in font units. The facade
+  `autotrace.js` is the one entry point: `autoTraceTrace` for the Trace panel,
+  `autoTraceImageData` for the M9 sheet. The client (`potrace_client.js`) is latest-wins: one
+  request runs, only the newest waits, an older one rejects with `.stale`, and an AbortSignal
+  rejects as stale too. The worker is created lazily, so nothing vitest loads imports the WASM.
+- **Sliders** (0 to 100 % each, with a readout; no typed numbers):
+  - *Threshold* = the gray cutoff 0..255 (100 % = 255). *Auto* is Otsu, and the slider then
+    shows the value the image picked. Scan mode: darker than the cutoff is ink, and on Auto an
+    image whose two tones are closer than 40 gray levels has no ink (blank paper grain never
+    becomes specks). Photo mode: Bradley-Roth (window 1/8 of the long side, t = 0.15) OR darker
+    than half the local paper brightness; moving Threshold off Auto shifts both cutoffs by
+    (threshold - auto) / 510.
+  - *Smoothing* 0..1 -> potrace `alphamax` 0..1.3334 (default 0.75 -> 1.0, potrace's own).
+  - *Detail* 0..1 -> `opttolerance` 0.5 falling in a straight line to 0.05, and `turdsize` =
+    round((0.03 x upm x (1 - detail))^2 / scale^2) pixels, where scale is font units per pixel of
+    the image potrace sees. The smallest kept speck is set in font units, so the same Detail
+    gives the same result for a 500 px or a 2000 px image of the same letter.
+  - `turnpolicy` minority, `pathonly` false, `extractcolors` false, potrace's `opticurve` 1.
+  - Toggles: *Remove specks* (despeckle), *Light ink on dark paper* (inverts the gray first),
+    *Only inside the glyph box*. Scan / Photo mode buttons.
+- **Preview**: one session per editor (`autotrace_session.js`). A control change re-traces 120
+  ms after the last input, latest wins, and the last result stays up while the next one runs.
+  Previews trace a copy shrunk to a long side of 1000 px, kept between slider moves so a drag
+  does not re-read the image; a preview shrunk below 2/3 skips despeckle (its 3x3 would erase pen
+  lines the full-size trace keeps). The overlay is a dashed outline plus an 18 % fill, nonzero,
+  in the canvas touch green (`--canvas-selection`: #16A34A on paper, #22C55E on slate), only
+  while the Trace panel is open and only on the session's editor and item (by object or id).
+  Nothing enters history until Replace or Add.
+- **Apply** re-traces at full resolution (after one painted frame, so "Tracing at full size..."
+  shows first), then one history entry "Auto-traced N shapes (P points)"; a Replace that
+  removes component instances is one whole-project entry so undo brings the "used in" lists
+  back. The shapes are copies (`Path.save()`), named "Auto-trace 1, 2, ...". The trace image
+  is never touched. The session then ends.
+- **Region**: *Only inside the glyph box* (default on) traces the box (0 to the advance width,
+  descent to ascent) plus 1/4 em on every side, then keeps the whole shapes whose bounding-box
+  middle is in the box; a shape inside another shape's bounding box (a counter) goes with it.
+  A box that does not reach the image is a plain-words error. Off: the whole image.
+- **Placement and winding**: `fontX = x + (px + offsetX) * scale`, `fontY = y - (py + offsetY) *
+  scale`, with the crop offset and the downscale factor folded in; no `reverseWinding()` (D-024
+  amended). Points potrace leaves in the middle of a straight edge (within 0.06 px) are dropped.
+- **Trace flags**: the Trace panel's *Invert colors* is a look for the slate canvas and never
+  changes what is traced; *Light ink on dark paper* describes the image itself. A hidden or
+  locked trace can be auto-traced: the image is the input, Show and Lock only govern drawing
+  and dragging it.
+- **The session ends** on an item switch, a panel or page change (with or without
+  `navigate()`), the app-level page, a switch to the other open project, or the trace's
+  removal; moving, resizing or replacing the image (or changing the box while the box option is
+  on) re-traces. The options last used carry to the next session in this app session, so an
+  alphabet from one scan keeps its settings.
+- **Upstream fix found on the way**: `Glyph.save()` now copies `usedIn` and `gsub`; it returned
+  the live arrays, so whole-project undo snapshots shared them and an in-place splice changed
+  old snapshots (regression test `src/project_data/tests/glyph_save_arrays.test.js`).
+**Because:**
+- The overlay costs nothing in history and draws what the user is about to make, in the touch
+  color, over the image they are matching. A preview written into the glyph would have fought
+  undo, the recovery snapshots and the preview strip.
+- Cutting the image at the box edge cut the leg of an R that reached 14 font units past its
+  advance width with a flat edge. With the margin and the whole-shape rule, the applied R
+  matches the image's ink bounds within 0.2 font units on every side.
+- The affine mapping is one formula for the panel, the sheet and the tests, and it is the same
+  mirror as upstream's recipe (checked contour by contour on five fixtures).
+- Invert colors exists so dark ink shows on the slate canvas; if it flipped the trace, turning
+  on slate would trace the paper.
+- Font-unit speck sizes keep Detail meaning the same thing at any image size; the 1000 px
+  preview keeps a slider drag near 25 ms of work on a 2000 x 1500 photo.
+**Strongest objection:** the full-size binarize runs on the main thread: applying a whole
+2000 x 1500 photo in Photo mode was one 183 ms long task (the first preview of it, 102 ms,
+mostly the one-time read and shrink). Also, potrace's `opttolerance` is in pixels, so a shrunk
+preview can show fewer points than the applied result (97 vs 133 on a whole 2000 px image; box
+crops match within a point or two), and letters that touch in a word scan are one shape, kept
+or dropped together. Accepted: images are capped at 2000 px, the progress line shows first,
+box crops are much smaller, and the readout after apply is the real count.
+**Revisit:** if applies feel slow (move binarize into the worker and transfer the mask), if
+touching letters in real scans need a split tool, or if the M9 sheet wants the whole-shape rule
+for its boxes (it calls `autoTraceImageData` on its own crops today and would reuse
+`keepShapesInGlyphBox`).
+
+## D-030: File autosave and recovery are independent
+**Decided:** 09/24/2026, critic fix pass authorized by Brennan.
+**Options considered:** save only to IndexedDB | put file writes in the recovery queue | independent file/recovery queues.
+**Chose:** independent 3-second maximum scheduling intervals, plus glyph-switch writes. Manual and automatic file writes share per-editor ordering and an origin-wide Web Lock. File System Access exclusive streams protect the write itself. A file fingerprint (metadata plus SHA-256 in Chrome/Edge) detects external changes before replacing content and travels in recovery records.
+**Because:** a slow disk write must not block the browser recovery copy. Comparing each editor's revision and History identity prevents a completed save from clearing newer edits or a different project. Background saves only query existing permission; they never prompt, download or redirect to Save As. An unknown older recovery baseline requires manual Save before autosave resumes.
+**Strongest objection:** serializing all project writes across this origin can delay unrelated file saves. This personal two-project editor favors safety; recovery remains independent. Storage latency and suspended pages mean the 3-second scheduler is not a hard durability SLA.
+**User feedback:** persistent top-bar status distinguishes saved file, pending edits, recovery copy and failure. Conflicts direct the user to Save As; text is assigned through textContent.
+**Sources:** Chrome File System Access guide, https://developer.chrome.com/docs/capabilities/web-apis/file-system-access ; existing project reader/writer/recovery modules inspected before extending them.
+**Revisit:** if real large-image project saves starve other files, use per-file identity locks without weakening conflict detection.

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	ANY-INK auto-trace test page (Milestone 8). Scaffold: one edit canvas, the Trace panel
+	(where the Auto-trace card appears), a worker smoke test, and readouts. Each track adds
+	its own controls inside its marked section only (TRACK A: params, binarize, worker,
+	client, facade; TRACK B: svg to shapes, region, apply, preview; TRACK C: session, card).
+	Every section reads the editor lazily (on click or per tick), because section scripts
+	run before the page's main script loads the sample project.
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK auto-trace</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<link rel="stylesheet" href="../src/anyink/controls/slider-row.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-4) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); margin: 0 0 var(--space-3); max-width: 900px; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button, select, input[type=text] { font: inherit; border-radius: var(--radius); padding: var(--space-1) var(--space-3); }
+		button { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: transparent; font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible, select:focus-visible, input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		select, input[type=text] { background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); width: 5em; }
+		.stage { display: flex; gap: var(--space-4); align-items: flex-start; }
+		.editor-page__edit-canvas-wrapper { width: 900px; height: 560px; background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge); border-radius: var(--radius); overflow: hidden; }
+		#editor-page__panel { width: 300px; background: var(--chrome-bg-raised); border-radius: var(--radius); }
+		.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); max-width: 1220px; }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); font-size: var(--text-sm); }
+		.card .k { color: var(--chrome-text-faint); font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; }
+		.card .v { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; word-break: break-all; }
+		#history { max-width: 900px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); white-space: pre-wrap; }
+		.track { border-left: 2px solid var(--chrome-border); padding-left: var(--space-3); margin: var(--space-2) 0; }
+	</style>
+</head>
+<body>
+	<h1>Auto-trace</h1>
+	<p>
+		Add a trace image to a character (the button below makes a fake lettering scan), then press
+		Start auto-trace in the Trace image card (or in the Auto-trace card at the bottom of the
+		Trace panel): the sliders redraw a dashed preview on the canvas, and only Replace outlines
+		or Add to outlines changes the glyph (one Undo step).
+	</p>
+
+	<div class="controls">
+		<label>Glyph <input id="char" type="text" value="A" maxlength="1" /></label>
+		<label>Panel
+			<select id="panel">
+				<option value="Trace">Trace</option>
+				<option value="Layers">Layers</option>
+				<option value="History">History</option>
+			</select>
+		</label>
+		<button id="scan" class="primary">Add a generated scan</button>
+		<button id="theme">Paper / slate</button>
+		<button id="undo">Undo</button>
+		<button id="redo">Redo</button>
+	</div>
+
+	<!-- SCAFFOLD: the potrace worker, straight through potrace_client.js -->
+	<section id="smoke">
+		<h2>Worker smoke test</h2>
+		<p>
+			Traces a 64 by 64 black square with a square hole in the potrace worker. Expect one path
+			with two parts (the square and its hole). The first run includes starting the worker.
+		</p>
+		<div class="controls">
+			<button id="smoke-run">Trace the test square</button>
+			<button id="smoke-stale">Send three at once (two go stale)</button>
+		</div>
+		<div class="readouts" id="smoke-readouts"></div>
+		<script type="module">
+			import { isAutoTraceAvailable, traceImageData } from '../src/anyink/autotrace/potrace_client.js';
+
+			const $ = (id) => document.getElementById(id);
+			const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+			const OPTIONS = { turdsize: 2, alphamax: 1, opttolerance: 0.2, turnpolicy: 'minority', pathonly: false, extractcolors: false };
+
+			/** Pure black ink on white paper, alpha 255, as maskToImageData makes it. */
+			function squareWithHole() {
+				const size = 64;
+				const data = new Uint8ClampedArray(size * size * 4);
+				for (let y = 0; y < size; y++) {
+					for (let x = 0; x < size; x++) {
+						const ink = x >= 8 && x < 56 && y >= 8 && y < 56 && !(x >= 24 && x < 40 && y >= 24 && y < 40);
+						const i = (y * size + x) * 4;
+						data[i] = data[i + 1] = data[i + 2] = ink ? 0 : 255;
+						data[i + 3] = 255;
+					}
+				}
+				return { data, width: size, height: size };
+			}
+
+			function show(result) {
+				$('smoke-readouts').innerHTML =
+					card('workers + WebAssembly', isAutoTraceAvailable() ? 'yes' : 'no') +
+					Object.entries(result).map(([k, v]) => card(k, v)).join('');
+			}
+
+			$('smoke-run').onclick = async () => {
+				const started = performance.now();
+				try {
+					const svg = await traceImageData(squareWithHole(), OPTIONS);
+					const d = svg.match(/ d="([^"]*)"/g) || [];
+					show({
+						time: `${Math.round(performance.now() - started)} ms`,
+						'path elements': String(d.length),
+						'parts (subpaths)': String((d.join(' ').match(/[Mm]/g) || []).length),
+						svg: svg.replace(/</g, '&lt;'),
+					});
+				} catch (error) {
+					show({ error: error.message });
+				}
+			};
+
+			$('smoke-stale').onclick = async () => {
+				const all = await Promise.allSettled([1, 2, 3].map(() => traceImageData(squareWithHole(), OPTIONS)));
+				show({ results: all.map((r, i) => `${i + 1}: ${r.status === 'fulfilled' ? 'traced' : r.reason.stale ? 'stale (ignored)' : r.reason.message}`).join('\n') });
+			};
+			show({});
+		</script>
+	</section>
+
+	<!-- TRACK A: params, binarize, worker, client, facade controls go here -->
+	<div class="track" id="track-a">
+		<h2>Track A: image pipeline</h2>
+		<p>
+			Makes a photo-like image (dark letters on paper lit from one side, with grain) with a
+			long side of 1000 or 2000 px and runs autoTraceImageData on it in Scan and Photo mode.
+			Left: the image. Right: what binarize keeps as ink. "Trace this glyph's image" runs
+			autoTraceTrace on the trace image of the glyph above (preview size, then full size).
+		</p>
+		<div class="controls">
+			<button id="a-bench" class="primary">Time 1000 and 2000 px, both modes</button>
+			<label>Mode
+				<select id="a-mode">
+					<option value="scan">Scan</option>
+					<option value="photo">Photo</option>
+				</select>
+			</label>
+			<label>Size
+				<select id="a-size">
+					<option value="1000">1000 px</option>
+					<option value="2000">2000 px</option>
+				</select>
+			</label>
+			<button id="a-show">Show the ink mask</button>
+			<button id="a-glyph">Trace this glyph's image</button>
+		</div>
+		<div class="readouts" id="a-readouts"></div>
+		<div class="controls">
+			<canvas id="a-src" width="400" height="300"></canvas>
+			<canvas id="a-mask" width="400" height="300"></canvas>
+		</div>
+		<script type="module">
+			import { autoTraceImageData, autoTraceTrace } from '../src/anyink/autotrace/autotrace.js';
+			import { binarize, maskToImageData } from '../src/anyink/autotrace/binarize.js';
+			import { token } from '../src/anyink/theme/theme.js';
+
+			const $ = (id) => document.getElementById(id);
+			const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+			const ms = (n) => `${Math.round(n)} ms`;
+
+			/**
+			 * A phone photo of lettering: paper from bright (left) to dim (right), a soft
+			 * vignette, grain, and ink 65 % darker than the paper under it. Pixel math only;
+			 * the letter shapes come from a canvas drawn in the ink token.
+			 */
+			function photoLike(longSide) {
+				const width = longSide;
+				const height = Math.round(longSide * 0.75);
+				const canvas = document.createElement('canvas');
+				canvas.width = width;
+				canvas.height = height;
+				const ctx = canvas.getContext('2d', { willReadFrequently: true });
+				ctx.fillStyle = token('--canvas-ink');
+				ctx.font = `bold ${Math.round(height * 0.62)}px Georgia, "Times New Roman", serif`;
+				ctx.textAlign = 'center';
+				ctx.fillText('Ag', width / 2, height * 0.72);
+				ctx.lineWidth = Math.max(2, longSide / 400);
+				ctx.strokeStyle = token('--canvas-ink');
+				ctx.beginPath();
+				ctx.moveTo(width * 0.08, height * 0.9);
+				ctx.bezierCurveTo(width * 0.3, height * 0.8, width * 0.6, height * 0.98, width * 0.92, height * 0.86);
+				ctx.stroke();
+				const cover = ctx.getImageData(0, 0, width, height).data;
+				const data = new Uint8ClampedArray(width * height * 4);
+				let seed = 12345;
+				for (let y = 0; y < height; y++) {
+					for (let x = 0; x < width; x++) {
+						const p = (y * width + x) * 4;
+						const light = 245 - (170 * x) / width - 25 * ((y / height - 0.5) ** 2) * 4;
+						seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+						const grain = (seed / 2 ** 32 - 0.5) * 14;
+						const ink = cover[p + 3] / 255;
+						const v = light * (1 - 0.65 * ink) + grain;
+						data[p] = v + 4;
+						data[p + 1] = v;
+						data[p + 2] = v - 6;
+						data[p + 3] = 255;
+					}
+				}
+				return { data, width, height };
+			}
+
+			const cache = new Map();
+			function image(size) {
+				if (!cache.has(size)) cache.set(size, photoLike(size));
+				return cache.get(size);
+			}
+
+			function drawScaled(canvasEl, img) {
+				const tmp = document.createElement('canvas');
+				tmp.width = img.width;
+				tmp.height = img.height;
+				tmp.getContext('2d').putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
+				const ctx = canvasEl.getContext('2d');
+				ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+				ctx.drawImage(tmp, 0, 0, canvasEl.width, canvasEl.height);
+			}
+
+			async function run(size, mode) {
+				const img = image(size);
+				const placement = { x: 0, y: 700, scale: 1000 / img.height };
+				const runs = [];
+				let last;
+				for (let i = 0; i < 4; i++) {
+					last = await autoTraceImageData(img, { mode }, placement);
+					runs.push(last);
+				}
+				const warm = runs.slice(1).sort((a, b) => a.ms - b.ms)[1];
+				return { size, mode, first: runs[0], warm, last };
+			}
+
+			$('a-bench').onclick = async () => {
+				$('a-readouts').innerHTML = card('status', 'measuring...');
+				const rows = [];
+				for (const size of [1000, 2000]) {
+					for (const mode of ['scan', 'photo']) rows.push(await run(size, mode));
+				}
+				window._trackA = rows;
+				$('a-readouts').innerHTML = rows
+					.map(({ size, mode, first, warm }) =>
+						card(
+							`${size} px, ${mode}`,
+							`median ${ms(warm.ms)} (first ${ms(first.ms)})\n` +
+								`binarize ${ms(warm.timings.binarize)}, potrace ${ms(warm.timings.trace)}, ` +
+								`shapes ${ms(warm.timings.shapes)}\n` +
+								`${warm.shapes.length} shapes, ${warm.points} points, threshold ${warm.threshold}`
+						)
+					)
+					.join('');
+			};
+
+			$('a-show').onclick = () => {
+				const img = image(Number($('a-size').value));
+				const out = binarize(img, { mode: $('a-mode').value });
+				drawScaled($('a-src'), img);
+				drawScaled($('a-mask'), maskToImageData(out.mask, out.width, out.height));
+			};
+
+			$('a-glyph').onclick = async () => {
+				const editor = window._editor;
+				const item = editor?.selectedItem;
+				try {
+					const preview = await autoTraceTrace({ editor, item, options: {}, preview: true });
+					const full = await autoTraceTrace({ editor, item, options: {} });
+					window._trackAGlyph = { preview, full };
+					$('a-readouts').innerHTML =
+						card('preview', `${ms(preview.ms)}, ${preview.width} x ${preview.height} px\n${preview.shapes.length} shapes, ${preview.points} points`) +
+						card('full size', `${ms(full.ms)}, ${full.width} x ${full.height} px\n${full.shapes.length} shapes, ${full.points} points`);
+				} catch (error) {
+					$('a-readouts').innerHTML = card('error', error.message);
+				}
+			};
+		</script>
+	</div>
+	<!-- TRACK B: svg to shapes, region, apply, preview controls go here -->
+	<div class="track" id="track-b">
+		<h2>Track B: shapes, glyph box, apply, export</h2>
+		<p>
+			Puts real potrace output (the unit-test fixtures) into the glyph above, placed like a new
+			trace image: top on the ascent line, as tall as ascent to descent, left edge at 0. Replace
+			and Add are one Undo step each and never change the trace image. "Export and look" builds
+			the OTF with the real exporter and lets Chrome draw the glyph from the font file: every
+			hole must stay paper.
+		</p>
+		<div class="controls">
+			<label>Fixture
+				<select id="b-fixture">
+					<option value="letter_o">letter O (ring)</option>
+					<option value="square_hole">square with a hole</option>
+					<option value="letter_a">letter A (counter)</option>
+					<option value="bullseye">bullseye (hole with an island)</option>
+					<option value="letter_i">letter i (two shapes)</option>
+				</select>
+			</label>
+			<button id="b-replace" class="primary">Replace outlines</button>
+			<button id="b-add">Add to outlines</button>
+			<button id="b-export">Export and look</button>
+		</div>
+		<div class="controls"><canvas id="b-font" width="300" height="300"></canvas></div>
+		<div class="readouts" id="b-readouts"></div>
+		<script type="module">
+			import letterO from '../src/anyink/autotrace/tests/fixtures/letter_o.svg?raw';
+			import squareHole from '../src/anyink/autotrace/tests/fixtures/square_hole.svg?raw';
+			import letterA from '../src/anyink/autotrace/tests/fixtures/letter_a.svg?raw';
+			import bullseye from '../src/anyink/autotrace/tests/fixtures/bullseye.svg?raw';
+			import letterI from '../src/anyink/autotrace/tests/fixtures/letter_i.svg?raw';
+			import { potraceSvgToShapes, countPoints, mapPixelToFont } from '../src/anyink/autotrace/svg_to_shapes.js';
+			import { applyAutoTrace } from '../src/anyink/autotrace/apply.js';
+			import { regionForGlyph } from '../src/anyink/autotrace/trace_region.js';
+			import { getTrace } from '../src/anyink/trace/trace_model.js';
+			import { getCurrentProjectEditor } from '../src/app/main.js';
+			import { ioFont_exportFont } from '../src/formats_io/otf/font_export.js';
+			import { token } from '../src/anyink/theme/theme.js';
+
+			// The pixel (in the fixture image) that must be paper: the middle of each hole
+			const FIXTURES = {
+				letter_o: { svg: letterO, hole: [100, 100] },
+				square_hole: { svg: squareHole, hole: [32, 32] },
+				letter_a: { svg: letterA, hole: [135, 150] },
+				bullseye: { svg: bullseye, hole: [87, 60] },
+				letter_i: { svg: letterI, hole: null },
+			};
+			const $ = (id) => document.getElementById(id);
+			const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+			let last = null;
+			let fontCount = 0;
+
+			function placementFor(name) {
+				const editor = getCurrentProjectEditor();
+				const font = editor.project.settings.font;
+				const height = Number(FIXTURES[name].svg.match(/height="([\d.]+)"/)[1]);
+				return { x: 0, y: font.ascent, scale: (font.ascent - font.descent) / height };
+			}
+
+			function show(extra = {}) {
+				const editor = getCurrentProjectEditor();
+				const item = editor.selectedItem;
+				const trace = getTrace(item);
+				const region = trace ? regionForGlyph(trace, item, editor.project.settings.font) : null;
+				$('b-readouts').innerHTML =
+					card('glyph box in the trace image', trace ? JSON.stringify(region) : 'no trace image') +
+					card('trace image (never changes here)', trace ? `${trace.asset}\nx ${trace.x}, y ${trace.y}, scale ${trace.scale}` : '—') +
+					Object.entries(extra).map(([k, v]) => card(k, v)).join('');
+			}
+
+			function put(mode) {
+				const editor = getCurrentProjectEditor();
+				const name = $('b-fixture').value;
+				const placement = placementFor(name);
+				const started = performance.now();
+				const shapes = potraceSvgToShapes(FIXTURES[name].svg, placement);
+				const converted = performance.now() - started;
+				const item = editor.selectedItem;
+				const ok = applyAutoTrace({ editor, item, shapes, mode });
+				const width = Number(FIXTURES[name].svg.match(/width="([\d.]+)"/)[1]);
+				item.advanceWidth = Math.max(item.advanceWidth, Math.round(width * placement.scale));
+				last = { name, placement };
+				show({
+					result: ok ? 'shapes went in' : 'nothing changed',
+					'svg to shapes': `${shapes.length} shapes, ${countPoints(shapes)} points, ${converted.toFixed(1)} ms`,
+					'history (newest)': editor.history.queue[0]?.title || '—',
+				});
+			}
+
+			$('b-replace').onclick = () => put('replace');
+			$('b-add').onclick = () => put('add');
+			$('b-export').onclick = async () => {
+				const editor = getCurrentProjectEditor();
+				const font = editor.project.settings.font;
+				const started = performance.now();
+				const buffer = await ioFont_exportFont('otf', true);
+				const exported = performance.now() - started;
+				const family = `AnyInkTrackB${++fontCount}`;
+				const face = new FontFace(family, buffer);
+				await face.load();
+				document.fonts.add(face);
+				const canvas = $('b-font');
+				const ctx = canvas.getContext('2d');
+				const size = (canvas.height * font.upm) / (font.ascent - font.descent);
+				const baseline = (size * font.ascent) / font.upm;
+				ctx.fillStyle = token('--canvas-bg');
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = token('--canvas-ink');
+				ctx.font = `${size}px ${family}`;
+				const ch = document.getElementById('char').value || 'A';
+				ctx.fillText(ch, 0, baseline);
+				let hole = 'no hole in this fixture';
+				if (last && FIXTURES[last.name].hole) {
+					const [px, py] = FIXTURES[last.name].hole;
+					const at = mapPixelToFont(last.placement, px, py);
+					const k = size / font.upm;
+					const pixel = ctx.getImageData(Math.round(at.x * k), Math.round(baseline - at.y * k), 1, 1).data;
+					const ink = token('--canvas-ink');
+					const probe = document.createElement('canvas').getContext('2d');
+					probe.fillStyle = ink;
+					probe.fillRect(0, 0, 1, 1);
+					const inkPixel = probe.getImageData(0, 0, 1, 1).data;
+					const isInk = Math.abs(pixel[0] - inkPixel[0]) + Math.abs(pixel[1] - inkPixel[1]) + Math.abs(pixel[2] - inkPixel[2]) < 60;
+					hole = isInk ? 'ink: the hole was filled (wrong)' : 'paper: the hole stayed a hole';
+				}
+				show({ export: `${buffer.byteLength} bytes in ${exported.toFixed(0)} ms`, 'middle of the hole, from the font file': hole });
+			};
+		</script>
+	</div>
+	<!-- TRACK C: session and Auto-trace card controls go here -->
+	<div class="track" id="track-c">
+		<h2>Pipeline bench (no editor)</h2>
+		<p>
+			Pick a PNG, JPEG, or WebP (or make one), then move the sliders. Left: the image. Middle:
+			the black-and-white mask potrace sees. Right: the traced outline (dashed, green) over the
+			image. Everything runs through the real pipeline: binarize.js on this thread, then
+			autoTraceImageData (the potrace worker and svg_to_shapes.js). The Auto-trace card in
+			the Trace panel further down drives the same pipeline through the session.
+		</p>
+		<style>
+			#bench .row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+			#bench .views { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-3); }
+			#bench figure { margin: 0; }
+			#bench figcaption { font-size: var(--text-xs); color: var(--chrome-text-faint); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; margin-bottom: var(--space-1); }
+			#bench canvas { display: block; width: 300px; height: 300px; object-fit: contain; background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--chrome-border); border-radius: var(--radius-sm); }
+			#bench .sliders { max-width: 560px; margin-bottom: var(--space-3); }
+			#bench .mode { display: inline-flex; border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); overflow: hidden; }
+			#bench .mode button { border: none; border-radius: 0; }
+			#bench .mode button + button { border-left: 1px solid var(--chrome-border-strong); }
+			#bench button[aria-pressed='true'] { background: var(--touch-soft-strong); }
+			#bench label.check { display: inline-flex; gap: var(--space-1); align-items: center; color: var(--chrome-text); }
+			#bench label.check input { accent-color: var(--touch); }
+			#bench .readout { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--chrome-text); white-space: pre-wrap; }
+			#bench .warn { color: var(--warning); }
+			#bench .error { color: var(--danger); }
+		</style>
+		<div id="bench">
+			<div class="row">
+				<label>Image <input id="bench-file" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+				<button id="bench-scan">Make a scan (letter g)</button>
+				<button id="bench-photo">Make a photo (uneven light)</button>
+			</div>
+			<div class="row">
+				<span>Mode</span>
+				<span class="mode" role="group" aria-label="Mode">
+					<button id="bench-mode-scan" aria-pressed="true">Scan</button>
+					<button id="bench-mode-photo" aria-pressed="false">Photo</button>
+				</span>
+				<button id="bench-auto" aria-pressed="true" title="Let the image pick the cutoff">Auto threshold</button>
+				<label class="check"><input id="bench-despeckle" type="checkbox" checked /> Remove specks</label>
+				<label class="check"><input id="bench-invert" type="checkbox" /> Light ink on dark paper</label>
+			</div>
+			<div class="sliders" id="bench-sliders"></div>
+			<div class="views">
+				<figure><figcaption>Image</figcaption><canvas id="bench-image" width="300" height="300"></canvas></figure>
+				<figure><figcaption>Mask (what potrace sees)</figcaption><canvas id="bench-mask" width="300" height="300"></canvas></figure>
+				<figure><figcaption>Outline over the image</figcaption><canvas id="bench-outline" width="300" height="300"></canvas></figure>
+			</div>
+			<div class="readout" id="bench-readout">Pick or make an image.</div>
+		</div>
+		<script type="module">
+			window.log = window.log || (() => {});
+			import { token, withAlpha } from '../src/anyink/theme/theme.js';
+			import { makeSliderRow, makeSliderTable } from '../src/anyink/controls/slider_row.js';
+			import { AUTOTRACE_DEFAULTS, normalizeOptions } from '../src/anyink/autotrace/params.js';
+			import { binarize, maskToImageData } from '../src/anyink/autotrace/binarize.js';
+			import { autoTraceImageData } from '../src/anyink/autotrace/autotrace.js';
+			import { percentToThreshold, photoAdvice, readoutText, thresholdToPercent } from '../src/anyink/autotrace/autotrace_panel.js';
+
+			const $ = (id) => document.getElementById(id);
+			const MAX_SIDE = 2000; // D-023: the trace layer's cap
+			const DEBOUNCE_MS = 120;
+			const state = { image: null, options: { ...AUTOTRACE_DEFAULTS, insideBoxOnly: false }, heightFU: 1000, timer: null, run: 0 };
+
+			// Sliders: the card's three, plus the image height in font units (Detail's speck
+			// filter works in font units, so the same letter at another size keeps its specks)
+			const threshold = makeSliderRow({ id: 'bench-threshold', label: 'Threshold', value: 50, neutral: 50, unit: '%', onInput: (p) => set({ threshold: percentToThreshold(p) }) });
+			const smoothing = makeSliderRow({ id: 'bench-smoothing', label: 'Smoothing', value: 75, neutral: 75, unit: '%', onInput: (p) => set({ smoothing: p / 100 }) });
+			const detail = makeSliderRow({ id: 'bench-detail', label: 'Detail', value: 60, neutral: 60, unit: '%', onInput: (p) => set({ detail: p / 100 }) });
+			const height = makeSliderRow({ id: 'bench-height', label: 'Height (font units)', value: 1000, neutral: 1000, min: 100, max: 3000, step: 50, onInput: (v) => { state.heightFU = v; schedule(); } });
+			$('bench-sliders').appendChild(makeSliderTable([threshold, smoothing, detail, height]));
+
+			function set(partial) {
+				state.options = normalizeOptions({ ...state.options, ...partial });
+				paintControls();
+				schedule();
+			}
+			function paintControls() {
+				const o = state.options;
+				$('bench-mode-scan').setAttribute('aria-pressed', String(o.mode === 'scan'));
+				$('bench-mode-photo').setAttribute('aria-pressed', String(o.mode === 'photo'));
+				$('bench-auto').setAttribute('aria-pressed', String(o.threshold === 'auto'));
+				if (o.threshold !== 'auto') threshold.value = thresholdToPercent(o.threshold);
+			}
+			$('bench-mode-scan').onclick = () => set({ mode: 'scan' });
+			$('bench-mode-photo').onclick = () => set({ mode: 'photo' });
+			$('bench-auto').onclick = () => set({ threshold: 'auto' });
+			$('bench-despeckle').onchange = (e) => set({ despeckle: e.target.checked });
+			$('bench-invert').onchange = (e) => set({ invert: e.target.checked });
+
+			// Images
+			async function loadBlob(blob) {
+				const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+				const k = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+				const w = Math.max(1, Math.round(bitmap.width * k));
+				const h = Math.max(1, Math.round(bitmap.height * k));
+				const canvas = document.createElement('canvas');
+				canvas.width = w;
+				canvas.height = h;
+				const ctx = canvas.getContext('2d');
+				ctx.drawImage(bitmap, 0, 0, w, h);
+				bitmap.close?.();
+				state.image = { canvas, imageData: ctx.getImageData(0, 0, w, h) };
+				schedule(0);
+			}
+			$('bench-file').onchange = (e) => { const file = e.target.files?.[0]; if (file) loadBlob(file); };
+
+			/** A generated test image: 'scan' = even paper with dust; 'photo' = light falling off across the page. */
+			function makeImage(kind) {
+				const canvas = document.createElement('canvas');
+				canvas.width = 900;
+				canvas.height = 1200;
+				const ctx = canvas.getContext('2d');
+				if (kind === 'photo') {
+					const light = ctx.createLinearGradient(0, 0, 900, 1200);
+					light.addColorStop(0, token('--canvas-bg'));
+					light.addColorStop(1, token('--chrome-text-muted'));
+					ctx.fillStyle = light;
+				} else ctx.fillStyle = token('--canvas-bg');
+				ctx.fillRect(0, 0, 900, 1200);
+				ctx.fillStyle = withAlpha(token('--canvas-ink'), kind === 'photo' ? 0.8 : 1);
+				ctx.font = 'bold 900px Georgia, "Times New Roman", serif';
+				ctx.textAlign = 'center';
+				ctx.fillText('g', 450, 760);
+				for (let i = 0; i < 120; i++) ctx.fillRect(Math.random() * 900, Math.random() * 1200, 3, 3);
+				return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+			}
+			$('bench-scan').onclick = async () => loadBlob(await makeImage('scan'));
+			$('bench-photo').onclick = async () => { await loadBlob(await makeImage('photo')); set({ mode: 'photo' }); };
+
+			// Tracing: debounced, latest wins, stale ignored
+			function schedule(delay = DEBOUNCE_MS) {
+				clearTimeout(state.timer);
+				if (!state.image) return;
+				state.timer = setTimeout(run, delay);
+			}
+			async function run() {
+				const { imageData, canvas } = state.image;
+				const run = ++state.run;
+				const placement = { x: 0, y: state.heightFU, scale: state.heightFU / imageData.height };
+
+				const t0 = performance.now();
+				const bin = binarize(imageData, state.options);
+				const binMs = performance.now() - t0;
+				if (state.options.threshold === 'auto') threshold.value = thresholdToPercent(bin.autoThreshold);
+				paint($('bench-image'), canvas);
+				const maskCanvas = document.createElement('canvas');
+				maskCanvas.width = bin.width;
+				maskCanvas.height = bin.height;
+				const m = maskToImageData(bin.mask, bin.width, bin.height);
+				maskCanvas.getContext('2d').putImageData(new ImageData(m.data, m.width, m.height), 0, 0);
+				paint($('bench-mask'), maskCanvas);
+
+				try {
+					const result = await autoTraceImageData(imageData, state.options, placement);
+					if (run !== state.run) return;
+					drawOutline(canvas, result.shapes, placement);
+					// The card's advice line (no traced-area edge check here: the bench has no glyph box)
+					const advice = photoAdvice({ mode: state.options.mode, points: result.points });
+					$('bench-readout').innerHTML =
+						`${readoutText(result)}\n` +
+						`binarize ${ms(result.timings?.binarize)} · potrace ${ms(result.timings?.trace)} · shapes ${ms(result.timings?.shapes)} (mask preview on this page: ${ms(binMs)})\n` +
+						`image ${imageData.width} × ${imageData.height} px · threshold used ${result.threshold} (auto ${result.autoThreshold}) · ${state.heightFU} font units tall\n` +
+						(advice ? `<span class="warn">${advice.text}</span>` : '');
+					window._benchLast = { ...result, shapes: result.shapes.length, binMs };
+				} catch (error) {
+					if (error?.stale || run !== state.run) return;
+					$('bench-readout').innerHTML = `<span class="error">Auto-trace failed: ${error.message}</span>`;
+				}
+			}
+			const ms = (v) => (Number.isFinite(v) ? `${v.toFixed(1)} ms` : '—');
+
+			/** Draws a source canvas into a 300 x 300 view, letterboxed. Returns the mapping. */
+			function paint(view, source) {
+				const ctx = view.getContext('2d');
+				ctx.fillStyle = token('--canvas-bg');
+				ctx.fillRect(0, 0, view.width, view.height);
+				const k = Math.min(view.width / source.width, view.height / source.height);
+				const ox = (view.width - source.width * k) / 2;
+				const oy = (view.height - source.height * k) / 2;
+				ctx.drawImage(source, ox, oy, source.width * k, source.height * k);
+				return { k, ox, oy };
+			}
+
+			/** The shapes (font units) back over the image: px = (x - p.x) / scale, py = (p.y - y) / scale. */
+			function drawOutline(source, shapes, placement) {
+				const view = $('bench-outline');
+				const { k, ox, oy } = paint(view, source);
+				const ctx = view.getContext('2d');
+				const cx = (x) => ox + ((x - placement.x) / placement.scale) * k;
+				const cy = (y) => oy + ((placement.y - y) / placement.scale) * k;
+				ctx.save();
+				ctx.beginPath();
+				for (const shape of shapes) {
+					const pts = shape.pathPoints || [];
+					if (pts.length < 2) continue;
+					ctx.moveTo(cx(pts[0].p.x), cy(pts[0].p.y));
+					for (let i = 0; i < pts.length; i++) {
+						const a = pts[i];
+						const b = pts[(i + 1) % pts.length];
+						if (!a.h2.use && !b.h1.use) ctx.lineTo(cx(b.p.x), cy(b.p.y));
+						else ctx.bezierCurveTo(cx(a.h2.x), cy(a.h2.y), cx(b.h1.x), cy(b.h1.y), cx(b.p.x), cy(b.p.y));
+					}
+					ctx.closePath();
+				}
+				const touch = token('--canvas-selection');
+				ctx.fillStyle = withAlpha(touch, 0.18);
+				ctx.fill('nonzero');
+				ctx.setLineDash([6, 4]);
+				ctx.lineWidth = 1.5;
+				ctx.strokeStyle = touch;
+				ctx.stroke();
+				ctx.restore();
+			}
+			window._bench = { state, set, loadBlob, makeImage, run };
+		</script>
+	</div>
+
+	<div class="stage">
+		<div class="editor-page__edit-canvas-wrapper" id="wrapper"></div>
+		<div id="editor-page__panel"></div>
+	</div>
+
+	<h2>State</h2>
+	<div class="readouts" id="state"></div>
+
+	<h2>History (newest first)</h2>
+	<div id="history"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { initTheme, toggleCanvasTheme, token } from '../src/anyink/theme/theme.js';
+		initTheme();
+		import { getCurrentProjectEditor } from '../src/app/main.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import simpleExampleProject from '../src/samples/simpleExampleProject.json';
+		import { EditCanvas } from '../src/edit_canvas/edit_canvas.js';
+		import { InputNumber } from '../src/controls/input-number/input_number.js';
+		import { makePanel } from '../src/panels/panels.js';
+		import { getTrace } from '../src/anyink/trace/trace_model.js';
+		import { importTraceImage } from '../src/anyink/trace/trace_import.js';
+		import { installPageDropGuard } from '../src/anyink/trace/trace_drop.js';
+		import { getSession } from '../src/anyink/autotrace/autotrace_session.js';
+
+		if (!customElements.get('input-number')) customElements.define('input-number', InputNumber);
+		if (!customElements.get('edit-canvas')) customElements.define('edit-canvas', EditCanvas);
+		installPageDropGuard();
+
+		const editor = getCurrentProjectEditor();
+		editor.project = importGlyphrProjectFromText(simpleExampleProject);
+		editor.nav.page = 'Characters';
+		editor.nav.panel = 'Trace';
+		editor.selectedGlyphID = 'glyph-0x41';
+
+		const wrapper = document.getElementById('wrapper');
+		function mountCanvas(itemID) {
+			wrapper.innerHTML = '';
+			const canvas = document.createElement('edit-canvas');
+			canvas.setAttribute('width', '900');
+			canvas.setAttribute('height', '560');
+			canvas.setAttribute('editing-item-id', itemID);
+			wrapper.appendChild(canvas);
+		}
+		mountCanvas('glyph-0x41');
+
+		const panelArea = document.getElementById('editor-page__panel');
+		function mountPanel() {
+			panelArea.innerHTML = '';
+			panelArea.appendChild(makePanel());
+		}
+		mountPanel();
+
+		/** A fake lettering scan: the current character in a bold serif, on paper, a little noisy. */
+		async function generatedScan(ch) {
+			const canvas = document.createElement('canvas');
+			canvas.width = 600;
+			canvas.height = 800;
+			const ctx = canvas.getContext('2d');
+			ctx.fillStyle = token('--canvas-bg');
+			ctx.fillRect(0, 0, 600, 800);
+			ctx.fillStyle = token('--canvas-ink');
+			ctx.font = 'bold 600px Georgia, "Times New Roman", serif';
+			ctx.textAlign = 'center';
+			ctx.fillText(ch, 300, 620);
+			for (let i = 0; i < 60; i++) ctx.fillRect(Math.random() * 600, Math.random() * 800, 2, 2);
+			return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+		}
+
+		// Readouts
+		const stateEl = document.getElementById('state');
+		const historyEl = document.getElementById('history');
+		const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+		const show = (value) => (value === null || value === undefined ? '—' : JSON.stringify(value, null, 1));
+		function render() {
+			const item = editor.selectedItem;
+			const session = getSession();
+			stateEl.innerHTML =
+				card('item', item ? item.name || editor.selectedItemID : '—') +
+				card('shapes', item ? String(item.shapes.length) : '—') +
+				card('trace (item.anyink.trace)', show(getTrace(item))) +
+				card('auto-trace session', session ? `${session.status}\n${show(session.options)}` : 'none') +
+				card('panel / tool', `${editor.nav.panel} / ${editor.selectedTool}`);
+			historyEl.textContent = (editor.history.queue || []).slice(0, 8).map((e) => e.title).join('\n') || '(empty)';
+		}
+		editor.subscribe({
+			topic: ['autoTrace', 'traceLayer', 'currentItem', 'whichGlyphIsSelected'],
+			subscriberID: 'anyink.testpage.autotrace',
+			callback: render,
+		});
+		render();
+
+		// Controls
+		function currentChar() {
+			return document.getElementById('char').value || 'A';
+		}
+		document.getElementById('char').addEventListener('change', () => {
+			const id = `glyph-0x${currentChar().codePointAt(0).toString(16).toUpperCase()}`;
+			editor.selectedGlyphID = id;
+			mountCanvas(id);
+			mountPanel();
+			render();
+		});
+		document.getElementById('panel').addEventListener('change', (e) => {
+			editor.nav.panel = e.target.value;
+			mountPanel();
+			editor.publish('editCanvasView', editor.view);
+			render();
+		});
+		document.getElementById('scan').onclick = async () => {
+			await importTraceImage(await generatedScan(currentChar()), { editor });
+			document.getElementById('panel').value = editor.nav.panel;
+			mountPanel();
+			render();
+		};
+		document.getElementById('theme').onclick = () => toggleCanvasTheme();
+		document.getElementById('undo').onclick = () => { editor.history.restoreState(); mountPanel(); render(); };
+		document.getElementById('redo').onclick = () => { editor.history.redoState(); mountPanel(); render(); };
+
+		window._editor = editor;
+	</script>
+</body>
+</html>

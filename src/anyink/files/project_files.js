@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /**
@@ -53,7 +55,7 @@
 	  Tail after a successful write: remember 'lastProject', pushRecentProject,
 	  publish 'projectFile', toast 'Saved <file>'. editor.setProjectAsSaved() and
 	  recovery's markClean() run only when no edit landed while the project was being
-	  built and written (recovery's getDirtyGeneration() unchanged); otherwise the dot
+	  built and written (this editor's revision unchanged); otherwise the dot
 	  and the crash-recovery snapshot stay, the toast says the change is not in the
 	  file yet, and History records the undo state that WAS written
 	  (history.markSavedStateAt), so undo back to it clears the dot.
@@ -65,14 +67,13 @@
 	Tests inject pickers with setFileApi() from file_api.js and a fake `load`.
 */
 
-import {
-	getCurrentProjectEditor,
-	getProjectEditorImportTarget,
-} from '../../app/main.js';
+import { queueProjectSave, rememberFileVersion, assertFileUnchanged } from './save_queue.js';
+import { getSaveStatus, setSaveStatus } from './save_status.js';
+import { getCurrentProjectEditor, getProjectEditorImportTarget } from '../../app/main.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
 import { showError, showToast } from '../../controls/dialogs/dialogs.js';
 import { makeFileDateString, saveFile } from '../../project_editor/file_io.js';
-import { getDirtyGeneration, markClean } from '../recovery/recovery.js';
+import { markClean } from '../recovery/recovery.js';
 import { getFileApi, hasFileSystemAccess, isAbortError } from './file_api.js';
 import { ensurePermission, pushRecentProject, recallHandle, rememberHandle } from './handles.js';
 import { readProjectFile } from './read_project.js';
@@ -211,7 +212,7 @@ export async function openProjectFromHandle(handle, { mode = 'read', load } = {}
 	}
 	const saveTarget = isProjectFileHandle(handle) ? handle : false;
 	const editor = (load || loadProjectIntoEditor)(file.content, saveTarget);
-	await noteProjectOpened(editor, handle);
+	await noteProjectOpened(editor, handle, file.sourceFile);
 	return 'opened';
 }
 
@@ -245,12 +246,24 @@ export async function openProjectFromPicker(options = {}) {
  * @param {FileSystemFileHandle} handle
  * @returns {Promise<Boolean>} true when the handle was recorded
  */
-export async function noteProjectOpened(editor, handle) {
+export async function noteProjectOpened(editor, handle, sourceFile) {
 	if (!isFileHandle(handle)) return false;
+	const history = editor.history;
+	const revision = getSaveStatus(editor).revision;
+	await rememberFileVersion(editor, handle, sourceFile);
+	if (editor.history !== history) return false;
+	if (getSaveStatus(editor).revision === revision) {
+		setSaveStatus(editor, { file: isProjectFileHandle(handle) ? 'saved' : 'none', error: '' });
+	}
 	await rememberLastProject(handle);
 	const isProjectFile = isProjectFileHandle(handle);
 	if (isProjectFile) await pushRecentProject(handle, projectName(editor));
-	publishProjectFile(editor, isProjectFile ? handle : false, 'open');
+	publishProjectFile(
+		editor,
+		isProjectFile ? handle : false,
+		'open',
+		getSaveStatus(editor).file === 'saved'
+	);
 	return true;
 }
 
@@ -305,6 +318,7 @@ export async function downloadProject(editor) {
  * @returns {Promise<Boolean>}
  */
 async function saveFlow(editor, asCopy, getText) {
+	const history = editor.history;
 	if (!hasFileSystemAccess()) return downloadProjectText(editor, getText);
 	let handle = editor.loadedFileHandle;
 	// Only a .gs2 is written in place; a v1 .txt (or anything else) goes to Save As.
@@ -325,19 +339,73 @@ async function saveFlow(editor, asCopy, getText) {
 		handle = await pickSaveHandle(editor);
 		if (!handle) return false;
 	}
-	const written = captureSaveState(editor);
-	const text = await getText();
-	return writeProject(editor, handle, text, written, inPlace);
+	return queueProjectSave(editor, async () => {
+		if (editor.history !== history) return false;
+		const written = captureSaveState(editor);
+		setSaveStatus(editor, { file: 'saving', error: '' });
+		try {
+			const text = await getText();
+			if (editor.history !== history) return false;
+			return await writeProject(editor, handle, text, written, inPlace);
+		} catch (error) {
+			setSaveStatus(editor, { file: 'failed', error: error.message });
+			throw error;
+		}
+	});
+}
+
+/** No prompts, downloads or fallback pickers are allowed on the background path. */
+export async function saveProjectAutomatically(editor, isCurrent = () => true) {
+	const history = editor?.history;
+	const handle = editor?.loadedFileHandle;
+	if (!isProjectFileHandle(handle) || typeof editor?.makeProjectFileText !== 'function')
+		return false;
+	try {
+		return await queueProjectSave(editor, async () => {
+			if (!isCurrent() || editor.history !== history || editor.loadedFileHandle !== handle)
+				return false;
+			if (getSaveStatus(editor).file === 'saved') return true;
+			if ((await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+				throw new Error('Click Save to allow writing this file.');
+			}
+			if (!isCurrent() || editor.history !== history || editor.loadedFileHandle !== handle)
+				return false;
+			const written = captureSaveState(editor);
+			setSaveStatus(editor, { file: 'saving', error: '' });
+			const text = await editor.makeProjectFileText();
+			if (!isCurrent() || editor.history !== history || editor.loadedFileHandle !== handle)
+				return false;
+			await writeToHandle(handle, text, async () => {
+				await assertFileUnchanged(editor, handle, true);
+				if (!isCurrent() || editor.history !== history || editor.loadedFileHandle !== handle) {
+					throw new Error('The project changed before the save could finish.');
+				}
+			});
+			if (!isCurrent() || editor.history !== history || editor.loadedFileHandle !== handle)
+				return false;
+			await rememberFileVersion(editor, handle);
+			settleSavedState(editor, written);
+			return true;
+		});
+	} catch (error) {
+		if (isCurrent() && editor.history === history)
+			setSaveStatus(editor, { file: 'failed', error: error.message || 'Use Save to retry' });
+		return false;
+	}
 }
 
 /**
  * What a save is about to write, taken right before the text is built.
  * @param {ProjectEditor} editor
- * @returns {{generation: Number, entry: Object | null}} recovery's dirty generation and
+ * @returns {{revision: Number, history: Object, entry: Object | null}} editor revision and
  *   the undo entry on top of the queue (null: the queue is empty)
  */
 function captureSaveState(editor) {
-	return { generation: getDirtyGeneration(), entry: editor?.history?.queue?.[0] || null };
+	return {
+		history: editor.history,
+		revision: getSaveStatus(editor).revision,
+		entry: editor?.history?.queue?.[0] || null,
+	};
 }
 
 /**
@@ -345,17 +413,19 @@ function captureSaveState(editor) {
  * otherwise the dot stays, recovery stays dirty, and History learns which undo state
  * the file holds.
  * @param {ProjectEditor} editor
- * @param {{generation: Number, entry: Object | null}} written - from captureSaveState
+ * @param {{revision: Number, history: Object, entry: Object | null}} written - from captureSaveState
  * @returns {Boolean} true when the project is now clean
  */
 function settleSavedState(editor, written) {
-	const clean = getDirtyGeneration() === written.generation;
+	if (editor.history !== written.history) return false;
+	const clean = getSaveStatus(editor).revision === written.revision;
 	if (clean) {
 		editor.setProjectAsSaved();
 		markRecoveryClean(editor);
 	} else if (typeof editor.history?.markSavedStateAt === 'function') {
 		editor.history.markSavedStateAt(written.entry);
 	}
+	setSaveStatus(editor, { file: clean ? 'saved' : 'pending', error: '' });
 	return clean;
 }
 
@@ -385,8 +455,14 @@ async function pickSaveHandle(editor) {
  */
 async function writeProject(editor, handle, text, written, canRepick) {
 	try {
-		await writeToHandle(handle, text);
+		await writeToHandle(handle, text, async () => {
+			await assertFileUnchanged(editor, handle);
+			if (editor.history !== written.history)
+				throw new Error('The project changed before the save could finish.');
+		});
 	} catch (error) {
+		if (editor.history === written.history)
+			setSaveStatus(editor, { file: 'failed', error: error.message });
 		console.warn('ANY-INK save failed', error);
 		const name = error?.name;
 		if (canRepick && (name === 'NotFoundError' || name === 'NotAllowedError')) {
@@ -402,7 +478,9 @@ async function writeProject(editor, handle, text, written, canRepick) {
 		showError(saveErrorMessage(handle, error));
 		return false;
 	}
+	if (editor.history !== written.history) return false;
 	editor.loadedFileHandle = handle;
+	await rememberFileVersion(editor, handle);
 	await afterProjectSaved(editor, handle, written);
 	return true;
 }

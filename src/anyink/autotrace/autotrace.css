@@ -1,0 +1,306 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* ANY-INK Auto-trace card in the Trace panel (Milestone 8). Owner: TRACK C.
+   Colors are theme tokens only (src/anyink/theme/tokens.css): touch (green) for what the
+   user is about to make or has picked, structure (purple) for structure. Class prefix:
+   anyink-autotrace-. */
+
+.anyink-autotrace-card:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* The open card: a thin green edge says "this is what you are about to make" */
+.anyink-autotrace-card--open {
+	box-shadow: inset 3px 0 0 var(--touch);
+}
+
+.anyink-autotrace-card--open:focus-visible {
+	box-shadow: inset 3px 0 0 var(--touch), var(--focus-ring);
+}
+
+/* Collapsed and open halves of the card span the whole card grid */
+.panel__card .anyink-autotrace-card__section {
+	grid-column: 1 / -1;
+	display: grid;
+	row-gap: var(--space-2);
+	width: 100%;
+	justify-items: start;
+}
+
+.panel__card .anyink-autotrace-card__section[hidden] {
+	display: none;
+}
+
+.anyink-autotrace-card__section > .anyink-slider-table {
+	justify-self: stretch;
+}
+
+.panel__card .anyink-autotrace-card__text,
+.panel__card .anyink-autotrace-card__note,
+.panel__card .anyink-autotrace-card__label,
+.panel__card .anyink-autotrace-card__readout,
+.panel__card .anyink-autotrace-card__warning,
+.panel__card .anyink-autotrace-card__auto-note {
+	margin: 0;
+	line-height: 1.45;
+}
+
+.panel__card .anyink-autotrace-card__text {
+	color: var(--chrome-text-muted);
+}
+
+.panel__card .anyink-autotrace-card__note {
+	color: var(--warning);
+	font-size: var(--text-sm);
+}
+
+.panel__card .anyink-autotrace-card__note[hidden],
+.panel__card .anyink-autotrace-card__warning[hidden] {
+	display: none;
+}
+
+/* Mode: two buttons, one pressed */
+.panel__card .anyink-autotrace-card__mode-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.panel__card .anyink-autotrace-card__label {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-autotrace-mode {
+	display: inline-flex;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	overflow: hidden;
+}
+
+.anyink-autotrace-mode .anyink-autotrace-mode__button {
+	margin: 0;
+	border: none;
+	border-radius: 0;
+	padding: var(--space-1) var(--space-3);
+	background-color: transparent;
+	color: var(--chrome-text-muted);
+	cursor: pointer;
+}
+
+.anyink-autotrace-mode .anyink-autotrace-mode__button + .anyink-autotrace-mode__button {
+	border-left: 1px solid var(--chrome-border-strong);
+}
+
+.anyink-autotrace-mode .anyink-autotrace-mode__button:hover:not(:disabled) {
+	background-color: var(--chrome-bg-hover);
+	color: var(--chrome-text);
+}
+
+.anyink-autotrace-mode .anyink-autotrace-mode__button[aria-pressed='true'] {
+	background-color: var(--touch-soft-strong);
+	color: var(--chrome-text);
+}
+
+.anyink-autotrace-mode .anyink-autotrace-mode__button:focus-visible,
+.anyink-autotrace-card__auto:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* Threshold: its reset button is replaced by Auto (kept in the grid so bars line up) */
+.anyink-autotrace-card__threshold .anyink-slider-row__reset {
+	visibility: hidden;
+}
+
+/* Which end of the Threshold bar means more ink, under its two ends: column 2 of the
+   slider grid, whose last 56 px hold the readout */
+.panel__card .anyink-autotrace-card__ends {
+	grid-column: 2;
+	display: flex;
+	justify-content: space-between;
+	padding-right: 56px;
+	margin-top: calc(-1 * var(--space-1));
+}
+
+.panel__card .anyink-autotrace-card__end {
+	margin: 0;
+	color: var(--chrome-text-faint);
+	font-size: var(--text-xs);
+	line-height: 1.2;
+}
+
+/* While on Auto the bar shows the value the image picked, a little quieter */
+.anyink-autotrace-card__threshold--auto .fancy-slider__slider-readout {
+	color: var(--chrome-text-muted);
+}
+
+/* The Auto line sits in the slider grid: button under the label, words under the bar */
+.anyink-autotrace-card__auto-line {
+	display: contents;
+}
+
+.panel__card .anyink-autotrace-card__auto {
+	grid-column: 1;
+	justify-self: start;
+	margin: 0;
+	padding: 0 var(--space-3);
+	line-height: 22px;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: transparent;
+	color: var(--chrome-text-muted);
+	cursor: pointer;
+}
+
+.panel__card .anyink-autotrace-card__auto:hover:not(:disabled) {
+	background-color: var(--chrome-bg-hover);
+	color: var(--chrome-text);
+}
+
+.panel__card .anyink-autotrace-card__auto[aria-pressed='true'] {
+	border-color: var(--touch);
+	background-color: var(--touch-soft);
+	color: var(--chrome-text);
+}
+
+.panel__card .anyink-autotrace-card__auto-note {
+	grid-column: 2 / -1;
+	color: var(--chrome-text-faint);
+	font-size: var(--text-sm);
+}
+
+/* Checkbox + words, one clickable row */
+.panel__card .anyink-autotrace-card__toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	line-height: 24px;
+	color: var(--chrome-text);
+	cursor: pointer;
+}
+
+.panel__card .anyink-autotrace-card__toggle input[type='checkbox'] {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--touch);
+	cursor: pointer;
+}
+
+.panel__card .anyink-autotrace-card__toggle input[type='checkbox']:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.panel__card .anyink-autotrace-card__toggle:has(input:disabled) {
+	color: var(--chrome-text-faint);
+	cursor: default;
+}
+
+/* What the preview holds */
+.panel__card .anyink-autotrace-card__readout {
+	color: var(--chrome-text);
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+	transition: var(--global-transition);
+}
+
+.panel__card .anyink-autotrace-card__readout--busy {
+	color: var(--chrome-text-muted);
+}
+
+.panel__card .anyink-autotrace-card__readout--empty {
+	color: var(--warning);
+}
+
+.panel__card .anyink-autotrace-card__readout--error {
+	color: var(--danger);
+}
+
+.panel__card .anyink-autotrace-card__warning {
+	justify-self: stretch;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-sm);
+	background-color: var(--warning-soft);
+	color: var(--chrome-text);
+	font-size: var(--text-sm);
+}
+
+.panel__card .anyink-autotrace-card__warning-text {
+	flex: 1 1 12em;
+	margin: 0;
+	line-height: 1.45;
+}
+
+/* 'Try Photo' in the advice line: the same quiet style as Auto */
+.panel__card .anyink-autotrace-card__try-photo {
+	margin: 0;
+	padding: 0 var(--space-3);
+	line-height: 22px;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: var(--chrome-bg-raised);
+	color: var(--chrome-text);
+	cursor: pointer;
+}
+
+.panel__card .anyink-autotrace-card__try-photo:hover:not(:disabled) {
+	border-color: var(--touch);
+	background-color: var(--touch-soft);
+}
+
+.panel__card .anyink-autotrace-card__try-photo:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* Buttons the card hides (the Trace image card's Start while the preview is open) */
+.panel__card .anyink-autotrace-quick-start[hidden],
+.panel__card .anyink-autotrace-card__try-photo[hidden] {
+	display: none;
+}
+
+/* Button rows */
+.panel__card .anyink-autotrace-card__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+/* Finalize: the Replace / Add / Cancel row stays at the bottom of the panel while the open
+   card runs past it (an advice line that appears after Start grows the card). The card's
+   own surface behind it, so what scrolls under it does not show through. */
+.panel__card .anyink-autotrace-card__actions {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	justify-self: stretch;
+	padding: var(--space-2) 0;
+	background-color: var(--chrome-bg-raised);
+}
+
+/* Shapes the glyph box rule left out: a quiet line under the readout */
+.panel__card .anyink-autotrace-card__dropped {
+	margin: 0;
+	line-height: 1.45;
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+/* Why Replace gave up: stays while the preview traces again */
+.panel__card .anyink-autotrace-card__notice {
+	margin: 0;
+	line-height: 1.45;
+	color: var(--danger);
+	font-size: var(--text-sm);
+}
+
+.panel__card .anyink-autotrace-card__dropped[hidden],
+.panel__card .anyink-autotrace-card__notice[hidden] {
+	display: none;
+}

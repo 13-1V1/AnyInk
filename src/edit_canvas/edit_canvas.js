@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { drawAutoTracePreview } from '../anyink/autotrace/preview_draw.js';
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
 import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guides_layer.js';
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
@@ -131,6 +132,8 @@ export class EditCanvas extends HTMLElement {
 		// Set up Subscriptions
 		// ANY-INK (M7): '*' expands to pub_sub.js allTopics, which includes 'traceLayer',
 		// so trace moves, resizes, and panel changes redraw here without a second subscriber.
+		// ANY-INK (M8): allTopics also includes 'autoTrace', so the auto-trace preview redraws
+		// here on every session change.
 		editor.subscribe({
 			topic: '*',
 			subscriberID: `editCanvas-all`,
@@ -285,6 +288,9 @@ export class EditCanvas extends HTMLElement {
 
 			// ANY-INK (M7): trace image box and corner handles (Trace panel open only)
 			drawTraceAffordances(ctx, view, currentItem, editor);
+
+			// ANY-INK (M8): auto-trace preview (only while a session has a result for this item)
+			drawAutoTracePreview(ctx, view, currentItem, editor);
 
 			// Highlighted points
 			drawAllHighlightedPoints(ctx);

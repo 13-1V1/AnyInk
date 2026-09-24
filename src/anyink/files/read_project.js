@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /**
@@ -45,14 +47,12 @@ export function validateProjectText(text, appVersion = getGlyphrStudioApp().vers
 	}
 	if (!projectData.settings && !projectData.projectsettings) {
 		return {
-			message:
-				'The file is missing project settings. It may not be an ANY-INK project file. [PF1]',
+			message: 'The file is missing project settings. It may not be an ANY-INK project file. [PF1]',
 		};
 	}
 	if (!projectData?.settings?.project?.latestVersion && !projectData?.projectsettings?.versionnum) {
 		return {
-			message:
-				'The file has no version information. It may not be an ANY-INK project file. [PF2]',
+			message: 'The file has no version information. It may not be an ANY-INK project file. [PF2]',
 		};
 	}
 	const version = tryToGetProjectVersion(projectData);
@@ -99,8 +99,10 @@ export async function readProjectFile(handle) {
 		return { status: 'unreadable', message: 'Not a file handle.', fileName };
 	}
 	let text;
+	let sourceFile;
 	try {
 		const file = await handle.getFile();
+		sourceFile = file;
 		text = await readFileText(file);
 	} catch (error) {
 		const missing = error?.name === 'NotFoundError';
@@ -114,5 +116,5 @@ export async function readProjectFile(handle) {
 	}
 	const result = validateProjectText(text);
 	if (result.message) return { status: 'invalid', message: result.message, fileName };
-	return { status: 'ok', content: result.content, fileName };
+	return { status: 'ok', content: result.content, fileName, sourceFile };
 }

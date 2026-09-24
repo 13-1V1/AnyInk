@@ -1,0 +1,36 @@
+/* Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+#anyink-pwa-notices {
+	position: fixed;
+	right: 16px;
+	bottom: 80px;
+	z-index: 100000;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: calc(100vh - 100px);
+	overflow-y: auto;
+}
+.anyink-pwa-notice {
+	max-width: min(420px, calc(100vw - 32px));
+	padding: 16px;
+	background: var(--chrome-bg-raised);
+	color: var(--chrome-text);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-menu);
+}
+.anyink-pwa-notice p {
+	margin: 0 0 12px;
+}
+.anyink-pwa-notice button {
+	margin-right: 8px;
+}
+.anyink-pwa-busy {
+	background: var(--chrome-bg-raised);
+	color: var(--chrome-text);
+	border: 1px solid var(--chrome-border);
+}
+.anyink-pwa-busy::backdrop {
+	background: var(--overlay);
+}

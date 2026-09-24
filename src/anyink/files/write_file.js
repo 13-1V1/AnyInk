@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /**
@@ -51,7 +53,7 @@ export function isDirectoryHandle(value) {
  * @param {String | Blob | BufferSource} data
  * @returns {Promise<{exclusive: Boolean}>} whether the exclusive lock was used
  */
-export async function writeToHandle(handle, data) {
+export async function writeToHandle(handle, data, beforeWrite) {
 	if (!isFileHandle(handle)) throw new TypeError('writeToHandle: not a file handle');
 	let writable;
 	let exclusive = true;
@@ -64,7 +66,9 @@ export async function writeToHandle(handle, data) {
 		writable = await handle.createWritable();
 	}
 	try {
+		await beforeWrite?.();
 		await writable.write(data);
+		await writable.close();
 	} catch (error) {
 		try {
 			if (typeof writable.abort === 'function') await writable.abort();
@@ -73,6 +77,5 @@ export async function writeToHandle(handle, data) {
 		}
 		throw error;
 	}
-	await writable.close();
 	return { exclusive };
 }

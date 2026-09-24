@@ -51,7 +51,8 @@ src/anyink/
   recovery/     dirty flag, timer + glyph-switch snapshots to IndexedDB, Web Lock, restore card
   assets/       binary assets (trace images) kept beside the project, embedded on save
   trace/        trace layer: image per glyph, opacity, lock, move/scale handles
-  autotrace/    binarize.js (Otsu, Bradley-Roth, despeckle), potrace worker, sliders, svg_to_glyph.js
+  autotrace/    params, binarize (Otsu, Bradley-Roth, despeckle), potrace worker + client, svg_to_shapes,
+                trace_region, facade (autotrace.js, also the M9 sheet's entry), session, preview, apply, card
   sheet/        template page, ArUco detection (vendored js-aruco2), homography, warp worker, box split, review grid
   nib/          pointer capture, 1€ filter, simplify, corner split, fit-curve, nib inking (clipper2-ts), flatten
   geometry/     shared: flatten path, refit (fit-curve), clipper helpers, extrema insertion
@@ -147,8 +148,9 @@ editor features, accounts, telemetry.
   whole alphabet of traces.
 - A press on the edit canvas takes the keyboard back from panel controls
   (`src/anyink/controls/focus_release.js`); a new panel control never has to hand focus back itself.
-- Every tracer hands SVG to `ioSVG_convertSVGTagsToGlyph` with the transform intact, then
-  `flipNS()` and `reverseWinding()` (D-024).
+- Every tracer hands SVG to `ioSVG_convertSVGTagsToGlyph` with the transform intact, then maps
+  image pixels to font units with one affine y-flip (`fontY = y - py * scale`); no
+  `reverseWinding()` (D-024 amended 09/24/2026, D-029).
 - `calculateKernOffset` gets a lookup map and a deterministic priority (one-by-one groups win).
 - Any picker or permission request runs synchronously inside the click handler, before async
   work (transient user activation).

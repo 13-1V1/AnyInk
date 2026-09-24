@@ -1,7 +1,10 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /* Web Components */
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
+import { SaveStatusElement } from '../anyink/files/save_status_element.js';
 import { initRecovery } from '../anyink/recovery/recovery.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
@@ -78,6 +81,7 @@ function passPreChecks() {
  */
 function registerCustomComponents() {
 	const data = [
+		{ fileName: 'anyink-save-status', className: SaveStatusElement },
 		{ fileName: 'option-chooser', className: OptionChooser },
 		{ fileName: 'option-toggle', className: OptionToggle },
 		{ fileName: 'display-canvas', className: DisplayCanvas },

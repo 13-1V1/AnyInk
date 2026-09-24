@@ -11,7 +11,7 @@ checked against a source in [RESEARCH.md SOURCES](RESEARCH.md#sources). Newest a
 | bezier-boolean | 1.0.6 | GPL-3.0-only | node_modules/bezier-boolean/package.json | OK, same note as above. |
 | @mattlag/xmltojson | 2.0.2 | GPL-3.0 | node_modules | OK. |
 | svg-to-bezier | 2.3.0 | GPL-3.0 | node_modules | OK. Was mis-declared as a devDependency although imported at runtime; moved to dependencies 09/23/2026. |
-| esm-potrace-wasm | 0.5.1 (to add, M8) | npm field `GPL-2.0` (deprecated SPDX form); upstream repo `src/potrace.js` header: "either version 2 of the License, or (at your option) any later version" and line 20 `@license SPDX-License-Identifier: GPL-2.0-or-later`; Potrace README: same wording | Fetched 09/23/2026 from https://raw.githubusercontent.com/tomayac/esm-potrace-wasm/main/src/potrace.js and https://potrace.sourceforge.net/README | **Verified GPL-2.0-or-later** (D-016). The published package ships only `dist/` plus a GPLv2 LICENSE text, so keep this row as the evidence. Credit Potrace (Peter Selinger) and the wrapper (Thomas Steiner) on About. Note from the spike: the package cannot be imported in Node ESM; browser-only. |
+| esm-potrace-wasm | 0.5.1 (added M8, pinned 0.5.1) | npm field `GPL-2.0` (deprecated SPDX form); upstream repo `src/potrace.js` header: "either version 2 of the License, or (at your option) any later version" and line 20 `@license SPDX-License-Identifier: GPL-2.0-or-later`; Potrace README: same wording | Fetched 09/23/2026 from https://raw.githubusercontent.com/tomayac/esm-potrace-wasm/main/src/potrace.js and https://potrace.sourceforge.net/README | **Verified GPL-2.0-or-later** (D-016). The published package ships only `dist/` plus a GPLv2 LICENSE text, so keep this row as the evidence. Credit Potrace (Peter Selinger) and the wrapper (Thomas Steiner) on About. Note from the spike: the package cannot be imported in Node ESM; browser-only. |
 | clipper2-ts | 2.0.1-18 (pin, M10) | BSL-1.0 | npm registry | OK (Boost is GPL-compatible per FSF list). |
 | fit-curve | 0.2.0 (vendor, M10) | MIT | https://github.com/soswow/fit-curve | OK. Keep the MIT header in the vendored file. |
 | simplify-js | 1.2.4 (vendor, M10) | BSD-2-Clause | https://mourner.github.io/simplify-js/ | OK. |
@@ -30,8 +30,18 @@ checked against a source in [RESEARCH.md SOURCES](RESEARCH.md#sources). Newest a
 | 09/23/2026 | "ANY-INK is a personal fork of Glyphr Studio v2 ... by Matthew LaGrandeur ... Copyright © 2010 - 2026" | About > Credits | upstream index.html GPL notice, README | Correct. |
 | 09/23/2026 | Library list on About (Font Flux JS, bezier-boolean, SVG-to-Bézier, XMLtoJSON, all GPL) | About > Credits | node_modules package.json files | Correct. New libraries must be appended as they are adopted. |
 | 09/23/2026 | "The upstream help site still covers the shared editing features" | Help page | https://www.glyphrstudio.com/help | Correct for pen/pointer tools, components, ligatures, import/export. ANY-INK-specific features are not covered there. |
+| 09/24/2026 | Potrace card: "the bitmap tracer by Peter Selinger", "GNU General Public License, version 2 or (at your option) any later version", "Copyright © 2001 - 2019, Peter Selinger" | About > Credits (M8) | https://potrace.sourceforge.net/README (fetched 09/24/2026: "Copyright (C) 2001-2019 Peter Selinger", "either version 2 of the License, or (at your option) any later version") | Correct. |
+| 09/24/2026 | esm-potrace-wasm card: "Potrace compiled to WebAssembly for the browser, by Thomas Steiner", GPL 2 or later, "Copyright © 2021, Thomas Steiner" | About > Credits (M8) | upstream `src/potrace.js` header (checked by the M8 scaffold 09/24/2026: "Copyright (C) 2021 Thomas Steiner", `SPDX-License-Identifier: GPL-2.0-or-later`) | Correct. |
 
 ## Pending checks (owner: the milestone that adds the text)
 - Export note "In Word, turn on Contextual Alternates under Font > Advanced" (M11): source https://support.microsoft.com/en-US/Word/font-advanced-settings.
 - Handwriting sheet instructions "scan at 300 to 600 dpi in grayscale, not black-and-white" (M9): source Calligraphr FAQ, plus our own test scans.
 - "Use Windows Ink must be on in the Wacom driver for pressure" (M10): source SevenPens devnotes and Chromium pen_event_processor.cc.
+
+## 09/24/2026 critic fix verification sources
+- Existing upstream and ANY-INK reader/writer, recovery, worker and test modules were inspected before adding code. File APIs reuse the existing writeToHandle helper and history model; PWA reuses vite-plugin-pwa/Workbox.
+- Chrome's File System Access documentation requires checking permission on reused handles; background saves use queryPermission only. https://developer.chrome.com/docs/capabilities/web-apis/file-system-access
+- Vite PWA documents prompt updates and registration strategies. Automatic page reload is explicitly disabled in ANY-INK. https://vite-pwa-org.netlify.app/guide/prompt-for-update
+- Native Windows font evidence and API references are in FONT-VERIFICATION.md. Private process loading/rendering is not claimed as a GUI install or Word session.
+- Correction: the original M6 few-seconds promise was not satisfied by a 15-second max-wait timer. File autosave and the 3-second recovery scheduler are now independently exercised; storage failures/suspension remain explicit limits.
+- The installed software-studio SKILL.md references supporting files absent from that plugin bundle. The build follows its readable core instructions and the project's explicit rules; no absent reference was treated as read.

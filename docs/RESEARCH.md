@@ -40,6 +40,7 @@ Load-bearing code facts found by the readers:
 
 ### 2.1 Auto-trace
 **Use `esm-potrace-wasm` 0.5.1** (Potrace 1.16 in a 76 KB single-file ESM WASM module, run in a module Web Worker) and do all image conditioning ourselves: grayscale, Otsu or a user threshold, optional Bradley-Roth adaptive threshold for photos, 3x3 open/close despeckle, then a pure black/white ImageData. Slider mapping: Threshold = binarization cutoff; Smoothing = `alphamax` 0 to 1.3334; Detail = `turdsize` (scaled by dpi squared) plus `opttolerance`. Output SVG goes through upstream's existing `ioSVG_convertSVGTagsToGlyph`, then `flipNS()` and `reverseWinding()` exactly like upstream's paste handler.
+*As built (M8, 09/24/2026):* the SVG hand-off stands, but the two calls became one affine pixel-to-font-unit y-flip, which is the same mirror (D-024 amended); Photo mode adds "darker than half the local paper" to Bradley-Roth, and Detail sizes `turdsize` in font units rather than by dpi (D-016 amended, D-029).
 License: the npm field says `GPL-2.0` but the source header and upstream Potrace say "version 2, or (at your option) any later version", which is combinable into a GPL-3 work. Record this in the credits and never vendor a copy that drops that wording.
 Rejected: `imagetracerjs` (quadratic splines, wobbly), VTracer (official WASM is Node-only, alpha API, 9x heavier), OpenCV.js.
 Strongest objection: single-maintainer prebuilt binary of a frozen algorithm. Mitigation: it is 8 KB of C plus a build script we can rebuild from the Potrace tarball.

@@ -1,10 +1,12 @@
+# Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+# brennanmmeyer@gmail.com
 # Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 # brennanmmeyer@gmail.com
 #
 # Builds ANY-INK and publishes it to GitHub Pages at https://<user>.github.io/AnyInk/
 # on every push to main. The test suite runs first; a red suite never deploys.
-# The base path (/AnyInk/) must equal the repo name (D-020, D-022). It is passed on the
-# command line until M14 moves it into src/vite.config.js with the PWA plugin.
+# The base path (/AnyInk/) must equal the repo name (D-020, D-022). It is defined in the
+# build configuration in src/vite.config.js with the PWA plugin.
 # Action versions are pinned to commits, as in Vite's static-deploy guide.
 
 name: Deploy ANY-INK to GitHub Pages
@@ -42,9 +44,7 @@ jobs:
       - name: Run tests
         run: npx vitest run
       - name: Build
-        run: |
-          npx run-func scripts.js build
-          npx vite build ./src/ --emptyOutDir --base=/AnyInk/
+        run: npm run build
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Upload artifact

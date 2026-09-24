@@ -121,8 +121,10 @@ export class Glyph extends GlyphElement {
 			re.transformOrigin = this.transformOrigin;
 		}
 		if (this.ratioLock !== false) re.ratioLock = this.ratioLock;
-		if (this.usedIn.length) re.usedIn = this.usedIn;
-		if (this.gsub.length) re.gsub = this.gsub;
+		// ANY-INK (M8): copies, so history snapshots never share these arrays with the live glyph
+		// (removeLinkFromUsedIn splices in place, which used to change old snapshots too)
+		if (this.usedIn.length) re.usedIn = [...this.usedIn];
+		if (this.gsub.length) re.gsub = [...this.gsub];
 		let cc = this.contextCharacters;
 		if (cc.length && cc !== this.char) re.contextCharacters = cc;
 		// ANY-INK: emitted only when non-empty, cloned so snapshots never alias the live glyph

@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { noteImportedFontFile } from '../anyink/files/export_folder.js';
@@ -444,8 +446,8 @@ function postValidationCallback(validationResult) {
 			// ANY-INK (M6): drag and drop and upstream's chooser feed recents too (a .gs2),
 			// and a v1 .txt is remembered as where Save As starts. sourceHandle is false
 			// without the File System Access API; that is ignored.
-			noteProjectOpened(editor, validationResult.sourceHandle).catch((error) =>
-				console.warn('ANY-INK: could not record the opened project', error)
+			noteProjectOpened(editor, validationResult.sourceHandle, validationResult.sourceFile).catch(
+				(error) => console.warn('ANY-INK: could not record the opened project', error)
 			);
 		}
 	} else {

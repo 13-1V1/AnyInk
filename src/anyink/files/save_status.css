@@ -1,0 +1,16 @@
+/* Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+anyink-save-status {
+	align-self: center;
+	justify-self: end;
+	max-width: 100%;
+	padding: 0 var(--space-3);
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+anyink-save-status[data-failed='true'] {
+	color: var(--warning);
+}
