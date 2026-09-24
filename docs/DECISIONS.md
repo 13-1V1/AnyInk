@@ -103,6 +103,12 @@ by the same delta (`BASELINE_SHIFTED_KEYS` in `src/anyink/metrics/metrics_math.j
 stays on the letters; custom guides keep their em location; component instances are not moved
 (their source glyph moves). During the drag only the line and a ghost of the current glyph move;
 the shift is applied once on release.
+**Amended 09/23/2026 (QA):** upstream hid the ascent, cap height, x-height, and descent lines by
+default, so a drag on a new project landed on a shape instead of a line. New projects now list all
+seven system guides in `settings.app.guides.systemGuides`; a project file keeps whatever list it
+saved (the Oblegg sample shows only baseline and side bearings until its Guides panel is changed).
+`ProjectEditor.set project` syncs `editor.systemGuides` from that list on every load, not only
+on import, because the guides layer hit-tests against the editor flags.
 **Because:** the brief lists the baseline as draggable, and in font units the baseline is y = 0, so the
 only meaningful drag is "move the drawing relative to the baseline".
 
@@ -193,6 +199,13 @@ fallback when fewer than two markers are found.
 `settings` entry kind; `History.addState` calls the recovery module's `markDirty()`.
 **Because:** the aliasing bug makes the next undo a no-op after a redo; metrics need cheap undo;
 one choke point covers every future edit.
+**Amended 09/23/2026 (QA):** upstream persists the undo queue to IndexedDB by project id and adopts
+it on every load, so reopening a file after an unsaved session made undo apply last session's
+snapshots to a project that never had them (seen: undo of "Set X height to 1050" landed on 1197).
+`History.initialize` now discards the stored queue unless `adoptStoredHistory()` is called right
+after the project is assigned; only the auto-save restore path calls it today, and milestone 6's
+crash recovery will. Guide visibility toggles, "Add a custom guide", and guide deletion push
+settings entries too, so every Guides panel action is undoable.
 
 ## D-019: Test pages live in `tests/` with their own Vite root
 **Decided:** 09/23/2026

@@ -458,6 +458,8 @@ function loadProjectFromAutoSave(projectID) {
 	for (let id in saves) {
 		if (id === projectID) {
 			importProjectDataAndNavigate(saves[id].project);
+			// The auto-save and the stored undo queue describe the same live state
+			getCurrentProjectEditor().history.adoptStoredHistory();
 			showToast(`Restored project from auto-save:<br>${saves[id].name}`);
 			return;
 		}

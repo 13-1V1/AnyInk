@@ -159,6 +159,8 @@ function makeSystemGuideRow(property, title, value = '0000') {
 			}
 		}
 		editor.editCanvas.redraw('guides system view toggle');
+		// ANY-INK (D-018): guide visibility is a settings change, so it is undoable
+		commitSettingsHistory(`${newValue ? 'Showed' : 'Hid'} the ${title} guide`);
 	});
 	viewCheckbox.setAttribute('title', 'Show / hide guide');
 	viewCheckbox.setAttribute('style', 'accent-color: var(--touch);');
@@ -219,6 +221,7 @@ function makeCustomGuidesCard() {
 		// canvas draws every guide in --canvas-guide at draw time so they follow the theme.
 		getCurrentProject().settings.app.guides.custom.push(new Guide({ visible: true }));
 		refreshGuideChange();
+		commitSettingsHistory('Added a custom guide');
 	});
 
 	customCard.appendChild(addGuideButton);
@@ -233,6 +236,7 @@ function makeCustomGuideRow(guide, number) {
 	const viewCheckbox = makeDirectCheckbox(guide, 'visible', () => {
 		const editor = getCurrentProjectEditor();
 		editor.editCanvas.redraw('guides custom view toggle');
+		commitSettingsHistory(`${guide.visible ? 'Showed' : 'Hid'} the ${guide.name} guide`);
 	});
 	viewCheckbox.setAttribute('style', 'accent-color: var(--touch);');
 	viewCheckbox.setAttribute('title', 'Show / hide guide');
@@ -245,8 +249,9 @@ function makeCustomGuideRow(guide, number) {
 	deleteButton.setAttribute('class', 'guide-delete-button');
 	deleteButton.addEventListener('click', () => {
 		const guides = getCurrentProject().settings.app.guides.custom;
-		guides.splice(number, 1);
+		const removed = guides.splice(number, 1)[0];
 		refreshGuideChange();
+		commitSettingsHistory(`Deleted the ${removed?.name || 'custom'} guide`);
 	});
 
 	// Angle button

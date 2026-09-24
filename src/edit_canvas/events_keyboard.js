@@ -93,7 +93,12 @@ export function handleKeyPress(event) {
 	// Ctrl+Z - Undo / Ctrl+Y or Ctrl+Shift+Z - Redo
 	// ANY-INK: works on every page (settings entries can be undone from
 	// the Settings page), as long as focus is not in a text field.
-	const undoRedo = getUndoRedoAction(key, ehd);
+	// Honor the event's own modifier flags too: synthetic or fast key combos can arrive
+	// without a separate Control keydown, so ehd.isCtrlDown alone would miss them.
+	const undoRedo = getUndoRedoAction(key, {
+		isCtrlDown: ehd.isCtrlDown || event.ctrlKey || event.metaKey,
+		isShiftDown: ehd.isShiftDown || event.shiftKey,
+	});
 	if (undoRedo === 'redo') {
 		cancelDefaultEventActions(event);
 		editor.history.redoState();

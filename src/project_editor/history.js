@@ -49,15 +49,32 @@ export class History {
 		// True while restoreState / redoState run, so on-demand item creation
 		// (ProjectEditor.selectedGlyph) does not push entries mid-restore
 		this.isRestoring = false;
+		// True only when the project came back from an auto-save of the same live state
+		this.adoptStored = false;
 	}
 
+	/**
+	 * Starts a fresh queue for a project. Upstream persists the queue to IndexedDB by
+	 * project id and adopts it on every load; ANY-INK adopts it only when the caller
+	 * says the project came back from an auto-save / crash recovery of the same live
+	 * state (see adoptStoredHistory). A file or sample loaded fresh gets an empty queue
+	 * and the stale stored one is overwritten, so undo can never apply another
+	 * session's snapshots to a project that never had them.
+	 * @param {Object} project - GlyphrStudioProject
+	 */
 	initialize(project) {
 		this.projectID = project.settings.project.id;
 		this.initialProject = new GlyphrStudioProject(project.save());
 		this.storageDirty = false;
-		this.storageReady = loadHistory(this.projectID)
+		this.adoptStored = false;
+		this.storageReady = this.loadStoredSnapshot()
 			.then((snapshot) => {
-				if (this.storageDirty || !snapshot || snapshot.version !== HISTORY_FORMAT_VERSION) return;
+				if (this.storageDirty) return;
+				if (!this.adoptStored) {
+					if (snapshot) this.persist();
+					return;
+				}
+				if (!snapshot || snapshot.version !== HISTORY_FORMAT_VERSION) return;
 				const initialProject = new GlyphrStudioProject(snapshot.initialProject);
 				const queue = (snapshot.queue || []).map(deserializeHistoryEntry);
 				const redoQueue = (snapshot.redoQueue || []).map((entries) =>
@@ -70,6 +87,21 @@ export class History {
 				if (getCurrentProjectEditor()?.history === this) refreshPanel();
 			})
 			.catch(() => undefined);
+	}
+
+	/**
+	 * Call right after `editor.project = restoredProject` when that project is the
+	 * auto-saved / recovered copy of the last live state, so the stored queue still
+	 * describes it. Must run before the storage read resolves (synchronously after
+	 * the assignment is fine).
+	 */
+	adoptStoredHistory() {
+		this.adoptStored = true;
+	}
+
+	/** Reads this project's stored snapshot; split out so tests can stub storage. */
+	loadStoredSnapshot() {
+		return loadHistory(this.projectID);
 	}
 
 	persist() {

@@ -42,6 +42,10 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   Use the real date the file is written. JSON and the manifest skip it.
 - New features are their own modules under `src/anyink/<feature>/`, each with a
   minimal test page in `tests/`. `tests/` is never in the production build.
+- Pub/sub subscriber ids are `anyink.<module>.<purpose>` and never a substring of another
+  (upstream unsubscribe matches substrings). New topics go in `src/project_editor/pub_sub.js`.
+- Drags publish a narrow topic per tick and push ONE history entry on release
+  (`addState` for items, `addSettingsState` for metrics/guides, whole-project pre/post for bulk).
 - Purely visual: no code panels, no feature-file editing, no font data as text.
   Number fields only as secondary readouts beside a visual control.
 - All colors are theme tokens in one file. No hard-coded colors in components.
@@ -59,7 +63,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 2. Rename — DONE 09/23/2026 (visible branding, About credits, new nib icon + wordmark; internal identifiers kept, see docs/DECISIONS.md D-001)
 3. Visual audit — DONE 09/23/2026 (docs/AUDIT-VISUAL.md; every text/code entry point mapped to a milestone)
 4. Reskin — DONE 09/23/2026 (tokens.css is the only color source; theme.js token() for canvas code; paper/slate toggle remembered in app prefs; see docs/THEME.md)
-5. Visual editing (metrics, kerning, preview strip, undo gaps) — pending
+5. Visual editing — DONE 09/23/2026 (guides layer src/anyink/metrics, pair view src/anyink/kerning, <preview-strip> src/anyink/preview, sliders src/anyink/controls, history settings entries src/anyink/history)
 6. Files (FSA open/save, autosave, crash recovery, OTF export, format) — pending
 7. Trace layer — pending
 8. Auto-trace — pending

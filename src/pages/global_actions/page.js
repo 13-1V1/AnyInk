@@ -194,7 +194,10 @@ export function glyphIterator(oa) {
 				console.warn(`\n⮟Global Action failures⮟`);
 				console.warn(failures);
 			}
-			getCurrentProjectEditor().history.addWholeProjectChangePostState();
+			const editor = getCurrentProjectEditor();
+			editor.history.addWholeProjectChangePostState();
+			// ANY-INK: one publish after the batch so the preview strip (and any panel) reflows
+			editor.publish('currentItem', editor.selectedItem);
 			if (callback) callback();
 		}
 		// log(`glyphIterator>processOneItem`, 'end');

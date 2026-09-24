@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
 import { decToHex } from '../common/character_ids.js';
 import { clone, getFirstID, json, round } from '../common/functions.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
@@ -183,6 +184,11 @@ export class ProjectEditor {
 		if (gsp) {
 			// log(`Importing project...`);
 			this._project = gsp;
+			// ANY-INK: the canvas and the guides layer read editor.systemGuides, so it must
+			// follow the project's saved list for every load (new, sample, file, restore),
+			// not only the import path. Merged in place: the guides layer holds a reference.
+			const shown = gsp.settings?.app?.guides?.systemGuides;
+			if (Array.isArray(shown)) Object.assign(this.systemGuides, systemGuidesFromList(shown));
 			this.initializeHistory(gsp);
 			this.selectedGlyphID = 'glyph-0x41';
 		} else {

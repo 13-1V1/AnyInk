@@ -11,6 +11,7 @@ import { GlyphrStudioProject } from '../../project_data/glyphr_studio_project.js
 import { Guide } from '../guide.js';
 import {
 	HISTORY_FORMAT_VERSION,
+	History,
 	deserializeHistoryEntry,
 	serializeHistoryEntry,
 } from '../history.js';
@@ -164,23 +165,26 @@ describe('History: settings entries', () => {
 		const editor = makeEditor();
 		const guides = editor.project.settings.app.guides;
 		const systemGuides = editor.systemGuides;
-		expect(systemGuides.xHeight).toBe(false);
+		// New projects show every metric line (D-009 amendment)
+		const allSeven = ['ascent', 'capHeight', 'xHeight', 'baseline', 'descent', 'leftSide', 'rightSide'];
+		expect(guides.systemGuides).toEqual(allSeven);
+		expect(systemGuides.xHeight).toBe(true);
 
-		guides.systemGuides.push('xHeight');
-		editor.systemGuides.xHeight = true;
+		guides.systemGuides.splice(guides.systemGuides.indexOf('xHeight'), 1);
+		editor.systemGuides.xHeight = false;
 		guides.custom.push(new Guide({ name: 'Overshoot', location: 520, visible: true }));
-		editor.history.addSettingsState('Showed x-height, added a guide');
+		editor.history.addSettingsState('Hid x-height, added a guide');
 
 		editor.history.restoreState();
 		expect(editor.project.settings.app.guides).toBe(guides);
-		expect(guides.systemGuides).toEqual(['baseline', 'leftSide', 'rightSide']);
+		expect(guides.systemGuides).toEqual(allSeven);
 		expect(guides.custom.length).toBe(0);
 		expect(editor.systemGuides).toBe(systemGuides);
-		expect(systemGuides.xHeight).toBe(false);
+		expect(systemGuides.xHeight).toBe(true);
 
 		editor.history.redoState();
-		expect(guides.systemGuides).toContain('xHeight');
-		expect(systemGuides.xHeight).toBe(true);
+		expect(guides.systemGuides).not.toContain('xHeight');
+		expect(systemGuides.xHeight).toBe(false);
 		expect(guides.custom.length).toBe(1);
 		expect(guides.custom[0]).toBeInstanceOf(Guide);
 		expect(guides.custom[0].visible).toBe(true);
@@ -550,5 +554,86 @@ describe('ProjectEditor.setProjectAsSaved', () => {
 		editor.setProjectAsSaved();
 		expect(document.title).toBe('ANY-INK');
 		expect(getCurrentProjectEditor()).toBe(editor);
+	});
+});
+
+// --------------------------------------------------------------
+// Persisted queue (IndexedDB) on project load
+// --------------------------------------------------------------
+
+describe('History: persisted queue on load', () => {
+	function storedSnapshotFor(project) {
+		const font = { ...project.settings.font, xHeight: 777 };
+		return {
+			projectID: project.settings.project.id,
+			version: HISTORY_FORMAT_VERSION,
+			initialTimeStamp: 1,
+			initialProject: project.save(),
+			queue: [
+				{
+					timeStamp: 2,
+					itemID: false,
+					itemState: false,
+					title: 'Moved X height to 777 (last session)',
+					page: 'Characters',
+					itemWasDeleted: false,
+					wholeProjectSave: false,
+					settingsSave: true,
+					settingsState: { font, guides: { custom: [] } },
+				},
+			],
+			redoQueue: [],
+		};
+	}
+
+	let loadSpy;
+	let saved;
+	beforeEach(() => {
+		saved = [];
+		loadSpy = vi
+			.spyOn(History.prototype, 'loadStoredSnapshot')
+			.mockImplementation(function () {
+				return Promise.resolve(storedSnapshotFor(this.initialProject));
+			});
+		vi.spyOn(History.prototype, 'persist').mockImplementation(function () {
+			saved.push({ history: this, length: this.queue.length });
+		});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('discards another session\'s stored queue when a project loads fresh', async () => {
+		const editor = makeEditor();
+		await editor.history.storageReady;
+		expect(loadSpy).toHaveBeenCalled();
+		expect(editor.history.queue).toEqual([]);
+		// The stale snapshot was overwritten with the fresh, empty queue
+		const writes = saved.filter((w) => w.history === editor.history).map((w) => w.length);
+		expect(writes).toEqual([0]);
+		// Undo of a new settings change goes back to the loaded project, never to 777
+		editor.project.settings.font.xHeight = 520;
+		editor.history.addSettingsState('Set X height to 520');
+		editor.history.restoreState();
+		expect(editor.project.settings.font.xHeight).toBe(500);
+	});
+
+	it('adopts the stored queue when the project came back from an auto-save', async () => {
+		const editor = makeEditor();
+		editor.history.adoptStoredHistory();
+		await editor.history.storageReady;
+		expect(editor.history.queue).toHaveLength(1);
+		expect(editor.history.queue[0].title).toBe('Moved X height to 777 (last session)');
+		expect(saved.filter((w) => w.history === editor.history)).toEqual([]);
+	});
+
+	it('ignores a stored queue written by an older format', async () => {
+		loadSpy.mockImplementation(function () {
+			return Promise.resolve({ ...storedSnapshotFor(this.initialProject), version: 2 });
+		});
+		const editor = makeEditor();
+		editor.history.adoptStoredHistory();
+		await editor.history.storageReady;
+		expect(editor.history.queue).toEqual([]);
 	});
 });

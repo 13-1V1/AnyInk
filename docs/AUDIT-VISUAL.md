@@ -11,7 +11,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 
 | # | Where | What is typed | Action |
 |---|---|---|---|
-| A1 | Settings > Font: upm, ascent, descent, capHeight, xHeight, overshoot, lineGap (`makeOneSettingsRow`, type Em) | vertical metrics as integers, no undo, no redraw | **Visual in M5**: draggable purple metric lines on the canvas; rows become live readouts; undo entry per drag |
+| A1 | Settings > Font: upm, ascent, descent, capHeight, xHeight, overshoot, lineGap (`makeOneSettingsRow`, type Em) | vertical metrics as integers, no undo, no redraw | **Done in M5**: ascender, cap height, x-height, descender, and baseline are draggable purple lines (always-active guides layer, any tool); Settings and Guides rows are live readouts; one settings history entry per drag; new projects show all five lines by default |
 | A2 | Settings > Font: weight (100 to 900) | number | **Visual in M12**: bound to the weight slider's named stops |
 | A3 | Settings > Font: italicAngle, slope, stemv, stemh, underline / strikethrough / overline position and thickness | numbers | **Visual in M5**: sliders with readouts (underline / strike / overline as draggable lines in the preview strip is a stretch goal) |
 | A4 | Settings > Font: stretch, variant | CSS keywords typed exactly | **Visual in M4**: option-chooser with the fixed keyword list |
@@ -27,12 +27,12 @@ by a visual control in that milestone; the number field stays as a secondary rea
 
 | # | Where | What is typed | Action |
 |---|---|---|---|
-| B1 | Kerning page, add/edit group dialog: left group, right group | characters or hex ids as a string | **Visual in M5**: click glyph tiles into left / right chips |
-| B2 | Kerning page, add/edit group dialog: value | number as text | **Visual in M5**: drag the right letter in the live pair view; readout only |
-| B3 | Attributes panel, kern group card: value `<input-number>` | number | **Readout in M5** (bound to the drag) |
-| B4 | Kerning page: find pair / delete pair dialogs (one char per side) | characters | **Visual in M5**: click two tiles, or click a pair in the pair view |
-| B5 | Kerning canvas: drag anywhere changes value (no hit test), history entry on plain click | n/a | **Fix in M5**: hit-test the right glyph, guard history on real drags, accumulate sub-unit deltas |
-| B6 | Ligatures page: new ligature typed as `ff`, `U+66U+66`, or `0x660x66`, optional comma list | characters or code notation | **Visual in M5**: typing plain characters stays **Allowed**; hide the hex / U+ notation; add a tile picker for untypeable characters |
+| B1 | Kerning page, add/edit group dialog: left group, right group | characters or hex ids as a string | **Done in M5**: glyph tile pickers with removable chips |
+| B2 | Kerning page, add/edit group dialog: value | number as text | **Done in M5**: the dialog shows a readout; the value is set by dragging the right letter in the pair view |
+| B3 | Attributes panel, kern group card: value `<input-number>` | number | **Done in M5**: secondary readout bound to the drag; chips pick the representative pair |
+| B4 | Kerning page: find pair / delete pair dialogs (one char per side) | characters | **Done in M5**: pick two tiles |
+| B5 | Kerning canvas: drag anywhere changes value (no hit test), history entry on plain click | n/a | **Done in M5**: hit-tested drag of the right glyph or the value line, history only on real changes, no rounding drift, Shift snaps to 10, Alt-drag makes an exception group |
+| B6 | Ligatures page: new ligature typed as `ff`, `U+66U+66`, or `0x660x66`, optional comma list | characters or code notation | **Done in M5** (partial): plain characters only, hex / U+ notation removed; a tile picker for untypeable characters is deferred |
 
 ## C. Glyph editing panels (canvas already drags these)
 
@@ -42,7 +42,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 | C2 | Path / point / handle cards: x, y, w, h, h1, h2 | numbers | **Readout** (canvas drags them). M4 |
 | C3 | Component instance card: translate, resize, rotation | numbers | **Readout** with canvas drag. M4 |
 | C4 | Transforms panel: skew angle / distance, offset distance, rotation, each with Apply | type then apply blind | **Done in M5**: skew angle / distance and rotation are sliders that apply on release (one undo entry each, no Apply); offset keeps its slider + Apply because upstream rebuilds the outline; offset distance becomes the Weight slider in M12 |
-| C5 | Guides panel: custom guide location, grid divisions | numbers | **Visual in M5**: drag custom guides on canvas; grid divisions slider |
+| C5 | Guides panel: custom guide location, grid divisions | numbers | **Done in M5** (partial): custom guides drag on the canvas with a live readout; grid divisions stays a number field (deferred) |
 | C6 | Guides panel: custom guide color picker | color | **Hide** in M4: all guides use the purple structure token |
 | C7 | Zoom readout (disabled input) | percentage | **Visual in M4**: zoom slider with readout |
 | C8 | Edit canvas: paste raw SVG markup as text (canvas is contenteditable for this) | SVG code | **Hide** in M7: keep SVG *file* drop; image and SVG import go through the trace layer / auto-trace |
@@ -52,7 +52,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 
 | # | Where | What is typed | Action |
 |---|---|---|---|
-| D1 | Live preview panel: font size and line gap in px | numbers | **Visual in M5**: points slider in the preview strip |
+| D1 | Live preview panel: font size and line gap in px | numbers | **Done in M5**: points slider in the strip and on the Live preview page (line gap stays a px field) |
 | D2 | Live preview text and `{{swadesh_207_short}}` placeholder codes | sample text | **Allowed** for text; placeholder codes replaced by the existing pangram / glyph-set buttons (M5) |
 | D3 | Global actions: move x/y, scale factors, resize deltas, skew angle, side bearings, monospace width | numbers applied blind to the whole font | **Done in M5**: slider rows with live readouts and Reset; Apply kept for the batch / one undo step; the preview strip re-flows after Apply |
 | D4 | Global actions: character range filter shows hex begin/end | read-only | **Allowed** as readout |
