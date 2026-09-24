@@ -1,0 +1,56 @@
+# Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+# brennanmmeyer@gmail.com
+#
+# Builds ANY-INK and publishes it to GitHub Pages at https://<user>.github.io/AnyInk/
+# on every push to main. The test suite runs first; a red suite never deploys.
+# The base path (/AnyInk/) must equal the repo name (D-020, D-022). It is passed on the
+# command line until M14 moves it into src/vite.config.js with the PWA plugin.
+# Action versions are pinned to commits, as in Vite's static-deploy guide.
+
+name: Deploy ANY-INK to GitHub Pages
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npx vitest run
+      - name: Build
+        run: |
+          npx run-func scripts.js build
+          npx vite build ./src/ --emptyOutDir --base=/AnyInk/
+      - name: Setup Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: './dist'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
