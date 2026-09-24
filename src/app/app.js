@@ -2,7 +2,7 @@
 // brennanmmeyer@gmail.com
 import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
-import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
+import { closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
 import { parseSemVer } from '../formats_io/validate_file_input.js';
 import { importGlyphrProjectFromText } from '../project_editor/import_project.js';
 import { ProjectEditor } from '../project_editor/project_editor.js';
@@ -268,10 +268,8 @@ export class GlyphrStudioApp {
 		try {
 			window.localStorage.setItem('GlyphrStudio', JSON.stringify(data));
 		} catch {
-			showToast(
-				`There is not enough space for this project to be auto-saved. The auto-save option has been turned off in Settings > App.`
-			);
-			getCurrentProject().settings.app.autoSave = false;
+			// ANY-INK (M6): localStorage is full or blocked. Nothing important lives here any
+			// more (crash recovery snapshots go to IndexedDB), so this is silent.
 		}
 
 		// log(`\n⮟window.localStorage⮟`);
@@ -289,27 +287,13 @@ export class GlyphrStudioApp {
 	}
 
 	/**
-	 * Automatically writes the current state to the
-	 * local storage for the current project
+	 * ANY-INK (M6, D-012): upstream wrote the whole project to localStorage on every
+	 * edit. Crash recovery (src/anyink/recovery) replaced it with IndexedDB snapshots
+	 * driven by History.updateAfterSaveState -> markDirty(). Kept as a no-op so any
+	 * upstream caller merged later still resolves.
 	 */
 	addAutoSaveState() {
-		// log(`addAutoSaveState`, 'start');
-		const projectData = getCurrentProject().save();
-		const metadata = projectData.settings.project;
-		const saveData = {
-			time: new Date().getTime(),
-			name: metadata.name,
-			id: metadata.id,
-			project: projectData,
-		};
-		// log(`metadata.name: ${metadata.name}`);
-		// log(`metadata.id: ${metadata.id}`);
-		let newSaves = this.getLocalStorage()?.autoSaves || {};
-		newSaves[metadata.id] = saveData;
-		// log(`\n⮟newSaves⮟`);
-		// log(newSaves);
-		this.setLocalStorage('autoSaves', newSaves);
-		// log(`addAutoSaveState`, 'end');
+		// intentionally empty
 	}
 }
 

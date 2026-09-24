@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK recovery: snapshots, Web Locks, restore</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p, li { color: var(--chrome-text-muted); max-width: 78ch; }
+		p { margin: 0 0 var(--space-3); }
+		ol { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-4); font-weight: 600; cursor: pointer; }
+		button:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+		button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3); }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); }
+		.card.structure { border: 1px solid var(--structure); }
+		.readout { font-family: var(--font-mono); font-size: var(--text-sm); display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
+		.readout span:nth-child(odd) { color: var(--chrome-text-muted); }
+		pre { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 0; }
+		.ok { color: var(--touch); } .bad { color: var(--danger); }
+		/* fancy-button is not registered here; the recovery card's buttons get a plain look */
+		fancy-button { display: inline-block; font-size: var(--text-sm); background: var(--touch); color: var(--chrome-text-inverse); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		fancy-button[secondary] { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		fancy-button[disabled] { opacity: 0.5; cursor: default; }
+	</style>
+</head>
+<body>
+	<h1>Recovery: snapshots, Web Locks, restore</h1>
+	<p>
+		Loads ProjectEditor + History with a two-glyph project and <code>src/anyink/recovery</code>. Edits,
+		undo and redo go through the real History, so <code>markDirty(history)</code> fires the real way.
+		Snapshots land in the IndexedDB database <code>anyink</code>, store <code>recovery</code>, one record per
+		live session under <code>session:g2_RECOVERYPAGE:&lt;session id&gt;</code>, holding the project, its
+		assets and its undo queue. Restore swaps the project into this page's editor (no app navigation).
+	</p>
+
+	<h2>Checks (Chrome or Edge)</h2>
+	<ol>
+		<li><b>Edit</b> once: within 3 s <code>writes</code> goes to 1 (or click <b>snapshot now</b>).</li>
+		<li>Hold <b>Edit</b> down with the keyboard (Enter auto-repeats): <code>writes</code> still climbs at
+			least every 15 s (max-wait), and <code>last write</code> says <code>maxWait</code>.</li>
+		<li><b>Undo</b>: <code>generation</code> goes up and the next snapshot holds the undone width
+			(<b>show my record</b>: <code>A width</code> and <code>queue</code> match the readout).</li>
+		<li>Close this tab without <b>mark clean</b>, reopen it: both lists below offer "Recovery page". The
+			reopened page also toasts (log line) that unsaved work from an earlier session exists.</li>
+		<li><b>Discard</b> in the banner list: the tab list empties by itself (and the reverse).</li>
+		<li><b>Restore</b>: toast line, the A width and the undo queue come back, the old key is gone
+			after the first snapshot, the lock is held again.</li>
+		<li>Two tabs on this page: edit in both, <b>mark clean</b> in one: the other tab's record is
+			untouched. Close the other: it is offered here.</li>
+		<li><b>Break storage</b>, then edit: one toast "Crash recovery could not save a snapshot (...)" and
+			<code>last error</code> filled in; more edits within a minute do not toast again.
+			<b>Fix storage</b>, edit: writes resume.</li>
+		<li><b>Break storage</b>, edit, then <b>Forget</b>: toast "Could not forget the snapshots: ..." (no
+			uncaught error in the console) and <code>timer pending</code> stays true. <b>Fix storage</b>:
+			the pending snapshot lands.</li>
+		<li>Edit, wait for a write, reload; repeat five times. Both lists show at most 3 rows for
+			"Recovery page" (the newest three); the older snapshots are gone from the store.</li>
+	</ol>
+
+	<h2>Edit and snapshot</h2>
+	<div class="row">
+		<button id="edit">Edit: A width +10 → addState</button>
+		<button id="undo" class="secondary">Undo</button>
+		<button id="redo" class="secondary">Redo</button>
+		<button id="snap" class="secondary">snapshotNow('manual')</button>
+		<button id="clean" class="secondary">markClean(editor) (as after a save)</button>
+		<button id="switch" class="secondary">switch glyph (publishes whichGlyphIsSelected)</button>
+		<button id="mine" class="secondary">show my record</button>
+	</div>
+
+	<h2>Recover</h2>
+	<div class="row">
+		<button id="stop" class="secondary">stopRecovery() (release locks)</button>
+		<button id="start" class="secondary">initRecovery()</button>
+		<button id="forget" class="danger">forgetAllSnapshots()</button>
+		<button id="break" class="danger">Break storage (writes fail)</button>
+		<button id="fix" class="secondary">Fix storage</button>
+	</div>
+	<div class="grid">
+		<div class="card"><h2>Banner list (makeRecoverArea banner)</h2><div id="banner-slot"></div></div>
+		<div class="card"><h2>Tab list (makeRecoverArea)</h2><div id="tab-slot"></div></div>
+	</div>
+
+	<div class="grid">
+		<div class="card structure">
+			<h2>Status (getRecoveryStatus, refreshed every 500 ms)</h2>
+			<div class="readout" id="status"></div>
+		</div>
+		<div class="card">
+			<h2>Log</h2>
+			<pre id="log"></pre>
+		</div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { setCurrentProjectEditor } from '../src/app/main.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { GlyphrStudioProject } from '../src/project_data/glyphr_studio_project.js';
+		import * as kv from '../src/anyink/storage/kv.js';
+		import * as recovery from '../src/anyink/recovery/recovery.js';
+		import { forgetSnapshotsWithFeedback, makeRecoverArea } from '../src/anyink/recovery/recovery_ui.js';
+		import { fakeDriver } from '../src/anyink/storage/tests/fake_driver.js';
+
+		const $ = (id) => document.getElementById(id);
+		const logEl = $('log');
+		const say = (msg, cls = '') => {
+			const line = document.createElement('div');
+			if (cls) line.className = cls;
+			line.textContent = `${new Date().toLocaleTimeString()}  ${msg}`;
+			logEl.prepend(line);
+		};
+
+		const square = {
+			pathPoints: [
+				{ p: { coord: { x: 100, y: 100 } } },
+				{ p: { coord: { x: 300, y: 100 } } },
+				{ p: { coord: { x: 300, y: 300 } } },
+				{ p: { coord: { x: 100, y: 300 } } },
+			],
+		};
+		const project = new GlyphrStudioProject({
+			settings: {
+				project: { name: 'Recovery page', id: 'g2_RECOVERYPAGE', characterRanges: [{ name: 'Basic Latin', begin: '0x20', end: '0x7F' }] },
+				font: { family: 'RecoveryPage', upm: 1000, ascent: 800, descent: -200, capHeight: 700, xHeight: 500 },
+			},
+			glyphs: {
+				'glyph-0x41': { id: 'glyph-0x41', advanceWidth: 600, shapes: [square] },
+				'glyph-0x42': { id: 'glyph-0x42', advanceWidth: 620, shapes: [square] },
+			},
+		});
+		const editor = new ProjectEditor({ project });
+		setCurrentProjectEditor(editor);
+		editor.nav.page = 'Characters';
+		editor.editCanvas = { redraw() {} };
+
+		// This page has no app navigation: a restore swaps the project into this editor
+		// (a new History, like the app), then recovery adopts the recorded queue.
+		recovery.setRecoveryDeps({
+			getEditors: () => [editor],
+			importProject: (save) => {
+				editor.project = new GlyphrStudioProject(save);
+			},
+			toast: (message) => say(`toast: ${message.replace(/<[^>]+>/g, '')}`, 'ok'),
+		});
+		recovery.initRecovery();
+		say(`initRecovery: storage ${kv.isPersistent() ? 'IndexedDB' : 'memory'}, Web Locks ${navigator.locks ? 'yes' : 'no'}`);
+
+		function mountLists() {
+			$('banner-slot').innerHTML = '';
+			$('tab-slot').innerHTML = '';
+			$('banner-slot').appendChild(makeRecoverArea({ banner: true }));
+			$('tab-slot').appendChild(makeRecoverArea());
+		}
+		mountLists();
+		window.addEventListener(recovery.RECOVERY_CHANGE_EVENT, () => say('event: anyink-recovery-change'));
+
+		const glyphA = () => editor.project.glyphs['glyph-0x41'];
+
+		function renderStatus() {
+			const s = recovery.getRecoveryStatus();
+			const storage = kv.getStorageStatus();
+			$('status').innerHTML = [
+				['storage', storage.persistent ? 'IndexedDB (persistent)' : 'memory'],
+				['storage retries', storage.retries],
+				['storage last error', storage.lastError ? `${storage.lastError.name}: ${storage.lastError.message} (${storage.lastError.op} ${storage.lastError.store})` : '(none)'],
+				['started', s.started],
+				['session key', s.session ? s.session.key : '(none)'],
+				['live sessions', s.sessions.length],
+				['dirty', s.dirty],
+				['timer pending', s.timerPending],
+				['lock', s.lockName ? `${s.lockName} (${s.lockSupported ? 'Web Lock' : 'unsupported'})` : '(none)'],
+				['generation', s.generation],
+				['writes', s.writes],
+				['last write', s.lastWrite ? `${s.lastWrite.reason} at ${new Date(s.lastWrite.time).toLocaleTimeString()}` : '(none)'],
+				['last error', s.lastError ? `${s.lastError.message} at ${new Date(s.lastError.time).toLocaleTimeString()}` : '(none)'],
+				['A advance width', glyphA()?.advanceWidth ?? '(missing)'],
+				['undo queue length', editor.history.queue.length],
+				['redo queue length', editor.history.redoQueue.length],
+				['document.title', document.title],
+			].map(([k, v]) => `<span>${k}</span><span class="${k.includes('error') && v !== '(none)' ? 'bad' : ''}">${v}</span>`).join('');
+		}
+		setInterval(renderStatus, 500);
+		renderStatus();
+
+		$('edit').onclick = () => {
+			glyphA().advanceWidth += 10;
+			editor.history.addState(`A width → ${glyphA().advanceWidth}`);
+			say(`addState: A width ${glyphA().advanceWidth}`);
+		};
+		$('undo').onclick = () => { editor.history.restoreState(); say(`undo: A width ${glyphA()?.advanceWidth}`); };
+		$('redo').onclick = () => { editor.history.redoState(); say(`redo: A width ${glyphA()?.advanceWidth}`); };
+		$('snap').onclick = async () => say(`snapshotNow: ${await recovery.snapshotNow('manual')}`);
+		$('clean').onclick = async () => {
+			editor.setProjectAsSaved();
+			say(`markClean: ${await recovery.markClean(editor)}`);
+		};
+		$('switch').onclick = () => {
+			editor.selectedGlyphID = editor.selectedGlyphID === 'glyph-0x41' ? 'glyph-0x42' : 'glyph-0x41';
+			say(`selected ${editor.selectedGlyphID}`);
+		};
+		$('mine').onclick = async () => {
+			const key = recovery.getRecoveryStatus().session?.key;
+			const record = key ? await kv.recGet(key) : undefined;
+			if (!record) return say(`no record for ${key || 'this session'}`);
+			say(`record ${key}: dirty ${record.dirty}, A width ${record.project?.glyphs?.['glyph-0x41']?.advanceWidth}, queue ${record.history?.queue?.length}, redo ${record.history?.redoQueue?.length}`);
+		};
+
+		$('stop').onclick = () => { recovery.stopRecovery(); say('stopRecovery: locks released, timers cleared', 'bad'); };
+		$('start').onclick = () => { recovery.initRecovery(); say('initRecovery'); };
+		$('forget').onclick = async () => {
+			const forgotten = await forgetSnapshotsWithFeedback();
+			say(`forgetSnapshotsWithFeedback: ${forgotten}`, forgotten ? 'bad' : 'ok');
+		};
+
+		let fixStorage = null;
+		$('break').onclick = () => {
+			if (fixStorage) return;
+			const broken = fakeDriver();
+			broken.failWhen((op) => op === 'set' || op === 'clear');
+			fixStorage = kv.setStorageDriver(broken);
+			say('storage broken: every write and clear fails (in-memory fake driver)', 'bad');
+		};
+		$('fix').onclick = () => {
+			if (!fixStorage) return;
+			fixStorage();
+			fixStorage = null;
+			say('storage fixed: real IndexedDB again', 'ok');
+		};
+	</script>
+</body>
+</html>

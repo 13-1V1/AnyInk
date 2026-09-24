@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK assets: image store and .gs2 round trip</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 70ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button, .filebutton { font: inherit; background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-4); font-weight: 600; cursor: pointer; }
+		button:hover, .filebutton:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible, .filebutton:focus-within { outline: none; box-shadow: var(--focus-ring); }
+		button:disabled { opacity: 0.5; cursor: default; }
+		.filebutton input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+		.filebutton { position: relative; }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); }
+		.card.structure { border: 1px solid var(--structure); }
+		pre { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 0; }
+		.ok { color: var(--touch); } .bad { color: var(--structure); }
+		table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+		th { text-align: left; font-weight: normal; color: var(--chrome-text-faint); font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; padding: var(--space-1) var(--space-2); }
+		td { padding: var(--space-2); border-top: 1px solid var(--chrome-border); vertical-align: middle; }
+		td.id { font-family: var(--font-mono); color: var(--structure); }
+		td.num { text-align: right; font-variant-numeric: tabular-nums; }
+		img.thumb { width: 64px; height: 64px; object-fit: contain; background: var(--chrome-bg); border: 1px solid var(--chrome-border); border-radius: var(--radius); image-rendering: pixelated; display: block; }
+		tfoot td { color: var(--chrome-text-muted); }
+		.empty { color: var(--chrome-text-faint); padding: var(--space-3) var(--space-2); }
+	</style>
+</head>
+<body>
+	<h1>Assets: image store and .gs2 round trip</h1>
+	<p>
+		Loads only <code>src/anyink/assets/asset_store.js</code> (and its base64 helper).
+		Add PNG, JPEG, or WebP images; anything else must be refused with a plain message
+		(pick "All files" in the dialog to try a GIF or a text file). "Round trip" saves the
+		store to the .gs2 JSON shape, reloads it into a fresh store, and checks every byte.
+	</p>
+	<div class="row">
+		<span>Runtime: <strong id="runtime">…</strong></span>
+	</div>
+
+	<h2>add</h2>
+	<div class="row">
+		<label class="filebutton">
+			add image file(s)…
+			<input id="file" type="file" multiple />
+		</label>
+		<button id="sample" class="secondary">add built-in 1 × 1 PNG</button>
+		<button id="badType" class="secondary">try a text file (must be refused)</button>
+	</div>
+
+	<h2>round trips</h2>
+	<div class="row">
+		<button id="roundTrip">round trip: toSaveObject → JSON → loadSaveObject</button>
+		<button id="blobTrip" class="secondary">blob-map trip: toBlobMap → structuredClone → loadBlobMap</button>
+		<button id="clear" class="secondary">clear</button>
+	</div>
+
+	<h2>store contents</h2>
+	<div class="card">
+		<table>
+			<thead>
+				<tr><th></th><th>id</th><th>type</th><th>size</th><th></th></tr>
+			</thead>
+			<tbody id="rows"></tbody>
+			<tfoot>
+				<tr><td></td><td id="count">0 assets</td><td></td><td class="num" id="total">0 B</td><td></td></tr>
+			</tfoot>
+		</table>
+	</div>
+
+	<div class="grid" style="margin-top: var(--space-3)">
+		<div class="card structure">
+			<h2>Result</h2>
+			<pre id="result">—</pre>
+		</div>
+		<div class="card">
+			<h2>Log</h2>
+			<pre id="log"></pre>
+		</div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { AssetStore, assetsSizeBytes } from '../src/anyink/assets/asset_store.js';
+		import { blobToBytes } from '../src/anyink/assets/base64.js';
+
+		// 1 x 1 transparent PNG, the same 70 bytes the unit tests use.
+		const SAMPLE_PNG = new Uint8Array([
+			0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+			0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+			0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0x64, 0x60, 0xf8, 0x5f,
+			0x0f, 0x00, 0x02, 0x87, 0x01, 0x80, 0xeb, 0x47, 0xba, 0x92, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+			0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+		]);
+
+		let store = new AssetStore();
+		window.assetStore = () => store; // for poking at it from the console
+
+		const $ = (id) => document.getElementById(id);
+		const logEl = $('log');
+		const say = (msg, cls = '') => {
+			const line = document.createElement('div');
+			if (cls) line.className = cls;
+			line.textContent = `${new Date().toLocaleTimeString()}  ${msg}`;
+			logEl.prepend(line);
+		};
+		const show = (value) => {
+			$('result').textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+		};
+		const run = async (label, fn) => {
+			try {
+				const out = await fn();
+				show(out === undefined ? 'ok' : out);
+				say(`${label}: ok`, 'ok');
+			} catch (e) {
+				show(String(e));
+				say(`${label}: ${e.name || 'Error'} ${e.message}`, 'bad');
+			}
+			render();
+		};
+
+		const formatBytes = (n) => {
+			if (n < 1024) return `${n} B`;
+			if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+			return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+		};
+
+		let objectURLs = [];
+		function render() {
+			for (const url of objectURLs) URL.revokeObjectURL(url);
+			objectURLs = [];
+			const rows = $('rows');
+			rows.textContent = '';
+			const ids = store.ids();
+			if (ids.length === 0) {
+				const tr = document.createElement('tr');
+				const td = document.createElement('td');
+				td.colSpan = 5;
+				td.className = 'empty';
+				td.textContent = 'no assets';
+				tr.append(td);
+				rows.append(tr);
+			}
+			for (const id of ids) {
+				const item = store.get(id);
+				const tr = document.createElement('tr');
+				const url = URL.createObjectURL(item.blob);
+				objectURLs.push(url);
+				const img = document.createElement('img');
+				img.className = 'thumb';
+				img.alt = id;
+				img.src = url;
+				img.onerror = () => say(`${id}: the browser could not decode this image`, 'bad');
+				const tdImg = document.createElement('td');
+				tdImg.append(img);
+				const tdId = document.createElement('td');
+				tdId.className = 'id';
+				tdId.textContent = id;
+				const tdType = document.createElement('td');
+				tdType.textContent = item.type;
+				const tdSize = document.createElement('td');
+				tdSize.className = 'num';
+				tdSize.textContent = formatBytes(item.blob.size);
+				const tdDel = document.createElement('td');
+				const del = document.createElement('button');
+				del.className = 'secondary';
+				del.textContent = 'delete';
+				del.onclick = () => run(`delete ${id}`, () => ({ deleted: store.delete(id) }));
+				tdDel.append(del);
+				tr.append(tdImg, tdId, tdType, tdSize, tdDel);
+				rows.append(tr);
+			}
+			$('count').textContent = `${ids.length} asset${ids.length === 1 ? '' : 's'}`;
+			$('total').textContent = formatBytes(assetsSizeBytes(store));
+		}
+
+		$('runtime').textContent = [
+			`Blob.arrayBuffer ${typeof Blob.prototype.arrayBuffer === 'function' ? 'yes' : 'no'}`,
+			`FileReader ${typeof FileReader === 'function' ? 'yes' : 'no'}`,
+			`crypto.getRandomValues ${typeof crypto?.getRandomValues === 'function' ? 'yes' : 'no'}`,
+		].join(' · ');
+
+		$('file').onchange = (event) => {
+			const files = [...event.target.files];
+			event.target.value = '';
+			for (const file of files) {
+				run(`add ${file.name} (${file.type || 'no type'})`, () => {
+					const id = store.add(file);
+					return { added: id, name: file.name, type: store.get(id).type, size: file.size };
+				});
+			}
+		};
+
+		$('sample').onclick = () =>
+			run('add sample PNG', () => {
+				const id = store.add(new Blob([SAMPLE_PNG], { type: 'image/png' }));
+				return { added: id, size: SAMPLE_PNG.length };
+			});
+
+		$('badType').onclick = () =>
+			run('add text/plain (expect a TypeError)', () => {
+				const id = store.add(new Blob(['not an image'], { type: 'text/plain' }));
+				throw new Error(`BUG: a text file was accepted as ${id}`);
+			});
+
+		$('clear').onclick = () => run('clear', () => store.clear());
+
+		async function snapshotBytes() {
+			const out = new Map();
+			for (const id of store.ids()) out.set(id, await blobToBytes(store.get(id).blob));
+			return out;
+		}
+		function sameBytes(a, b) {
+			if (a.length !== b.length) return false;
+			for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+			return true;
+		}
+		async function verifyAgainst(before, loaded) {
+			const mismatches = [];
+			for (const [id, bytes] of before) {
+				const item = loaded.get(id);
+				if (!item) mismatches.push(`${id}: missing after load`);
+				else if (item.type !== store.get(id).type) mismatches.push(`${id}: type changed`);
+				else if (!sameBytes(bytes, await blobToBytes(item.blob))) mismatches.push(`${id}: bytes differ`);
+			}
+			if (loaded.ids().length !== before.size) mismatches.push('asset count changed');
+			return mismatches;
+		}
+
+		$('roundTrip').onclick = () =>
+			run('round trip via .gs2 JSON', async () => {
+				const before = await snapshotBytes();
+				const t0 = performance.now();
+				const saveObject = await store.toSaveObject();
+				const json = JSON.stringify({ assets: saveObject });
+				const t1 = performance.now();
+				const loaded = new AssetStore();
+				const skipped = await loaded.loadSaveObject(JSON.parse(json).assets);
+				const t2 = performance.now();
+				const mismatches = await verifyAgainst(before, loaded);
+				store = loaded; // the page now shows the reloaded images
+				return {
+					assets: before.size,
+					bytesIn: [...before.values()].reduce((n, b) => n + b.length, 0),
+					jsonChars: json.length,
+					encodeMs: Math.round(t1 - t0),
+					decodeMs: Math.round(t2 - t1),
+					skipped,
+					byteExact: mismatches.length === 0,
+					mismatches,
+				};
+			});
+
+		$('blobTrip').onclick = () =>
+			run('blob-map trip via structuredClone', async () => {
+				const before = await snapshotBytes();
+				const map = store.toBlobMap();
+				const cloned = structuredClone(map); // what IndexedDB does to a snapshot
+				const loaded = new AssetStore();
+				const skipped = loaded.loadBlobMap(cloned);
+				const mismatches = await verifyAgainst(before, loaded);
+				store = loaded;
+				return { assets: before.size, skipped, byteExact: mismatches.length === 0, mismatches };
+			});
+
+		render();
+	</script>
+</body>
+</html>

@@ -1,6 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	SNAPSHOT_DELAY_MS,
+	getDirtyGeneration,
+	initRecovery,
+	setRecoveryDeps,
+	stopRecovery,
+} from '../../anyink/recovery/recovery.js';
+import { recClear, recGet } from '../../anyink/storage/kv.js';
 import { getCurrentProjectEditor, setCurrentProjectEditor } from '../../app/main.js';
 import { eventHandlerData } from '../../edit_canvas/events.js';
 import { handleKeyPress, handleKeyUp } from '../../edit_canvas/events_keyboard.js';
@@ -11,14 +19,13 @@ import { GlyphrStudioProject } from '../../project_data/glyphr_studio_project.js
 import { Guide } from '../guide.js';
 import {
 	HISTORY_FORMAT_VERSION,
-	History,
 	deserializeHistoryEntry,
 	serializeHistoryEntry,
 } from '../history.js';
 import { ProjectEditor } from '../project_editor.js';
 
-// IndexedDB is absent in jsdom: History.initialize / persist swallow the
-// rejection on their own, nothing here awaits storage.
+// jsdom has no IndexedDB: crash recovery (when a test starts it) writes to kv.js's
+// in-memory fallback. History itself keeps no storage of its own any more.
 
 const square = {
 	name: 'Square',
@@ -58,8 +65,22 @@ function makeProject() {
 	});
 }
 
-function makeEditor(page = 'Characters') {
-	const editor = new ProjectEditor({ project: makeProject() });
+/**
+ * @param {String} [page]
+ * @param {Object} [options]
+ * @param {Boolean} [options.fromFile] - opened from its .gs2 (the open paths set the handle
+ *   before the project), so undo back to the opened state clears the title dot. Without a
+ *   file the project matches nothing on disk and the dot stays (M6 verification, finding 8).
+ */
+function makeEditor(page = 'Characters', { fromFile = false } = {}) {
+	let editor;
+	if (fromFile) {
+		editor = new ProjectEditor();
+		editor.loadedFileHandle = { kind: 'file', name: 'History Test.gs2' };
+		editor.project = makeProject();
+	} else {
+		editor = new ProjectEditor({ project: makeProject() });
+	}
 	setCurrentProjectEditor(editor);
 	editor.nav.page = page;
 	return editor;
@@ -105,7 +126,7 @@ afterEach(() => {
 
 describe('History: settings entries', () => {
 	it('addSettingsState then restoreState restores settings.font in place and publishes', () => {
-		const editor = makeEditor();
+		const editor = makeEditor('Characters', { fromFile: true });
 		const font = editor.project.settings.font;
 		const seen = watchTopics(
 			editor,
@@ -288,7 +309,7 @@ describe('History: whole-project restore', () => {
 
 describe('History: creation pre-states', () => {
 	it('undo removes a just-created component and the project was marked unsaved', () => {
-		const editor = makeEditor('Components');
+		const editor = makeEditor('Components', { fromFile: true });
 		document.title = 'ANY-INK';
 
 		const component = createComponent('Accent');
@@ -558,82 +579,231 @@ describe('ProjectEditor.setProjectAsSaved', () => {
 });
 
 // --------------------------------------------------------------
-// Persisted queue (IndexedDB) on project load
+// Undo state for crash recovery (D-026 amended)
 // --------------------------------------------------------------
 
-describe('History: persisted queue on load', () => {
-	function storedSnapshotFor(project) {
-		const font = { ...project.settings.font, xHeight: 777 };
-		return {
-			projectID: project.settings.project.id,
-			version: HISTORY_FORMAT_VERSION,
-			initialTimeStamp: 1,
-			initialProject: project.save(),
-			queue: [
-				{
-					timeStamp: 2,
-					itemID: false,
-					itemState: false,
-					title: 'Moved X height to 777 (last session)',
-					page: 'Characters',
-					itemWasDeleted: false,
-					wholeProjectSave: false,
-					settingsSave: true,
-					settingsState: { font, guides: { custom: [] } },
-				},
-			],
-			redoQueue: [],
-		};
-	}
-
-	let loadSpy;
-	let saved;
-	beforeEach(() => {
-		saved = [];
-		loadSpy = vi
-			.spyOn(History.prototype, 'loadStoredSnapshot')
-			.mockImplementation(function () {
-				return Promise.resolve(storedSnapshotFor(this.initialProject));
-			});
-		vi.spyOn(History.prototype, 'persist').mockImplementation(function () {
-			saved.push({ history: this, length: this.queue.length });
-		});
-	});
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
-	it('discards another session\'s stored queue when a project loads fresh', async () => {
+describe('History: undo state for crash recovery', () => {
+	it('a fresh load starts with an empty queue: undo goes back to the loaded project', () => {
 		const editor = makeEditor();
-		await editor.history.storageReady;
-		expect(loadSpy).toHaveBeenCalled();
 		expect(editor.history.queue).toEqual([]);
-		// The stale snapshot was overwritten with the fresh, empty queue
-		const writes = saved.filter((w) => w.history === editor.history).map((w) => w.length);
-		expect(writes).toEqual([0]);
-		// Undo of a new settings change goes back to the loaded project, never to 777
 		editor.project.settings.font.xHeight = 520;
 		editor.history.addSettingsState('Set X height to 520');
 		editor.history.restoreState();
 		expect(editor.project.settings.font.xHeight).toBe(500);
 	});
 
-	it('adopts the stored queue when the project came back from an auto-save', async () => {
+	it('serializeForStorage + adoptSnapshot carry the queue to a restored copy', () => {
 		const editor = makeEditor();
-		editor.history.adoptStoredHistory();
-		await editor.history.storageReady;
-		expect(editor.history.queue).toHaveLength(1);
-		expect(editor.history.queue[0].title).toBe('Moved X height to 777 (last session)');
-		expect(saved.filter((w) => w.history === editor.history)).toEqual([]);
+		const glyph = () => editor.project.glyphs['glyph-0x41'];
+		glyph().advanceWidth = 700;
+		editor.history.addState('A to 700');
+		glyph().advanceWidth = 800;
+		editor.history.addState('A to 800');
+		// IndexedDB stores structured clones: the snapshot must survive one
+		const snapshot = structuredClone(editor.history.serializeForStorage());
+		expect(snapshot.version).toBe(HISTORY_FORMAT_VERSION);
+
+		const restored = new ProjectEditor({ project: new GlyphrStudioProject(editor.project.save()) });
+		setCurrentProjectEditor(restored);
+		restored.nav.page = 'Characters';
+		expect(restored.history.adoptSnapshot(snapshot)).toBe(true);
+		expect(restored.history.queue.map((entry) => entry.title)).toEqual(['A to 800', 'A to 700']);
+		restored.history.restoreState();
+		expect(restored.project.glyphs['glyph-0x41'].advanceWidth).toBe(700);
+		// the initial project came from the snapshot too, not from the restored copy
+		restored.history.restoreState();
+		expect(restored.project.glyphs['glyph-0x41'].advanceWidth).toBe(600);
 	});
 
-	it('ignores a stored queue written by an older format', async () => {
-		loadSpy.mockImplementation(function () {
-			return Promise.resolve({ ...storedSnapshotFor(this.initialProject), version: 2 });
-		});
+	it('adoptSnapshot ignores a missing snapshot or one written by another format', () => {
 		const editor = makeEditor();
-		editor.history.adoptStoredHistory();
-		await editor.history.storageReady;
+		expect(editor.history.adoptSnapshot(undefined)).toBe(false);
+		const snapshot = editor.history.serializeForStorage();
+		expect(editor.history.adoptSnapshot({ ...snapshot, version: 2 })).toBe(false);
 		expect(editor.history.queue).toEqual([]);
+	});
+
+	// Finding 5: undo / redo never marked dirty, so the snapshot went stale.
+	it('undo and redo mark the project dirty', () => {
+		const editor = makeEditor();
+		editor.project.glyphs['glyph-0x41'].advanceWidth = 700;
+		editor.history.addState('A to 700');
+		const afterEdit = getDirtyGeneration();
+		editor.history.restoreState();
+		expect(getDirtyGeneration()).toBe(afterEdit + 1);
+		editor.history.redoState();
+		expect(getDirtyGeneration()).toBe(afterEdit + 2);
+	});
+
+	it('the crash snapshot after an undo holds the undone project and its matching queue', async () => {
+		vi.useFakeTimers();
+		await recClear();
+		const editor = makeEditor();
+		const restoreDeps = setRecoveryDeps({
+			getEditor: () => editor,
+			getEditors: () => [editor],
+			locks: () => undefined,
+			toast: () => {},
+			makeSessionId: () => 'undo',
+		});
+		const key = 'session:g2_HISTORYTEST:undo';
+		try {
+			initRecovery();
+			editor.project.glyphs['glyph-0x41'].advanceWidth = 700;
+			editor.history.addState('A to 700');
+			await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS);
+			expect((await recGet(key)).project.glyphs['glyph-0x41'].advanceWidth).toBe(700);
+
+			editor.history.restoreState();
+			expect(editor.project.glyphs['glyph-0x41'].advanceWidth).toBe(600);
+			await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS);
+			const record = await recGet(key);
+			expect(record.project.glyphs['glyph-0x41'].advanceWidth).toBe(600);
+			expect(record.history.queue).toHaveLength(editor.history.queue.length);
+			expect(record.history.redoQueue).toHaveLength(1);
+		} finally {
+			stopRecovery();
+			restoreDeps();
+			vi.useRealTimers();
+		}
+	});
+});
+
+// --------------------------------------------------------------
+// Title dot follows the saved state (finding 8)
+// --------------------------------------------------------------
+
+describe('History: the title dot follows the saved state', () => {
+	function editA(editor, width) {
+		editor.project.glyphs['glyph-0x41'].advanceWidth = width;
+		editor.history.addState(`A to ${width}`);
+	}
+	const widthA = (editor) => editor.project.glyphs['glyph-0x41'].advanceWidth;
+
+	it('undo back to an empty queue keeps the dot when the file on disk differs', () => {
+		const editor = makeEditor();
+		const seen = watchTopics(editor, ['projectFile'], 'anyink.test.dotEmpty');
+		editA(editor, 700);
+		expect(document.title).toBe('ANY-INK •');
+		editor.setProjectAsSaved(); // Ctrl+S: the file has 700
+		expect(document.title).toBe('ANY-INK');
+		editA(editor, 800);
+		editor.history.restoreState(); // 700 again: matches the file
+		expect(widthA(editor)).toBe(700);
+		expect(document.title).toBe('ANY-INK');
+		editor.history.restoreState(); // 600: the file still has 700
+		expect(widthA(editor)).toBe(600);
+		expect(editor.history.queue).toHaveLength(0);
+		expect(document.title).toBe('ANY-INK •');
+		editor.history.restoreState(); // "No more undo" changes nothing
+		expect(document.title).toBe('ANY-INK •');
+		expect(seen.map((entry) => entry.data.saved)).toEqual([false, true, false, true, false]);
+	});
+
+	it('redo onto the saved entry clears the dot; redo past it shows the dot', () => {
+		const editor = makeEditor();
+		editA(editor, 700);
+		editor.setProjectAsSaved();
+		editA(editor, 800);
+		editor.history.restoreState();
+		editor.history.restoreState();
+		expect(document.title).toBe('ANY-INK •');
+		editor.history.redoState(); // 700 = the file
+		expect(widthA(editor)).toBe(700);
+		expect(document.title).toBe('ANY-INK');
+		editor.history.redoState(); // 800
+		expect(widthA(editor)).toBe(800);
+		expect(document.title).toBe('ANY-INK •');
+	});
+
+	it('undo through a recovered (adopted) queue never claims the file matches', () => {
+		const editor = makeEditor();
+		editA(editor, 700);
+		editA(editor, 800);
+		const snapshot = editor.history.serializeForStorage();
+		const restored = new ProjectEditor({ project: new GlyphrStudioProject(editor.project.save()) });
+		setCurrentProjectEditor(restored);
+		restored.nav.page = 'Characters';
+		restored.history.adoptSnapshot(snapshot);
+		restored.setProjectAsUnsaved();
+		restored.history.restoreState();
+		restored.history.restoreState();
+		expect(restored.history.queue).toHaveLength(0);
+		expect(widthA(restored)).toBe(600);
+		expect(document.title).toBe('ANY-INK •');
+	});
+
+	// Verification of finding 8: a project with no .gs2 behind it (New, a sample, an
+	// imported font or SVG) matches no file, so an empty queue is not "saved".
+	it('a project that was never saved keeps the dot when undo empties the queue', () => {
+		const editor = makeEditor();
+		const seen = watchTopics(editor, ['projectFile'], 'anyink.test.dotNeverSaved');
+		editA(editor, 700);
+		editor.history.restoreState();
+		expect(widthA(editor)).toBe(600);
+		expect(editor.history.queue).toHaveLength(0);
+		expect(document.title).toBe('ANY-INK •');
+		expect(seen.map((entry) => entry.data.saved)).toEqual([false]);
+	});
+
+	it('a project opened from its .gs2 clears the dot when undo is back at the opened state', () => {
+		const editor = makeEditor('Characters', { fromFile: true });
+		editA(editor, 700);
+		expect(document.title).toBe('ANY-INK •');
+		editor.history.restoreState();
+		expect(widthA(editor)).toBe(600);
+		expect(document.title).toBe('ANY-INK');
+	});
+
+	it('markSavedStateAt records the entry a save wrote, even after newer edits', () => {
+		const editor = makeEditor();
+		editA(editor, 700);
+		const written = editor.history.queue[0];
+		editA(editor, 800); // lands while that save is writing
+		editor.history.markSavedStateAt(written);
+		expect(editor.history.isAtSavedState()).toBe(false);
+		editor.history.restoreState(); // 700 = the file
+		expect(document.title).toBe('ANY-INK');
+		editor.history.restoreState(); // 600
+		expect(document.title).toBe('ANY-INK •');
+	});
+
+	it('a navigation-only undo keeps the saved state', () => {
+		const editor = makeEditor();
+		editA(editor, 700);
+		editor.selectedGlyphID = 'glyph-0x42';
+		editor.project.glyphs['glyph-0x42'].advanceWidth = 720;
+		editor.history.addState('B to 720');
+		editor.setProjectAsSaved(); // the file has A 700, B 720
+		editor.history.restoreState(); // navigates to A, changes nothing
+		expect(editor.selectedGlyphID).toBe('glyph-0x41');
+		expect(document.title).toBe('ANY-INK');
+		editor.history.restoreState(); // A back to 600
+		expect(widthA(editor)).toBe(600);
+		expect(document.title).toBe('ANY-INK •');
+		editor.history.redoState(); // A 700, B 720 = the file
+		expect(widthA(editor)).toBe(700);
+		expect(document.title).toBe('ANY-INK');
+	});
+});
+
+// --------------------------------------------------------------
+// Project file text (audit A9: always compact)
+// --------------------------------------------------------------
+
+describe('ProjectEditor.makeProjectFileText', () => {
+	it('saves compact JSON even when a project carries formatSaveFile: true', async () => {
+		const editor = makeEditor();
+		editor.project.settings.app.formatSaveFile = true;
+		const text = await editor.makeProjectFileText();
+		expect(text).not.toMatch(/\n/);
+		expect(JSON.parse(text).settings.project.id).toBe('g2_HISTORYTEST');
+	});
+
+	it('saves live previews even when a project carries saveLivePreviews: false (no control for it)', async () => {
+		const editor = makeEditor();
+		editor.project.settings.app.saveLivePreviews = false;
+		const text = await editor.makeProjectFileText();
+		expect(Array.isArray(JSON.parse(text).settings.app.livePreviews)).toBe(true);
 	});
 });

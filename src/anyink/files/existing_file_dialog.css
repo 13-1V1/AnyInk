@@ -1,0 +1,28 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* "File already exists" export dialog. Tokens only, no color literals. */
+
+.anyink-existing-file h2 {
+	margin: 0 0 var(--space-2);
+	font-weight: normal;
+	font-size: var(--text-lg);
+	overflow-wrap: anywhere;
+}
+
+.anyink-existing-file p {
+	color: var(--chrome-text-muted);
+	margin: 0 0 var(--space-4);
+	overflow-wrap: anywhere;
+}
+
+.anyink-existing-file strong {
+	color: var(--chrome-text);
+	font-weight: 600;
+}
+
+.anyink-existing-file__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}

@@ -7,15 +7,30 @@ import { getFirstTagInstance } from './svg_font/svg_font_import.js';
 
 /**
  * Build the result
+ * ANY-INK (M6, D-012): fileHandle is the handle Save may write back to, so it is set
+ * only for a .gs2 project; sourceHandle is whatever handle the file came from (a v1
+ * .txt, a font). Both are false for a plain File. The object is reset on every call
+ * so nothing from the previous file (content, handle, error) leaks into the next.
  */
 const validationResult = {
 	fileName: '',
 	fileSuffix: '',
 	fileType: '',
 	fileHandle: false,
+	sourceHandle: false,
 	errorMessage: '',
 	content: false,
 };
+
+function resetValidationResult() {
+	validationResult.fileName = '';
+	validationResult.fileSuffix = '';
+	validationResult.fileType = '';
+	validationResult.fileHandle = false;
+	validationResult.sourceHandle = false;
+	validationResult.errorMessage = '';
+	validationResult.content = false;
+}
 
 let postValidationCallback;
 
@@ -35,17 +50,30 @@ let postValidationCallback;
  */
 export async function validateSingleFileInput(fileInput, callback) {
 	// log(`validateSingleFileInput`, 'start');
+	resetValidationResult();
+	postValidationCallback = callback;
 
 	if(!fileInput) {
 		return failWithError('The file could not be read. [FR-NULL]');
 	}
 
-	postValidationCallback = callback;
+	// ANY-INK (M6): a FileSystemFileHandle (picker, or a drop in Chromium) has getFile();
+	// a plain File (upstream's input element, no File System Access) does not. Checking
+	// the input itself, not window.show*Picker, keeps a dropped File from being taken
+	// for a handle.
 	let file;
-	// @ts-expect-error 'property does exist'
-	if (window.showOpenFilePicker && window.showSaveFilePicker) {
-		validationResult.fileHandle = fileInput;
-		file = await fileInput.getFile();
+	const isHandle = typeof fileInput.getFile === 'function';
+	if (isHandle) {
+		validationResult.sourceHandle = fileInput;
+		try {
+			file = await fileInput.getFile();
+		} catch (error) {
+			return failWithError(`
+				The file could not be read. [FR2]
+				<hr>
+				${error?.message || error}
+			`);
+		}
 	} else {
 		file = fileInput;
 	}
@@ -54,6 +82,10 @@ export async function validateSingleFileInput(fileInput, callback) {
 	let fileSuffix = file.name.split('.');
 	fileSuffix = fileSuffix[fileSuffix.length - 1].toLowerCase();
 	validationResult.fileSuffix = fileSuffix;
+	// ANY-INK (M6, finding 3): only a .gs2 may become editor.loadedFileHandle. A Glyphr
+	// Studio v1 .txt is read and upgraded, never overwritten with v2 JSON; its first
+	// Save goes through Save As with '<name>.gs2' suggested.
+	if (isHandle && fileSuffix === 'gs2') validationResult.fileHandle = fileInput;
 
 	// log(`validationResult.fileName: ${validationResult.fileName}`);
 	// log(`validationResult.fileSuffix: ${validationResult.fileSuffix}`);

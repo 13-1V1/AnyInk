@@ -128,6 +128,17 @@ export class GlyphrStudioProject {
 				overlinePosition: 750,
 				overlineThickness: 10,
 			},
+			// ANY-INK settings (DESIGN_DOC section 4). Upstream tolerates this block and
+			// drops it on its own re-save; ANY-INK defaults every key that is absent.
+			anyink: {
+				formatVersion: 1,
+				canvasTheme: 'light',
+				previewText: '',
+				previewPt: 48,
+				nibDefaults: { shape: 'flat', width: 60, thickness: 0.35, angle: 30, pressure: 0.5 },
+				roughenDefaults: { size: 12, detail: 6, spread: 4, seed: 1 },
+				sheet: { templateVersion: 1, pages: [] },
+			},
 		};
 
 		this.glyphs = {};
@@ -190,6 +201,16 @@ export class GlyphrStudioProject {
 			this.settings.app.livePreviews = newPreviews.map((option) => new TextBlockOptions(option));
 		}
 
+		// ANY-INK: sheet pages are an array, and merge() leaves an empty template array alone
+		const newPages = newProject?.settings?.anyink?.sheet?.pages;
+		if (Array.isArray(newPages)) this.settings.anyink.sheet.pages = clone(newPages);
+
+		// ANY-INK: embedded binary assets (D-011 / D-012). The project holds no Blobs: the
+		// importer hands this object to the editor's AssetStore, and save() never emits it
+		// (the files track adds 'assets' to the .gs2 at save time). Kept by reference, not
+		// cloned, because base64 image data can be large and the file JSON is discarded.
+		this.assetsSaveObject = isNonEmptyObject(newProject.assets) ? newProject.assets : false;
+
 		// log('finished merging settings - result:');
 		// log(this.settings);
 
@@ -237,6 +258,7 @@ export class GlyphrStudioProject {
 	 * @returns {Object}
 	 */
 	save(verbose = false) {
+		// ANY-INK: 'assets' is never part of this object (see assetsSaveObject)
 		const savedProject = {
 			settings: clone(this.settings),
 			glyphs: {},
@@ -913,11 +935,33 @@ export function merge(template = {}, importing = {}, trimStrings = false) {
 			if (importing[a]) template[a] = merge(template[a], importing[a]);
 		} else {
 			if (importedType === 'string' && trimStrings) template[a] = trim(importing[a]);
-			else if (importedType === 'string' || importedType === 'number') template[a] = importing[a];
+			else if (
+				importedType === 'string' ||
+				importedType === 'number' ||
+				importedType === 'boolean'
+			) {
+				// ANY-INK: booleans copy too. Upstream only copied strings and numbers, so a
+				// saved boolean that differed from the template default was lost on load.
+				template[a] = importing[a];
+			}
 		}
 	}
 	// log('glyphr_studio_project - merge', 'end');
 	return template;
+}
+
+/**
+ * ANY-INK: true for a plain object with at least one own key
+ * @param {any} value - candidate
+ * @returns {Boolean}
+ */
+export function isNonEmptyObject(value) {
+	return (
+		!!value &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		Object.keys(value).length > 0
+	);
 }
 
 /**

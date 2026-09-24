@@ -1,0 +1,142 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	ANY-INK crash recovery UI (Milestone 6): the "unsaved work found" card on the
+	Open Project page and the forget-snapshots confirm dialog. Colors are tokens only:
+	the card frame is structure purple, Restore is the green touch button.
+*/
+
+.anyink-recovery-area {
+	display: block;
+}
+
+.anyink-recovery-area--banner {
+	margin-bottom: var(--space-4);
+}
+
+.anyink-recovery-card {
+	background-color: var(--chrome-bg-raised);
+	border: 1px solid var(--structure);
+	border-radius: var(--radius);
+	padding: var(--space-3) var(--space-4);
+	box-shadow: var(--shadow-card);
+	animation: var(--animate-fade-in);
+}
+
+.anyink-recovery-card__header {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	margin-bottom: var(--space-3);
+}
+
+.anyink-recovery-card__eyebrow {
+	font-size: var(--text-xs);
+	letter-spacing: var(--eyebrow-spacing);
+	text-transform: uppercase;
+	color: var(--structure);
+}
+
+.anyink-recovery-card__hint {
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+}
+
+.anyink-recovery-card__rows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	max-height: 210px;
+	overflow-y: auto;
+	scrollbar-color: var(--chrome-scrollbar) transparent;
+}
+
+.anyink-recovery-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	grid-template-rows: auto auto;
+	column-gap: var(--space-3);
+	align-items: center;
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius);
+	background-color: var(--chrome-bg-sunken);
+}
+
+.anyink-recovery-row:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-recovery-row__title {
+	grid-column: 1;
+	grid-row: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.anyink-recovery-row__name {
+	font-size: var(--text-base);
+	color: var(--chrome-text);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.anyink-recovery-row__badge {
+	font-size: var(--text-xs);
+	letter-spacing: var(--eyebrow-spacing);
+	text-transform: uppercase;
+	color: var(--structure);
+	background-color: var(--structure-soft);
+	border-radius: var(--radius-sm);
+	padding: 1px var(--space-1);
+	white-space: nowrap;
+}
+
+.anyink-recovery-row__when {
+	grid-column: 1;
+	grid-row: 2;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--chrome-text-muted);
+}
+
+.anyink-recovery-row__buttons {
+	grid-column: 2;
+	grid-row: 1 / 3;
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+/* The Open Project page stretches fancy-buttons; rows keep them compact */
+.open-project__tab-content .anyink-recovery-row fancy-button,
+.anyink-recovery-row fancy-button {
+	width: auto;
+	height: 28px;
+	margin: 0;
+}
+
+.anyink-recovery__empty {
+	display: block;
+	color: var(--chrome-text-muted);
+	padding: var(--space-2) 0;
+}
+
+.anyink-recovery-confirm h2 {
+	margin: 0 0 var(--space-2);
+	font-weight: normal;
+	font-size: var(--text-lg);
+}
+
+.anyink-recovery-confirm p {
+	color: var(--chrome-text-muted);
+	margin: 0 0 var(--space-4);
+}
+
+.anyink-recovery-confirm__buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-2);
+}

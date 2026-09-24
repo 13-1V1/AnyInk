@@ -27,6 +27,9 @@ import { glyphChanged } from './cross_item_actions.js';
 		* - 		'currentVirtualShape' - edits to the current multi-selected path points.
 		* - 		'currentComponentInstance' - edits to the current instance
 		* - 		'currentPathPoint' - edits to the current point.
+		ANY-INK
+		* - 'fontMetrics', 'guides', 'kernPairs', 'previewOptions', 'anyinkPageChange' (Milestone 5)
+		* - 'projectFile' - file handle or saved state changed: title, menu, recents (Milestone 6)
 */
 const allTopics = [
 	'editCanvasView',
@@ -56,6 +59,8 @@ const allTopics = [
 	'kernPairs', // kerning lookup changed (group edited, created, deleted)
 	'previewOptions', // preview strip text / size / flags changed
 	'anyinkPageChange', // navigator or app page changed (preview strip visibility)
+	// ANY-INK topics (Milestone 6)
+	'projectFile', // file handle or saved state changed: title, menu, recents
 ];
 
 /**

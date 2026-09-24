@@ -96,9 +96,9 @@ function makeRows(parent) {
 
 	makeOneRow('project', 'name');
 	makeOneRow('app', 'stopPageNavigation');
-	makeOneRow('app', 'formatSaveFile');
-	makeOneRow('app', 'saveLivePreviews');
-	makeOneRow('app', 'autoSave');
+	// ANY-INK (M6, audit A9 / A10): formatSaveFile, saveLivePreviews and autoSave have no
+	// effect or no control in ANY-INK (files always save compact, crash recovery replaced
+	// auto-save), so they are not offered here either.
 	makeOneRow('app', 'unlinkComponentInstances');
 	makeOneRow('app', 'showNonCharPoints');
 	makeOneRow('app', 'itemChooserPageSize');

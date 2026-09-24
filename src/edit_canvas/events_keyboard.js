@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { runFileCommand } from '../anyink/files/run_command.js';
 import { getUndoRedoAction, isTextEntryElement } from '../anyink/history/undo_shortcut.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
@@ -7,10 +8,7 @@ import { makeElement } from '../common/dom.js';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
 import { DisplayCanvas } from '../display_canvas/display_canvas.js';
 import { TextBlockOptions } from '../display_canvas/text_block_options.js';
-import {
-	getPreferredExportFormat,
-	ioFont_exportDefaultFormat,
-} from '../formats_io/otf/font_export.js';
+import { ioFont_exportDefaultFormat } from '../formats_io/otf/font_export.js';
 import { ioSVG_exportSVGfont } from '../formats_io/svg_font/svg_font_export.js';
 import { getAdjacentItem } from '../panels/card_glyph.js';
 import {
@@ -59,7 +57,11 @@ export function handleKeyPress(event) {
 	// s
 	if (ehd.isCtrlDown && key === 's') {
 		cancelDefaultEventActions(event);
-		getCurrentProjectEditor().saveProjectFile();
+		// ANY-INK (M6): a failed save shows in the error box, never as an unhandled rejection.
+		// Ctrl+Shift+S is Save as (DESIGN_DOC 6); getKeyFromEvent lowercases 'S', so the
+		// Shift key decides.
+		const saveAs = !!(ehd.isShiftDown || event.shiftKey);
+		runFileCommand(() => getCurrentProjectEditor().saveProjectFile(saveAs));
 	}
 
 	// g
@@ -71,8 +73,9 @@ export function handleKeyPress(event) {
 	// e
 	if (ehd.isCtrlDown && key === 'e') {
 		cancelDefaultEventActions(event);
-		showToast(`Exporting ${getPreferredExportFormat().toUpperCase()} font file...`);
-		setTimeout(ioFont_exportDefaultFormat, 500);
+		// ANY-INK (M6, DESIGN_DOC 8): no delay. The export settles its folder permission
+		// or picker first, inside this keydown, then shows 'Exporting...' and builds.
+		runFileCommand(ioFont_exportDefaultFormat);
 	}
 
 	// o

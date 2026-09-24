@@ -1,5 +1,15 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { noteImportedFontFile } from '../anyink/files/export_folder.js';
+import {
+	hasFileSystemAccess,
+	noteProjectOpened,
+	openProjectFromPicker,
+} from '../anyink/files/project_files.js';
+import { makeRecentFilesCard } from '../anyink/files/recents_ui.js';
+import { runFileCommand } from '../anyink/files/run_command.js';
+import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { makeRecoverArea } from '../anyink/recovery/recovery_ui.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import logoVertical from '../common/graphics/anyink-wordmark-vertical.svg?raw';
 import { closeEveryTypeOfDialog, showError, showToast } from '../controls/dialogs/dialogs.js';
@@ -61,6 +71,9 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 
 	// Tabs
 	const tableRight = content.querySelector('#open-project__right-area');
+	// ANY-INK (M6): unsaved work from a crashed or closed tab is offered right here,
+	// above the tabs, so nobody has to go looking for the Recover tab.
+	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(content);
 
@@ -108,6 +121,7 @@ function showDefaultTab(node) {
 export function resetOpenProjectTabs() {
 	const tableRight = document.querySelector('#open-project__right-area');
 	tableRight.innerHTML = '';
+	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(document);
 }
@@ -162,58 +176,51 @@ export function makeOpenProjectTabs() {
 		`,
 	});
 
+	// ANY-INK (M6, D-012): with the File System Access API the project picker keeps
+	// the file handle (so Save writes in place), shows only .gs2 files and starts in
+	// the last project's folder. Upstream's chooser stays for fonts and SVG files
+	// (it still accepts a .gs2, which then goes through postValidationCallback).
+	const fileSystemAccess = hasFileSystemAccess();
+	const loadButtons = [];
+	if (fileSystemAccess) {
+		loadButtons.push(
+			makeElement({
+				tag: 'fancy-button',
+				id: 'button__open-project-file',
+				innerHTML: 'Open a project file...',
+				// A picker or loader failure shows in the error box, not as an unhandled rejection.
+				onClick: () => runFileCommand(() => openProjectFromPicker({ load: loadPickedProject })),
+			})
+		);
+	}
+
 	const openFileChooser = makeElement({
 		tag: 'fancy-button',
 		attributes: { dark: '' },
-		innerHTML: 'or, open file chooser...',
+		innerHTML: fileSystemAccess ? 'or, import a font or SVG file...' : 'or, open file chooser...',
 		onClick: async () => {
 			getFilesFromFilePicker(handleOpenProjectPageFileInput);
 		},
 	});
+	loadButtons.push(openFileChooser);
 
-	addAsChildren(tabContentLoad, [dropTarget, openFileChooser]);
+	addAsChildren(tabContentLoad, [dropTarget, ...loadButtons]);
 
-	// Auto-saved backups
-	const tabContentAutoSaves = makeElement({
-		id: 'tab-content__auto-saves',
+	// ANY-INK (M6): recently opened project files (File System Access handles).
+	// makeRecentFilesCard returns false when the browser has no picker API. The
+	// loader honors isSecondProject like every other path on this page.
+	const recentFilesCard = makeRecentFilesCard({ load: loadPickedProject });
+	if (recentFilesCard) tabContentLoad.appendChild(recentFilesCard);
+
+	// ANY-INK (M6): crash-recovery snapshots replace upstream's localStorage auto-saves.
+	// The Recover tab lists dirty snapshots whose tab is gone; src/anyink/recovery owns them.
+	const tabContentRecover = makeElement({
+		id: 'tab-content__recover',
 		className: 'open-project__tab-content',
-		innerHTML: `<h2>Restore from auto-saved backup</h2>`,
+		innerHTML: `<h2>Recover unsaved work</h2>`,
 		style: 'display: none;',
 	});
-
-	const contentAutoSavesList = makeElement({
-		tag: 'div',
-		id: 'auto-saves__list',
-	});
-
-	const saves = getGlyphrStudioApp().getLocalStorage().autoSaves;
-	let hasContent = false;
-	for (let id in saves) {
-		contentAutoSavesList.appendChild(makeRestoreProjectRow(id));
-		hasContent = true;
-	}
-
-	function makeRestoreProjectRow(id) {
-		let row = makeElement({ tag: 'div', className: 'auto-saves__list-row' });
-		addAsChildren(row, [
-			makeElement({ className: 'name', content: saves[id].name }),
-			makeElement({ className: 'project-id', content: `(${id})` }),
-			makeElement({
-				tag: 'fancy-button',
-				innerHTML: '⇨',
-				onClick: () => loadProjectFromAutoSave(id),
-			}),
-			makeElement({ className: 'time-stamp', content: new Date(saves[id].time).toLocaleString() }),
-		]);
-		return row;
-	}
-
-	if (!hasContent)
-		contentAutoSavesList.appendChild(
-			makeElement({ tag: 'i', innerHTML: 'No auto-saves exist yet' })
-		);
-
-	addAsChildren(tabContentAutoSaves, [contentAutoSavesList]);
+	if (!isSecondProject) tabContentRecover.appendChild(makeRecoverArea());
 
 	// Content for Examples tab
 	const tabContentExamples = makeElement({
@@ -280,15 +287,15 @@ export function makeOpenProjectTabs() {
 		},
 	});
 
-	const tabAutoSaves = makeElement({
+	const tabRecover = makeElement({
 		tag: 'button',
-		id: 'open-project__tab-auto-saves',
+		id: 'open-project__tab-recover',
 		className: 'open-project__tab',
-		innerHTML: 'Restore',
+		innerHTML: 'Recover',
 		onClick: () => {
 			deselectAllTabs();
-			tabAutoSaves.setAttribute('selected', '');
-			tabContentAutoSaves.style.display = 'block';
+			tabRecover.setAttribute('selected', '');
+			tabContentRecover.style.display = 'block';
 		},
 	});
 
@@ -306,12 +313,12 @@ export function makeOpenProjectTabs() {
 
 	const tabs = makeElement({ className: 'open-project__tabs' });
 	let tabControls = [tabNew, tabLoad, tabExamples];
-	if (!isSecondProject) tabControls.splice(2, 0, tabAutoSaves);
+	if (!isSecondProject) tabControls.splice(2, 0, tabRecover);
 	addAsChildren(tabs, tabControls);
 
 	const tabWrapper = makeElement({ className: 'open-project__tab-wrapper' });
 	let tabContents = [tabs, tabContentNew, tabContentLoad, tabContentExamples];
-	if (!isSecondProject) tabContents.splice(3, 0, tabContentAutoSaves);
+	if (!isSecondProject) tabContents.splice(3, 0, tabContentRecover);
 	addAsChildren(tabWrapper, tabContents);
 	return tabWrapper;
 }
@@ -339,6 +346,23 @@ export async function getFilesFromFilePicker(callback, pickerOptions = {}) {
 		});
 		fallbackFileChooser.click();
 	}
+}
+
+/**
+ * ANY-INK (M6): loader for the project picker and the recents card. Mirrors
+ * postValidationCallback: a second project gets its own editor first, and the
+ * handle is set before the navigate so the File menu shows the file name at once.
+ * Only a .gs2 handle becomes the save target (a v1 .txt is never written back).
+ * @param {Object} content - parsed project data
+ * @param {FileSystemFileHandle | false} handle - the opened .gs2, or false
+ * @returns {ProjectEditor} the editor that now holds the project
+ */
+function loadPickedProject(content, handle) {
+	if (isSecondProject) addProjectEditorAndSetAsImportTarget();
+	const editor = getProjectEditorImportTarget();
+	editor.loadedFileHandle = isProjectFileHandle(handle) ? handle : false;
+	importProjectDataAndNavigate(content);
+	return getCurrentProjectEditor();
 }
 
 /**
@@ -400,12 +424,29 @@ function postValidationCallback(validationResult) {
 	if (isSecondProject) addProjectEditorAndSetAsImportTarget();
 	if (validationResult.content) {
 		if (validationResult.fileType === 'font') {
+			// ANY-INK (M6): the imported font is a source from now on. If ANY-INK exported
+			// it earlier, the next export over it asks before replacing it.
+			noteImportedFontFile(validationResult.sourceHandle).catch((error) =>
+				console.warn('ANY-INK: could not record the imported font', error)
+			);
 			ioFont_importFont(validationResult.content, false, validationResult.fileSuffix);
 		} else if (validationResult.fileType === 'svg') {
 			ioSVG_importSVGfont(validationResult.content);
 		} else if (validationResult.fileType === 'project') {
-			getCurrentProjectEditor().loadedFileHandle = validationResult.fileHandle;
+			// ANY-INK: the import target, not the current editor: for a second project
+			// they differ until importProjectDataAndNavigate selects the new one.
+			// Only a .gs2 handle becomes the save target; a v1 .txt is never written back.
+			const editor = getProjectEditorImportTarget();
+			editor.loadedFileHandle = isProjectFileHandle(validationResult.fileHandle)
+				? validationResult.fileHandle
+				: false;
 			importProjectDataAndNavigate(validationResult.content);
+			// ANY-INK (M6): drag and drop and upstream's chooser feed recents too (a .gs2),
+			// and a v1 .txt is remembered as where Save As starts. sourceHandle is false
+			// without the File System Access API; that is ignored.
+			noteProjectOpened(editor, validationResult.sourceHandle).catch((error) =>
+				console.warn('ANY-INK: could not record the opened project', error)
+			);
 		}
 	} else {
 		if (validationResult.errorMessage) {
@@ -429,6 +470,11 @@ export function importProjectDataAndNavigate(glyphrStudioProjectFile) {
 	closeEveryTypeOfDialog();
 	const editor = getProjectEditorImportTarget();
 	setCurrentProjectEditor(editor);
+	// ANY-INK (M6, D-012): binary assets live on the editor, not in the project, so a
+	// project that replaces another must not inherit its images. Loaders that bring
+	// assets (the .gs2 importer's hand-off, crash recovery's loadBlobMap) refill the
+	// store right after this.
+	if (typeof editor.assets?.clear === 'function') editor.assets.clear();
 	if (!glyphrStudioProjectFile) {
 		editor.project = new GlyphrStudioProject({});
 		/** @type {HTMLInputElement} */
@@ -446,24 +492,6 @@ export function importProjectDataAndNavigate(glyphrStudioProjectFile) {
 	updateWindowUnloadEvent();
 	editor.navigate();
 	// log(`importProjectDataAndNavigate`, 'end');
-}
-
-/**
- * Finds and loads a project by ID from local storage
- * @param {String} projectID - internal Glyphr Studio Project ID
- * @returns nothing
- */
-function loadProjectFromAutoSave(projectID) {
-	const saves = getGlyphrStudioApp().getLocalStorage().autoSaves;
-	for (let id in saves) {
-		if (id === projectID) {
-			importProjectDataAndNavigate(saves[id].project);
-			// The auto-save and the stored undo queue describe the same live state
-			getCurrentProjectEditor().history.adoptStoredHistory();
-			showToast(`Restored project from auto-save:<br>${saves[id].name}`);
-			return;
-		}
-	}
 }
 
 /**

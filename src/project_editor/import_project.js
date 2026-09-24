@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { charToHex, hexesToChars, validateAsHex } from '../common/character_ids.js';
 import { makeSemVerString, tryToGetProjectVersion } from '../formats_io/validate_file_input.js';
@@ -47,6 +49,11 @@ export function importGlyphrProjectFromText(importedProject) {
 	// Hydrate after all updates
 	const newProject = new GlyphrStudioProject(importedProject);
 
+	// ANY-INK: hand embedded binary assets to the editor's AssetStore (D-011 / D-012).
+	// A missing settings.anyink block is normal (plain upstream file): the constructor
+	// template already supplied the defaults, so nothing is logged for it.
+	handOffProjectAssets(newProject.assetsSaveObject, getCurrentProjectEditor());
+
 	// Pull system guide visibility from project
 	const projectSystemGuides = newProject?.settings?.app?.guides?.systemGuides;
 	if (projectSystemGuides) {
@@ -68,6 +75,26 @@ export function importGlyphrProjectFromText(importedProject) {
 
 	// log('importGlyphrProjectFromText', 'end');
 	return newProject;
+}
+
+/**
+ * ANY-INK: loads a .gs2 'assets' object into the editor's AssetStore. Fire-and-forget:
+ * the base64 decode is async, the project itself is usable right away, and a failure
+ * must never block opening the file, so it is only reported with console.warn.
+ * @param {Object | false} assets - { [id]: { type, data } } or false when the file had none
+ * @param {Object} editor - ProjectEditor (or anything with an .assets.loadSaveObject)
+ * @returns {Promise | false} the pending load, or false when there was nothing to do
+ */
+export function handOffProjectAssets(assets, editor) {
+	if (!assets) return false;
+	const store = editor?.assets;
+	if (!store || typeof store.loadSaveObject !== 'function') {
+		console.warn('ANY-INK: project file has assets but the editor has no AssetStore');
+		return false;
+	}
+	return Promise.resolve()
+		.then(() => store.loadSaveObject(assets))
+		.catch((err) => console.warn('ANY-INK: could not load project assets', err));
 }
 
 // --------------------------------------------------------------

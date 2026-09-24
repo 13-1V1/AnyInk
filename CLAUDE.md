@@ -32,6 +32,11 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 - `src/formats_io` — OTF / SVG import and export (font-flux-js).
 - `src/app` — boot, menu, open project, app config, samples.
 - `src/samples` — sample `.gs2` projects. Project file = `.gs2` (JSON).
+- `src/anyink/files` (pickers, in-place save, recents, export folder), `src/anyink/recovery`
+  (dirty flag, IndexedDB snapshots, Web Lock, Recover card), `src/anyink/assets` (image Blobs on
+  the editor, base64 in the `.gs2`), `src/anyink/storage` (idb-keyval-style `kv` + `recovery`
+  stores in one `anyink` database). Test pages: `tests/files.html`, `recovery.html`,
+  `assets.html`, `storage.html`.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -64,7 +69,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 3. Visual audit — DONE 09/23/2026 (docs/AUDIT-VISUAL.md; every text/code entry point mapped to a milestone)
 4. Reskin — DONE 09/23/2026 (tokens.css is the only color source; theme.js token() for canvas code; paper/slate toggle remembered in app prefs; see docs/THEME.md)
 5. Visual editing — DONE 09/23/2026 (guides layer src/anyink/metrics, pair view src/anyink/kerning, <preview-strip> src/anyink/preview, sliders src/anyink/controls, history settings entries src/anyink/history)
-6. Files (FSA open/save, autosave, crash recovery, OTF export, format) — pending
+6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — pending
 8. Auto-trace — pending
 9. Handwriting sheet — pending

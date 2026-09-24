@@ -202,21 +202,10 @@ export default {
 			description: `This will stop closing the window or tab with an "Are you sure?" message if you have unsaved changes.`,
 			type: `Boolean`,
 		},
-		formatSaveFile: {
-			label: `Format project file for reading`,
-			description: `ANY-INK Project files (.gs2) are text files in JSON format. By default, this file is saved to optimize for smaller file size. Setting this option to true formats the file to be more easily read by a human, but could increase the file size by 2x or more.`,
-			type: `Boolean`,
-		},
-		saveLivePreviews: {
-			label: `Save live previews`,
-			description: `Save the text blocks that you have defined for your Live Previews (both the page, and the 2nd window). These could be long, so you may want to turn them off for file size reasons.`,
-			type: `Boolean`,
-		},
-		autoSave: {
-			label: `Auto-save a copy of the project with each change`,
-			description: `When enabled, this option will use your browser's local storage to keep backups. These backups can be restored from the Open Projects page. Your browser's local storage is confined to this browser on this computer. If you use ANY-INK from another browser or on another computer, those backups will be available from there.`,
-			type: `Boolean`,
-		},
+		// ANY-INK (M6, audit A9 / A10): formatSaveFile, saveLivePreviews and autoSave have
+		// no entries. Project files always save compact, and crash recovery
+		// (src/anyink/recovery) replaced upstream's local-storage auto-save, so no settings
+		// row may describe them. The values stay in the project data so files round-trip.
 		savePreferences: {
 			label: `Save app preferences locally`,
 			description: `App preferences can be saved locally to your computer, then loaded automatically when you come back to this project.`,

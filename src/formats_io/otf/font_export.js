@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { FontFlux, initWoff2 } from 'font-flux-js';
 import { getCurrentProject } from '../../app/main.js';
 import { decToHex, parseCharsInputAsHex } from '../../common/character_ids.js';
@@ -6,8 +8,8 @@ import { closeAllToasts, showError, showToast } from '../../controls/dialogs/dia
 import { Glyph } from '../../project_data/glyph.js';
 import { sortLigatures } from '../../project_data/glyphr_studio_project.js';
 import { Path } from '../../project_data/path.js';
+import { prepareExportDestination, writeExport } from '../../anyink/files/export_folder.js';
 import { makeGlyphWithResolvedLinks } from '../../project_editor/cross_item_actions.js';
-import { saveFile } from '../../project_editor/file_io.js';
 import { writeGposKernDataToFont } from './tables/gpos.js';
 
 /**
@@ -20,31 +22,35 @@ let ligatureSubstitutions = [];
 let codePointGlyphIndexTable = {};
 
 /**
- * Exports the current project to an .otf file
+ * Exports the current project to an .otf file. Call from the click (see ioFont_exportFont).
+ * @returns {Promise<String | false>} where it went (ioFont_exportFont)
  */
 export async function ioFont_exportOTF() {
-	await ioFont_exportFont('otf', false);
+	return ioFont_exportFont('otf', false);
 }
 
 /**
  * Exports the current project to a .ttf file
+ * @returns {Promise<String | false>} where it went (ioFont_exportFont)
  */
 export async function ioFont_exportTTF() {
-	await ioFont_exportFont('ttf', false);
+	return ioFont_exportFont('ttf', false);
 }
 
 /**
  * Exports the current project to a .woff file
+ * @returns {Promise<String | false>} where it went (ioFont_exportFont)
  */
 export async function ioFont_exportWOFF() {
-	await ioFont_exportFont('woff', false);
+	return ioFont_exportFont('woff', false);
 }
 
 /**
  * Exports the current project to a .woff2 file
+ * @returns {Promise<String | false>} where it went (ioFont_exportFont)
  */
 export async function ioFont_exportWOFF2() {
-	await ioFont_exportFont('woff2', false);
+	return ioFont_exportFont('woff2', false);
 }
 
 /**
@@ -69,17 +75,32 @@ export function getPreferredExportFormat() {
  * keyboard shortcut and the primary File menu export entry.
  */
 export async function ioFont_exportDefaultFormat() {
-	await ioFont_exportFont(getPreferredExportFormat(), false);
+	return ioFont_exportFont(getPreferredExportFormat(), false);
 }
 
 /**
  * Exports the current project
+ * ANY-INK (D-012, DESIGN_DOC 8): call this synchronously from the click or keydown.
+ * Its first step settles where the file goes (export folder permission prompt, or
+ * the folder picker) while that gesture's transient activation is still live; only
+ * then is the font built, which can take longer than the activation lasts.
  * @param {String} suffix - file extension suffix (e.g. 'otf' or 'ttf')
  * @param {Boolean} testing - if true, returns ArrayBuffer instead of saving to file
- * @returns {Promise<ArrayBuffer|void>} - ArrayBuffer if testing, otherwise void
+ * @returns {Promise<ArrayBuffer | String | false>} - ArrayBuffer if testing, otherwise
+ *   'folder' | 'download' | 'cancelled' | 'prompt' (export_folder.js writeExport),
+ *   or false when the build failed (an error box was shown)
  */
 export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 	// log('ioFont_exportFont', 'start');
+	let destination = null;
+	if (!testing) {
+		destination = await prepareExportDestination();
+		// 'cancelled' / 'prompt': nothing to build; the reason is already in a toast.
+		if (destination.kind !== 'folder' && destination.kind !== 'download') {
+			return destination.kind;
+		}
+		showToast(`Exporting ${suffix.toUpperCase()} font file...`);
+	}
 	const options = createOptionsObject();
 	const exportLists = populateExportList();
 	const project = getCurrentProject();
@@ -261,24 +282,35 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 		}
 	}
 
-	const result = await saveFontFile(font, suffix);
+	const result = await saveFontFile(font, suffix, destination, project?.settings?.project?.id);
 	// await pause();
-	if (result === true) {
-		showToast('Export complete!');
-		await pause(1000);
-		closeAllToasts();
-	} else {
-		showError(`
-			The ${suffix.toUpperCase()} file could not be saved. Here is the error message that was returned:
-			<hr>
-			${result}
-		`);
+	if (typeof result === 'string') {
+		// The destination toast came from writeExport; leave it up briefly (without
+		// holding the caller: the export itself is done).
+		window.setTimeout(closeAllToasts, 2500);
+		// log('ioFont_exportFont', 'end');
+		return result;
 	}
+	showError(`
+		The ${suffix.toUpperCase()} file could not be saved. Here is the error message that was returned:
+		<hr>
+		${result}
+	`);
 	// log('ioFont_exportFont', 'end');
+	return false;
 }
 
-async function saveFontFile(font, suffix = 'otf') {
-	let result = true;
+/**
+ * Builds the font file and hands it to the destination settled before the build.
+ * @param {Object} font - FontFlux font
+ * @param {String} suffix - 'otf' | 'ttf' | 'woff' | 'woff2'
+ * @param {Object} destination - from prepareExportDestination (export_folder.js)
+ * @param {String} [projectId] - the exporting project: a same-named export from
+ *   another project is never replaced without asking
+ * @returns {Promise<String | Error>} writeExport's result, or the error that stopped the build
+ */
+async function saveFontFile(font, suffix = 'otf', destination, projectId = null) {
+	let result;
 	try {
 		// log(`\n⮟font⮟`);
 		// log(font);
@@ -297,7 +329,9 @@ async function saveFontFile(font, suffix = 'otf') {
 		const dataView = new DataView(arrayBuffer);
 		const blob = new Blob([dataView], { type: 'font/opentype' });
 
-		saveFile(blob, fileName);
+		// ANY-INK (D-012): into the export folder settled before the build, else the
+		// download. It shows its own 'Exported <file> to <folder>' toast.
+		result = await writeExport(destination, blob, fileName, { projectId });
 	} catch (e) {
 		console.error(e);
 		result = e;

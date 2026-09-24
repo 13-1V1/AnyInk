@@ -206,6 +206,18 @@ snapshots to a project that never had them (seen: undo of "Set X height to 1050"
 after the project is assigned; only the auto-save restore path calls it today, and milestone 6's
 crash recovery will. Guide visibility toggles, "Add a custom guide", and guide deletion push
 settings entries too, so every Guides panel action is undoable.
+**Amended 09/24/2026 (M6 fix pass):** History keeps no IndexedDB store of its own any more.
+`persist`, `adoptStoredHistory`, `loadStoredSnapshot` and upstream's per-project undo store are
+gone. Crash recovery stores `serializeForStorage()` inside each snapshot record, next to the
+project it describes, and a restore hands it back with `adoptSnapshot()`, so a queue can never
+be applied to a project it does not describe (D-026). Undo and redo call `markDirty(this)` too.
+A saved marker records the undo state the `.gs2` on disk holds (`markSavedState`,
+`markSavedStateAt`, `isAtSavedState`). It starts empty for a new project, a sample, an
+imported font or SVG and a recovered session, and at the empty queue for a project opened
+from its `.gs2`. The title dot clears on undo or redo only when that state is on top again. A
+save that an edit overtook records the state it actually wrote. The old `GlyphrStudio`
+database stays on disk untouched: nothing reads it, and deleting data on the user's machine
+automatically is not worth a few kilobytes.
 
 ## D-019: Test pages live in `tests/` with their own Vite root
 **Decided:** 09/23/2026
@@ -261,3 +273,136 @@ mixing the two paths produced contradictory research sketches.
 **Chose:** remove `addTelemetry()` and the `telemetry` setting entirely rather than leaving them
 switched off.
 **Because:** the brief says no telemetry, and an offline PWA must not fetch an external script.
+
+## D-026: Crash recovery replaces localStorage auto-save
+**Decided:** 09/23/2026
+**Options considered:** keep upstream's localStorage auto-save (the whole project as JSON on
+every edit, a "Restore" tab) | keep it and add IndexedDB snapshots beside it | replace it with
+one IndexedDB snapshot per open project plus a Web Lock per live tab
+**Chose:** replace. `History.updateAfterSaveState` calls `markDirty()` and nothing else;
+`src/anyink/recovery` writes `{ id, name, time, dirty, hasFile, fileHandle, project, assets }`
+under `session:<id>` in the `recovery` store 3 s after the last edit, on glyph switch, on
+`visibilitychange` hidden and on `pagehide`, only while dirty. A successful save (any path in
+`src/anyink/files/project_files.js`) calls `markClean()`, which writes `dirty: false` with no
+payload. A Web Lock `anyink-project-<id>` is held for the tab's life, so "recoverable" means
+dirty and lock not held. The Open Project page shows an "Unsaved work found" card above the
+tabs and a Recover tab; Restore imports the snapshot, adopts the stored undo queue
+(`adoptStoredHistory()`, D-018), restores assets as Blobs and the file handle, and leaves the
+project unsaved. Settings > App keeps one row, "Forget crash-recovery snapshots" (audit A10);
+`autoSave`, `saveLivePreviews` and "delete auto-saved backups" are gone and
+`app.addAutoSaveState` is a no-op.
+**Because:** localStorage is about 5 MB, synchronous, string-only, and cannot hold file handles
+or image Blobs; upstream's auto-save copied the whole project on every edit and hit the quota on
+real fonts (a documented upstream failure). One record per project, written only while dirty,
+keeps the write volume bounded and the restore unambiguous.
+**Strongest objection:** a snapshot lands at most every 3 s, so a hard kill inside that window
+loses the last edit, and a crash never fires `pagehide`. Accepted: the roadmap's definition of
+done is "at most a few seconds of work", and the glyph-switch and tab-hide writes cover the
+common cases.
+**Revisit:** if a real font's snapshot write measures above about 100 ms (then write a diff or a
+per-item record), or when Chromium ships a reliable close-time hook.
+**Amended 09/24/2026 (M6 critic, fix and verification passes):** one record and one lock per
+project id let two editors or tabs holding the same font overwrite or delete each other's
+snapshot. A save could also delete an orphan from a crashed session, switching editors released
+the other editor's lock, and continuous editing never produced a snapshot. What replaces it:
+- **Session-scoped keys.** Records live under `session:<projectId>:<sessionId>`. A new session
+  id is minted every time a project lands in an editor (open, sample, restore, reopen of the
+  same file). A session writes and deletes only its own record.
+- **One Web Lock per live editor.** The lock is `anyink-session:<projectId>:<sessionId>`, held
+  while that editor holds the project in this tab. Switching the current editor keeps every
+  lock. Replacing the project, dropping the editor or `stopRecovery` releases it. Recoverable
+  means dirty, lock free, and not live in this tab. Records from the first build
+  (`session:<id>`, lock `anyink-project-<id>`) stay listable and restorable.
+- **History inside the record.** Each record carries `history: serializeForStorage()` beside
+  the project, and restore adopts it with `adoptSnapshot()` (D-018 amended). A restore starts a
+  new session. The source record is deleted only after that session's first snapshot is
+  written, so a crash right after a restore loses nothing.
+- **Timers.** The 3 s trailing debounce stays. A 15 s max-wait runs from the first edit not yet
+  in a snapshot, so a continuous editing streak is never more than 15 s behind. Undo and redo
+  mark the project dirty too.
+- **Clean sessions delete their record.** `markClean(editor)` after a save and a clean
+  `pagehide` delete it; no `{dirty: false}` stubs are left behind. A save marks clean only
+  when no edit landed while it was building and writing (`getDirtyGeneration()` unchanged).
+- **Orphans are left alone.** Opening a project that has an orphan dirty snapshot shows one
+  toast: "Unsaved work from an earlier session exists for <name>. Open the Recover tab to
+  restore it." Nothing writes to, overwrites or deletes the orphan.
+- **Bounded.** At most 3 dead records are kept per project id, newest first. Older ones are
+  deleted when a session of that project writes its first snapshot and whenever the list is
+  read. Without the Web Locks API nothing is pruned, because another tab could own any record.
+- **Storage failures.** `kv.js` retries a failed IndexedDB call once on a fresh connection and
+  never switches to memory at runtime. `rec*` calls reject and `kv*` calls are best effort.
+  Read-modify-write lists (recents, exported files) read with `kvGetStrict`, so a failed read
+  never truncates them. A failed snapshot write toasts at most once a minute ("Crash recovery
+  could not save a snapshot (...). Save your work with Ctrl+S.") and is kept in
+  `getRecoveryStatus().lastError`. A failed Forget says why and keeps the live timers.
+- **One list on screen.** The banner and the Recover tab re-list on every
+  `anyink-recovery-change` event: restore, discard, forget, a session ending, or a superseded or
+  pruned record. They never disagree. A listing that fails says so on the tab instead of
+  "Nothing to recover".
+**Because:** per-project records made "which unsaved work is newest" ambiguous as soon as one
+font was open twice, and each hazard above lost or hid unsaved work. D-026's bounded-writes
+goal holds per session, and the per-project cap keeps the store bounded.
+
+## D-027: Recent files and export folder are remembered handles, permission behind a click
+**Decided:** 09/23/2026
+**Options considered:** remember paths as strings (impossible: the API never exposes a path) |
+ask for the file every time | persist `FileSystemHandle` objects in IndexedDB and re-request
+permission when they are used
+**Chose:** persist handles. `src/anyink/files/handles.js` stores `lastProject`, the recent
+projects list (`handle.isSameEntry` dedupe, newest first, cap 8) and `exportFolder` under
+`handle:` keys in the `kv` store. Every use goes through `ensurePermission(handle, mode)`:
+`queryPermission` first, `requestPermission` only while `navigator.userActivation.isActive`; a
+`SecurityError` maps to `'prompt'` and the UI asks for one more click. Pickers carry an `id`
+(`anyink-projects`, `anyink-export`) and `startIn` = the last project handle, else Documents.
+Save writes in place with `createWritable({ mode: 'exclusive' })` and retries plain on
+TypeError; a denied or missing recent is dropped from the list with a toast. Fonts export into
+the remembered folder ("Choose export folder..." in the File menu); without a folder or without
+the API they download as before. Every project that lands in an editor (picker, recents, drag and
+drop, upstream's chooser) goes through `noteProjectOpened`, so recents never miss a path.
+**Because:** the File System Access API grants permission per handle per session unless the
+user picks "Allow on every visit" (Chrome 122+) or the app is installed, and `requestPermission`
+outside a user gesture throws. Handles are structured-cloneable, so IndexedDB is the only place
+they survive a reload.
+**Strongest objection:** each relaunch can cost one extra click per file until the "every visit"
+grant or the PWA install (M14) removes it. Accepted: one click beats a picker dialog every time.
+**Revisit:** at M14, when the installed PWA persists permissions; drop the "click once more"
+toast if it never shows there.
+**Amended 09/24/2026 (M6 critic, fix and verification passes):**
+- **Destination first.** An export settles where the file goes inside the click or Ctrl+E
+  keydown, before the font is built (`prepareExportDestination`). A remembered folder gets
+  its permission check, which may prompt. No folder, or a refused one, opens the folder picker.
+  The build can outlast the click's transient activation because the write needs none.
+- **Outcomes.**
+  - No File System Access or no directory picker: the font downloads.
+  - Picker cancelled: "Export cancelled". Nothing is built or downloaded.
+  - Click expired or permission left at 'prompt': "Click Export again..." and no download.
+  - A failed write: the entry it just created is removed (no 0-byte font left behind), and
+    the font downloads with the reason in plain words.
+- **Same-named files.** The exact export ANY-INK left there is replaced silently: the normal
+  edit and re-export loop. `exportedFiles` in `kv` (cap 50) remembers
+  `{ handle, size, lastModified, projectId }` for every export. `isSameEntry` compares paths
+  only, so the file there now must still have that size and modification time, and the new
+  export must come from the same project. Anything else opens "<file> already exists in
+  <folder>." with Replace, Keep both (`<name> (n).otf`, next free number) or Cancel; closing
+  the dialog counts as Cancel. That covers a downloaded or imported font, a file restored from
+  a backup at the same path, an export another program changed, and another project's export
+  with the same name. Importing a font takes it off the list.
+- **`.gs2`-only in-place saves.** A v1 `.txt` or any other file opened by picker, drag and drop
+  or upstream's chooser never becomes the save target. Its first Save goes to Save As with
+  `<name>.gs2` suggested, starting in its folder. It is kept out of recents and remembered only
+  as the place Save As starts, so "recents never miss a path" now means every `.gs2`.
+- **Save errors say what happened.**
+  - Moved file: Save As once.
+  - Not allowed: Save As once.
+  - Locked by another window: close that window.
+  - Anything else: the message.
+  - A SecurityError from a picker: one more click.
+  Every file command runs through `runFileCommand`, so failures land in the error box and never
+  as unhandled rejections. That covers the menu rows, Ctrl+S, Ctrl+Shift+S (Save as), Ctrl+E and
+  the Open page's "Open a project file..." button.
+- **Edit during a save.** The title dot and the crash snapshot stay, and History records the
+  state the file holds, so undo back to it clears the dot.
+**Limit:** "ANY-INK wrote it" is size plus modification time, not a content hash. A different
+file with the same size and the same modification time at the same path would be replaced
+without asking. That does not happen in practice, because a restored or copied file carries its
+own older time.

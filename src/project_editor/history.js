@@ -14,7 +14,8 @@ import {
 	systemGuidesFromList,
 } from '../anyink/history/settings_snapshot.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
-import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
+import { markDirty } from '../anyink/recovery/recovery.js';
+import { getCurrentProjectEditor } from '../app/main.js';
 import { clone } from '../common/functions.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
 import { refreshPanel } from '../panels/panels.js';
@@ -35,6 +36,21 @@ import { KernGroup } from '../project_data/kern_group.js';
 	    of settings.font and settings.app.guides (metric / guide drags)
 	queue[0] always mirrors the live state; undo applies the nearest older
 	entry of the same kind and moves queue[0] to the redo queue.
+
+	ANY-INK (M6, D-026): the queue lives in memory only. Crash recovery stores
+	serializeForStorage() inside each snapshot record, next to the project it
+	describes, and a restore hands it back through adoptSnapshot(), so the two can
+	never diverge. (Upstream's own IndexedDB copy, one per project id, was shared by
+	every copy of a font and read by nothing once recovery took over; it is gone.)
+	Every new entry, undo and redo calls recovery's markDirty(this).
+
+	Saved marker: the undo state the project's .gs2 on disk holds. It starts as null
+	(no file: a new project, a sample, an imported font or SVG, a recovered session);
+	ProjectEditor's project setter sets SAVED_AT_EMPTY when the project was opened
+	from its .gs2, and setProjectAsSaved() records the entry on top of the queue. A
+	save that an edit overtook records the entry it actually wrote
+	(markSavedStateAt). After an undo or redo the title dot is cleared only when that
+	entry is on top again (isAtSavedState).
 **/
 export class History {
 	constructor() {
@@ -43,79 +59,101 @@ export class History {
 		this.initialTimeStamp = 0;
 		this.initialProject = {};
 		this.projectID = false;
-		this.storageReady = Promise.resolve();
-		this.storageDirty = false;
-		this.storageWrite = Promise.resolve();
 		// True while restoreState / redoState run, so on-demand item creation
 		// (ProjectEditor.selectedGlyph) does not push entries mid-restore
 		this.isRestoring = false;
-		// True only when the project came back from an auto-save of the same live state
-		this.adoptStored = false;
+		// The undo state the file on disk holds: a queue entry, SAVED_AT_EMPTY, or null
+		// (no file holds this project: new, sample, imported, recovered)
+		this.savedMarker = null;
 	}
 
 	/**
-	 * Starts a fresh queue for a project. Upstream persists the queue to IndexedDB by
-	 * project id and adopts it on every load; ANY-INK adopts it only when the caller
-	 * says the project came back from an auto-save / crash recovery of the same live
-	 * state (see adoptStoredHistory). A file or sample loaded fresh gets an empty queue
-	 * and the stale stored one is overwritten, so undo can never apply another
-	 * session's snapshots to a project that never had them.
+	 * Starts a fresh queue for a project. Nothing is known to match a file yet: the
+	 * caller marks the empty queue as saved when the project came from its .gs2
+	 * (ProjectEditor's project setter), and a save marks what it wrote.
 	 * @param {Object} project - GlyphrStudioProject
 	 */
 	initialize(project) {
 		this.projectID = project.settings.project.id;
 		this.initialProject = new GlyphrStudioProject(project.save());
-		this.storageDirty = false;
-		this.adoptStored = false;
-		this.storageReady = this.loadStoredSnapshot()
-			.then((snapshot) => {
-				if (this.storageDirty) return;
-				if (!this.adoptStored) {
-					if (snapshot) this.persist();
-					return;
-				}
-				if (!snapshot || snapshot.version !== HISTORY_FORMAT_VERSION) return;
-				const initialProject = new GlyphrStudioProject(snapshot.initialProject);
-				const queue = (snapshot.queue || []).map(deserializeHistoryEntry);
-				const redoQueue = (snapshot.redoQueue || []).map((entries) =>
-					entries.map(deserializeHistoryEntry)
-				);
-				this.initialTimeStamp = snapshot.initialTimeStamp;
-				this.initialProject = initialProject;
-				this.queue = queue;
-				this.redoQueue = redoQueue;
-				if (getCurrentProjectEditor()?.history === this) refreshPanel();
-			})
-			.catch(() => undefined);
+		this.savedMarker = null;
 	}
 
 	/**
-	 * Call right after `editor.project = restoredProject` when that project is the
-	 * auto-saved / recovered copy of the last live state, so the stored queue still
-	 * describes it. Must run before the storage read resolves (synchronously after
-	 * the assignment is fine).
+	 * Plain, structured-cloneable copy of the undo state for a crash-recovery snapshot.
+	 * @returns {Object} { projectID, version, initialTimeStamp, initialProject, queue, redoQueue }
 	 */
-	adoptStoredHistory() {
-		this.adoptStored = true;
-	}
-
-	/** Reads this project's stored snapshot; split out so tests can stub storage. */
-	loadStoredSnapshot() {
-		return loadHistory(this.projectID);
-	}
-
-	persist() {
-		if (!this.projectID) return;
-		this.storageDirty = true;
-		const snapshot = {
+	serializeForStorage() {
+		const hasInitial = typeof this.initialProject?.save === 'function';
+		return {
 			projectID: this.projectID,
 			version: HISTORY_FORMAT_VERSION,
 			initialTimeStamp: this.initialTimeStamp,
-			initialProject: this.initialProject.save(),
+			initialProject: hasInitial ? this.initialProject.save() : null,
 			queue: this.queue.map(serializeHistoryEntry),
 			redoQueue: this.redoQueue.map((entries) => entries.map(serializeHistoryEntry)),
 		};
-		this.storageWrite = this.storageWrite.then(() => saveHistory(snapshot)).catch(() => undefined);
+	}
+
+	/**
+	 * Adopts an undo state written by serializeForStorage(), for a project restored
+	 * from the same snapshot record. Call it right after `editor.project = restored`.
+	 * A restored project matches no file on disk, so the saved marker is cleared
+	 * either way: undo never clears the title dot on it.
+	 * @param {Object} snapshot
+	 * @returns {Boolean} true when the queue was adopted (false: missing, another
+	 *   format, or unreadable; the queue stays empty)
+	 */
+	adoptSnapshot(snapshot) {
+		this.savedMarker = null;
+		if (!snapshot || snapshot.version !== HISTORY_FORMAT_VERSION) return false;
+		let initialProject;
+		let queue;
+		let redoQueue;
+		try {
+			initialProject = snapshot.initialProject
+				? new GlyphrStudioProject(snapshot.initialProject)
+				: this.initialProject;
+			queue = (snapshot.queue || []).map(deserializeHistoryEntry);
+			redoQueue = (snapshot.redoQueue || []).map((entries) => entries.map(deserializeHistoryEntry));
+		} catch (error) {
+			console.warn('ANY-INK history: could not adopt the recovered undo queue', error);
+			return false;
+		}
+		this.initialTimeStamp = snapshot.initialTimeStamp ?? this.initialTimeStamp;
+		this.initialProject = initialProject;
+		this.queue = queue;
+		this.redoQueue = redoQueue;
+
+		const editor = getCurrentProjectEditor();
+		if (editor?.history === this) {
+			if (editor.nav?.panel === 'History') refreshPanel();
+			const undoButton = document.querySelector('#actionButtonUndo');
+			if (undoButton && queue.length) undoButton.removeAttribute('disabled');
+			const redoButton = document.querySelector('#actionButtonRedo');
+			if (redoButton && redoQueue.length) redoButton.removeAttribute('disabled');
+		}
+		return true;
+	}
+
+	/** The undo state on top of the queue is what the file on disk now holds. */
+	markSavedState() {
+		this.markSavedStateAt(this.queue[0] || SAVED_AT_EMPTY);
+	}
+
+	/**
+	 * A save wrote this undo state, but newer edits landed while it was writing: the
+	 * file holds `entry`, not the top of the queue. Undo / redo back to `entry` clears
+	 * the dot. The entry keeps its identity when it moves to the redo queue and back.
+	 * @param {Object | String} entry - a queue entry, or SAVED_AT_EMPTY
+	 */
+	markSavedStateAt(entry) {
+		this.savedMarker = entry || SAVED_AT_EMPTY;
+	}
+
+	/** @returns {Boolean} true when the live state is the one the file on disk holds */
+	isAtSavedState() {
+		return this.savedMarker !== null && (this.queue[0] || SAVED_AT_EMPTY) === this.savedMarker;
 	}
 
 	/**
@@ -140,7 +178,6 @@ export class History {
 		const entry = makeHistoryEntry({ title: title, itemWasDeleted: itemWasDeleted });
 		this.queue.unshift(entry);
 		this.redoQueue = [];
-		this.persist();
 		this.updateAfterSaveState();
 		// log(this);
 		// log(`History.addState`, 'end');
@@ -157,7 +194,6 @@ export class History {
 		const entry = makeSettingsHistoryEntry(title, editor, this.queue[0]);
 		this.queue.unshift(entry);
 		this.redoQueue = [];
-		this.persist();
 		this.updateAfterSaveState();
 	}
 
@@ -181,7 +217,6 @@ export class History {
 		}
 		this.queue.unshift(entry);
 		this.redoQueue = [];
-		this.persist();
 		this.updateAfterSaveState();
 	}
 
@@ -202,18 +237,20 @@ export class History {
 			entry.page = editor.nav.page;
 		}
 		this.queue.unshift(entry);
-		this.persist();
 	}
 
 	discardLatestState() {
 		this.queue.shift();
-		this.persist();
+		// The failed action changed nothing: back on the saved entry means clean again
+		syncSavedIndicator(getCurrentProjectEditor(), this);
 	}
 
 	/**
 	 * Update common project, editor, and UI stuff after a new state is added
 	 */
 	updateAfterSaveState() {
+		// ANY-INK (D-018): one choke point tells crash recovery the project changed.
+		markDirty(this);
 		const editor = getCurrentProjectEditor();
 		editor.setProjectAsUnsaved();
 		if (editor.nav.panel === 'History') {
@@ -226,14 +263,8 @@ export class History {
 		const redoButton = document.querySelector('#actionButtonRedo');
 		if (redoButton) redoButton.setAttribute('disabled', 'disabled');
 
-		if (editor.project.settings.app.autoSave) {
-			const app = getGlyphrStudioApp();
-			if (app.settings.dev.mode) {
-				if (app.settings.dev.autoSave) app.addAutoSaveState();
-			} else {
-				app.addAutoSaveState();
-			}
-		}
+		// ANY-INK: upstream's localStorage auto-save lived here; crash recovery
+		// (src/anyink/recovery) replaces it, driven by markDirty() above.
 	}
 
 	/**
@@ -251,7 +282,7 @@ export class History {
 		// --------------------------------------------------------------
 
 		if (q.length === 0) {
-			editor.setProjectAsSaved();
+			// ANY-INK: an empty queue says nothing about the file on disk; the dot stays
 			const undoButton = document.querySelector('#actionButtonUndo');
 			if (undoButton) undoButton.setAttribute('disabled', 'disabled');
 			showToast(`No more undo`);
@@ -261,6 +292,7 @@ export class History {
 		}
 
 		this.isRestoring = true;
+		let changed = false;
 		try {
 			// --------------------------------------------------------------
 			// Settings entries (metrics, guides) belong to no item
@@ -271,7 +303,7 @@ export class History {
 				applySettingsToEditor(editor, snapshot);
 				const redoEntries = [q.shift()];
 				this.redoQueue.unshift(redoEntries);
-				this.persist();
+				changed = true;
 				this.finishUndoUI(editor);
 				return;
 			}
@@ -292,9 +324,10 @@ export class History {
 					ensureItemExists(editor, nextEntry);
 					editor.selectedItemID = nextEntry.itemID;
 				}
-				q.shift();
+				const dropped = q.shift();
+				// Navigation changes nothing in the project: the saved state moves with it
+				if (this.savedMarker === dropped) this.savedMarker = q[0] || SAVED_AT_EMPTY;
 				nextIndex -= 1;
-				this.persist();
 				editor.navigate();
 
 				if (nextEntry.itemWasDeleted) {
@@ -360,12 +393,14 @@ export class History {
 
 			// Save undone state for redo
 			this.redoQueue.unshift(redoEntries);
-			this.persist();
+			changed = true;
 
 			// Finalize UI stuff
 			this.finishUndoUI(editor);
 		} finally {
 			this.isRestoring = false;
+			// ANY-INK: an undo changes the project; crash recovery snapshots it with its queue
+			if (changed) markDirty(this);
 		}
 		// log(q);
 		// log(`History.restoreState`, 'end');
@@ -378,10 +413,11 @@ export class History {
 	finishUndoUI(editor) {
 		if (editor.nav.panel === 'History') refreshPanel();
 		if (this.queue.length === 0) {
-			editor.setProjectAsSaved();
 			const undoButton = document.querySelector('#actionButtonUndo');
 			if (undoButton) undoButton.setAttribute('disabled', 'disabled');
 		}
+		// ANY-INK: the dot clears only on the undo state the file on disk holds
+		syncSavedIndicator(editor, this);
 
 		const redoButton = document.querySelector('#actionButtonRedo');
 		if (redoButton) redoButton.removeAttribute('disabled');
@@ -435,12 +471,13 @@ export class History {
 			for (let i = entries.length - 1; i >= 0; i--) {
 				this.queue.unshift(entries[i]);
 			}
-			this.persist();
 		} finally {
 			this.isRestoring = false;
 		}
 
-		editor.setProjectAsUnsaved();
+		// ANY-INK: a redo changes the project; the dot follows the saved marker
+		markDirty(this);
+		syncSavedIndicator(editor, this);
 		if (editor.nav.panel === 'History') refreshPanel();
 
 		const undoButton = document.querySelector('#actionButtonUndo');
@@ -451,6 +488,24 @@ export class History {
 			if (redoButton) redoButton.setAttribute('disabled', 'disabled');
 		}
 	}
+}
+
+// --------------------------------------------------------------
+// Saved marker
+// --------------------------------------------------------------
+
+/** Saved marker for "the file on disk holds the state with nothing in the queue". */
+export const SAVED_AT_EMPTY = 'empty';
+
+/**
+ * Shows or clears the title dot from History's saved marker.
+ * @param {Object} editor - ProjectEditor
+ * @param {History} history
+ */
+function syncSavedIndicator(editor, history) {
+	if (!editor) return;
+	if (typeof editor.updateSavedIndicator === 'function') editor.updateSavedIndicator(history);
+	else if (!history.isAtSavedState()) editor.setProjectAsUnsaved?.();
 }
 
 // --------------------------------------------------------------
@@ -701,51 +756,8 @@ export function deserializeHistoryEntry(entry) {
 }
 
 // --------------------------------------------------------------
-// History storage
+// Snapshot format
 // --------------------------------------------------------------
 
-const DATABASE_NAME = 'GlyphrStudio';
-const DATABASE_VERSION = 1;
-const STORE_NAME = 'history';
-// Bumped from 2 to 3 for the settings entry kind; older stored queues are ignored.
+// Bumped from 2 to 3 for the settings entry kind; snapshots of another format are ignored.
 export const HISTORY_FORMAT_VERSION = 3;
-
-function openDatabase() {
-	return new Promise((resolve, reject) => {
-		if (!globalThis.indexedDB) {
-			reject(new Error('IndexedDB is not available'));
-			return;
-		}
-
-		const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-		request.onupgradeneeded = () => {
-			if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-				request.result.createObjectStore(STORE_NAME, { keyPath: 'projectID' });
-			}
-		};
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error);
-	});
-}
-
-function runTransaction(mode, callback) {
-	return openDatabase().then(
-		(db) =>
-			new Promise((resolve, reject) => {
-				const transaction = db.transaction(STORE_NAME, mode);
-				const request = callback(transaction.objectStore(STORE_NAME));
-				request.onsuccess = () => resolve(request.result);
-				request.onerror = () => reject(request.error);
-				transaction.onabort = () => reject(transaction.error);
-				transaction.oncomplete = () => db.close();
-			})
-	);
-}
-
-export function loadHistory(projectID) {
-	return runTransaction('readonly', (store) => store.get(projectID));
-}
-
-export function saveHistory(snapshot) {
-	return runTransaction('readwrite', (store) => store.put(snapshot));
-}

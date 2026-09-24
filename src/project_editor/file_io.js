@@ -1,22 +1,21 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { saveProjectText } from '../anyink/files/project_files.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 
 /**
- * If this browser is capable of directly saving to a file using the
- * window's showSaveFilePicker, then it does that. Otherwise, it falls
- * back to downloading the file to the browser's downloads folder
+ * Saves a text file. Project files ('gs2') go through ANY-INK's file module
+ * (src/anyink/files/project_files.js, D-012): in place through the open file
+ * handle, Save As through the picker, or a download when the File System
+ * Access API is missing. Every other suffix ('svg') downloads as before.
  * @param {String} fileSuffix - 'gs2' or 'svg'
  * @param {String} fileContent - Text content of the file
+ * @param {Boolean} saveAsCopy - 'gs2' only: pick a new file instead of writing in place
  */
 export async function saveTextFile(fileSuffix, fileContent, saveAsCopy = false) {
 	// log(`saveTextFile`, 'start');
-	let fileHandle = getCurrentProjectEditor().loadedFileHandle;
-	if (fileHandle && fileSuffix === 'gs2') {
-		if (saveAsCopy) fileHandle = false;
-		// log(`\n⮟fileHandle⮟`);
-		// log(fileHandle);
-		await saveTextFileDirectly(fileSuffix, fileContent, fileHandle);
+	if (fileSuffix === 'gs2') {
+		await saveProjectText(getCurrentProjectEditor(), fileContent, saveAsCopy);
 	} else {
 		saveTextFileAsDownload(fileSuffix, fileContent);
 	}
@@ -59,47 +58,6 @@ export function saveFile(fileBlob, fileName) {
 		});
 		link.dispatchEvent(event);
 	}
-}
-
-// --------------------------------------------------------------
-// Fancy File open/save
-// --------------------------------------------------------------
-
-/**
- * Saves a text file directly to an existing file, or prompts for 'save as' if no
- * current file handle exists.
- * @param {String} fileSuffix - 'gs2' or 'svg'
- * @param {String} fileContent - text content to save
- * @param {Object} fileHandle - reference to the existing file, or 'false' for 'save as'
- */
-async function saveTextFileDirectly(fileSuffix, fileContent, fileHandle = false) {
-	// log(`saveTextFileDirectly`, 'start');
-	// log(`fileSuffix: ${fileSuffix}`);
-	let fileName = makeFileName(fileSuffix);
-	// log(`fileName: ${fileName}`);
-	// log(`\n⮟fileHandle⮟`);
-	// log(fileHandle);
-	const pickerOptions = {
-		suggestedName: fileName,
-		types: [
-			{
-				description: 'ANY-INK project file',
-				accept: { 'application/json': ['.gs2'] },
-			},
-		],
-	};
-
-	// @ts-expect-error 'property does exist'
-	if (!fileHandle) fileHandle = await window.showSaveFilePicker(pickerOptions);
-	// log(`\n⮟fileHandle⮟`);
-	// log(fileHandle);
-	const writable = await fileHandle.createWritable();
-	await writable.write(fileContent);
-	await writable.close();
-	const editor = getCurrentProjectEditor();
-	editor.loadedFileHandle = fileHandle;
-
-	// log(`saveTextFileDirectly`, 'end');
 }
 
 // --------------------------------------------------------------

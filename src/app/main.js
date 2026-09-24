@@ -2,6 +2,7 @@
 // brennanmmeyer@gmail.com
 /* Web Components */
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
+import { initRecovery } from '../anyink/recovery/recovery.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -44,6 +45,8 @@ export function glyphrStudioOnLoad() {
 			addGlobalEventListeners();
 			// Load project
 			app.setUp();
+			// ANY-INK (M6): crash recovery follows the current project from here on
+			initRecovery();
 			// log(app);
 		} else {
 			// log('did NOT pass pre-checks');

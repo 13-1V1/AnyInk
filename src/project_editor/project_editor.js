@@ -1,9 +1,11 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { AssetStore } from '../anyink/assets/asset_store.js';
 import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
+import { saveProject, saveProjectAs } from '../anyink/files/project_files.js';
+import { isProjectFileHandle } from '../anyink/files/write_file.js';
 import { decToHex } from '../common/character_ids.js';
-import { clone, getFirstID, json, round } from '../common/functions.js';
-import { showToast } from '../controls/dialogs/dialogs.js';
+import { clone, getFirstID, round } from '../common/functions.js';
 import { calculateKernOffset } from '../display_canvas/text_block.js';
 import { TextBlockOptions } from '../display_canvas/text_block_options.js';
 import { getItemStringAdvanceWidth } from '../edit_canvas/context_characters.js';
@@ -19,7 +21,6 @@ import {
 	kernGroupSideMaxWidth,
 	resolveItemLinks,
 } from './cross_item_actions.js';
-import { saveTextFile } from './file_io.js';
 import { History } from './history.js';
 import { MultiSelectPoints, MultiSelectShapes } from './multiselect.js';
 import { Navigator } from './navigator.js';
@@ -54,6 +55,8 @@ export class ProjectEditor {
 
 		// File reference
 		this.loadedFileHandle = false;
+		// ANY-INK: binary assets (trace images) live on the editor, not in the project (D-012)
+		this.assets = new AssetStore();
 
 		// Project
 		this.project = undefined;
@@ -190,6 +193,11 @@ export class ProjectEditor {
 			const shown = gsp.settings?.app?.guides?.systemGuides;
 			if (Array.isArray(shown)) Object.assign(this.systemGuides, systemGuidesFromList(shown));
 			this.initializeHistory(gsp);
+			// ANY-INK (M6): the open paths set loadedFileHandle before assigning the project,
+			// and only for a .gs2. Such a project matches its file until the first edit, so
+			// undo back to here clears the dot. Anything else (new, sample, imported font or
+			// SVG, a v1 .txt) matches no file: undo never claims it is saved.
+			if (isProjectFileHandle(this.loadedFileHandle)) this.history.markSavedState();
 			this.selectedGlyphID = 'glyph-0x41';
 		} else {
 			// log(`Setting to false`);
@@ -1084,47 +1092,88 @@ export class ProjectEditor {
 	// --------------------------------------------------------------
 
 	/**
-	 * Save a Glyphr Project Text File
-	 * @param {Boolean} saveAsCopy - for Electron app, overwrite current working file
+	 * Builds the .gs2 text for this project: upstream's save data with default
+	 * settings trimmed, live previews, and (ANY-INK, D-012) binary assets embedded
+	 * as base64 under a top-level 'assets' key, only when there are any. Every
+	 * save path (in place, Save As, download) uses this so the format never forks.
+	 * ANY-INK (audit A9): always compact JSON. formatSaveFile has no control anywhere
+	 * in the UI, so a value carried in from a sample or an upstream file is ignored.
+	 * @returns {Promise<String>}
 	 */
-	async saveProjectFile(saveAsCopy = false) {
-		// log(`ProjectEditor.saveProjectFile`, 'start');
-
-		// log('' + this.project.settings.app.formatSaveFile);
-
+	async makeProjectFileText() {
+		// log(`ProjectEditor.makeProjectFileText`, 'start');
 		let saveData = this.project.save();
 
 		const defaultValues = new GlyphrStudioProject({});
 		saveData = removeDefaultValues(saveData, defaultValues, 'settings');
 
-		if (this.project.settings.app.saveLivePreviews) {
-			saveData.settings.app.livePreviews = [];
-			this.livePreviews.forEach((preview) => {
-				saveData.settings.app.livePreviews.push(preview.save());
-			});
-		} else {
-			delete saveData.settings.app.livePreviews;
-		}
+		// ANY-INK (M6, audit A10): saveLivePreviews has no control any more, so live
+		// previews are always saved; a project that arrived with it off keeps them.
+		saveData.settings.app.livePreviews = [];
+		this.livePreviews.forEach((preview) => {
+			saveData.settings.app.livePreviews.push(preview.save());
+		});
 
-		if (this.project.settings.app.formatSaveFile) saveData = json(saveData);
-		else saveData = JSON.stringify(saveData);
+		const assets = this.assets ? await this.assets.toSaveObject() : {};
+		if (assets && Object.keys(assets).length) saveData.assets = assets;
 
-		// log('saveProjectFile - \n'+saveData);
-
-		await saveTextFile('gs2', saveData, saveAsCopy);
-		showToast('Saved project file');
-		this.setProjectAsSaved();
-		// log(`ProjectEditor.saveProjectFile`, 'end');
+		// log(`ProjectEditor.makeProjectFileText`, 'end');
+		return JSON.stringify(saveData);
 	}
 
+	/**
+	 * Save a Glyphr Project Text File.
+	 * ANY-INK (D-012): in place through the open file handle, Save As through the
+	 * picker, or a download when the File System Access API is missing
+	 * (src/anyink/files/project_files.js). Call from a click or Ctrl+S.
+	 * @param {Boolean} saveAsCopy - true = Save As (pick a new file)
+	 * @returns {Promise<Boolean>} true when written, false when cancelled
+	 */
+	async saveProjectFile(saveAsCopy = false) {
+		return saveAsCopy ? saveProjectAs(this) : saveProject(this);
+	}
+
+	/**
+	 * The file on disk now holds this project (called by every save path after a
+	 * successful write, only when no edit landed during the save). ANY-INK: records
+	 * the undo state on top of the queue as the saved one, so undo / redo can tell
+	 * when they are back on it (History.isAtSavedState).
+	 */
 	setProjectAsSaved() {
 		this.project.resetSessionStateForAllItems();
-		// Only trim the unsaved marker when it is there (indexOf -1 would chop a character)
-		const marker = document.title.indexOf(' •');
-		if (marker > -1) document.title = document.title.slice(0, marker);
+		if (typeof this.history?.markSavedState === 'function') this.history.markSavedState();
+		this.showSavedIndicator(true, 'saved');
 	}
 	setProjectAsUnsaved() {
-		if (document.title.indexOf(' •') < 0) document.title += ' •';
+		this.showSavedIndicator(false, 'edit');
+	}
+
+	/**
+	 * ANY-INK: after an undo or redo the title dot follows History's saved marker. It
+	 * is cleared only on the undo state the file on disk holds, never merely because
+	 * the queue is empty (a recovered project matches no file at all).
+	 * @param {Object} [history] - the History that changed; default this editor's
+	 */
+	updateSavedIndicator(history = this.history) {
+		const saved = typeof history?.isAtSavedState === 'function' && history.isAtSavedState();
+		this.showSavedIndicator(saved, 'history');
+	}
+
+	/**
+	 * Shows or clears the title dot and publishes 'projectFile' only on a change.
+	 * @param {Boolean} saved
+	 * @param {String} reason - 'saved' | 'edit' | 'history'
+	 */
+	showSavedIndicator(saved, reason) {
+		// Only trim the unsaved marker when it is there (indexOf -1 would chop a character)
+		const marker = document.title.indexOf(' •');
+		if (saved && marker > -1) {
+			document.title = document.title.slice(0, marker);
+			this.publish('projectFile', { saved: true, handle: this.loadedFileHandle, reason });
+		} else if (!saved && marker < 0) {
+			document.title += ' •';
+			this.publish('projectFile', { saved: false, handle: this.loadedFileHandle, reason });
+		}
 	}
 }
 

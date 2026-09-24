@@ -44,6 +44,7 @@
 		"bezier-boolean": "^1.0.6",
 		"eslint": "^10.8.0",
 		"font-flux-js": "^2.9.0",
+		"idb-keyval": "6.3.0",
 		"svg-to-bezier": "^2.3.0"
 	},
 	"contributors": [

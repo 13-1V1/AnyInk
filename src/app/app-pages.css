@@ -103,6 +103,10 @@
 .open-project__tab-content fancy-button {
 	margin-bottom: 40px;
 }
+/* ANY-INK (M6): the Load tab shows two buttons side by side when the File System Access API exists */
+#tab-content__load fancy-button + fancy-button {
+	margin-left: 10px;
+}
 .open-project__tab-content #customRangeBegin,
 .open-project__tab-content #customRangeEnd {
 	width: 140px;

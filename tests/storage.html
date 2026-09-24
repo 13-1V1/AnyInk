@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK storage: kv stores and file handles</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 70ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-4); font-weight: 600; cursor: pointer; }
+		button:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); }
+		.card.structure { border: 1px solid var(--structure); }
+		pre { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); max-height: 220px; overflow: auto; white-space: pre-wrap; margin: 0; }
+		.ok { color: var(--touch); } .bad { color: var(--structure); }
+	</style>
+</head>
+<body>
+	<h1>Storage: kv / recovery stores and file handles</h1>
+	<p>
+		Loads only <code>src/anyink/storage/kv.js</code> and <code>src/anyink/files/handles.js</code>.
+		Reload the page after writing: values must come back (IndexedDB database <code>anyink</code>,
+		stores <code>kv</code> and <code>recovery</code>). The file-handle row needs Chrome or Edge.
+		A failed IndexedDB call is retried once on a fresh connection and the mode never drops to
+		memory at runtime; a call that fails twice shows below as the last error (<code>rec*</code>
+		calls reject, <code>kv*</code> calls resolve <code>false</code> / <code>undefined</code>).
+		DevTools &gt; Application &gt; Clear site data while this page is open is a good way to see it.
+	</p>
+	<div class="row">
+		<span>Mode: <strong id="mode">…</strong></span>
+		<span>Retries: <strong id="retries">0</strong></span>
+		<span>Last error: <strong id="lastError">(none)</strong></span>
+	</div>
+
+	<h2>kv store</h2>
+	<div class="row">
+		<button id="kvSet">set 'probe' = { n, time }</button>
+		<button id="kvGet" class="secondary">get 'probe'</button>
+		<button id="kvKeys" class="secondary">keys</button>
+		<button id="kvDel" class="secondary">del 'probe'</button>
+	</div>
+
+	<h2>recovery store</h2>
+	<div class="row">
+		<button id="recSet">set 'snap:test' = { blob, time }</button>
+		<button id="recEntries" class="secondary">entries</button>
+		<button id="recDel" class="secondary">del 'snap:test'</button>
+	</div>
+
+	<h2>file handles (click-driven)</h2>
+	<div class="row">
+		<button id="pick">pick a file → rememberHandle('test') + pushRecentProject</button>
+		<button id="recall" class="secondary">recallHandle('test') → ensurePermission (in click)</button>
+		<button id="recents" class="secondary">listRecentProjects</button>
+		<button id="forget" class="secondary">forgetHandle('test') + clearRecentProjects</button>
+	</div>
+
+	<div class="grid" style="margin-top: var(--space-3)">
+		<div class="card structure">
+			<h2>Result</h2>
+			<pre id="result">—</pre>
+		</div>
+		<div class="card">
+			<h2>Log</h2>
+			<pre id="log"></pre>
+		</div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import * as kv from '../src/anyink/storage/kv.js';
+		import * as handles from '../src/anyink/files/handles.js';
+
+		const $ = (id) => document.getElementById(id);
+		const logEl = $('log');
+		const say = (msg, cls = '') => {
+			const line = document.createElement('div');
+			if (cls) line.className = cls;
+			line.textContent = `${new Date().toLocaleTimeString()}  ${msg}`;
+			logEl.prepend(line);
+		};
+		const show = (value) => {
+			$('result').textContent =
+				typeof value === 'string' ? value : JSON.stringify(value, replacer, 2);
+		};
+		function replacer(key, value) {
+			if (value instanceof Blob) return `[Blob ${value.type} ${value.size} bytes]`;
+			if (value && typeof value.kind === 'string' && typeof value.name === 'string' && !value.time) {
+				return `[${value.kind} handle: ${value.name}]`;
+			}
+			return value;
+		}
+		const renderStorageStatus = () => {
+			const status = kv.getStorageStatus();
+			$('retries').textContent = status.retries;
+			$('lastError').textContent = status.lastError
+				? `${status.lastError.name}: ${status.lastError.message} (${status.lastError.op} ${status.lastError.store})`
+				: '(none)';
+			$('lastError').className = status.lastError ? 'bad' : '';
+		};
+		const run = async (label, fn) => {
+			try {
+				const out = await fn();
+				show(out === undefined ? 'ok' : out);
+				say(`${label}: ok`, 'ok');
+			} catch (e) {
+				show(String(e));
+				say(`${label}: ${e.name || 'Error'} ${e.message}`, 'bad');
+			}
+			renderStorageStatus();
+		};
+
+		$('mode').textContent = kv.isPersistent() ? 'IndexedDB (persistent)' : 'memory (not persistent)';
+		$('mode').className = kv.isPersistent() ? 'ok' : 'bad';
+
+		let n = 0;
+		$('kvSet').onclick = () => run('kvSet', () => kv.kvSet('probe', { n: ++n, time: Date.now() }));
+		$('kvGet').onclick = () => run('kvGet', () => kv.kvGet('probe'));
+		$('kvKeys').onclick = () => run('kvKeys', () => kv.kvKeys());
+		$('kvDel').onclick = () => run('kvDel', () => kv.kvDel('probe'));
+
+		$('recSet').onclick = () =>
+			run('recSet', () =>
+				kv.recSet('snap:test', { blob: new Blob(['hello ink'], { type: 'text/plain' }), time: Date.now() })
+			);
+		$('recEntries').onclick = () => run('recEntries', () => kv.recEntries());
+		$('recDel').onclick = () => run('recDel', () => kv.recDel('snap:test'));
+
+		$('pick').onclick = () =>
+			run('pick', async () => {
+				if (typeof window.showOpenFilePicker !== 'function') throw new Error('no File System Access API');
+				const [handle] = await window.showOpenFilePicker({ id: 'anyink-storage-test' });
+				await handles.rememberHandle('test', handle);
+				await handles.pushRecentProject(handle, handle.name);
+				return { remembered: handle.name };
+			});
+		$('recall').onclick = () =>
+			run('recall', async () => {
+				const handle = await handles.recallHandle('test');
+				if (!handle) return 'nothing remembered';
+				const state = await handles.ensurePermission(handle, 'read');
+				let size = null;
+				if (state === 'granted') size = (await handle.getFile()).size;
+				return { name: handle.name, permission: state, size, userActivation: navigator.userActivation?.isActive };
+			});
+		$('recents').onclick = () => run('listRecentProjects', () => handles.listRecentProjects());
+		$('forget').onclick = () =>
+			run('forget', async () => {
+				await handles.forgetHandle('test');
+				await handles.clearRecentProjects();
+			});
+
+		// Show what survived the reload without a click.
+		run('after load: kvGet probe + recentProjects', async () => ({
+			probe: await kv.kvGet('probe'),
+			recents: await handles.listRecentProjects(),
+			recoveryKeys: await kv.recKeys(),
+		}));
+	</script>
+</body>
+</html>

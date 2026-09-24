@@ -1,6 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { hexesToChars, isHex } from '../common/character_ids.js';
 import {
 	calculateDeltasFromTransform,
+	clone,
 	hasNonValues,
 	numSan,
 	parseNumber,
@@ -44,6 +47,8 @@ export class Glyph extends GlyphElement {
 	 * @param {Array =} args.gsub - for ligatures, what characters does this lig replace
 	 * @param {Array =} args.shapes - collection of Paths and Component Instances in this Glyph
 	 * @param {String =} args.contextCharacters - what other glyphs to show around this one
+	 * @param {Object =} args.anyink - ANY-INK per-glyph data (nib, roughen, trace, altOf,
+	 *   alternates), plain JSON; stored as a clone and saved only when non-empty
 	 */
 	constructor({
 		id = '',
@@ -57,6 +62,7 @@ export class Glyph extends GlyphElement {
 		usedIn = [],
 		gsub = [],
 		contextCharacters = '',
+		anyink = {},
 	} = {}) {
 		// log(`Glyph.constructor`, 'start');
 		super();
@@ -71,6 +77,8 @@ export class Glyph extends GlyphElement {
 		this.usedIn = usedIn;
 		this.gsub = gsub;
 		this.contextCharacters = contextCharacters;
+		// ANY-INK: always an object so callers can read glyph.anyink.trace without guards
+		this.anyink = isNonEmptyPlainObject(anyink) ? clone(anyink) : {};
 
 		// Changed state metadata
 		this.hasChangedThisSession = false;
@@ -117,6 +125,8 @@ export class Glyph extends GlyphElement {
 		if (this.gsub.length) re.gsub = this.gsub;
 		let cc = this.contextCharacters;
 		if (cc.length && cc !== this.char) re.contextCharacters = cc;
+		// ANY-INK: emitted only when non-empty, cloned so snapshots never alias the live glyph
+		if (isNonEmptyPlainObject(this.anyink)) re.anyink = clone(this.anyink);
 
 		if (this.shapes && this.shapes.length) {
 			re.shapes = [];
@@ -1008,4 +1018,18 @@ export class Glyph extends GlyphElement {
 		// log(`recalculateGlyphMaxes`, 'end');
 		return this.cache.maxes;
 	}
+}
+
+/**
+ * ANY-INK: true for a plain object with at least one own key
+ * @param {any} value - candidate
+ * @returns {Boolean}
+ */
+function isNonEmptyPlainObject(value) {
+	return (
+		!!value &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		Object.keys(value).length > 0
+	);
 }

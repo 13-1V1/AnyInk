@@ -1,5 +1,12 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import {
+	chooseExportFolder,
+	exportFolderName,
+	preloadExportFolder,
+} from '../anyink/files/export_folder.js';
+import { hasFileSystemAccess } from '../anyink/files/file_api.js';
+import { runFileCommand } from '../anyink/files/run_command.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
 import logoHorizontal from '../common/graphics/anyink-wordmark-horizontal-small.svg?raw';
 import {
@@ -59,115 +66,17 @@ function makeMenu(menuName) {
 		innerHTML: menuName,
 		className: 'menu-entry-point',
 	});
-	const editor = getCurrentProjectEditor();
 	if (menuName === 'File') {
-		/** @type {Array} */
-		let fileMenuData = [];
-		// Preferred font export format (the format that was imported, or 'otf'
-		// for new projects) drives the file name preview and the Ctrl+E note.
-		const preferredExportFormat = getPreferredExportFormat();
-		if (typeof editor.loadedFileHandle === 'object') {
-			let projectDisplayName = `${editor.project.settings.project.name}.gs2`;
-
-			// @ts-expect-error 'property does exist'
-			if (typeof editor?.loadedFileHandle?.name === 'string') {
-				// @ts-expect-error 'property does exist'
-				projectDisplayName = editor.loadedFileHandle.name;
-			}
-
-			fileMenuData.push(
-				{
-					child: makeElement({
-						tag: 'h2',
-						content: projectDisplayName,
-					}),
-					className: 'spanAll',
-				},
-				{
-					name: 'Save this project file',
-					icon: 'command_save',
-					note: ['Ctrl', 's'],
-					onClick: () => editor.saveProjectFile(),
-				},
-				{
-					name: 'Save a copy of this project file',
-					icon: 'command_save',
-					onClick: () => editor.saveProjectFile(true),
-				}
-			);
-		} else {
-			fileMenuData.push(
-				{
-					child: makeElement({
-						tag: 'h2',
-						content: makeFileName('gs2', true),
-					}),
-					className: 'spanAll',
-				},
-				{
-					name: 'Save project file (to downloads folder)',
-					icon: 'command_save',
-					note: ['Ctrl', 's'],
-					onClick: () => editor.saveProjectFile(),
-				}
-			);
-		}
-		fileMenuData = fileMenuData.concat([
-			{ name: 'hr' },
-			{
-				child: makeElement({
-					tag: 'h2',
-					content:
-						`${editor.project.settings.font.family}-${editor.project.settings.font.style}.${preferredExportFormat}`.replaceAll(
-							' ',
-							''
-						),
-				}),
-				className: 'spanAll',
-			},
-			{
-				name: 'Export OTF file',
-				icon: 'command_export',
-				note: preferredExportFormat === 'otf' ? ['Ctrl', 'e'] : false,
-				onClick: ioFont_exportOTF,
-			},
-			{
-				name: 'Export TTF file',
-				icon: 'command_export',
-				note: preferredExportFormat === 'ttf' ? ['Ctrl', 'e'] : false,
-				onClick: ioFont_exportTTF,
-			},
-			{
-				name: 'Export WOFF file',
-				icon: 'command_export',
-				note: preferredExportFormat === 'woff' ? ['Ctrl', 'e'] : false,
-				onClick: ioFont_exportWOFF,
-			},
-			{
-				name: 'Export WOFF2 file',
-				icon: 'command_export',
-				note: preferredExportFormat === 'woff2' ? ['Ctrl', 'e'] : false,
-				onClick: ioFont_exportWOFF2,
-			},
-			{ name: 'hr' },
-			{
-				child: makeElement({
-					tag: 'h2',
-					content: makeFileName('svg'),
-				}),
-				className: 'spanAll',
-			},
-			{
-				name: 'Export SVG font file',
-				icon: 'command_export',
-				note: ['Ctrl', 'g'],
-				onClick: ioSVG_exportSVGfont,
-			},
-		]);
+		// ANY-INK: the export-folder name is read from IndexedDB; warm it now so the
+		// menu can label the item synchronously when it opens.
+		preloadExportFolder();
 		entryPoint.addEventListener('click', (event) => {
 			// @ts-expect-error 'property does exist'
 			let rect = event.target.getBoundingClientRect();
 			closeEveryTypeOfDialog();
+			// Built on every open (not once per top bar) so Save As, a new file handle,
+			// or a new export folder show up without a page navigation.
+			const fileMenuData = makeFileMenuData(getCurrentProjectEditor());
 			insertAfter(entryPoint, makeContextMenu(fileMenuData, rect.x, rect.y + rect.height));
 		});
 	}
@@ -251,6 +160,140 @@ function makeMenu(menuName) {
 	}
 
 	return entryPoint;
+}
+
+/**
+ * Rows for the File menu, reflecting the editor's current file state.
+ * With the File System Access API (D-012): Save writes in place through the open
+ * handle (or asks where, the first time), Save as... always asks, and fonts export
+ * into a remembered folder. Without it: upstream's download entries, unchanged.
+ * Every file row runs through runFileCommand: called in the click (pickers keep
+ * the activation), failures shown in the error box, no unhandled rejections.
+ * @param {ProjectEditor} editor
+ * @returns {Array} context menu row data
+ */
+function makeFileMenuData(editor) {
+	/** @type {Array} */
+	let fileMenuData = [];
+	// Preferred font export format (the format that was imported, or 'otf'
+	// for new projects) drives the file name preview and the Ctrl+E note.
+	const preferredExportFormat = getPreferredExportFormat();
+	const fileSystemAccess = hasFileSystemAccess();
+	if (fileSystemAccess) {
+		let projectDisplayName = `${editor.project.settings.project.name}.gs2`;
+
+		// @ts-expect-error 'property does exist'
+		if (typeof editor?.loadedFileHandle?.name === 'string') {
+			// @ts-expect-error 'property does exist'
+			projectDisplayName = editor.loadedFileHandle.name;
+		}
+
+		fileMenuData.push(
+			{
+				child: makeElement({
+					tag: 'h2',
+					content: projectDisplayName,
+				}),
+				className: 'spanAll',
+			},
+			{
+				name: 'Save',
+				icon: 'command_save',
+				note: ['Ctrl', 's'],
+				onClick: () => runFileCommand(() => editor.saveProjectFile()),
+			},
+			{
+				name: 'Save as...',
+				icon: 'command_save',
+				note: ['Ctrl', 'Shift', 's'],
+				onClick: () => runFileCommand(() => editor.saveProjectFile(true)),
+			}
+		);
+	} else {
+		fileMenuData.push(
+			{
+				child: makeElement({
+					tag: 'h2',
+					content: makeFileName('gs2', true),
+				}),
+				className: 'spanAll',
+			},
+			{
+				name: 'Save project file (to downloads folder)',
+				icon: 'command_save',
+				note: ['Ctrl', 's'],
+				onClick: () => runFileCommand(() => editor.saveProjectFile()),
+			}
+		);
+	}
+	fileMenuData = fileMenuData.concat([
+		{ name: 'hr' },
+		{
+			child: makeElement({
+				tag: 'h2',
+				content:
+					`${editor.project.settings.font.family}-${editor.project.settings.font.style}.${preferredExportFormat}`.replaceAll(
+						' ',
+						''
+					),
+			}),
+			className: 'spanAll',
+		},
+		{
+			name: 'Export OTF file',
+			icon: 'command_export',
+			note: preferredExportFormat === 'otf' ? ['Ctrl', 'e'] : false,
+			onClick: () => runFileCommand(ioFont_exportOTF),
+		},
+		{
+			name: 'Export TTF file',
+			icon: 'command_export',
+			note: preferredExportFormat === 'ttf' ? ['Ctrl', 'e'] : false,
+			onClick: () => runFileCommand(ioFont_exportTTF),
+		},
+		{
+			name: 'Export WOFF file',
+			icon: 'command_export',
+			note: preferredExportFormat === 'woff' ? ['Ctrl', 'e'] : false,
+			onClick: () => runFileCommand(ioFont_exportWOFF),
+		},
+		{
+			name: 'Export WOFF2 file',
+			icon: 'command_export',
+			note: preferredExportFormat === 'woff2' ? ['Ctrl', 'e'] : false,
+			onClick: () => runFileCommand(ioFont_exportWOFF2),
+		},
+	]);
+	if (fileSystemAccess) {
+		const folderName = exportFolderName();
+		fileMenuData.push({
+			name: folderName ? `Export folder: ${folderName}...` : 'Choose export folder...',
+			icon: 'command_export',
+			onClick: () =>
+				runFileCommand(async () => {
+					const choice = await chooseExportFolder();
+					if (choice.status === 'picked') showToast(`Fonts will export to ${choice.dir.name}`);
+					if (choice.status === 'needsClick') showToast('Click again to choose an export folder.');
+				}),
+		});
+	}
+	fileMenuData = fileMenuData.concat([
+		{ name: 'hr' },
+		{
+			child: makeElement({
+				tag: 'h2',
+				content: makeFileName('svg'),
+			}),
+			className: 'spanAll',
+		},
+		{
+			name: 'Export SVG font file',
+			icon: 'command_export',
+			note: ['Ctrl', 'g'],
+			onClick: ioSVG_exportSVGfont,
+		},
+	]);
+	return fileMenuData;
 }
 
 /**
