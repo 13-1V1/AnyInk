@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { drawKernPairView } from '../anyink/kerning/pair_view.js';
+import { drawGuidesLayerOverlay } from '../anyink/metrics/guides_layer.js';
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { transparencyToAlpha } from '../common/colors.js';
@@ -268,6 +270,9 @@ export class EditCanvas extends HTMLElement {
 				drawContextCharacters(ctx);
 			}
 
+			// ANY-INK guides layer: hover / drag highlights and live metric labels
+			drawGuidesLayerOverlay(ctx, view, currentItem);
+
 			// Highlighted points
 			drawAllHighlightedPoints(ctx);
 
@@ -287,7 +292,8 @@ export class EditCanvas extends HTMLElement {
 			// log(kernGroup);
 
 			if (kernGroup) {
-				// drawSystemGuidelines(false);
+				// ANY-INK: horizontal metric lines are visible in the pair view too
+				if (editor.project.settings.app.guides.systemShowGuides) drawSystemGuidelines(false);
 				ctx.fillStyle = token('--canvas-guide-muted');
 				const gridPad = 100 * view.dz;
 				const visibleLeftWidth = kernGroupSideMaxWidth(kernGroup.leftGroup) * view.dz;
@@ -333,6 +339,10 @@ export class EditCanvas extends HTMLElement {
 						drawGlyph(drawItem, ctx, thisView, leftAlpha);
 					}
 				});
+
+				// ANY-INK: sample-word context and drag affordance for the pair (D-010)
+				drawKernPairView(ctx, view, kernGroup);
+				drawGuidesLayerOverlay(ctx, view, kernGroup);
 			}
 
 			// log(`EditCanvas.redraw.redrawKernEdit`, 'end');

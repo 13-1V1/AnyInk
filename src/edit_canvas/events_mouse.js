@@ -1,3 +1,6 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { closeAllNotations, closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
 import { Maxes, maxesOverlap } from '../project_data/maxes.js';
@@ -58,6 +61,9 @@ export function handleMouseEvents(event) {
 
 	// Mouse left-click
 	if (event.button === 0) {
+		// ANY-INK: the always-active guides layer gets first look at the pointer (D-008)
+		if (handleGuidesLayerEvent(event)) return;
+
 		// Switch Tool function
 		// log(`editor.selectedTool: ${editor.selectedTool}`);
 		switch (editor.selectedTool) {

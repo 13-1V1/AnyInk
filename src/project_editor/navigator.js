@@ -114,6 +114,8 @@ export class Navigator {
 				wrapper.innerHTML = '';
 				wrapper.appendChild(makeAppTopBar());
 				wrapper.appendChild(pageContent);
+				// ANY-INK: app-wide elements (preview strip) react to page changes
+				window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: this.page, appLevel: false } }));
 			} catch (e) {
 				console.warn(`Navigation failed:`, e);
 				showAppErrorPage(`Oops, navigation failed!`, e);

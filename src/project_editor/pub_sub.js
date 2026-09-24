@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { closeAllNotations } from '../controls/dialogs/dialogs.js';
 import { checkForFirstShapeAutoRSB } from '../edit_canvas/tools/tools.js';
 import { glyphChanged } from './cross_item_actions.js';
@@ -48,6 +50,12 @@ const allTopics = [
 	'currentPathPoint.p',
 	'currentPathPoint.h1',
 	'currentPathPoint.h2',
+	// ANY-INK topics (Milestone 5)
+	'fontMetrics', // project.settings.font vertical metrics changed (drag or readout)
+	'guides', // custom guides or guide visibility changed
+	'kernPairs', // kerning lookup changed (group edited, created, deleted)
+	'previewOptions', // preview strip text / size / flags changed
+	'anyinkPageChange', // navigator or app page changed (preview strip visibility)
 ];
 
 /**

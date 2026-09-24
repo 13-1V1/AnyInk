@@ -207,6 +207,8 @@ export class GlyphrStudioApp {
 		const wrapper = document.querySelector('#app__wrapper');
 		wrapper.innerHTML = '';
 		wrapper.appendChild(mainContent);
+		// ANY-INK: app-level pages (open project, cross-project) have no preview strip
+		window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'app-level', appLevel: true } }));
 	}
 
 	/**
