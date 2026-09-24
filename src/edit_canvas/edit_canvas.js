@@ -3,6 +3,8 @@
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
 import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guides_layer.js';
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
+import { onBitmapReady } from '../anyink/trace/bitmap_cache.js';
+import { drawTraceAffordances, drawTraceImage } from '../anyink/trace/trace_draw.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { transparencyToAlpha } from '../common/colors.js';
 import { makeElement } from '../common/dom.js';
@@ -117,12 +119,18 @@ export class EditCanvas extends HTMLElement {
 
 		initEventHandlers(this.canvas);
 		if (editor.editCanvas?.unsubscribeThemeChange) editor.editCanvas.unsubscribeThemeChange();
+		if (editor.editCanvas?.unsubscribeTraceBitmap) editor.editCanvas.unsubscribeTraceBitmap();
 		editor.editCanvas = this;
 
 		// Redraw when the canvas flips between paper and slate
 		this.unsubscribeThemeChange = onThemeChange(() => this.redraw('themeChange'));
 
+		// ANY-INK (M7): redraw when a trace image finishes decoding (bitmap_cache.js)
+		this.unsubscribeTraceBitmap = onBitmapReady(() => this.redraw('traceBitmapReady'));
+
 		// Set up Subscriptions
+		// ANY-INK (M7): '*' expands to pub_sub.js allTopics, which includes 'traceLayer',
+		// so trace moves, resizes, and panel changes redraw here without a second subscriber.
 		editor.subscribe({
 			topic: '*',
 			subscriberID: `editCanvas-all`,
@@ -200,6 +208,8 @@ export class EditCanvas extends HTMLElement {
 			// log(`EditCanvas.redrawGlyphEdit`, 'start');
 			editor.autoFitIfViewIsDefault();
 			ctx.clearRect(0, 0, width, height);
+			// ANY-INK (M7): the trace image goes under everything else
+			drawTraceImage(ctx, view, currentItem, editor);
 			const ehd = eventHandlerData;
 
 			// Guides
@@ -272,6 +282,9 @@ export class EditCanvas extends HTMLElement {
 
 			// ANY-INK guides layer: hover / drag highlights and live metric labels
 			drawGuidesLayerOverlay(ctx, view, currentItem);
+
+			// ANY-INK (M7): trace image box and corner handles (Trace panel open only)
+			drawTraceAffordances(ctx, view, currentItem, editor);
 
 			// Highlighted points
 			drawAllHighlightedPoints(ctx);

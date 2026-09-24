@@ -13,7 +13,6 @@ import { ioSVG_exportSVGfont } from '../formats_io/svg_font/svg_font_export.js';
 import { getAdjacentItem } from '../panels/card_glyph.js';
 import {
 	clipboardCopy,
-	clipboardPaste,
 	currentItemFindSelectableShapeAt,
 	deleteSelectedPaths,
 	deleteSelectedPoints,
@@ -29,7 +28,7 @@ import {
 	togglePanOff,
 	togglePanOn,
 } from './events.js';
-import { handlePasteSVGonEditCanvas } from './events_drag_drop_paste.js';
+import { handlePasteShortcut } from './events_drag_drop_paste.js';
 import { selectTool } from './tools/tools.js';
 
 // --------------------------------------------------------------
@@ -347,24 +346,18 @@ export function handleKeyPress(event) {
 	}
 
 	// Ctrl+C - copy
+	// ANY-INK (M7): clipboardCopy also leaves a note on the system clipboard, so a photo
+	// copied later wins a Ctrl+V and one copied earlier never does (clipboard_note.js)
 	if (ehd.isCtrlDown && key === 'c') {
 		cancelDefaultEventActions(event);
 		clipboardCopy();
 	}
 
 	// Ctrl+V - paste
+	// ANY-INK (M7 fix track): copied shapes paste unless an image was copied after them
+	// (events_drag_drop_paste.js handlePasteShortcut); otherwise the image becomes the trace.
 	if (ehd.isCtrlDown && key === 'v') {
-		// log(`\n⮟editor.clipboard⮟`);
-		// log(editor.clipboard);
-		let didStuff = false;
-		if (editor.clipboard) {
-			didStuff = clipboardPaste();
-			cancelDefaultEventActions(event);
-		}
-
-		if (!didStuff) {
-			handlePasteSVGonEditCanvas(event);
-		}
+		handlePasteShortcut(event);
 	}
 
 	// Ctrl+R - round

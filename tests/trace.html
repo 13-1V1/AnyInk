@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	ANY-INK trace layer test page (Milestone 7). Scaffold: one edit canvas, the Trace
+	panel, and readouts. Each track adds its own controls inside its marked section only
+	(TRACK A: model, draw, bitmap cache; TRACK B: mouse layer; TRACK C: import, panel).
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK trace layer</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<link rel="stylesheet" href="../src/anyink/controls/slider-row.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-4) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); margin: 0 0 var(--space-3); max-width: 900px; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button, select, input[type=text] { font: inherit; border-radius: var(--radius); padding: var(--space-1) var(--space-3); }
+		button { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: transparent; font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible, select:focus-visible, input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		select, input[type=text] { background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); width: 5em; }
+		.stage { display: flex; gap: var(--space-4); align-items: flex-start; }
+		.editor-page__edit-canvas-wrapper { width: 900px; height: 560px; background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge); border-radius: var(--radius); overflow: hidden; }
+		#editor-page__panel { width: 300px; background: var(--chrome-bg-raised); border-radius: var(--radius); }
+		.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); max-width: 1220px; }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); font-size: var(--text-sm); }
+		.card .k { color: var(--chrome-text-faint); font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; }
+		.card .v { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; word-break: break-all; }
+		#history { max-width: 900px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); white-space: pre-wrap; }
+		.track { border-left: 2px solid var(--chrome-border); padding-left: var(--space-3); margin: var(--space-2) 0; }
+	</style>
+</head>
+<body>
+	<h1>Trace layer</h1>
+	<p>
+		Drop a PNG, JPEG, or WebP photo or scan on the canvas (or paste one) to trace over it.
+		The Trace panel sets its opacity; with the Trace panel open and the arrow (Resize) tool,
+		drag an empty part of the image to move it and drag a corner to resize it. A press on a
+		shape selects the shape. Every other tool draws over it.
+		The image is saved in the project file but never exported.
+	</p>
+
+	<div class="controls">
+		<label>Glyph <input id="char" type="text" value="A" maxlength="1" /></label>
+		<label>Tool
+			<select id="tool">
+				<option value="resize">arrow (resize)</option>
+				<option value="pathEdit">pen (path edit)</option>
+				<option value="pathAddPoint">add point</option>
+				<option value="newPath">new path</option>
+			</select>
+		</label>
+		<label>Panel
+			<select id="panel">
+				<option value="Trace">Trace</option>
+				<option value="Layers">Layers</option>
+				<option value="History">History</option>
+			</select>
+		</label>
+		<button id="theme">Paper / slate</button>
+		<button id="undo" class="primary">Undo</button>
+		<button id="redo">Redo</button>
+	</div>
+
+	<!-- TRACK A: model, draw, bitmap cache controls go here -->
+	<div class="track" id="track-a">
+		<!-- TRACK A (09/24/2026): decoding and drawing. Self-contained like track B's section:
+		     its own controls, readouts, and module, reading the editor lazily on click. -->
+		<section id="decode-draw">
+			<h2>Decoding and drawing</h2>
+			<p>
+				Pick a photo to run it through the decoder the import uses: PNG, JPEG, or WebP only,
+				phone photos turned upright, the long side capped at 2000 pixels, stored as WebP.
+				It lands on the current character as its trace image. Try a sideways phone photo, an
+				image over 2000 pixels, a GIF, and an iPhone HEIC photo (each gets a plain message).
+				The buttons below change the drawing directly: opacity, invert (for the slate canvas),
+				and a trace whose image is missing, which draws only its box.
+			</p>
+			<div class="controls">
+				<label>Photo <input id="ta-file" type="file" /></label>
+				<button id="ta-op10">Opacity 10%</button>
+				<button id="ta-op40">Opacity 40%</button>
+				<button id="ta-op100">Opacity 100%</button>
+				<button id="ta-invert">Invert on / off</button>
+				<button id="ta-missing">Point at a missing image</button>
+				<button id="ta-time">Time the image draw (100 times)</button>
+			</div>
+			<div class="readouts" id="ta-readouts"></div>
+			<script type="module">
+				window.log = window.log || (() => {});
+				import { getCurrentProjectEditor } from '../src/app/main.js';
+				import { decodeImageFile, getBitmap } from '../src/anyink/trace/bitmap_cache.js';
+				import { drawTraceImage } from '../src/anyink/trace/trace_draw.js';
+				import { getTrace, makeTrace, setTrace } from '../src/anyink/trace/trace_model.js';
+
+				const $ = (id) => document.getElementById(id);
+				const editor = () => getCurrentProjectEditor();
+				const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+				const size = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
+				const readouts = { decode: '—', message: '—', timing: '—' };
+
+				function render() {
+					const ed = editor();
+					const item = ed?.project ? ed.selectedItem : null;
+					const t = item ? getTrace(item) : null;
+					const blob = t ? ed.assets.get(t.asset)?.blob : null;
+					const cached = blob ? (getBitmap(blob) ? 'ready' : 'decoding') : t ? 'image missing' : '—';
+					$('ta-readouts').innerHTML =
+						card('last decode', readouts.decode) +
+						card('message', readouts.message) +
+						card('bitmap', cached) +
+						card('opacity / invert / shown', t ? `${Math.round(t.opacity * 100)}% / ${t.invert ? 'on' : 'off'} / ${t.visible ? 'yes' : 'no'}` : '—') +
+						card('image draw time', readouts.timing);
+				}
+
+				function change(fields, title) {
+					const ed = editor();
+					const item = ed?.selectedItem;
+					const t = getTrace(item);
+					if (!t) return;
+					setTrace(item, { ...t, ...fields });
+					ed.history.addState(title);
+					ed.publish('traceLayer', item);
+					render();
+				}
+
+				$('ta-file').addEventListener('change', async (event) => {
+					const file = event.target.files?.[0];
+					event.target.value = '';
+					if (!file) return;
+					const ed = editor();
+					const item = ed?.selectedItem;
+					const started = performance.now();
+					try {
+						const out = await decodeImageFile(file);
+						const ms = Math.round(performance.now() - started);
+						readouts.decode = `${file.type || 'no type'}, ${size(file.size)}\n→ ${out.width} x ${out.height} ${out.type}, ${size(out.blob.size)}\n${ms} ms`;
+						readouts.message = '—';
+						const asset = ed.assets.add(out.blob, { type: out.type });
+						const old = getTrace(item);
+						const next = makeTrace({ asset, width: out.width, height: out.height }, ed.project.settings.font);
+						setTrace(item, old ? { ...next, x: old.x, y: old.y, scale: (old.height * old.scale) / out.height, opacity: old.opacity, invert: old.invert } : next);
+						ed.history.addState(old ? 'Replaced the trace image' : 'Added a trace image');
+						ed.publish('traceLayer', item);
+					} catch (e) {
+						readouts.message = `${e.code || 'error'}: ${e.message}`;
+					}
+					render();
+				});
+				$('ta-op10').onclick = () => change({ opacity: 0.1 }, 'Changed the trace opacity');
+				$('ta-op40').onclick = () => change({ opacity: 0.4 }, 'Changed the trace opacity');
+				$('ta-op100').onclick = () => change({ opacity: 1 }, 'Changed the trace opacity');
+				$('ta-invert').onclick = () => {
+					const t = getTrace(editor()?.selectedItem);
+					if (t) change({ invert: !t.invert }, t.invert ? 'Turned off trace invert' : 'Turned on trace invert');
+				};
+				$('ta-missing').onclick = () => change({ asset: 'img-missing0' }, 'Pointed the trace at a missing image');
+				$('ta-time').onclick = () => {
+					// EditCanvas.redraw waits for the next frame, so time the trace draw call itself
+					const ed = editor();
+					const canvas = document.querySelector('edit-canvas');
+					if (!canvas?.ctx || !ed?.selectedItem) return;
+					const started = performance.now();
+					for (let i = 0; i < 100; i++) drawTraceImage(canvas.ctx, ed.view, ed.selectedItem, ed);
+					readouts.timing = `${((performance.now() - started) / 100).toFixed(2)} ms per image draw`;
+					canvas.redraw('anyink.testpage.timing');
+					render();
+				};
+
+				// Refresh the readouts twice a second (the bitmap decodes in the background)
+				setInterval(() => {
+					try {
+						render();
+					} catch {
+						// The page's main script has not loaded the project yet
+					}
+				}, 500);
+			</script>
+		</section>
+	</div>
+	<!-- TRACK B: mouse layer controls go here -->
+	<div class="track" id="track-b">
+		<!-- TRACK B (09/24/2026): canvas layer. Self-contained: its own controls, readouts, and
+		     script module. Everything it touches is read lazily, on click or per frame, because
+		     this module runs before the page's main script loads the sample project. -->
+		<section id="canvas-layer">
+			<h2>Canvas layer</h2>
+			<p>
+				Choose the Trace panel above, then add the test image (3 by 2, so a stretched resize
+				would show). Hover the image for the move cursor and a corner for a diagonal resize
+				cursor. Drag the body to move it (Shift moves in steps of 10). Drag a corner to resize
+				it with the opposite corner fixed (Shift resizes from the center). Press Escape during a
+				drag to put it back. Arrow keys nudge 1 (Shift 10) while no shape is selected; one Undo
+				takes back a whole burst of presses. Locked, hidden, another panel, or any tool but the
+				arrow: the mouse goes to the tool. Metric lines win where they cross the image, except
+				on its corner handles. A press on a shape (or a selected shape's handle) over the image
+				goes to the shape; empty paper inside the image grabs the image.
+			</p>
+			<div class="controls">
+				<button id="tb-add" class="primary">Add a test image</button>
+				<button id="tb-lock">Lock / unlock</button>
+				<button id="tb-hide">Hide / show</button>
+				<button id="tb-zoom-quarter">Zoom 25%</button>
+				<button id="tb-zoom-one">Zoom 100%</button>
+				<button id="tb-fit">Fit</button>
+			</div>
+			<div class="readouts" id="tb-readouts"></div>
+			<script type="module">
+				window.log = window.log || (() => {});
+				import { getCurrentProjectEditor } from '../src/app/main.js';
+				import { token } from '../src/anyink/theme/theme.js';
+				import { traceLayerState, traceLayerTarget } from '../src/anyink/trace/trace_layer.js';
+				import { getTrace, makeTrace, setTrace, traceBounds } from '../src/anyink/trace/trace_model.js';
+
+				const editor = () => getCurrentProjectEditor();
+				const $ = (id) => document.getElementById(id);
+
+				/** A fake scan: paper, a frame, corner ticks, and two letters, drawn with theme tokens. */
+				async function makeTestImageBlob() {
+					const canvas = document.createElement('canvas');
+					canvas.width = 600;
+					canvas.height = 400;
+					const ctx = canvas.getContext('2d');
+					ctx.fillStyle = token('--canvas-bg');
+					ctx.fillRect(0, 0, 600, 400);
+					ctx.strokeStyle = token('--canvas-guide');
+					ctx.lineWidth = 6;
+					ctx.strokeRect(3, 3, 594, 394);
+					ctx.fillStyle = token('--canvas-ink');
+					for (const [x, y] of [[0, 0], [560, 0], [0, 360], [560, 360]]) ctx.fillRect(x, y, 40, 40);
+					ctx.font = 'bold 300px Georgia, serif';
+					ctx.textAlign = 'center';
+					ctx.fillText('Ag', 300, 300);
+					return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+				}
+
+				$('tb-add').onclick = async () => {
+					const ed = editor();
+					const item = ed?.selectedItem;
+					if (!item) return;
+					const blob = await makeTestImageBlob();
+					const asset = ed.assets.add(blob, { type: 'image/png' });
+					const replacing = getTrace(item);
+					const next = makeTrace({ asset, width: 600, height: 400 }, ed.project.settings.font);
+					setTrace(item, replacing ? { ...next, x: replacing.x, y: replacing.y, scale: replacing.scale } : next);
+					ed.history.addState(replacing ? 'Replaced the trace image' : 'Added a trace image');
+					ed.publish('traceLayer', item);
+				};
+
+				function toggle(field) {
+					const ed = editor();
+					const item = ed?.selectedItem;
+					const t = getTrace(item);
+					if (!t) return;
+					setTrace(item, { ...t, [field]: !t[field] });
+					const titles = {
+						locked: t.locked ? 'Unlocked the trace image' : 'Locked the trace image',
+						visible: t.visible ? 'Hid the trace image' : 'Showed the trace image',
+					};
+					ed.history.addState(titles[field]);
+					ed.publish('traceLayer', item);
+				}
+				$('tb-lock').onclick = () => toggle('locked');
+				$('tb-hide').onclick = () => toggle('visible');
+
+				function zoom(dz) {
+					const ed = editor();
+					ed.view = { dz, dx: 450 - 265 * dz, dy: 280 + 300 * dz };
+					ed.publish('editCanvasView', ed.view);
+				}
+				$('tb-zoom-quarter').onclick = () => zoom(0.25);
+				$('tb-zoom-one').onclick = () => zoom(1);
+				$('tb-fit').onclick = () => {
+					const ed = editor();
+					ed.autoFitView();
+					ed.publish('editCanvasView', ed.view);
+				};
+
+				// Live readouts, redrawn only when their text changes
+				const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+				const round = (n) => (Number.isFinite(n) ? Math.round(n * 100) / 100 : '—');
+				let last = '';
+				function frame() {
+					try {
+						const ed = editor();
+						const item = ed?.project ? ed.selectedItem : null;
+						const t = item ? getTrace(item) : null;
+						const b = t ? traceBounds(t) : null;
+						const s = traceLayerState;
+						const cursor = String(document.body.style.cursor || '(tool)');
+						const html =
+							card('layer active', ed?.project && traceLayerTarget(ed) ? 'yes' : 'no (the tool gets the mouse)') +
+							card('hover / dragging', `${s.hover || '—'} / ${s.dragging || '—'}`) +
+							card('cursor', cursor.startsWith('url(') ? 'custom tool cursor' : cursor) +
+							card('placement (font units)', t ? `top-left ${round(t.x)}, ${round(t.y)}\nscale ${round(t.scale)} per pixel` : '—') +
+							card('size (font units)', b ? `${round(b.xMax - b.xMin)} wide, ${round(b.yMax - b.yMin)} tall` : '—') +
+							card('last history entry', ed?.history?.queue?.[0]?.title || '—');
+						if (html !== last) {
+							$('tb-readouts').innerHTML = html;
+							last = html;
+						}
+					} catch {
+						// The page's main script has not loaded the project yet
+					}
+					requestAnimationFrame(frame);
+				}
+				requestAnimationFrame(frame);
+			</script>
+		</section>
+	</div>
+	<!-- TRACK C: import and panel controls go here -->
+	<div class="track" id="track-c">
+		<!-- TRACK C (09/24/2026): panel and import. Self-contained: its own controls, readout,
+		     and script module. The editor is read on click, because this module runs before the
+		     page's main script loads the sample project. -->
+		<section id="panel-and-import">
+			<h2>Panel and import</h2>
+			<p>
+				Drop a PNG, JPEG, or WebP file from Explorer on the canvas, paste one with Ctrl+V, or use
+				the buttons. The first image opens the Trace panel: the opacity slider redraws live and
+				makes one Undo step on release; Show, Lock, Invert colors, Fit to em, Fit to cap height,
+				Replace, and Remove are one Undo step each. Draw glyph as outline is a view setting (no
+				Undo step). The HEIC and GIF buttons should each show a plain message and add nothing.
+				The big photo (about 5 MB of noise) should show a loading message first.
+			</p>
+			<p>
+				Keyboard check: click Lock, Show, Invert colors, Draw glyph as outline, the opacity
+				slider, or Fit to em with the mouse, then click the canvas and press Ctrl+Z. The last
+				change is undone and the "keys go to" card reads "the canvas". Space then pans (it no
+				longer flips the checkbox), and arrow keys move the image, not the slider. Tab to a
+				checkbox and press Space: it keeps the focus, as keyboard use should. Then click the
+				image on the canvas and press Ctrl+Z: that change is undone too, because any press on
+				the canvas takes the keyboard back.
+			</p>
+			<p>
+				Paste check: copy an image in Chrome, come back, and press Ctrl+V without clicking the
+				canvas first: it is traced with no clipboard prompt. Copy a shape (Ctrl+C or the Copy
+				button), switch windows and back, and Ctrl+V pastes the shape at once. Block the
+				clipboard in the site settings and repeat the image paste: it still works, because the
+				paste itself carries the image.
+			</p>
+			<p>
+				Drop check: drag a photo over the Trace panel (its cards get a dashed green outline) and
+				drop it there: it is traced as on the canvas. Drop one anywhere else on this page: the
+				page stays put (no image opens, no "Leave site?" prompt) and it is traced too.
+			</p>
+			<div class="controls">
+				<button id="tc-choose" class="primary">Choose an image...</button>
+				<button id="tc-generated">Add a generated scan</button>
+				<button id="tc-big">Add a big photo</button>
+				<button id="tc-heic">Try a HEIC photo</button>
+				<button id="tc-gif">Try a GIF</button>
+				<button id="tc-remove">Remove image</button>
+			</div>
+			<div class="readouts" id="tc-readouts"></div>
+			<script type="module">
+				window.log = window.log || (() => {});
+				import { getCurrentProjectEditor } from '../src/app/main.js';
+				import { token } from '../src/anyink/theme/theme.js';
+				import { importTraceImage, pickTraceImage, removeTrace } from '../src/anyink/trace/trace_import.js';
+				import { installPageDropGuard } from '../src/anyink/trace/trace_drop.js';
+
+				// The app installs this on every page change (navigator.js); this page never navigates
+				installPageDropGuard();
+
+				const $ = (id) => document.getElementById(id);
+				const editor = () => getCurrentProjectEditor();
+				let lastResult = '—';
+
+				/** A fake lettering scan (tall, so Fit to em and Fit to cap height differ visibly). */
+				async function generatedScan() {
+					const canvas = document.createElement('canvas');
+					canvas.width = 500;
+					canvas.height = 700;
+					const ctx = canvas.getContext('2d');
+					ctx.fillStyle = token('--canvas-bg');
+					ctx.fillRect(0, 0, 500, 700);
+					ctx.strokeStyle = token('--canvas-guide-muted');
+					ctx.lineWidth = 2;
+					for (const y of [140, 560]) {
+						ctx.beginPath();
+						ctx.moveTo(0, y);
+						ctx.lineTo(500, y);
+						ctx.stroke();
+					}
+					ctx.fillStyle = token('--canvas-ink');
+					ctx.font = 'italic 520px Georgia, serif';
+					ctx.textAlign = 'center';
+					ctx.fillText('A', 250, 560);
+					return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+				}
+
+				/** Random pixels compress badly, so this PNG is several megabytes. */
+				async function bigPhoto() {
+					const canvas = document.createElement('canvas');
+					canvas.width = 1400;
+					canvas.height = 1000;
+					const ctx = canvas.getContext('2d');
+					const data = ctx.createImageData(1400, 1000);
+					for (let i = 0; i < data.data.length; i++) data.data[i] = i % 4 === 3 ? 255 : Math.random() * 255;
+					ctx.putImageData(data, 0, 0);
+					const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+					return new File([blob], 'big photo.png', { type: 'image/png' });
+				}
+
+				async function run(label, work) {
+					const ed = editor();
+					if (!ed?.project) return;
+					const result = await work(ed);
+					lastResult = `${label}: ${result ? 'added' : 'nothing added'}`;
+					$('panel').value = ed.nav.panel;
+					paint();
+				}
+
+				$('tc-choose').onclick = () => {
+					const ed = editor();
+					// The picker must open inside this click, so no await before it
+					const pending = pickTraceImage({ editor: ed });
+					run('Choose an image', () => pending);
+				};
+				$('tc-generated').onclick = () => run('Generated scan', async (ed) => importTraceImage(await generatedScan(), { editor: ed }));
+				$('tc-big').onclick = () => run('Big photo', async (ed) => importTraceImage(await bigPhoto(), { editor: ed }));
+				$('tc-heic').onclick = () => run('HEIC', (ed) => importTraceImage(new File(['not really'], 'IMG_0001.HEIC', { type: 'image/heic' }), { editor: ed }));
+				$('tc-gif').onclick = () => run('GIF', (ed) => importTraceImage(new File(['GIF89a'], 'loop.gif', { type: 'image/gif' }), { editor: ed }));
+				$('tc-remove').onclick = () => run('Remove', async (ed) => removeTrace({ editor: ed }));
+
+				const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+				/** Where a key press goes: the page (so the canvas shortcuts) or a focused control. */
+				function keysGoTo() {
+					const el = document.activeElement;
+					if (!el || el === document.body) return 'the canvas';
+					const words = (el.closest('label')?.textContent || el.textContent || el.getAttribute('aria-label') || '').trim();
+					return `${el.tagName.toLowerCase()}${el.type ? ` (${el.type})` : ''}${words ? `: ${words}` : ''}`;
+				}
+				function paint() {
+					const ed = editor();
+					const toast = document.querySelector('#toast');
+					const shown = toast && toast.style.display !== 'none' ? toast.textContent : '—';
+					$('tc-readouts').innerHTML =
+						card('last action', lastResult) +
+						card('keys go to', keysGoTo()) +
+						card('toast', shown) +
+						card('assets kept for undo', ed?.assets ? String(ed.assets.ids().length) : '—') +
+						card('fill / outline', ed?.project ? (ed.project.settings.app.canvasDisplayModeFilled ? 'filled' : 'outline') : '—');
+				}
+				// The toast and the display mode change without a topic this section hears; poll lightly
+				setInterval(paint, 250);
+			</script>
+		</section>
+	</div>
+
+	<div class="stage">
+		<div class="editor-page__edit-canvas-wrapper" id="wrapper"></div>
+		<div id="editor-page__panel"></div>
+	</div>
+
+	<h2>State</h2>
+	<div class="readouts" id="state"></div>
+
+	<h2>History (newest first)</h2>
+	<div id="history"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { initTheme, toggleCanvasTheme } from '../src/anyink/theme/theme.js';
+		initTheme();
+		import { getCurrentProjectEditor } from '../src/app/main.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import simpleExampleProject from '../src/samples/simpleExampleProject.json';
+		import { EditCanvas } from '../src/edit_canvas/edit_canvas.js';
+		import { InputNumber } from '../src/controls/input-number/input_number.js';
+		import { makePanel } from '../src/panels/panels.js';
+		import { getTrace } from '../src/anyink/trace/trace_model.js';
+		import { traceLayerState } from '../src/anyink/trace/trace_layer.js';
+
+		if (!customElements.get('input-number')) customElements.define('input-number', InputNumber);
+		if (!customElements.get('edit-canvas')) customElements.define('edit-canvas', EditCanvas);
+
+		const editor = getCurrentProjectEditor();
+		editor.project = importGlyphrProjectFromText(simpleExampleProject);
+		editor.nav.page = 'Characters';
+		editor.nav.panel = 'Trace';
+		editor.selectedGlyphID = 'glyph-0x41';
+
+		const wrapper = document.getElementById('wrapper');
+		function mountCanvas(itemID) {
+			wrapper.innerHTML = '';
+			const canvas = document.createElement('edit-canvas');
+			canvas.setAttribute('width', '900');
+			canvas.setAttribute('height', '560');
+			canvas.setAttribute('editing-item-id', itemID);
+			wrapper.appendChild(canvas);
+		}
+		mountCanvas('glyph-0x41');
+
+		const panelArea = document.getElementById('editor-page__panel');
+		function mountPanel() {
+			panelArea.innerHTML = '';
+			panelArea.appendChild(makePanel());
+		}
+		mountPanel();
+
+		// Readouts
+		const stateEl = document.getElementById('state');
+		const historyEl = document.getElementById('history');
+		const card = (k, v) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+		const show = (value) => (value === null || value === undefined ? '—' : JSON.stringify(value, null, 1));
+		function render() {
+			const item = editor.selectedItem;
+			const layer = { ...traceLayerState, original: traceLayerState.original ? '(trace)' : null };
+			stateEl.innerHTML =
+				card('item', item ? item.name || editor.selectedItemID : '—') +
+				card('trace (item.anyink.trace)', show(getTrace(item))) +
+				card('trace layer state', show(layer)) +
+				card('assets (editor.assets)', editor.assets.ids().join('\n') || '—') +
+				card('panel / tool', `${editor.nav.panel} / ${editor.selectedTool}`) +
+				card('view', `${Math.round(editor.view.dx)}, ${Math.round(editor.view.dy)} @ ${editor.view.dz.toFixed(3)}`);
+			historyEl.textContent = (editor.history.queue || []).slice(0, 8).map((e) => e.title).join('\n') || '(empty)';
+		}
+		editor.subscribe({
+			topic: ['traceLayer', 'currentItem', 'editCanvasView', 'whichGlyphIsSelected', 'whichToolIsSelected'],
+			subscriberID: 'anyink.testpage.trace',
+			callback: render,
+		});
+		render();
+
+		// Controls
+		document.getElementById('char').addEventListener('change', (e) => {
+			const ch = e.target.value || 'A';
+			const id = `glyph-0x${ch.codePointAt(0).toString(16).toUpperCase()}`;
+			editor.selectedGlyphID = id;
+			mountCanvas(id);
+			mountPanel();
+			render();
+		});
+		document.getElementById('tool').addEventListener('change', (e) => {
+			editor.selectedTool = e.target.value;
+			editor.publish('whichToolIsSelected', editor.selectedTool);
+			render();
+		});
+		document.getElementById('panel').addEventListener('change', (e) => {
+			editor.nav.panel = e.target.value;
+			mountPanel();
+			editor.publish('editCanvasView', editor.view);
+			render();
+		});
+		document.getElementById('theme').onclick = () => toggleCanvasTheme();
+		document.getElementById('undo').onclick = () => { editor.history.restoreState(); mountPanel(); render(); };
+		document.getElementById('redo').onclick = () => { editor.history.redoState(); mountPanel(); render(); };
+
+		window._editor = editor;
+	</script>
+</body>
+</html>

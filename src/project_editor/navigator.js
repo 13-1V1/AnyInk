@@ -1,6 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { token } from '../anyink/theme/theme.js';
+import { installPageDropGuard } from '../anyink/trace/trace_drop.js';
 import { showAppErrorPage } from '../app/app.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { makeAppTopBar } from '../app/menu.js';
@@ -103,6 +104,12 @@ export class Navigator {
 		// log(`editor.selectedItemID: ${getCurrentProjectEditor().selectedItemID}`);
 
 		closeEveryTypeOfDialog();
+		// ANY-INK: undo and other code paths change the page without the page button, which is
+		// the only place upstream resets a panel the new page does not offer (Trace on Kerning)
+		this.panel = panelForPage(this.page, this.panel);
+		// ANY-INK (M7 fix): a file dropped anywhere but the canvas never gets Chrome's own
+		// file drop (the image opening in the tab); installed once, see trace_drop.js
+		installPageDropGuard();
 		const wrapper = document.querySelector('#app__wrapper');
 
 		// log(`wrapper before:`);
@@ -115,7 +122,9 @@ export class Navigator {
 				wrapper.appendChild(makeAppTopBar());
 				wrapper.appendChild(pageContent);
 				// ANY-INK: app-wide elements (preview strip) react to page changes
-				window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: this.page, appLevel: false } }));
+				window.dispatchEvent(
+					new CustomEvent('anyink-page-change', { detail: { page: this.page, appLevel: false } })
+				);
 			} catch (e) {
 				console.warn(`Navigation failed:`, e);
 				showAppErrorPage(`Oops, navigation failed!`, e);
@@ -388,9 +397,11 @@ function makeNavButton_Page(pageName, iconName) {
 }
 
 const panelsPerPage = {
+	// ANY-INK (M7): 'Trace' (trace image panel) right after 'Layers' on the glyph pages
 	Characters: [
 		'Attributes',
 		'Layers',
+		'Trace',
 		'ContextCharacters',
 		'Transforms',
 		'History',
@@ -398,10 +409,23 @@ const panelsPerPage = {
 		'CharacterInfo',
 		'QualityChecks',
 	],
-	Ligatures: ['Attributes', 'Layers', 'Transforms', 'History', 'Guides', 'QualityChecks'],
-	Components: ['Attributes', 'Layers', 'Transforms', 'History', 'Guides', 'QualityChecks'],
+	Ligatures: ['Attributes', 'Layers', 'Trace', 'Transforms', 'History', 'Guides', 'QualityChecks'],
+	Components: ['Attributes', 'Layers', 'Trace', 'Transforms', 'History', 'Guides', 'QualityChecks'],
 	Kerning: ['Attributes', 'History'],
 };
+
+/**
+ * The panel to show on a page: the requested one when the page offers it, else Attributes.
+ * Pages without a panel list (Overview, Settings, ...) keep whatever was requested.
+ * @param {String} page
+ * @param {String} panel
+ * @returns {String}
+ */
+export function panelForPage(page, panel) {
+	const offered = panelsPerPage[page];
+	if (!offered || offered.includes(panel)) return panel;
+	return 'Attributes';
+}
 
 function makePanelChooserContent() {
 	// log(`makePanelChooserContent`, 'start');
@@ -454,6 +478,12 @@ function listOfPanels() {
 			name: 'Layers',
 			panelMaker: false,
 			iconName: 'panel_layers',
+		},
+		// ANY-INK (M7): trace image panel; the icon lives in src/common/graphics.js
+		Trace: {
+			name: 'Trace',
+			panelMaker: false,
+			iconName: 'panel_trace',
 		},
 		ContextCharacters: {
 			name: 'Context characters',

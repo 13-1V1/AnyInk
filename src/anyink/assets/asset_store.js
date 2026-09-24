@@ -154,6 +154,18 @@ export class AssetStore {
 		return this.items.delete(id);
 	}
 
+	/**
+	 * Milestone 7: the id that holds this exact Blob object, so an image copied in from
+	 * another open project (src/anyink/trace/trace_carry.js) is stored once.
+	 * @param {Blob} blob
+	 * @returns {String} the id, or '' when no entry holds this Blob
+	 */
+	idOf(blob) {
+		if (!blob) return '';
+		for (const [id, item] of this.items) if (item.blob === blob) return id;
+		return '';
+	}
+
 	/** @returns {String[]} every asset id, insertion order */
 	ids() {
 		return [...this.items.keys()];
@@ -167,11 +179,19 @@ export class AssetStore {
 	/**
 	 * Serializes for the .gs2 file: { [id]: { type, data } } with base64 data.
 	 * An empty store gives {}.
+	 * Milestone 7: `ids` limits the output to those assets (the ones some trace still
+	 * uses), in store order; ids the store does not hold are ignored. No argument, or
+	 * ids left out, writes every asset (unchanged). Crash snapshots use toBlobMap, which
+	 * always keeps every asset because undo may bring a removed trace back.
+	 * @param {Object} [options]
+	 * @param {Iterable<String>} [options.ids] - a Set or Array of asset ids to write
 	 * @returns {Promise<Object>}
 	 */
-	async toSaveObject() {
+	async toSaveObject({ ids } = {}) {
+		const keep = ids === undefined || ids === null ? null : new Set(ids);
 		const out = {};
 		for (const [id, item] of this.items) {
+			if (keep && !keep.has(id)) continue;
 			out[id] = { type: item.type, data: await blobToBase64(item.blob) };
 		}
 		return out;

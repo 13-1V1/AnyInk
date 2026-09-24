@@ -1,7 +1,10 @@
+// Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { DROP_HINT } from '../anyink/trace/paste_drop.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
 import { setCursor, updateCursor } from './cursors.js';
-import { handleDropSVGonEditCanvas } from './events_drag_drop_paste.js';
+import { handleDropSVGonEditCanvas, handlePasteOnPage } from './events_drag_drop_paste.js';
 import { handleKeyPress, handleKeyUp } from './events_keyboard.js';
 import { handleMouseEvents, handleMouseWheel } from './events_mouse.js';
 import { Tool_Kern } from './tools/kern.js';
@@ -80,6 +83,9 @@ export function initEventHandlers(canvas) {
 	// Document Key Listeners
 	document.addEventListener('keydown', handleKeyPress, false);
 	document.addEventListener('keyup', handleKeyUp, false);
+	// ANY-INK (M7 finalize): Chrome sends a paste to the focused element, which is the page
+	// body while editing, so the page listens too (text fields keep their own pastes)
+	document.addEventListener('paste', handlePasteOnPage, false);
 	// log(`initEventHandlers`, 'end');
 }
 
@@ -122,12 +128,13 @@ function handleMouseLeaveCanvas() {
 
 /**
  * Do stuff when the user drags a file over the Edit Canvas
+ * ANY-INK (M7 fix track): photos are welcome too; the hint says what each kind of file does.
  * @param {DragEvent} event - drag event
  */
 function handleDragEnterCanvas(event) {
 	event.preventDefault();
 	event.stopPropagation();
-	showToast('Drop a SVG file to import it');
+	showToast(DROP_HINT);
 }
 
 /**

@@ -52,7 +52,11 @@ export function importGlyphrProjectFromText(importedProject) {
 	// ANY-INK: hand embedded binary assets to the editor's AssetStore (D-011 / D-012).
 	// A missing settings.anyink block is normal (plain upstream file): the constructor
 	// template already supplied the defaults, so nothing is logged for it.
-	handOffProjectAssets(newProject.assetsSaveObject, getCurrentProjectEditor());
+	// Once the store has them, the project lets go of the file's base64 (M7 finalize):
+	// saves read the store, and keeping it held every image twice for the whole session.
+	if (handOffProjectAssets(newProject.assetsSaveObject, getCurrentProjectEditor())) {
+		newProject.assetsSaveObject = false;
+	}
 
 	// Pull system guide visibility from project
 	const projectSystemGuides = newProject?.settings?.app?.guides?.systemGuides;

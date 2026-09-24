@@ -25,6 +25,14 @@ status line in CLAUDE.md. Definition of done is one line each.
    folder, settled before the build, with a Replace / Keep both / Cancel dialog for files ANY-INK
    did not write (D-027); `settings.anyink` block and the asset store. Killing the tab mid-edit
    loses at most a few seconds of work. (09/23/2026; critic and fix passes 09/24/2026)
+7. **Trace layer** — a photo or scan per glyph, ligature, or component (`item.anyink.trace`,
+   pixels in the asset store) added by drop, paste, or picker (PNG / JPEG / WebP, EXIF upright,
+   long side capped at 2000 px); a Trace panel with an opacity slider, show, invert, lock, and fit
+   to em / cap height; move and resize on the canvas with the Resize tool while the panel is open
+   (corner handles win over metric lines; shapes win over the image body), every other tool draws
+   over it; every change one undo entry; saved in the `.gs2` (only images a trace uses), kept whole
+   in crash snapshots, carried along by cross-project copies, never in an exported font (D-028).
+   (09/24/2026; critic, fix and finalize passes 09/24/2026)
 
 ## The vertical slice (milestones 4 to 6) — complete 09/23/2026
 One complete path: open or create a project on a themed canvas, draw a glyph, drag its
@@ -32,8 +40,6 @@ metrics and kerning while the strip updates, save to a real file, export an OTF 
 and recover after a crash. Delivered; the details sit under Done above.
 
 ## Creative features (each: module, test page, unit tests, undo, format fields)
-7. **Trace layer** — image per glyph with opacity, lock, move/scale; saved in the project,
-   never exported.
 8. **Auto-trace** — potrace worker with threshold / smoothing / detail sliders and a live
    overlay; result placed on the baseline.
 9. **Handwriting sheet** — printable Letter template with ArUco corners; photo or scan in;

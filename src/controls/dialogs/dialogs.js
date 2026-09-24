@@ -149,6 +149,12 @@ export function animateRemove(element, animationLength = 120, scale = 0.98, tran
 // Toast
 // -----------------------------------------------------------------
 
+// ANY-INK (M7 finalize): each toast owns its timer. Upstream reused one #toast element and
+// never cleared the earlier toast's timer, so a 3 s hint (the canvas's drag hint) or the
+// 60 s loading message removed the toasts that came after it. A toast that is fading out
+// is marked data-leaving, and the next toast gets a fresh element instead of reusing it.
+const toastTimers = new WeakMap();
+
 /**
  * Creates and shows a little message at the top/center
  * of the screen, which disappears after a set time
@@ -160,14 +166,13 @@ export function showToast(message = '0_o', duration = 3000, fancy = false) {
 	// log(`message: ${message}`);
 	// log(`duration: ${duration}`);scaleItems
 	/** @type {HTMLElement} */
-	let element = document.querySelector('#toast');
+	let element = document.querySelector('#toast:not([data-leaving])');
 
 	// remove any current context menu, or create one if it doesn't exist
 	if (element) {
 		// log(`Element detected!!!!!`);
-		// animateRemove(element);
-		// element.style.display = 'none';
-		// element.innerHTML = '';
+		// ANY-INK: the new message gets its own full time
+		window.clearTimeout(toastTimers.get(element));
 	} else {
 		element = makeElement({
 			tag: 'div',
@@ -181,10 +186,13 @@ export function showToast(message = '0_o', duration = 3000, fancy = false) {
 
 	element.innerHTML = message;
 	element.style.display = 'block';
-	window.setTimeout(() => {
+	const timer = window.setTimeout(() => {
 		// log(`showToast - timeout animateRemove`);
+		toastTimers.delete(element);
+		element.setAttribute('data-leaving', '');
 		animateRemove(element);
 	}, duration);
+	toastTimers.set(element, timer);
 	// log(`showToast`, 'end');
 }
 

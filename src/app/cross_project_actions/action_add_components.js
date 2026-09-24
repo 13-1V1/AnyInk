@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { carryTraceAsset, resizeWithTrace } from '../../anyink/trace/trace_carry.js';
 import { makeElement } from '../../common/dom';
 import { showToast } from '../../controls/dialogs/dialogs';
 import { makeSingleLabel } from '../../panels/cards';
@@ -250,14 +251,20 @@ function addComponents() {
 		if (scaleItems) {
 			let deltaWidth = resolvedGlyph.advanceWidth * emRatio - resolvedGlyph.advanceWidth;
 			// log(`deltaWidth: ${deltaWidth}`);
-			resolvedGlyph.updateGlyphSize({
-				width: deltaWidth,
-				ratioLock: true,
-				transformOrigin: 'baseline-left',
-			});
+			// ANY-INK (M7): the trace image scales with the outline it was traced for
+			resizeWithTrace(resolvedGlyph, emRatio, () =>
+				resolvedGlyph.updateGlyphSize({
+					width: deltaWidth,
+					ratioLock: true,
+					transformOrigin: 'baseline-left',
+				})
+			);
 		}
 
 		if (reverseWindings) resolvedGlyph.reverseWinding();
+
+		// ANY-INK (M7): the trace image comes along from the source project (trace_carry.js)
+		carryTraceAsset(sourceEditor, destinationEditor, resolvedGlyph);
 
 		// log(`\n⮟resolvedGlyph⮟`);
 		// log(resolvedGlyph);

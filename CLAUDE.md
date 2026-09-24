@@ -37,6 +37,12 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   the editor, base64 in the `.gs2`), `src/anyink/storage` (idb-keyval-style `kv` + `recovery`
   stores in one `anyink` database). Test pages: `tests/files.html`, `recovery.html`,
   `assets.html`, `storage.html`.
+- `src/anyink/trace` — trace image per glyph / ligature / component (`item.anyink.trace`, pixels in
+  `editor.assets`): model, decode + bitmap cache, canvas draw, Resize-tool drag layer, drop / paste /
+  picker import, Trace panel, which clipboard a Ctrl+V means (`clipboard_note.js`), carrying traces
+  between open projects (`trace_carry.js`). Test page `tests/trace.html`.
+- `src/anyink/controls/focus_release.js` — any press on the edit canvas takes the keyboard back
+  from panel controls; new panel controls need no focus hand-back of their own.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -70,7 +76,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 4. Reskin — DONE 09/23/2026 (tokens.css is the only color source; theme.js token() for canvas code; paper/slate toggle remembered in app prefs; see docs/THEME.md)
 5. Visual editing — DONE 09/23/2026 (guides layer src/anyink/metrics, pair view src/anyink/kerning, <preview-strip> src/anyink/preview, sliders src/anyink/controls, history settings entries src/anyink/history)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
-7. Trace layer — pending
+7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — pending
 9. Handwriting sheet — pending
 10. Nib brush — pending

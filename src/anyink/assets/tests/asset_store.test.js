@@ -111,6 +111,20 @@ describe('AssetStore: add / get / has / delete / ids / clear', () => {
 		expect(assetsSizeBytes(store)).toBe(PNG_BYTES.length * 3);
 		expect(assetsSizeBytes(null)).toBe(0);
 	});
+
+	// M7 fix: copying traced items between projects finds an image the destination
+	// already holds, so one shared image is stored once
+	it('idOf finds the id holding that exact Blob, else an empty string', () => {
+		const blob = png();
+		const lookAlike = png();
+		store.add(png());
+		const id = store.add(blob);
+		expect(store.idOf(blob)).toBe(id);
+		expect(store.idOf(lookAlike)).toBe('');
+		expect(store.idOf(null)).toBe('');
+		store.delete(id);
+		expect(store.idOf(blob)).toBe('');
+	});
 });
 
 describe('AssetStore: type rules', () => {
@@ -231,6 +245,58 @@ describe('AssetStore: save object (base64) round trip', () => {
 		for (const s of skipped) expect(typeof s.reason).toBe('string');
 		expect(skipped[0].reason).toBe('The image data is missing.');
 		expect(skipped[1].reason).toContain('"image/gif"');
+	});
+});
+
+// Milestone 7 (09/24/2026): the .gs2 writes only assets some trace still uses.
+describe('AssetStore: toSaveObject({ ids }) limits the output', () => {
+	const build = () => {
+		const store = new AssetStore();
+		store.add(png(), { id: 'img-aaaaaaaa' });
+		store.add(new Blob([PNG_BYTES], { type: 'image/jpeg' }), { id: 'img-bbbbbbbb' });
+		store.add(new Blob([PNG_BYTES], { type: 'image/webp' }), { id: 'img-cccccccc' });
+		return store;
+	};
+
+	it('no argument, an empty options object, or ids: undefined / null writes every asset', async () => {
+		const store = build();
+		const all = ['img-aaaaaaaa', 'img-bbbbbbbb', 'img-cccccccc'];
+		expect(Object.keys(await store.toSaveObject())).toEqual(all);
+		expect(Object.keys(await store.toSaveObject({}))).toEqual(all);
+		expect(Object.keys(await store.toSaveObject({ ids: undefined }))).toEqual(all);
+		expect(Object.keys(await store.toSaveObject({ ids: null }))).toEqual(all);
+	});
+
+	it('a Set keeps only those ids, in store order, with the same entries', async () => {
+		const store = build();
+		const all = await store.toSaveObject();
+		const some = await store.toSaveObject({ ids: new Set(['img-cccccccc', 'img-aaaaaaaa']) });
+		expect(Object.keys(some)).toEqual(['img-aaaaaaaa', 'img-cccccccc']);
+		expect(some['img-aaaaaaaa']).toEqual(all['img-aaaaaaaa']);
+		expect(some['img-cccccccc']).toEqual({ type: 'image/webp', data: PNG_BASE64 });
+	});
+
+	it('an Array works too, and ids the store does not hold are ignored', async () => {
+		const store = build();
+		const some = await store.toSaveObject({ ids: ['img-bbbbbbbb', 'img-missing0'] });
+		expect(Object.keys(some)).toEqual(['img-bbbbbbbb']);
+		expect(some['img-bbbbbbbb'].type).toBe('image/jpeg');
+	});
+
+	it('an empty Set writes nothing, and never touches the store itself', async () => {
+		const store = build();
+		expect(await store.toSaveObject({ ids: new Set() })).toEqual({});
+		expect(store.ids()).toEqual(['img-aaaaaaaa', 'img-bbbbbbbb', 'img-cccccccc']);
+		expect(Object.keys(store.toBlobMap())).toHaveLength(3);
+	});
+
+	it('a limited save still round-trips through loadSaveObject', async () => {
+		const store = build();
+		const json = JSON.stringify(await store.toSaveObject({ ids: new Set(['img-bbbbbbbb']) }));
+		const loaded = new AssetStore();
+		expect(await loaded.loadSaveObject(JSON.parse(json))).toEqual([]);
+		expect(loaded.ids()).toEqual(['img-bbbbbbbb']);
+		expect(await bytesOf(loaded.get('img-bbbbbbbb').blob)).toEqual(Array.from(PNG_BYTES));
 	});
 });
 

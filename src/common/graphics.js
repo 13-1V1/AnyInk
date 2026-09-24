@@ -157,6 +157,17 @@ icons.panel_view = `
 	<path d="m24,13h-2v-1c0-3.237-4.368-7-10-7S2,8.763,2,12v1H0v-1C0,7.29,5.72,3,12,3s12,4.29,12,9v1Z"/>
 `;
 
+// ANY-INK (M7): Trace panel icon. A framed picture (mountains and sun) with a pencil
+// drawing beside it; the frame's lower-right corner is cut so the pencil stands clear.
+icons.panel_trace = `
+	<polygon points="18 14 18 3 0 3 0 18 14 18 15.5 16.5 1.5 16.5 1.5 4.5 16.5 4.5 16.5 15.5 18 14"/>
+	<polygon points="3 15 7 9.5 10 13 12 11 14.5 15 3 15"/>
+	<circle cx="12.5" cy="8" r="1.5"/>
+	<polygon points="12.5 23.5 13.384 20.142 15.859 22.617 12.5 23.5"/>
+	<polygon points="13.95 19.576 19.89 13.636 22.364 16.11 16.424 22.05 13.95 19.576"/>
+	<polygon points="20.385 13.141 21.233 12.293 23.707 14.767 22.859 15.615 20.385 13.141"/>
+`;
+
 // --------------------------------------------------------------
 // Commands
 // --------------------------------------------------------------

@@ -118,9 +118,16 @@ describe('importGlyphrProjectFromText (ANY-INK format)', () => {
 		await flush();
 		expect(editor.assets.calls.length).toBe(1);
 		expect(editor.assets.calls[0]).toEqual(assets);
-		expect(project.assetsSaveObject).toEqual(assets);
 		expect('assets' in project.save()).toBe(false);
 		expect(warn).not.toHaveBeenCalled();
+	});
+
+	// M7 finalize (M6 leak): the project kept the file's base64 for every image all session
+	it('lets go of the base64 once the AssetStore has it', async () => {
+		const project = importGlyphrProjectFromText(sampleFile((f) => ({ ...f, assets })));
+		expect(project.assetsSaveObject).toBe(false);
+		await flush();
+		expect(editor.assets.calls[0]).toEqual(assets);
 	});
 
 	it('a failing asset load is a console.warn, not an import failure', async () => {
@@ -139,6 +146,8 @@ describe('importGlyphrProjectFromText (ANY-INK format)', () => {
 		const project = importGlyphrProjectFromText(sampleFile((f) => ({ ...f, assets })));
 		await flush();
 		expect(project).toBeInstanceOf(GlyphrStudioProject);
+		// Nothing took the images, so the project keeps them
+		expect(project.assetsSaveObject).toEqual(assets);
 		expect(warn).toHaveBeenCalledTimes(1);
 		expect(warn.mock.calls[0][0]).toContain('no AssetStore');
 	});

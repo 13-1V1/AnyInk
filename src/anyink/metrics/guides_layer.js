@@ -16,7 +16,8 @@
 	Rules (DESIGN_DOC 6): one narrow topic per drag tick, one history entry on release,
 	Shift snaps to 10, arrow keys nudge the hovered line by 1 (Shift 10).
 	Pointer priority: with the pen or add-point tool active, a point or handle under the
-	pointer wins over a line that happens to run through it.
+	pointer wins over a line that happens to run through it. With the Trace panel open, a
+	trace image's corner handle wins the same way (Milestone 7, D-028).
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor } from '../../edit_canvas/cursors.js';
@@ -31,6 +32,7 @@ import {
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from './hit_test.js';
 import { clampBaselineDelta, METRIC_LABELS, metricValue, snapToTen } from './metrics_math.js';
 import { guidesLayerState, resetGuidesLayerState } from './state.js';
+import { traceHandleHasPriority } from '../trace/trace_layer.js';
 
 export { drawGuidesLayerOverlay } from './overlay.js';
 export { guidesLayerState } from './state.js';
@@ -356,6 +358,10 @@ export function findLineAt(editor, pos) {
 	const item = editor.selectedItem;
 	if (!item) return false;
 	if (penHasPriority(editor, pos)) return false;
+	// M7: a trace image's corner handle wins over a line running through it. The default
+	// placement puts every corner on a line (ascent, descent, left side), so without this a
+	// new trace could never be resized. Edges and the body still let the line win.
+	if (traceHandleHasPriority(editor, pos)) return false;
 	const lines = collectGuideLines({
 		font: editor.project.settings.font,
 		systemGuides: editor.systemGuides,

@@ -45,7 +45,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 | C5 | Guides panel: custom guide location, grid divisions | numbers | **Done in M5** (partial): custom guides drag on the canvas with a live readout; grid divisions stays a number field (deferred) |
 | C6 | Guides panel: custom guide color picker | color | **Hide** in M4: all guides use the purple structure token |
 | C7 | Zoom readout (disabled input) | percentage | **Visual in M4**: zoom slider with readout |
-| C8 | Edit canvas: paste raw SVG markup as text (canvas is contenteditable for this) | SVG code | **Hide** in M7: keep SVG *file* drop; image and SVG import go through the trace layer / auto-trace |
+| C8 | Edit canvas: paste raw SVG markup as text (canvas is contenteditable for this) | SVG code | **Done in M7**: pasting text no longer imports SVG code; it shows "To import SVG shapes, drop an .svg file on the canvas. Paste an image to trace over it." Dropping an `.svg` file still imports its shapes. A pasted or dropped PNG, JPEG, or WebP image becomes the glyph's trace image (Trace panel: opacity slider, show, invert, lock, fit; drag and corner-resize with the Resize tool). Anything else dropped gets a plain-words hint. Auto-trace (M8) will turn the trace image into outlines. |
 | C9 | Quality checks panel thresholds | numbers | **Visual in M4**: small sliders (low priority) |
 
 ## D. Preview and global actions

@@ -4,6 +4,7 @@ import { AssetStore } from '../anyink/assets/asset_store.js';
 import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
 import { saveProject, saveProjectAs } from '../anyink/files/project_files.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { ASSET_PRUNING_READY, collectReferencedAssetIds } from '../anyink/trace/trace_model.js';
 import { decToHex } from '../common/character_ids.js';
 import { clone, getFirstID, round } from '../common/functions.js';
 import { calculateKernOffset } from '../display_canvas/text_block.js';
@@ -1114,7 +1115,11 @@ export class ProjectEditor {
 			saveData.settings.app.livePreviews.push(preview.save());
 		});
 
-		const assets = this.assets ? await this.assets.toSaveObject() : {};
+		// ANY-INK (M7): only images some trace still uses go in the .gs2 (a removed trace
+		// leaves its Blob in editor.assets for undo; crash snapshots keep all of them).
+		// Until the trace model is real, ASSET_PRUNING_READY is false and every asset is written.
+		const ids = ASSET_PRUNING_READY ? collectReferencedAssetIds(this.project) : undefined;
+		const assets = this.assets ? await this.assets.toSaveObject({ ids }) : {};
 		if (assets && Object.keys(assets).length) saveData.assets = assets;
 
 		// log(`ProjectEditor.makeProjectFileText`, 'end');

@@ -1,3 +1,6 @@
+// Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { makePanel_Trace } from '../anyink/trace/trace_panel.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
@@ -69,6 +72,10 @@ export function makePanel() {
 	} else if (panel === 'Quality checks') {
 		unsubscribeExcept('qualityChecksPanel');
 		addAsChildren(content, makePanel_QualityChecks());
+	} else if (panel === 'Trace') {
+		// ANY-INK (M7): trace image controls (src/anyink/trace/trace_panel.js)
+		unsubscribeExcept('tracePanel');
+		addAsChildren(content, makePanel_Trace());
 	}
 
 	// log(`makePanel`, 'end');
@@ -83,6 +90,8 @@ function unsubscribeExcept(panelName = '') {
 		editor.unsubscribe({ idToRemove: 'contextCharactersPanel' });
 	if (panelName !== 'historyPanel') editor.unsubscribe({ idToRemove: 'historyPanel' });
 	if (panelName !== 'guidesPanel') editor.unsubscribe({ idToRemove: 'guidesPanel' });
+	// ANY-INK (M7): every Trace panel subscriber id starts with 'anyink.trace.panel'
+	if (panelName !== 'tracePanel') editor.unsubscribe({ idToRemove: 'anyink.trace.panel' });
 }
 
 /**

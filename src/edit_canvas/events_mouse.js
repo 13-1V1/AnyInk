@@ -1,6 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { releaseFocus } from '../anyink/controls/focus_release.js';
 import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
+import { handleTraceLayerEvent } from '../anyink/trace/trace_layer.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { closeAllNotations, closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
 import { Maxes, maxesOverlap } from '../project_data/maxes.js';
@@ -30,6 +32,9 @@ export function handleMouseEvents(event) {
 	// log(event);
 
 	if (event.type === 'mousedown' && typeof event.button === 'number') closeEveryTypeOfDialog();
+	// ANY-INK (M7 finalize): a press on the canvas takes the keyboard back from any panel
+	// control. Upstream cancels this mousedown, so the browser never moves focus itself.
+	if (event.type === 'mousedown') releaseFocus();
 
 	const ehd = eventHandlerData;
 	const editor = getCurrentProjectEditor();
@@ -63,6 +68,8 @@ export function handleMouseEvents(event) {
 	if (event.button === 0) {
 		// ANY-INK: the always-active guides layer gets first look at the pointer (D-008)
 		if (handleGuidesLayerEvent(event)) return;
+		// ANY-INK (M7): then the trace layer (move / resize the trace image, Trace panel only)
+		if (handleTraceLayerEvent(event)) return;
 
 		// Switch Tool function
 		// log(`editor.selectedTool: ${editor.selectedTool}`);

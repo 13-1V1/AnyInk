@@ -30,6 +30,8 @@ import { glyphChanged } from './cross_item_actions.js';
 		ANY-INK
 		* - 'fontMetrics', 'guides', 'kernPairs', 'previewOptions', 'anyinkPageChange' (Milestone 5)
 		* - 'projectFile' - file handle or saved state changed: title, menu, recents (Milestone 6)
+		* - 'traceLayer' - the current item's trace image changed: added, moved, resized,
+		*                  opacity / visible / locked / invert, removed (Milestone 7)
 */
 const allTopics = [
 	'editCanvasView',
@@ -61,6 +63,8 @@ const allTopics = [
 	'anyinkPageChange', // navigator or app page changed (preview strip visibility)
 	// ANY-INK topics (Milestone 6)
 	'projectFile', // file handle or saved state changed: title, menu, recents
+	// ANY-INK topics (Milestone 7)
+	'traceLayer', // trace image changed (per drag tick, slider tick, add / replace / remove)
 ];
 
 /**

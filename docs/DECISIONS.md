@@ -406,3 +406,82 @@ toast if it never shows there.
 file with the same size and the same modification time at the same path would be replaced
 without asking. That does not happen in practice, because a restored or copied file carries its
 own older time.
+
+## D-028: Trace layer data and interaction
+**Decided:** 09/24/2026
+**Options considered:**
+- *Data:* a separate layer object (a project-level `traces` collection keyed by item id, or a
+  special non-exported shape inside `glyph.shapes`) | the trace on the item itself,
+  `item.anyink.trace` (glyphs, ligatures and components are all `Glyph` objects).
+- *Interaction:* an always-on drag with any tool, like the guides layer (D-008) | panel-gated:
+  only while the Trace panel is open | panel-gated and limited to the Resize tool.
+**Chose:** `item.anyink.trace = { asset, width, height, x, y, scale, opacity, visible, locked,
+invert }`. `x, y` is the image's top-left corner in font units (y-up), `scale` is font units per
+image pixel (aspect always kept), `width, height` are the stored image's pixels, opacity runs
+0.05 to 1. Every write goes through `setTrace`, which keeps only those ten fields, so no Blob or
+ImageBitmap can reach a glyph or its undo snapshots. The pixels are a Blob in `editor.assets`
+(D-012). Import decodes once (D-023): PNG / JPEG / WebP only, EXIF upright, long side capped at
+2000 px, re-encoded to WebP 0.92 (PNG where WebP cannot be encoded). The canvas draws from an
+`ImageBitmap` cache keyed by that Blob. A new image fills ascent to descent, top edge on the
+ascent, left edge at 0; a replaced image keeps the old top-left corner and height. The `.gs2`
+writes only the assets some trace still uses (`collectReferencedAssetIds`, which also scans
+`alternates` for M11). Crash snapshots keep every asset, because undo can bring a removed trace
+back. The font and SVG exports never read `anyink`, and the glyph tiles and the preview strip
+draw outlines only.
+The canvas layer (`trace_layer.js`, right after the guides layer in `handleMouseEvents`) moves
+and resizes the image only when all of these hold: the Trace panel is open, the trace is visible
+and unlocked, and the Resize tool (the arrow) is selected. Every other tool always draws over the
+image, and with those tools the canvas shows the purple frame without handles. The corner
+handles win over a metric line running through them (`traceHandleHasPriority` in `findLineAt`),
+while the body and edges let the line win. **Amended 09/24/2026 (M7 finalize):** a shape
+under the pointer, or a selected shape's resize handle, wins over the image body, so shapes
+drawn over the image can be selected with the arrow; the image's corner handles still win over
+shapes, and the image moves only from an empty part of it (`shapeWinsAt`). Pressing an empty
+part of the image clears the shape selection, as a press on empty paper does. The arrow keys
+nudge the image only while nothing is selected. Each change is one history entry: a drag on
+release, a burst of arrow presses on the last key-up, the opacity slider on release, and each
+toggle, fit, add, replace and remove. Any other key or any press on the page first writes a
+pending nudge entry, so switching items never loses one.
+Also amended in the finalize pass, around the layer:
+- **Keyboard.** Any press on the edit canvas takes the keyboard back from a panel control
+  (`src/anyink/controls/focus_release.js`, called from `handleMouseEvents`). Upstream cancels
+  that mousedown, so a toggle reached with Tab kept the keys: Ctrl+Z and the nudges went
+  nowhere and Space flipped the toggle.
+- **Paste.** Chrome sends a paste to the focused element, which is the page body while
+  editing, so the page listens too (`handlePasteOnPage`; text fields keep their own pastes).
+  Copied shapes win a Ctrl+V until the window loses focus after a copy whose note reached the
+  system clipboard; then an image there is newer and becomes the trace
+  (`src/anyink/trace/clipboard_note.js`). Every copy writes the note, Copy buttons included;
+  when it cannot be written, the shapes win. With shapes copied, the async clipboard read
+  (only when no paste event came) runs only if Chrome already allows it, so Ctrl+V never
+  raises the permission prompt in front of the shapes. A refused read says so in a toast.
+- **Cross-project copies** bring the image into the other project's asset store
+  (`carryTraceAsset`), and "Scale items to match destination Em size" scales the trace with
+  the outline it was traced for (`resizeWithTrace`).
+**Because:**
+- The data rides on machinery that already exists. History clones the whole Glyph, so every
+  trace change is undoable with no new entry kind, and `Glyph.save` carries the trace into the
+  `.gs2` and crash snapshots. Ligatures and components get it for free, and deleting a glyph
+  takes its trace with it (the next save drops the unused image). A separate layer object would need its own undo kind, its own
+  save path, and cleanup when an item is deleted or renamed.
+- The panel gate exists because the image sits under the whole glyph, so an always-on drag
+  would steal nearly every click from the tools. The guides layer can be always on because a
+  line is a few pixels wide.
+- The Resize-tool gate came out of integration. The first build let any tool except a mid-path
+  pen grab the image. That swallowed the first click of New path, New rectangle and New oval,
+  and the Add point click, on the very panel the import opens after adding an image, so "draw
+  over it" from the brief failed.
+- The corner exception exists because the default placement puts all four corners on metric
+  lines (ascent, descent, left side), so a new image could be moved but never resized.
+- Shapes win over the image body because the critic pass showed the first rule's cost: with the
+  Trace panel open, shapes drawn over the image could not be selected with the arrow at all,
+  which was this decision's first "revisit" condition.
+**Strongest objection:** with the Resize tool, a big image mostly covered by ink is hard to grab,
+because a press on a shape now selects the shape; the image moves from its empty paper or its
+corners, or from the arrow keys once it is clicked. Also, each item gets exactly one trace.
+Accepted: the panel's hint says so, the corners always work, and one reference image per glyph
+is what the brief asks for.
+**Revisit:** if tracing sessions show the image hard to grab under a finished glyph (then add a
+move handle at its center), if M9 sheet scans need more than one image per glyph (their assets
+must also join the saved set, or a save drops them), or when M8 auto-trace reads the image (it
+should use the same asset Blob and `bitmap_cache`).

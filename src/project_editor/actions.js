@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { noteShapeCopy } from '../anyink/trace/clipboard_note.js';
 import { addCrossProjectCopyShapeOptionControls } from '../app/cross_project_actions/action_copy_shapes.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
@@ -280,6 +281,10 @@ export function clipboardCopy() {
 			dx: 0,
 			dy: 0,
 		};
+		// ANY-INK (M7 finalize): every copy (Ctrl+C and both Copy buttons) leaves a note on
+		// the system clipboard, so an image copied before the shapes never wins a later
+		// Ctrl+V (src/anyink/trace/clipboard_note.js)
+		noteShapeCopy(editor);
 	} else {
 		editor.clipboard = false;
 	}

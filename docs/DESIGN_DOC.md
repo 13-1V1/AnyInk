@@ -87,7 +87,9 @@ settings.anyink = {
 glyphs[id].anyink = {                 // only emitted when non-empty (Glyph.save allow-list extended)
   nib:     { strokes: [{ points: [{x, y, pressure}], cap }], settings: {...} }
   roughen: { originalShapes: [shapeSave...], settings: { seed, size, detail, spread, smooth, version } }
-  trace:   { asset: 'img-…', x, y, scale, opacity, visible, locked }
+  trace:   { asset: 'img-…', width, height, x, y, scale, opacity, visible, locked, invert }
+           // M7 (D-028): px size of the stored image; x, y = top-left corner in font units
+           // (y-up); scale = font units per image pixel; opacity 0.05 to 1
   altOf:   'glyph-0x61'  (on alternates)   /  alternates: ['alt-0x61-1', ...] (on bases)
 }
 alternates = { 'alt-0x61-1': GlyphSave, ... }   // new top-level collection, mirrors 'ligatures' code paths
@@ -139,7 +141,12 @@ editor features, accounts, telemetry.
 - Pub/sub subscriber ids are `anyink.<module>` and never a substring of another id (upstream's
   `unsubscribe` matches substrings).
 - Images are decoded with `createImageBitmap(file, { imageOrientation: 'from-image' })`, limited to
-  PNG / JPEG / WebP, size-capped, and cached as `ImageBitmap` per glyph (D-023).
+  PNG / JPEG / WebP, size-capped, and cached as `ImageBitmap` per stored asset Blob (D-023; M7's
+  `src/anyink/trace/bitmap_cache.js`, so glyphs that share an image share one bitmap). The cache
+  keeps the 4 most recently drawn bitmaps and closes the rest, so memory stays flat across a
+  whole alphabet of traces.
+- A press on the edit canvas takes the keyboard back from panel controls
+  (`src/anyink/controls/focus_release.js`); a new panel control never has to hand focus back itself.
 - Every tracer hands SVG to `ioSVG_convertSVGTagsToGlyph` with the transform intact, then
   `flipNS()` and `reverseWinding()` (D-024).
 - `calculateKernOffset` gets a lookup map and a deterministic priority (one-by-one groups win).
