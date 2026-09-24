@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../../anyink/theme/theme.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
-import { accentColors } from '../../common/colors.js';
 import { addAsChildren, makeElement, textToNode } from '../../common/dom.js';
 import { round } from '../../common/functions.js';
 import { makeIcon } from '../../common/graphics.js';
@@ -285,10 +287,10 @@ export function makeContextMenu(rows = [], x, y, width, height, isDropdown = fal
 		element.style.top = `${y}px`;
 		element.style.display = 'grid';
 		if (isDropdown) {
-			element.style.borderRadius = '0px 0px 4px 4px';
+			element.style.borderRadius = '0 0 var(--radius) var(--radius)';
 			element.style.borderTopWidth = '0px';
 		} else {
-			element.style.borderRadius = '0px 4px 4px 4px';
+			element.style.borderRadius = '0 var(--radius) var(--radius) var(--radius)';
 			element.style.borderTopWidth = '1px';
 		}
 		if (width) {
@@ -323,6 +325,9 @@ function makeOneContextMenuRow(data = {}) {
 		attributes: { tabindex: '0' },
 	});
 	if (isDisabled) row.setAttribute('disabled', '');
+	// Option-chooser dropdowns mark the current value with the 'selected' icon.
+	const isSelected = data.icon === 'selected';
+	if (isSelected) row.setAttribute('selected', '');
 
 	if (data.child) {
 		row.appendChild(data.child);
@@ -347,7 +352,7 @@ function makeOneContextMenuRow(data = {}) {
 			textToNode(
 				makeIcon({
 					name: data.icon,
-					color: accentColors.royal.l55,
+					color: token(isSelected ? '--touch' : '--chrome-text-muted'),
 				})
 			)
 		);

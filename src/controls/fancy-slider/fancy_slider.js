@@ -1,7 +1,10 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { addAsChildren, makeElement } from '../../common/dom.js';
 
 /**
- * Makes a styled slider element
+ * Makes a styled slider element.
+ * Color comes from fancy-slider.css (accent-color: var(--touch)); nothing is set inline.
  * @param {Number} initialValue - what the slider value should be
  * @param {Function | false} callback - what to do when it changes
  * @param {Number} min - min value for the slider
@@ -18,14 +21,11 @@ export function makeFancySlider(initialValue = 50, callback, min = 0, max = 100,
 		innerHTML: '' + initialValue,
 	});
 
-	const normalizedCurrentValue = (initialValue / (max - min)) * 100;
-
 	let bar = makeElement({
 		tag: 'input',
 		attributes: {
 			type: 'range',
 			value: initialValue,
-			style: `accent-color: hsl(${normalizedCurrentValue + 200}, 100%, 40%);`,
 			min: min,
 			max: max,
 			step: step,
@@ -36,9 +36,6 @@ export function makeFancySlider(initialValue = 50, callback, min = 0, max = 100,
 		// @ts-expect-error 'property does exist'
 		const value = parseInt(event.target.value);
 		sliderReadout.innerHTML = '' + value;
-
-		const normalizedCurrentValue = (value / (max - min)) * 100;
-		bar.setAttribute('style', `accent-color: hsl(${normalizedCurrentValue + 200}, 100%, 40%);`);
 		if (callback) callback(value);
 	});
 

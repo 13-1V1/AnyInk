@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject } from '../../app/main.js';
 import { hexesToChars } from '../../common/character_ids.js';
 import { makeElement } from '../../common/dom.js';

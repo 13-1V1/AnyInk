@@ -1,10 +1,9 @@
-* {
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* This sheet is injected into document.body while a bubble is open, so every
+   rule is scoped under #bubble to keep it from leaking onto the page. */
+#bubble * {
 	transition: inherit;
-}
-
-:root {
-	--bgColor: var(--gray-l10);
-	--textColor: var(--gray-l95);
 }
 
 #bubble {
@@ -20,29 +19,29 @@
 	animation: var(--animate-fade-in);
 }
 
-.pointer {
+#bubble .pointer {
 	width: 0px;
 	height: 0px;
 	border: 12px solid transparent;
-	border-top: 12px solid var(--bgColor);
+	border-top: 12px solid var(--chrome-bg-raised);
 	background-color: transparent;
 	display: block;
 	margin: 0px auto;
 }
 
-.content {
+#bubble .content {
 	padding: 20px 24px 20px 20px;
-	border-radius: 10px;
+	border-radius: var(--radius-lg);
 	width: clamp(300px, 400px, 600px);
 	min-width: 300px;
-	color: var(--textColor);
-	background-color: var(--bgColor);
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-raised);
 	text-align: left;
 	display: block;
-	box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 0 0 1px var(--chrome-border), var(--shadow-menu);
 }
 
-.content code {
-	background-color: var(--gray-l20);
-	border-color: var(--gray-l30);
+#bubble .content code {
+	background-color: var(--chrome-bg-sunken);
+	border-color: var(--chrome-border);
 }

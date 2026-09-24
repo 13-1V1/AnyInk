@@ -1,3 +1,6 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../../anyink/theme/theme.js';
 import { makeElement } from '../../common/dom.js';
 import { animateRemove, closeAllInfoBubbles } from '../dialogs/dialogs.js';
 import bubbleStyle from './info-bubble-popup.css?inline';
@@ -90,9 +93,12 @@ export class InfoBubble extends HTMLElement {
 		bubble.style.left = `${left}px`;
 		bubble.style.top = `${top}px`;
 
-		this.entryPoint.style.borderColor = 'rgb(180, 180, 180)';
-		this.entryPoint.style.backgroundColor = 'rgb(180, 180, 180)';
-		this.entryPoint.style.color = 'rgb(250, 250, 250)';
+		// Open state: filled structure circle with a close mark. Tokens are read
+		// here at show time, never at module load.
+		const doc = this.ownerDocument;
+		this.entryPoint.style.borderColor = token('--structure', doc);
+		this.entryPoint.style.backgroundColor = token('--structure', doc);
+		this.entryPoint.style.color = token('--chrome-text-inverse', doc);
 		this.entryPoint.style.cursor = 'pointer';
 		this.entryPoint.innerHTML = '✖';
 
@@ -113,9 +119,11 @@ export class InfoBubble extends HTMLElement {
 		// document.body.removeChild(bubble);
 		// log(`bubble has been removed`);
 
-		entryPoint.style.borderColor = 'rgb(180, 180, 180)';
-		entryPoint.style.backgroundColor = 'transparent';
-		entryPoint.style.color = 'rgb(180, 180, 180)';
+		// Clear the inline open-state colors so the stylesheet's resting and
+		// hover rules take over again.
+		entryPoint.style.borderColor = '';
+		entryPoint.style.backgroundColor = '';
+		entryPoint.style.color = '';
 		entryPoint.style.cursor = 'help';
 		entryPoint.innerHTML = '?';
 		entryPoint.blur();

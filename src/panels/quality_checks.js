@@ -1,5 +1,8 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
+import { makeFancySlider } from '../controls/fancy-slider/fancy_slider.js';
 import settingsData from '../pages/settings_data.js';
 import { enabledQualityChecks, runQualityChecksForItem } from '../project_editor/quality_checks.js';
 import { refreshPanel } from './panels.js';
@@ -61,16 +64,23 @@ function makeCard_PointsAndHandles() {
 			content: settingsData.app[checkName].label,
 		});
 
-		const input = makeElement({
-			tag: 'input-number',
-			attributes: {
-				value: editor.project.settings.app[checkName],
-			},
-		});
+		// Threshold slider: same range as the Settings > App row for this check.
+		// The value is written when the drag ends ('change'), which also
+		// refreshes this panel, so writing on every 'input' tick would tear
+		// the slider out from under the pointer.
+		const check = settingsData.app[checkName];
+		const min = check.min ?? 0;
+		const max = check.max ?? 20;
+		const step = check.step ?? 1;
+		const currentValue = parseInt(editor.project.settings.app[checkName]);
+		const slider = makeFancySlider(isNaN(currentValue) ? min : currentValue, false, min, max, step);
+		const bar = slider.querySelector('.fancy-slider__bar');
 
-		input.addEventListener('change', (event) => {
+		bar.addEventListener('change', (event) => {
 			// @ts-expect-error 'property does exist'
-			editor.project.settings.app[checkName] = parseInt(event.target.value);
+			const newValue = parseInt(event.target.value);
+			if (isNaN(newValue)) return;
+			editor.project.settings.app[checkName] = newValue;
 			runQualityChecksForItem(editor.selectedItem);
 			editor.publish('qualityChecks', 'update');
 		});
@@ -78,11 +88,11 @@ function makeCard_PointsAndHandles() {
 		if (enabledQualityChecks[checkName]) {
 			checkbox.setAttribute('checked', '');
 		} else {
-			input.setAttribute('disabled', '');
+			bar.setAttribute('disabled', '');
 			label.setAttribute('disabled', '');
 		}
 
-		addAsChildren(card, [checkbox, label, input]);
+		addAsChildren(card, [checkbox, label, slider]);
 	});
 
 	// Overall, watch for changes:

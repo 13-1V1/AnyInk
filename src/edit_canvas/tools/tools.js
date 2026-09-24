@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
-import { accentColors } from '../../common/colors.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
 import { round, valuesAreClose } from '../../common/functions.js';
 import { drawShape } from '../../display_canvas/draw_paths.js';
@@ -139,6 +141,7 @@ export function makeViewToolsButtons() {
 	// Button data
 	let viewButtonTitles = {
 		displayMode: 'Toggle fill / outline display mode',
+		canvasTheme: 'Paper / slate',
 		pan: 'Pan the edit canvas',
 		zoom1to1: 'Zoom so 1 pixel = 1 em',
 		zoomEm: 'Zoom to fit a full Em',
@@ -159,6 +162,7 @@ export function makeViewToolsButtons() {
 			if (displayMode) buttonNameSVG = 'displayModeFilled';
 			else buttonNameSVG = 'displayModeOutlined';
 		}
+		if (buttonName === 'canvasTheme') buttonNameSVG = canvasThemeIconName();
 		let newToolButton = makeElement({
 			tag: 'button',
 			className: 'editor-page__tool',
@@ -197,26 +201,63 @@ export function makeViewToolsButtons() {
 			});
 		}
 
+		if (buttonName === 'canvasTheme') {
+			editor.subscribe({
+				topic: 'editCanvasView',
+				subscriberID: `tools.canvasTheme`,
+				callback: () => {
+					newToolButton.innerHTML = makeToolButtonSVG({
+						name: canvasThemeIconName(),
+						selected: false,
+					});
+				},
+			});
+		}
+
 		viewButtonElements[buttonName] = newToolButton;
 	});
 
-	// text zoom control
-	let zoomReadoutNumber = '--';
+	// zoom slider with a small readout
+	const zoomMin = 5;
+	const zoomMax = 400;
+	let zoomReadoutNumber = 100;
 	let view = editor.view;
-	if (view) zoomReadoutNumber = '' + round(editor.view.dz * 100, 2);
+	if (view) zoomReadoutNumber = round(view.dz * 100, 2);
 
 	let zoomReadout = makeElement({
-		tag: 'input',
+		tag: 'span',
 		className: 'editor-page__zoom-readout',
 		title: 'Zoom level',
-		innerHTML: `${zoomReadoutNumber}%`,
 	});
-	zoomReadout.setAttribute('value', zoomReadoutNumber);
-	zoomReadout.setAttribute('disabled', '');
-	zoomReadout.addEventListener('change', () => {
-		getCurrentProjectEditor().setViewZoom(this.value);
-		this.innerHTML = `${this.value}%`;
-		this.value = `${zoomReadoutNumber}%`;
+	const zoomSlider = makeElement({
+		tag: 'input',
+		className: 'editor-page__zoom-slider',
+		title: 'Zoom level',
+		attributes: { type: 'range', min: `${zoomMin}`, max: `${zoomMax}`, step: '1' },
+	});
+	zoomSlider.setAttribute('value', `${zoomReadoutNumber}`);
+	const zoomValue = makeElement({
+		tag: 'span',
+		className: 'editor-page__zoom-value',
+		content: `${zoomReadoutNumber}%`,
+	});
+	addAsChildren(zoomReadout, [zoomSlider, zoomValue]);
+
+	zoomSlider.addEventListener('input', () => {
+		const editor = getCurrentProjectEditor();
+		// @ts-expect-error 'property does exist'
+		const percent = Math.max(zoomMin, Math.min(zoomMax, parseFloat(zoomSlider.value)));
+		const currentZoom = editor.view.dz;
+		const wrapper = editor.editCanvas?.parentElement;
+		if (wrapper && currentZoom) {
+			// Zoom about the middle of the visible canvas so the glyph stays put
+			editor.updateViewZoom(percent / 100 / currentZoom, {
+				x: wrapper.clientWidth / 2,
+				y: wrapper.clientHeight / 2,
+			});
+		} else {
+			editor.setViewZoom(percent);
+		}
 	});
 
 	editor.subscribe({
@@ -224,10 +265,10 @@ export function makeViewToolsButtons() {
 		subscriberID: 'tools.zoomReadout',
 		callback: (newView) => {
 			let zoomReadoutNumber = round(newView.dz * 100, 2);
-			zoomReadout.setAttribute('value', '' + zoomReadoutNumber);
-			zoomReadout.innerHTML = `${zoomReadoutNumber}%`;
+			zoomSlider.setAttribute('value', '' + zoomReadoutNumber);
 			// @ts-expect-error 'property does exist'
-			zoomReadout.value = `${zoomReadoutNumber}%`;
+			zoomSlider.value = `${zoomReadoutNumber}`;
+			zoomValue.innerHTML = `${zoomReadoutNumber}%`;
 		},
 	});
 
@@ -254,13 +295,14 @@ export function makeViewToolsButtons() {
 	// Put it all together
 	let responsiveGroup = makeElement({ className: 'editor-page__responsive-group' });
 
+	// Seven grid columns: the paper / slate toggle takes the leading spacer's slot
 	addAsChildren(responsiveGroup, [
-		makeElement({ tag: 'div', content: '&emsp;' }),
 		viewButtonElements.zoomOut,
 		zoomReadout,
 		viewButtonElements.zoomIn,
 		makeElement({ tag: 'div', content: '&emsp;' }),
 		viewButtonElements.displayMode,
+		viewButtonElements.canvasTheme,
 		viewButtonElements.zoom1to1,
 	]);
 
@@ -275,7 +317,7 @@ export function makeViewToolsButtons() {
 export function selectTool(tool) {
 	// log('selectTool', 'start');
 	const editor = getCurrentProjectEditor();
-	let viewTools = ['zoom1to1', 'zoomEm', 'zoomIn', 'zoomOut', 'displayMode'];
+	let viewTools = ['zoom1to1', 'zoomEm', 'zoomIn', 'zoomOut', 'displayMode', 'canvasTheme'];
 
 	if (viewTools.includes(tool)) {
 		if (tool === 'zoom1to1') editor.view = { dz: 1 };
@@ -286,6 +328,10 @@ export function selectTool(tool) {
 			const appSettings = getCurrentProject().settings.app;
 			appSettings.canvasDisplayModeFilled = !appSettings.canvasDisplayModeFilled;
 			// log(`canvasDisplayModeFilled: ${appSettings.canvasDisplayModeFilled}`);
+		}
+		if (tool === 'canvasTheme') {
+			// Flips html[data-canvas]; the edit canvas also redraws through onThemeChange
+			toggleCanvasTheme();
 		}
 		editor.publish('editCanvasView', editor.view);
 	} else {
@@ -303,6 +349,14 @@ export function selectTool(tool) {
 	}
 
 	// log('selectTool', 'end');
+}
+
+/**
+ * Which icon the paper / slate button shows: the surface the canvas is on now
+ * @returns {String} - icon name
+ */
+function canvasThemeIconName() {
+	return getCanvasTheme() === 'dark' ? 'canvasThemeSlate' : 'canvasThemePaper';
 }
 
 /**
@@ -464,14 +518,14 @@ export function isShapeHere(shape, cx, cy) {
 	});
 	let view = { dx: shape.maxes.xMin * -1 + g1, dy: shape.maxes.yMax + g1, dz: 1 };
 
-	ctx.fillStyle = 'rgb(255, 255, 255)';
+	ctx.fillStyle = '#fff'; // pixel hit test, not visible
 	ctx.fillRect(0, 0, shape.maxes.width + g2, shape.maxes.height + g2);
 
 	ctx.beginPath();
 	drawShape(shape, ctx, view);
 	ctx.closePath();
 
-	ctx.fillStyle = 'rgb(0,0,0)';
+	ctx.fillStyle = '#000'; // pixel hit test, not visible
 	ctx.fill();
 
 	let xTest = sx + view.dx;
@@ -522,14 +576,14 @@ export function isPointNearShapeEdge(shape, cx, cy, thickness = 10) {
 	});
 	let view = { dx: shape.maxes.xMin * -1 + g1, dy: shape.maxes.yMax + g1, dz: 1 };
 
-	ctx.fillStyle = 'rgb(255, 255, 255)';
+	ctx.fillStyle = '#fff'; // pixel hit test, not visible
 	ctx.fillRect(0, 0, shape.maxes.width + g2, shape.maxes.height + g2);
 
 	ctx.beginPath();
 	drawShape(shape, ctx, view);
 	ctx.closePath();
 
-	ctx.strokeStyle = 'rgb(0,0,0)';
+	ctx.strokeStyle = '#000'; // pixel hit test, not visible
 	ctx.lineWidth = sThickness;
 	ctx.fill();
 	ctx.stroke();
@@ -581,29 +635,29 @@ let icons = {};
 export function makeToolButtonSVG(oa) {
 	// log(`makeToolButtonSVG`, 'start');
 	// log(`oa.name: ${oa.name}`);
-	let colorOutline = accentColors.blue.l25;
-	let colorFill = accentColors.gray.l95;
+	// Outline pixels use currentColor; the svg sets color from a chrome token
+	let colorOutline = 'var(--chrome-text-muted)';
+	let colorFill = 'var(--chrome-bg-sunken)';
 	let icon = icons[oa.name];
 
 	if (oa.selected) {
-		colorOutline = accentColors.gray.l10;
-		colorFill = 'white';
+		colorOutline = 'var(--touch)';
 	} else if (oa.disabled) {
-		colorOutline = accentColors.gray.l40;
-		colorFill = accentColors.gray.l30;
+		colorOutline = 'var(--chrome-text-faint)';
+		colorFill = 'transparent';
 	}
 
 	let innerHTML = '';
 	if (icon.fill) {
 		innerHTML += `
-			<g pointer-events="none" fill="${colorFill}">
+			<g pointer-events="none" style="fill: ${colorFill};">
 			${icon.fill}
 			</g>
 		`;
 	}
 
 	innerHTML += `
-		<g pointer-events="none" fill="${colorOutline}">
+		<g pointer-events="none" fill="currentColor">
 		${icon.outline}
 		</g>
 	`;
@@ -613,6 +667,7 @@ export function makeToolButtonSVG(oa) {
 			version="1.1"
 			xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
 			x="0px" y="0px" width="20px" height="20px" viewBox="0 0 20 20"
+			style="color: ${colorOutline};"
 		>
 			${innerHTML}
 		</svg>
@@ -931,6 +986,43 @@ icons.displayModeOutlined = {
 		<rect x="4" y="5" width="1" height="1"/>
 		<rect x="14" y="6" width="1" height="1"/>
 		<rect x="13" y="5" width="1" height="1"/>
+	`,
+};
+
+// Paper: a light sheet with dark lines of text. Click to switch to slate.
+icons.canvasThemePaper = {
+	fill: `
+		<rect x="3" y="2" width="14" height="16"></rect>
+	`,
+	outline: `
+		<rect x="2" y="1" width="16" height="1"></rect>
+		<rect x="2" y="18" width="16" height="1"></rect>
+		<rect x="2" y="1" width="1" height="18"></rect>
+		<rect x="17" y="1" width="1" height="18"></rect>
+		<rect x="5" y="5" width="9" height="1"></rect>
+		<rect x="5" y="8" width="7" height="1"></rect>
+		<rect x="5" y="11" width="9" height="1"></rect>
+	`,
+};
+
+// Slate: a dark sheet with light lines of text. Click to switch to paper.
+icons.canvasThemeSlate = {
+	fill: `
+		<rect x="5" y="5" width="9" height="1"></rect>
+		<rect x="5" y="8" width="7" height="1"></rect>
+		<rect x="5" y="11" width="9" height="1"></rect>
+	`,
+	outline: `
+		<rect x="2" y="1" width="16" height="4"></rect>
+		<rect x="2" y="5" width="3" height="1"></rect>
+		<rect x="14" y="5" width="4" height="1"></rect>
+		<rect x="2" y="6" width="16" height="2"></rect>
+		<rect x="2" y="8" width="3" height="1"></rect>
+		<rect x="12" y="8" width="6" height="1"></rect>
+		<rect x="2" y="9" width="16" height="2"></rect>
+		<rect x="2" y="11" width="3" height="1"></rect>
+		<rect x="14" y="11" width="4" height="1"></rect>
+		<rect x="2" y="12" width="16" height="7"></rect>
 	`,
 };
 

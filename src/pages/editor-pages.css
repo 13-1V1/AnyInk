@@ -1,3 +1,5 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 .editor__page {
 	height: calc(100% - 10px);
 	min-height: 100%;
@@ -8,6 +10,7 @@
 	grid-template-rows: 100%;
 	column-gap: 10px;
 	padding: 0px 10px 10px 10px;
+	background-color: var(--chrome-bg);
 }
 
 .editor-page__left-area {
@@ -26,10 +29,6 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 }
-#editor-page__panel span {
-	animation: var(--animate-slide-in);
-}
-
 .editor-page__nav-area {
 	display: grid;
 	grid-template-columns: min-content 1fr;
@@ -76,27 +75,51 @@
 }
 
 .editor-page__zoom-readout {
-	width: 4.5em;
-	height: 30px;
-	text-align: right;
-	padding-right: 4px;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	width: auto;
+	padding: 0;
 }
 
+.editor-page__zoom-slider {
+	accent-color: var(--touch);
+	width: 90px;
+	margin: 0;
+}
+
+.editor-page__zoom-value {
+	min-width: 4ch;
+	text-align: right;
+	font-size: var(--text-xs);
+	color: var(--chrome-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The sheet of paper: canvas tokens so HTML mounted inside (first-run pages,
+   the native live-preview textarea) reads as ink on paper in both canvas themes. */
 .editor-page__edit-canvas-wrapper,
 .live-preview-page__canvas-wrapper {
-	border: 1px solid var(--blue-l85);
-	background-color: white;
+	border: none;
+	background-color: var(--canvas-bg);
+	color: var(--canvas-ink);
+	/* Chrome controls mounted on the sheet (first-run fancy-buttons) re-read their
+	   text, edge and hover tokens as ink so they stay legible on paper and slate. */
+	--chrome-text: var(--canvas-ink);
+	--chrome-text-muted: var(--canvas-ink-outline);
+	--chrome-border-strong: var(--canvas-ink-faint);
+	--chrome-bg-hover: var(--canvas-selection-soft);
 	grid-column: 3;
-	border-radius: 4px;
+	border-radius: var(--radius);
 	width: 100%;
 	min-width: 80px;
 	height: 100%;
 	overflow: hidden;
-	box-shadow: var(--l3-shadow);
+	box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge);
 }
 
 .live-preview-page__canvas-wrapper {
-	background-color: white;
+	background-color: var(--canvas-bg);
 	grid-column: 2;
 	display: grid;
 	grid-template-columns: 1fr;
@@ -121,14 +144,20 @@
 	resize: none;
 	padding: 10px;
 	box-sizing: border-box;
-	background-color: white;
-	color: black;
+	background-color: var(--canvas-bg);
+	color: var(--canvas-ink);
 	overflow-y: auto;
 }
 
+/* Primary button floating over the canvas while a new path is being drawn. */
 #done-creating-path-button {
 	position: absolute;
-	color: var(--blue-l30);
+	background-color: var(--touch);
+	color: var(--chrome-text-inverse);
+	font-weight: 600;
+	border: none;
+	outline: none;
+	border-radius: var(--radius);
 	opacity: 0.9;
 	left: 530px;
 	top: 107px;
@@ -140,9 +169,18 @@
 #done-creating-path-button:hover,
 #done-creating-path-button:focus {
 	opacity: 1;
+	background-color: var(--touch-hover);
 }
 
-/* tools */
+#done-creating-path-button:active {
+	background-color: var(--touch-active);
+}
+
+#done-creating-path-button:focus-visible {
+	box-shadow: var(--focus-ring);
+}
+
+/* tools: quiet until hovered, tinted green when selected */
 .editor-page__tool,
 .editor-page__tool:active,
 .editor-page__tool:focus,
@@ -151,14 +189,27 @@
 	width: 30px;
 	padding: 5px;
 	margin: 0 0 5px 0;
-	background-color: var(--blue-l95);
+	background-color: transparent;
+	border-color: transparent;
+	border-radius: var(--radius);
+	outline: none;
+}
+
+.editor-page__tool:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.editor-page__tool:focus-visible {
+	box-shadow: var(--focus-ring);
 }
 
 .editor-page__tool-selected,
 .editor-page__tool-selected:active,
 .editor-page__tool-selected:focus,
 .editor-page__tool-selected:hover {
-	background-color: var(--accent-color);
+	background-color: var(--touch-soft);
+	outline: 1px solid var(--touch);
+	outline-offset: -1px;
 }
 
 .editor-page__tool svg {
@@ -169,7 +220,7 @@
 	top: -1px;
 }
 
-/* First run pages */
+/* First run pages (mounted inside the canvas wrapper, so these sit on paper) */
 .editor-page__first-run {
 	display: block;
 	margin: 20px;
@@ -195,16 +246,16 @@
 	width: max-content;
 	padding: 8px 10px 0px 10px;
 	margin: 10px 10px 0px 0px;
-	background-color: var(--gray-l95);
-	border: 1px solid var(--gray-l90);
-	border-radius: 4px;
+	background-color: var(--canvas-grid);
+	border: 1px solid var(--canvas-guide-muted);
+	border-radius: var(--radius);
 }
 
 .first-run__example-wrapper span {
 	display: inline-block;
 	text-align: center;
 	margin: 0px 5px 0px 5px;
-	color: var(--gray-l50);
+	color: var(--canvas-ink-faint);
 	line-height: 2em;
 	position: relative;
 	top: -4px;
@@ -239,9 +290,7 @@
 }
 
 code.warning {
-	color: var(--red);
+	color: var(--danger);
 	border-top-right-radius: 0px;
 	border-bottom-left-radius: 0px;
-	/* background-color: var(--lightRed); */
-	/* border-color: var(--darkRed); */
 }

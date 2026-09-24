@@ -1,15 +1,12 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
-import { makeRandomSaturatedColor, parseColorString, rgbToHex } from '../common/colors.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import { round } from '../common/functions.js';
 import { makeIcon } from '../common/graphics.js';
 import { makeFancySlider } from '../controls/fancy-slider/fancy_slider.js';
-import {
-	Guide,
-	guideColorDark,
-	guideColorLight,
-	guideColorMedium,
-} from '../project_editor/guide.js';
+import { Guide } from '../project_editor/guide.js';
 import { makeActionButton } from './action_buttons.js';
 import { makeDirectCheckbox, makeSingleInput, makeSingleLabel, rowPad } from './cards.js';
 import { refreshPanel } from './panels.js';
@@ -122,19 +119,21 @@ export function makeSystemGuidesCard() {
 	const metrics = getCurrentProject().settings.font;
 	const advanceWidth = getCurrentProjectEditor().selectedItem.advanceWidth;
 	addAsChildren(systemCard, [
-		makeSystemGuideRow('ascent', 'Ascent', metrics.ascent, guideColorMedium),
-		makeSystemGuideRow('capHeight', 'Cap height', metrics.capHeight, guideColorLight),
-		makeSystemGuideRow('xHeight', 'X height', metrics.xHeight, guideColorLight),
-		makeSystemGuideRow('baseline', 'Baseline', '0', guideColorDark),
-		makeSystemGuideRow('descent', 'Descent', metrics.descent, guideColorMedium),
-		makeSystemGuideRow('leftSide', 'Left side', '0', guideColorDark),
-		makeSystemGuideRow('rightSide', 'Right side', advanceWidth, guideColorDark),
+		makeSystemGuideRow('ascent', 'Ascent', metrics.ascent),
+		makeSystemGuideRow('capHeight', 'Cap height', metrics.capHeight),
+		makeSystemGuideRow('xHeight', 'X height', metrics.xHeight),
+		makeSystemGuideRow('baseline', 'Baseline', '0'),
+		makeSystemGuideRow('descent', 'Descent', metrics.descent),
+		makeSystemGuideRow('leftSide', 'Left side', '0'),
+		makeSystemGuideRow('rightSide', 'Right side', advanceWidth),
 	]);
 	return systemCard;
 }
 
-function makeSystemGuideRow(property, title, value = '0000', color) {
+function makeSystemGuideRow(property, title, value = '0000') {
 	const systemGuides = getCurrentProjectEditor().systemGuides;
+	// Every guide is drawn in the canvas structure color; the swatch icon matches it.
+	const color = token('--canvas-guide');
 
 	// Checkbox
 	const viewCheckbox = makeDirectCheckbox(systemGuides, property, (newValue) => {
@@ -152,7 +151,7 @@ function makeSystemGuideRow(property, title, value = '0000', color) {
 		editor.editCanvas.redraw('guides system view toggle');
 	});
 	viewCheckbox.setAttribute('title', 'Show / hide guide');
-	viewCheckbox.setAttribute('style', `accent-color: ${color};`);
+	viewCheckbox.setAttribute('style', 'accent-color: var(--touch);');
 
 	// Angle icon
 	let angleDisplay = makeElement({
@@ -203,9 +202,9 @@ function makeCustomGuidesCard() {
 		innerHTML: 'Add a custom guide',
 	});
 	addGuideButton.addEventListener('click', () => {
-		getCurrentProject().settings.app.guides.custom.push(
-			new Guide({ visible: true, color: makeRandomSaturatedColor() })
-		);
+		// New custom guides carry no color (audit C6: no per-guide color picker); the
+		// canvas draws every guide in --canvas-guide at draw time so they follow the theme.
+		getCurrentProject().settings.app.guides.custom.push(new Guide({ visible: true }));
 		refreshGuideChange();
 	});
 
@@ -214,12 +213,15 @@ function makeCustomGuidesCard() {
 }
 
 function makeCustomGuideRow(guide, number) {
+	// All guides read in the canvas structure color, whatever guide.color holds.
+	const color = token('--canvas-guide');
+
 	// Checkbox
 	const viewCheckbox = makeDirectCheckbox(guide, 'visible', () => {
 		const editor = getCurrentProjectEditor();
 		editor.editCanvas.redraw('guides custom view toggle');
 	});
-	viewCheckbox.setAttribute('style', `accent-color: ${guide.color}`);
+	viewCheckbox.setAttribute('style', 'accent-color: var(--touch);');
 	viewCheckbox.setAttribute('title', 'Show / hide guide');
 
 	// Name
@@ -234,34 +236,6 @@ function makeCustomGuideRow(guide, number) {
 		refreshGuideChange();
 	});
 
-	const colorButton = makeElement({
-		tag: 'input',
-		className: 'guide-color-button',
-		title: 'Change guide color',
-		attributes: {
-			type: 'color',
-			style: `background-color: ${guide.color};`,
-			value: rgbToHex(guide.color),
-		},
-	});
-	colorButton.addEventListener('input', (event) => {
-		// Get new color
-		// @ts-expect-error 'property does exist'
-		let rgb = parseColorString(event.target.value);
-		let rgbString = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
-
-		// Row accents
-		colorButton.setAttribute('value', rgbToHex(rgbString));
-		colorButton.style.backgroundColor = rgbString;
-		viewCheckbox.style.accentColor = rgbString;
-		angleButton.querySelector('g').setAttribute('fill', rgbString);
-
-		// Update guide
-		const guide = getCurrentProject().settings.app.guides.custom[number];
-		guide.color = rgbString;
-		getCurrentProjectEditor().editCanvas.redraw('guides custom color change');
-	});
-
 	// Angle button
 	const angleButton = makeElement({
 		tag: 'button',
@@ -269,13 +243,13 @@ function makeCustomGuideRow(guide, number) {
 		className: 'guide-angle-button',
 		innerHTML: makeIcon({
 			name: 'command_verticalBar',
-			color: guide.color,
+			color: color,
 		}),
 	});
 	if (guide.angle === 90) {
 		angleButton.innerHTML = makeIcon({
 			name: 'command_horizontalBar',
-			color: guide.color,
+			color: color,
 		});
 	}
 	angleButton.addEventListener('click', () => {
@@ -294,7 +268,7 @@ function makeCustomGuideRow(guide, number) {
 	const valueInput = makeSingleInput(guide, 'location', 'editCanvasView', 'input-number');
 	valueInput.setAttribute('title', 'Guide line position');
 
-	return [viewCheckbox, nameInput, deleteButton, colorButton, angleButton, valueInput];
+	return [viewCheckbox, nameInput, deleteButton, angleButton, valueInput];
 }
 
 function makeGridCard() {

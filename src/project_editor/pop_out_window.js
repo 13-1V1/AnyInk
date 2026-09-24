@@ -1,7 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { applyThemeTo, onThemeChange } from '../anyink/theme/theme.js';
+import tokenStyle from '../anyink/theme/tokens.css?inline';
 import { getCurrentProjectEditor } from '../app/main';
-import colorStyle from '../common/colors.css?inline';
 import { addAsChildren, makeElement } from '../common/dom';
 import logo from '../common/graphics/anyink-icon.svg?raw';
 import resetStyle from '../common/resets.css?inline';
@@ -14,6 +15,9 @@ import { makeToolButtonSVG } from '../edit_canvas/tools/tools';
 import { makePanel_LivePreview } from '../panels/live_preview';
 import panelStyle from '../panels/panels.css?inline';
 import popOutWindowStyle from './pop-out-window.css?inline';
+
+/** Unsubscribe function for the canvas-theme listener; set while the pop-out is open. */
+let unsubscribeThemeChange = null;
 
 export function openPopOutWindow() {
 	// log(`openPopOutWindow`, 'start');
@@ -31,12 +35,25 @@ export function openPopOutWindow() {
 	// @ts-expect-error 'property does exist'
 	let popDoc = editor.popOutWindow.document;
 
+	// Theme: copy the canvas light/dark attribute over, and keep it in sync while open.
+	applyThemeTo(popDoc);
+	if (unsubscribeThemeChange) unsubscribeThemeChange();
+	unsubscribeThemeChange = onThemeChange(() => {
+		const currentEditor = getCurrentProjectEditor();
+		if (!currentEditor.popOutWindow) return;
+		// @ts-expect-error 'property does exist'
+		applyThemeTo(currentEditor.popOutWindow.document);
+		redrawPopOutWindow();
+	});
+
+	// Tokens go in first so every stylesheet after them can resolve var(--...).
+	const tokens = makeElement({ tag: 'style', innerHTML: tokenStyle });
+	popDoc.head.appendChild(tokens);
+
 	popDoc.head.appendChild(makeElement({ tag: 'title', content: 'Live Preview - ANY-INK' }));
 
 	const resets = makeElement({ tag: 'style', innerHTML: resetStyle });
 	popDoc.head.appendChild(resets);
-	const colors = makeElement({ tag: 'style', innerHTML: colorStyle });
-	popDoc.head.appendChild(colors);
 	const popWindow = makeElement({ tag: 'style', innerHTML: popOutWindowStyle });
 	popDoc.head.appendChild(popWindow);
 	const dialogs = makeElement({ tag: 'style', innerHTML: dialogStyle });
@@ -179,6 +196,10 @@ export function closePopOutWindow(event) {
 	editor.popOutWindow = false;
 	editor.unsubscribe({ idToRemove: 'livePreviewPopOutWindow' });
 	window.removeEventListener('beforeunload', closePopOutWindow);
+	if (unsubscribeThemeChange) {
+		unsubscribeThemeChange();
+		unsubscribeThemeChange = null;
+	}
 
 	// Update buttons
 	const popButton = document.querySelector('#editor-page__tool__open-live-preview-pop-out');

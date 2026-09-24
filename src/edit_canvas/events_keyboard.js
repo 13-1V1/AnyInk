@@ -502,7 +502,7 @@ function addHideUIOverlay() {
 				display: block;
 				position: absolute;
 				z-index: 3000;
-				background-color: white;
+				background-color: var(--canvas-bg);
 				top: 0;
 				left: 0;
 				width: 100vw;
@@ -517,7 +517,7 @@ function addHideUIOverlay() {
 			pageWidth: width,
 		});
 		const hideUIDisplayCanvas = new DisplayCanvas(hideUIOptions);
-		hideUIDisplayCanvas.style.backgroundColor = 'white';
+		hideUIDisplayCanvas.style.backgroundColor = 'var(--canvas-bg)';
 		hideUIDisplayCanvas.style.position = 'absolute';
 		hideUIDisplayCanvas.style.top = offsetTop + 'px';
 		hideUIDisplayCanvas.style.left = offsetLeft + 'px';

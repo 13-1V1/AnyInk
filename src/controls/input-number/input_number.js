@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../../common/dom.js';
 import { cancelDefaultEventActions } from '../../edit_canvas/events.js';
 import style from './input-number.css?inline';

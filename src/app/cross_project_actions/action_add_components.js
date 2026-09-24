@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../../common/dom';
 import { showToast } from '../../controls/dialogs/dialogs';
 import { makeSingleLabel } from '../../panels/cards';
@@ -77,7 +79,7 @@ export function updateAddItemTable(table) {
 	// Table column headers
 	let wrapper = makeElement({
 		className: 'checkbox-wrapper',
-		attributes: { style: 'padding: 4px;	border-bottom: 1px solid var(--blue-l20);' },
+		attributes: { style: 'padding: 4px;	border-bottom: var(--hairline);' },
 	});
 
 	wrapper.appendChild(
@@ -223,9 +225,9 @@ function addComponents() {
 	// log(`emRatio: ${emRatio}`);
 
 	/** @type {HTMLInputElement} */
-		const scaleItemsBox = document.querySelector('#checkbox-scale');
-		let scaleItems = false;
-		if (scaleItemsBox) scaleItems = scaleItemsBox?.checked;
+	const scaleItemsBox = document.querySelector('#checkbox-scale');
+	let scaleItems = false;
+	if (scaleItemsBox) scaleItems = scaleItemsBox?.checked;
 	// log(`scaleItems: ${scaleItems}`);
 
 	/** @type {HTMLInputElement} */

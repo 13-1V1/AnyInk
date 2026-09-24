@@ -1,9 +1,27 @@
-import { accentColors } from './colors';
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../anyink/theme/theme.js';
 
 // --------------------------------------------------------------
 // Icons
 // --------------------------------------------------------------
 let icons = {};
+
+/**
+ * Read a theme token for an SVG fill, at build time. Falls back to currentColor
+ * when there is no document (Node tests) or the token is not defined (jsdom
+ * without tokens.css), so an icon never ends up with an empty fill.
+ * @param {String} name - token name, e.g. '--chrome-text-muted'
+ * @returns {String}
+ */
+function themeColor(name) {
+	if (typeof document === 'undefined') return 'currentColor';
+	try {
+		return token(name) || 'currentColor';
+	} catch {
+		return 'currentColor';
+	}
+}
 
 /**
  * Makes an icon based on options
@@ -18,7 +36,7 @@ export function makeIcon(oa) {
 	if (oa.name && oa.name.indexOf('page_') === 0) size = 24;
 	if (oa.name && oa.name.indexOf('panel_') === 0) size = 24;
 
-	let color = oa.color || 'rgb(76,81,86)';
+	let color = oa.color || themeColor('--chrome-text-muted');
 	let con = '';
 
 	if (icons[oa.name]) {
@@ -291,8 +309,11 @@ icons.page_overview = `
  * @returns {String} - SVG code of the icon
  */
 export function makeTransformOriginIcon(corner = 'baseline-left') {
-	let darkFill = accentColors.gray.l25;
-	let blue = accentColors.blue.l70;
+	// Read at build time: the frame is muted, the marker square is body text,
+	// and the highlighted origin point is the touch green.
+	const frame = themeColor('--chrome-text-muted');
+	const marker = themeColor('--chrome-text');
+	const highlight = themeColor('--touch');
 	let x = 0; // for 'top'
 	if (corner.includes('center')) x = 7;
 	if (corner.includes('right')) x = 14;
@@ -307,10 +328,10 @@ export function makeTransformOriginIcon(corner = 'baseline-left') {
 	x="0px" y="0px" width="20px" height="20px" viewBox="0 0 20 20">
 	<defs></defs>
 	<rect fill="transparent" width="20" height="20"/>
-	<g pointer-events="none" width="20" height="20">
+	<g pointer-events="none" width="20" height="20" fill="${frame}">
 			<path d="m2,2v16h15V2H2Zm14,15H3v-3h13v3Zm0-4H3V3h13v10Z"/>
-			<rect x="${x}" y="${y}" width="5" height="5" style="fill: ${darkFill};"/>
-			<rect x="${x + 1}" y="${y + 1}" width="3" height="3" style="fill: ${blue};"/>
+			<rect x="${x}" y="${y}" width="5" height="5" style="fill: ${marker};"/>
+			<rect x="${x + 1}" y="${y + 1}" width="3" height="3" style="fill: ${highlight};"/>
 		</g>
 	</svg>
 	`;

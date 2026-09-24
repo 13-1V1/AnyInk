@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { insertAfter, makeElement } from '../../common/dom.js';
 import { closeAllNavMenus } from '../../project_editor/navigator.js';
 import { closeAllOptionChoosers, makeContextMenu } from '../dialogs/dialogs.js';

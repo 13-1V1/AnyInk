@@ -1,7 +1,10 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 body {
 	margin: 0;
 	padding: 20px;
-	background-color: white;
+	background-color: var(--chrome-bg);
+	color: var(--chrome-text);
 	overflow-x: hidden;
 	overflow-y: auto;
 	transition: none;
@@ -16,8 +19,8 @@ body {
 
 #pop-out__wrapper:hover display-canvas {
 	transition: border 250ms ease-in-out;
-	border: 1px solid var(--blue-l70);
-	box-shadow: var(--l3-shadow);
+	border: 1px solid var(--chrome-border-strong);
+	box-shadow: 0 8px 24px var(--canvas-paper-edge);
 }
 
 dialog {
@@ -30,8 +33,8 @@ display-canvas {
 	width: fit-content;
 	max-width: 100%;
 	margin: 10px;
-	border: 1px solid white;
-	background-color: white;
+	border: var(--hairline);
+	background-color: var(--canvas-bg);
 }
 
 /*
@@ -48,8 +51,8 @@ font-preview {
 	box-sizing: content-box;
 	display: block;
 	margin: 10px;
-	border: 1px solid white;
-	background-color: white;
+	border: var(--hairline);
+	background-color: var(--canvas-bg);
 	pointer-events: auto;
 }
 

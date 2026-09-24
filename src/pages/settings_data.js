@@ -128,11 +128,27 @@ export default {
 		licenseURL: { label: `License URL`, description: '' },
 		copyright: { label: `Copyright`, description: '' },
 		trademark: { label: `Trademark`, description: '' },
-		variant: { label: `Font variant`, description: "Either 'normal' or 'small-caps'." },
+		variant: {
+			label: `Font variant`,
+			description: `Either 'normal' or 'small-caps'.`,
+			type: `Options`,
+			options: ['normal', 'small-caps'],
+		},
 		stretch: {
 			label: `Font stretch`,
 			description: `How condensed or expanded this font is.`,
-			example: `normal, ultra-condensed, extra-condensed, condensed, semi-condensed, semi-expanded, expanded, extra-expanded, ultra-expanded`,
+			type: `Options`,
+			options: [
+				'ultra-condensed',
+				'extra-condensed',
+				'condensed',
+				'semi-condensed',
+				'normal',
+				'semi-expanded',
+				'expanded',
+				'extra-expanded',
+				'ultra-expanded',
+			],
 		},
 		stemv: {
 			label: `Vertical stem`,
@@ -213,7 +229,7 @@ export default {
     },
 		canvasDisplayModeFilled: {
 			label: 'Canvas display mode "Filled"',
-			description: `For shapes on the edit canvas, when the display mode is "Filled" the shapes will be shown as filled with black, similar to how they will appear in a text editor. When the display mode is "Outline" (or unselected), the shapes will be shown as outlines, which may help when editing complex shapes.<br><br>You can toggle this setting directly on the edit canvas, next to the lower-right view controls.<br><br>Clockwise paths will be shown as a slightly lighter blue outline than their counter-clockwise counterparts. Component Instances will be outlined in dark green.`,
+			description: `For shapes on the edit canvas, when the display mode is "Filled" the shapes will be shown filled with ink, similar to how they will appear in a text editor. When the display mode is "Outline" (or unselected), the shapes will be shown as outlines, which may help when editing complex shapes.<br><br>You can toggle this setting directly on the edit canvas, next to the lower-right view controls.<br><br>Clockwise and counter-clockwise paths are outlined in slightly different shades, and Component Instances get their own outline color so you can tell them apart.`,
 			type: 'Boolean',
 		},
 		directlyDragCurves: {
@@ -229,7 +245,10 @@ export default {
 		itemChooserPageSize: {
 			label: `Number of items to show in the item chooser`,
 			description: `For Characters, Ligatures, Components, and Kern Groups, this is how many items to show in the item chooser menu. For projects with large numbers of items, splitting the items apart into pages can help the UI perform better.`,
-			type: `Number`,
+			type: `Slider`,
+			min: 16,
+			max: 512,
+			step: 16,
 		},
 		previewText: {
 			label: `Project preview text`,
@@ -251,7 +270,7 @@ export default {
 			for you. It's possible to leave these items in an unedited state, essentially empty.<br><br>
 			If this option is checked, these empty items will be exported to fonts. If this option is unchecked,
 			these empty items will be filtered out, and not exported to fonts.<br><br>
-			In the item chooser, these empty items' names are shown in a green color.`,
+			In the item chooser, these empty items' names are shown in a different color.`,
 			type: `Boolean`,
 		},
 		moveShapesOnSVGDragDrop: {
@@ -263,45 +282,69 @@ export default {
 			label: `Add default Side Bearings when importing an SVG file`,
 			description: `When importing SVG to a single item, move the imported shapes such that the left hand side x is at the Side Bearing value, and the set the Advance With of the item so that there is a Side Bearing's worth of space on the right hand side.
 			<br><br>
-			Set this value to -1 to disable it.
+			Slide this value to -1 to disable it.
 			<br><br>
 			This setting overrides the 'Move shapes when importing an SVG file' setting.`,
-			type: `Em`,
+			type: `Slider`,
+			units: `Em`,
+			min: -1,
+			max: 300,
+			step: 1,
 		},
 		autoRightBearingOnFirstShape: {
 			label: `Add default Right Side Bearing when the first shape is added`,
 			description: `When you add the first shape to a new Character or Ligature, automatically update the Advance Width such that the Right Side Bearing is the value specified here. This automatic Advance Width update will only happen one time per item, and won't apply to shapes imported from an SVG file.
 			<br><br>
-			Set this value to -1 to disable it.`,
-			type: `Em`,
+			Slide this value to -1 to disable it.`,
+			type: `Slider`,
+			units: `Em`,
+			min: -1,
+			max: 300,
+			step: 1,
 		},
 		highlightPointsNearPoints: {
 			label: `Highlight points that are near other points`,
 			description: `This option will highlight points that are very close to other points. Sometimes this happens when exporting SVG code from another app. It is best practice to reduce the number of points in a path as much as possible.
 			<br>
 			This option can be toggled from the Quality control panel.`,
-			type: `Em`,
+			type: `Slider`,
+			units: `Em`,
+			min: 0,
+			max: 20,
+			step: 1,
 		},
 		highlightPointsNearHandles: {
 			label: `Highlight points with short handles`,
 			description: `This option will highlight points that have very short handles.  Sometimes this happens when exporting SVG code from another app. It is best practice to reduce the number of unnecessary handles in a path as much as possible.
 			<br>
 			This option can be toggled from the Quality control panel.`,
-			type: `Em`,
+			type: `Slider`,
+			units: `Em`,
+			min: 0,
+			max: 20,
+			step: 1,
 		},
 		highlightPointsNearXZero: {
 			label: `Highlight points that are near x=0`,
 			description: `This option will highlight points that are near x=0. Sometimes this happens when exporting SVG code from another app.
 			<br>
 			This option can be toggled from the Quality control panel.`,
-			type: `Em`,
+			type: `Slider`,
+			units: `Em`,
+			min: 0,
+			max: 20,
+			step: 1,
 		},
 		highlightPointsNearYZero: {
 			label: `Highlight points that are near y=0`,
 			description: `This option will highlight points that are near y=0. Sometimes this happens when exporting SVG code from another app.
 			<br>
 			This option can be toggled from the Quality control panel.`,
-			type: `Em`,
+			type: `Slider`,
+			units: `Em`,
+			min: 0,
+			max: 20,
+			step: 1,
 		},
 	},
 };

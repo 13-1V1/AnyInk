@@ -21,7 +21,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 | A8 | Settings > Project: custom character range begin / end as `U+4E`, `0x4E`, or decimal | code points as text | **Visual in M5**: pick a Unicode block from the existing block list, or drag-select in the glyph grid; hex shown as readout only |
 | A9 | Settings > App: formatSaveFile ("format project file for reading") | exposes JSON formatting | **Hide** in M4 (always compact) |
 | A10 | Settings > App: autoSave, saveLivePreviews, "delete auto-saved backups" | localStorage concepts | **Hide** in M6 (replaced by always-on autosave and crash recovery in app preferences) |
-| A11 | Settings > App: itemChooserPageSize, autoSideBearingsOnSVGDragDrop, autoRightBearingOnFirstShape, highlightPointsNear* | numeric thresholds | **Visual in M4**: sliders with readouts |
+| A11 | Settings > App: itemChooserPageSize, autoSideBearingsOnSVGDragDrop, autoRightBearingOnFirstShape, highlightPointsNear* | numeric thresholds | **Done in M4**: sliders with readouts. The two bearing sliders start at -1 because upstream treats -1 as "off". |
 
 ## B. Kerning and ligatures
 

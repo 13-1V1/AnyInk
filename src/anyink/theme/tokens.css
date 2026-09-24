@@ -47,6 +47,7 @@
 	/* ---- fields ---- */
 	--field-bg: var(--chrome-bg-sunken);
 	--field-border: var(--chrome-border-strong);
+	--field-border-hover: #4b4e5a;
 	--field-border-focus: var(--touch);
 	--field-text: var(--chrome-text);
 	--field-placeholder: var(--chrome-text-faint);
@@ -78,6 +79,7 @@
 	--animate-fade-in: var(--animate-fade-duration) ease-in fade-in;
 	--animate-fade-out: var(--animate-fade-duration) ease-out fade-out;
 	--animate-fade-update: var(--animate-fade-duration) ease-in fade-in-update;
+	--animate-slide-in: var(--animate-fade-duration) ease-in fade-slide-in;
 
 	/* ---- type ---- */
 	--font-ui: 'FiraGo', 'Segoe UI', system-ui, sans-serif;

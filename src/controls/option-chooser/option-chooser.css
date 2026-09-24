@@ -1,3 +1,5 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 * {
 	box-sizing: border-box;
 	transition: var(--global-transition);
@@ -10,44 +12,52 @@
 	grid-template-columns: 1fr 24px;
 	border-width: 1px;
 	border-style: solid;
-	border-color: var(--enabled-restingLight-border);
-	background-color: var(--enabled-restingLight-background);
-	border-radius: 4px;
+	border-color: var(--field-border);
+	background-color: var(--field-bg);
+	border-radius: var(--radius);
 }
 
 .wrapper:hover,
 .wrapper:focus {
-	border-color: var(--enabled-focus-border);
+	border-color: var(--field-border-focus);
 	cursor: pointer;
 }
 
+.wrapper:focus {
+	outline: none;
+}
+
+.wrapper:focus-visible {
+	box-shadow: var(--focus-ring);
+}
+
 .wrapper[deployed] {
-	border-color: var(--enabled-focus-border);
-	border-radius: 4px 4px 0px 0px;
+	border-color: var(--field-border-focus);
+	border-radius: var(--radius) var(--radius) 0px 0px;
 }
 
 .wrapper[deployed] .selection-display {
-	color: var(--enabled-resting-text);
+	color: var(--chrome-text);
 }
 
 .wrapper[disabled],
 .wrapper:hover[disabled],
 .wrapper:focus[disabled],
 .wrapper:active[disabled] {
-	background-color: var(--disabled-background);
-	border-color: var(--disabled-border);
-	color: var(--disabled-text);
-	text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+	background-color: var(--field-disabled-bg);
+	border-color: var(--chrome-border);
+	color: var(--field-disabled-text);
 	cursor: default;
+	box-shadow: none;
 }
 
 .selection-display {
 	background-color: transparent;
 	border: 0;
-	border-radius: 4px 0px 0px 4px;
+	border-radius: var(--radius) 0px 0px var(--radius);
 	margin: 0;
 	margin-right: 0px;
-	color: var(--enabled-resting-text);
+	color: var(--chrome-text);
 	grid-column: 1;
 	min-width: 50px;
 	height: 24px;
@@ -59,8 +69,13 @@
 }
 
 .selection-display .prefix {
-	color: var(--disabled-text);
+	color: var(--chrome-text-muted);
 	font-size: 0.9em;
+}
+
+.wrapper[disabled] .selection-display,
+.wrapper[disabled] .selection-display .prefix {
+	color: var(--field-disabled-text);
 }
 
 .downArrow {
@@ -73,23 +88,23 @@
 	border-width: 1px;
 	text-align: center;
 	height: 24px;
-	border-radius: 4px;
+	border-radius: var(--radius);
 	grid-column: 2;
 	vertical-align: middle;
 }
 
 .downArrow svg {
-	fill: var(--enabled-restingLight-fill);
+	fill: var(--chrome-text-muted);
 }
 
 .wrapper:hover .downArrow svg,
 .wrapper[deployed] .downArrow svg {
-	fill: var(--enabled-focus-fill);
+	fill: var(--chrome-text);
 }
 
 .wrapper[disabled] .downArrow svg,
 .wrapper:hover[disabled] .downArrow svg,
 .wrapper:focus[disabled] .downArrow svg,
 .wrapper:active[disabled] .downArrow svg {
-	fill: var(--disabled-fill);
+	fill: var(--field-disabled-text);
 }

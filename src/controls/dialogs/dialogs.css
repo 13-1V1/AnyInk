@@ -1,3 +1,5 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 dialog {
 	z-index: 1000;
 }
@@ -10,31 +12,29 @@ dialog {
 	left: 520px;
 	top: 0px;
 	margin: 5px 0px 5px 0px;
-	/* background-color: rgb(0, 63, 95); */
-	background-color: var(--green-l90);
-	/* color: rgb(155, 221, 255); */
-	color: var(--green-l10);
+	background-color: var(--chrome-bg-raised);
+	color: var(--chrome-text);
 	padding: 4px 8px;
 	z-index: 2010;
 	text-align: center;
-	border: 1px solid var(--green-l60);
-	border-radius: 4px;
-	box-shadow: var(--l3-shadow-down);
+	border: var(--hairline);
+	border-left: 3px solid var(--touch);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-menu);
 	animation: var(--animate-fade-in-slide-down);
 }
 
 #toast[fancy] {
-	background-color: var(--purple-l30);
-	background: linear-gradient(135deg, var(--purple-l25), var(--purple-l10));
-	color: var(--purple-l95);
+	background: var(--chrome-bg-raised);
+	color: var(--structure-strong);
 	font-size: 1.2em;
-	border-color: var(--purple-l30);
+	border-color: var(--chrome-border);
+	border-left-color: var(--structure);
 	padding: 10px;
 }
 
 #toast a {
-	/* color: rgb(155, 221, 255); */
-	color: var(--green-l10);
+	color: var(--structure);
 }
 
 #notation {
@@ -46,10 +46,10 @@ dialog {
 	height: auto;
 	padding: 0;
 	z-index: 2020;
-	background-color: rgb(229, 234, 239);
-	border: 5px solid rgb(229, 234, 239);
-	border-radius: 5px 5px 0px 5px;
-	box-shadow: var(--l2-shadow-upper-left);
+	background-color: var(--chrome-bg-sunken);
+	border: 5px solid var(--chrome-bg-sunken);
+	border-radius: var(--radius) var(--radius) 0px var(--radius);
+	box-shadow: var(--shadow-menu);
 	animation: var(--animate-fade-in);
 }
 
@@ -60,19 +60,19 @@ dialog {
 }
 
 .notation__path-add-point span {
-	font-family: monospace;
+	font-family: var(--font-mono);
 }
 
 .notation__path-add-point label {
-	font-family: monospace;
-	color: var(--enabled-restingLight-lightText);
+	font-family: var(--font-mono);
+	color: var(--chrome-text-muted);
 }
 
 #error {
 	margin-top: 10px;
-	border-color: var(--red);
-	color: var(--darkRed);
-	background-color: var(--lightRed);
+	border-color: var(--danger);
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-raised);
 	display: grid;
 	grid-template-rows: 20px 1fr;
 	padding: 10px 12px 12px 12px;
@@ -81,7 +81,7 @@ dialog {
 }
 
 #error hr {
-	border-color: var(--red);
+	border-color: var(--danger);
 	margin: 10px 0px;
 }
 
@@ -91,13 +91,13 @@ dialog {
 }
 
 .error__header h3 {
-	color: var(--darkRed);
+	color: var(--danger);
 }
 
 .error__header button {
-	background-color: var(--darkRed);
-	border-color: var(--darkRed);
-	color: var(--lightRed);
+	background-color: var(--danger);
+	border-color: var(--danger);
+	color: var(--chrome-text-inverse);
 	width: 20px;
 	height: 20px;
 	line-height: 20px;
@@ -106,8 +106,13 @@ dialog {
 }
 
 .error__header button:hover {
-	color: white;
-	border-color: var(--red);
+	background-color: var(--danger-hover);
+	border-color: var(--danger-hover);
+	color: var(--chrome-text-inverse);
+}
+
+.error__header button:focus {
+	box-shadow: var(--focus-ring);
 }
 
 /* Context Menu */
@@ -122,10 +127,10 @@ dialog {
 	padding: 10px;
 	position: absolute;
 	z-index: 2030;
-	background-color: var(--enabled-resting-background);
-	border: 1px solid var(--enabled-focus-border);
-	border-radius: 0px 4px 4px 4px;
-	box-shadow: var(--l3-shadow-down);
+	background-color: var(--chrome-bg-raised);
+	border: var(--hairline);
+	border-radius: 0px var(--radius) var(--radius) var(--radius);
+	box-shadow: var(--shadow-menu);
 	animation: var(--animate-fade-in-slide-down);
 }
 
@@ -142,15 +147,15 @@ dialog {
 	display: contents;
 	padding: 5px 10px 5px 5px;
 	height: fit-content;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 }
 
 .context-menu-row:hover > span,
 .context-menu-row:hover > .row-notes,
 .context-menu-row:hover > .row-notes span,
 .context-menu-row:hover > .row-notes code {
-	background-color: var(--enabled-focus-background);
-	color: var(--blue-l45);
+	background-color: var(--chrome-bg-hover);
+	color: var(--chrome-text);
 	cursor: pointer;
 }
 
@@ -158,32 +163,46 @@ dialog {
 	background-color: transparent;
 }
 
+/* Current value in an option-chooser dropdown: the row is display: contents, so tint its cells. */
+.context-menu-row[selected] > .row-name,
+.context-menu-row[selected] > .row-notes span,
+.context-menu-row[selected] > .row-notes code {
+	background-color: var(--touch-soft);
+	color: var(--chrome-text);
+}
+
+/* The row is display: contents, so the ring goes on its name cell. */
 .context-menu-row:focus {
-	outline: var(--global-focus-style);
+	outline: none;
+}
+
+.context-menu-row:focus > .row-name {
+	box-shadow: var(--focus-ring);
+	border-radius: var(--radius-sm);
 }
 
 .context-menu-row[disabled] {
 	opacity: 0.5;
-	color: var(--disabled-text-light);
+	color: var(--chrome-text-faint);
 }
 
 .context-menu-row[disabled]:hover > span,
 .context-menu-row[disabled]:hover > .row-notes,
 .context-menu-row[disabled]:hover > .row-notes span,
 .context-menu-row[disabled]:hover > .row-notes code {
-	color: var(--disabled-text-light);
+	color: var(--chrome-text-faint);
 	cursor: default;
 	background-color: transparent;
 }
 
 .context-menu-row[disabled] svg g {
-	fill: var(--disabled-text-light) !important;
+	fill: var(--chrome-text-faint) !important;
 }
 
 #context-menu .spanAll h2 {
 	font-size: 0.8em;
-	color: var(--enabled-restingLight-lightText);
-	font-family: monospace;
+	color: var(--chrome-text-faint);
+	font-family: var(--font-mono);
 	padding: 0px 20px 0px 0px;
 }
 
@@ -194,7 +213,7 @@ dialog {
 	margin: 8px 0px 8px 0px;
 	grid-column: 1 / -1;
 	border-width: 0px 0px 1px 0px;
-	border-color: var(--gray-l90);
+	border-color: var(--chrome-border);
 }
 
 .context-menu-row .row-icon {
@@ -257,7 +276,7 @@ dialog {
 	height: 100vh;
 	z-index: 2000;
 	backdrop-filter: blur(2px);
-	background-color: rgba(255, 255, 255, 0.75);
+	background-color: var(--overlay);
 	animation: var(--animate-fade-in);
 }
 
@@ -269,10 +288,10 @@ dialog {
 	overflow-y: hidden;
 	margin: 40px auto;
 	text-align: left;
-	background-color: var(--enabled-focus-background);
-	border: 1px solid var(--blue-l60);
-	border-radius: 8px;
-	box-shadow: var(--l3-shadow-down);
+	background-color: var(--chrome-bg-raised);
+	border: var(--hairline);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-menu);
 	animation: var(--animate-fade-in-slide-down);
 }
 
@@ -295,9 +314,9 @@ dialog {
 }
 
 .modal-dialog__close-button {
-	background-color: var(--blue-l95);
-	border-color: var(--blue-l85);
-	color: var(--blue-l50);
+	background-color: transparent;
+	border-color: var(--chrome-border-strong);
+	color: var(--chrome-text-muted);
 	text-align: center;
 	width: 20px;
 	height: 20px;
@@ -308,9 +327,9 @@ dialog {
 }
 
 .modal-dialog__close-button:hover {
-	background-color: var(--blue-l90);
-	color: var(--blue-l30);
-	border-color: var(--blue-l70);
+	background-color: var(--chrome-bg-hover);
+	color: var(--chrome-text);
+	border-color: var(--chrome-border-strong);
 	cursor: pointer;
 	padding: 0px 0px 2px 0px;
 	margin: 0px;
@@ -318,8 +337,9 @@ dialog {
 
 .modal-dialog__close-button:active,
 .modal-dialog__close-button:focus {
-	background-color: var(--blue-l90);
-	color: var(--blue-l50);
+	background-color: var(--chrome-bg-hover);
+	color: var(--chrome-text);
+	box-shadow: var(--focus-ring);
 	cursor: pointer;
 	padding: 0px;
 	margin: 0px;

@@ -1,10 +1,12 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 /* --------------------------------------------------------
 	Open Project page
 -------------------------------------------------------- */
 #open-project__page {
 	display: grid;
 	grid-template-columns: 475px 1fr;
-	background: linear-gradient(135deg, var(--blue-l15), var(--purple-l05));
+	background: var(--chrome-bg);
 	position: relative;
 	top: -40px;
 	width: 100%;
@@ -16,14 +18,14 @@
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	background-color: rgba(255, 255, 255, 0.01);
-	color: var(--gray-l95);
+	background-color: transparent;
+	color: var(--chrome-text);
 	width: 475px;
 	padding: 0px 0px 0px 50px;
 }
 
 #open-project__right-area {
-	color: var(--gray-l95);
+	color: var(--chrome-text);
 	vertical-align: middle;
 	padding: 0px 0px 0px 50px;
 	font-size: 40px;
@@ -35,16 +37,16 @@
 }
 
 #open-project__logo {
-	/* fill: url(#logoGradient); */
-	fill: var(--blue-l30);
-	stroke: var(--blue-l80);
-	stroke-width: 10px;
+	/* The wordmark carries its own marks; its text follows the chrome via currentColor. */
+	fill: var(--chrome-text);
+	color: var(--chrome-text);
+	stroke: none;
 }
 
 .open-project__version-name,
 .open-project__version-number,
 .open-project__blurb {
-	color: var(--gray-l90);
+	color: var(--chrome-text-muted);
 	width: 350px;
 }
 
@@ -57,32 +59,26 @@
 }
 
 .open-project__version-number a {
-	color: var(--gray-l90);
+	color: var(--structure);
 	font-size: 1em;
 	text-decoration: underline;
 }
 
 .open-project__blurb {
-	color: var(--gray-l70);
+	color: var(--chrome-text-faint);
 	font-size: 0.6em;
 	margin-top: 10px;
 }
 
 .open-project__blurb a {
-	color: var(--gray-l80);
+	color: var(--structure);
 	font-size: 1em;
 	text-decoration: underline;
 }
 
-.open-project__version-number a,
-.open-project__blurb a {
-	text-decoration-color: var(--gray-l60);
-}
-
 .open-project__version-number a:hover,
 .open-project__blurb a:hover {
-	text-decoration-color: var(--gray-l85);
-	color: var(--gray-l85);
+	color: var(--structure-strong);
 }
 
 .open-project__tab-wrapper {
@@ -93,12 +89,12 @@
 .open-project__tab-content {
 	margin: 20px 4px 0px 10px;
 	display: inline;
-	color: var(--gray-l95);
+	color: var(--chrome-text);
 	animation: var(--animate-fade-in);
 }
 
 .open-project__tab-content h2 {
-	color: var(--gray-l95);
+	color: var(--chrome-text);
 	display: block;
 	padding-right: 0px;
 	margin-bottom: 10px;
@@ -117,24 +113,23 @@
 }
 
 .open-project__tabs button {
-	/*background-color: rgb(229,234,239);*/
 	background-color: transparent;
 	border-style: solid;
 	border-width: 1px;
 	border-color: transparent;
-	border-bottom-color: var(--blue-l15) !important;
+	border-bottom-color: var(--chrome-border) !important;
 	padding: 4px 15px;
 	margin: 0px -2px 0px 0px;
-	color: var(--blue-l70);
+	color: var(--chrome-text-muted);
 	outline-width: 0px;
 	border-radius: 0px;
 }
 
 .open-project__tabs button:hover,
 .open-project__tabs button[selected] {
-	border-bottom-color: var(--blue-l65) !important;
-	color: var(--blue-l75);
-	background-color: var(--blue-l05);
+	border-bottom-color: var(--structure) !important;
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-hover);
 }
 
 .open-project__tabs button[selected] {
@@ -145,7 +140,7 @@
 	width: 94%;
 	height: 25px;
 	margin: 10px 0px 0px 0px;
-	color: var(--gray-l30);
+	color: var(--field-text);
 	display: block;
 }
 
@@ -153,9 +148,9 @@
 	display: block;
 	width: 90%;
 	margin: 10px 0px 10px 0px;
-	background-color: rgba(0, 0, 0, 0.15);
-	border: 1px dashed var(--gray-l45);
-	color: var(--gray-l65);
+	background-color: var(--chrome-bg-sunken);
+	border: 1px dashed var(--chrome-border-strong);
+	color: var(--chrome-text-muted);
 	padding: 18px 0px 20px 20px;
 	line-height: 2em;
 }
@@ -170,12 +165,12 @@
 	padding-left: 530px;
 	padding-top: 100px;
 	font-size: 2em;
-	color: var(--blue-l70);
+	color: var(--chrome-text);
 	animation: var(--animate-fade-in);
 	backdrop-filter: blur(2px);
-	background-color: hsla(285, 100%, 17%, 0.2); /* purple l15 */
-	border: var(--global-focus-style);
-	border-radius: 10px;
+	background-color: var(--overlay);
+	border: 1px dashed var(--touch);
+	border-radius: var(--radius-lg);
 	margin: 10px;
 }
 
@@ -185,10 +180,10 @@
 #auto-saves__list {
 	min-height: 210px;
 	max-height: 210px;
-	border-radius: 4px;
+	border-radius: var(--radius);
 	overflow-y: auto;
 	overflow-x: none;
-	background-color: hsla(200, 100%, 30%, 5%); /* blue-l40 */
+	background-color: var(--chrome-bg-sunken);
 	padding: 5px 10px 10px 5px;
 }
 
@@ -198,12 +193,12 @@
 	grid-template-rows: 24px 16px;
 	padding: 0px 0px 0px 5px;
 	margin-bottom: 10px;
-	border-radius: 4px;
+	border-radius: var(--radius);
 	vertical-align: top;
 }
 
 .auto-saves__list-row:hover {
-	background-color: hsla(200, 100%, 30%, 20%); /* blue-l40 */
+	background-color: var(--chrome-bg-hover);
 }
 
 .auto-saves__list-row .name {
@@ -215,10 +210,10 @@
 .auto-saves__list-row .project-id,
 .auto-saves__list-row .time-stamp {
 	display: block;
-	opacity: 0.7;
+	color: var(--chrome-text-muted);
 	padding: 0px 10px 4px 0px;
-	font-family: monospace;
-	font-size: 11px;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
 }
 
 .auto-saves__list-row .project-id {
@@ -247,8 +242,7 @@
 	Open Project Dialog
 -------------------------------------------------------- */
 .modal-dialog__open-new-project {
-	background-color: transparent;
-	background: linear-gradient(135deg, var(--blue-l20), var(--purple-l15));
+	background: var(--chrome-bg-raised);
 	height: min-content;
 }
 
@@ -263,6 +257,7 @@
 .modal-dialog__open-new-project #open-project__page {
 	height: 400px;
 	top: 0;
+	background: var(--chrome-bg-raised);
 }
 
 .modal-dialog__open-new-project #open-project__left-area {
@@ -275,15 +270,15 @@
 	width: calc(100% - 20px);
 	padding: 150px 0px 0px 0px;
 	text-align: center;
-	color: var(--purple-l80);
-	background-color: hsla(285, 100%, 17%, 0.8); /* purple l15 */
+	color: var(--chrome-text);
+	background-color: var(--overlay);
 }
 
 /* --------------------------------------------------------
 	Cross Project Actions page
 -------------------------------------------------------- */
 #cross-project-actions__page {
-	background: linear-gradient(135deg, var(--blue-l15), var(--purple-l05));
+	background: var(--chrome-bg);
 	display: grid;
 	grid-template-rows: max-content 1fr max-content;
 	row-gap: 10px;
@@ -293,7 +288,7 @@
 	width: 100%;
 	height: 100vh;
 	column-gap: 0;
-	color: var(--gray-l90);
+	color: var(--chrome-text);
 }
 
 .cross-project-actions__page-header {
@@ -311,7 +306,7 @@
 	grid-row: 3;
 	border-width: 1px 0px 0px 0px;
 	border-style: solid;
-	border-color: var(--blue-l15);
+	border-color: var(--chrome-border);
 	padding: 20px 0px 0px 0px;
 }
 
@@ -324,9 +319,9 @@
 	padding: 2px 15px 0px 15px;
 	margin: 10px 0px 0px -1px;
 	display: inline-block;
-	border-radius: 8px;
-	background-color: hsla(285, 100%, 17%, 0.2); /* purple l15 */
-	border: 1px solid var(--blue-l15);
+	border-radius: var(--radius);
+	background-color: var(--chrome-bg-raised);
+	border: var(--hairline);
 }
 
 .cross-project-actions__page-header option-chooser {
@@ -344,41 +339,41 @@
 
 #cross-project-actions__project-flipper code,
 .cross-project-actions__welcome-content code {
-	background-color: hsla(285, 100%, 17%, 0.1); /* purple l15 */
-	border-color: var(--blue-l15);
-	color: white;
+	background-color: var(--chrome-bg-sunken);
+	border-color: var(--chrome-border);
+	color: var(--chrome-text);
 }
 
 #cross-project-actions__project-flipper .flip-button {
 	display: inline-block;
-	color: var(--purple-l80);
-	background-color: hsla(285, 100%, 17%, 0.2); /* purple l15 */
+	color: var(--structure);
+	background-color: var(--structure-soft);
 	padding: 1px 6px;
 	position: relative;
 	top: 2px;
-	border: 1px solid hsla(285, 100%, 17%, 0.2);
-	border-radius: 4px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
 	text-align: center;
 }
 
 #cross-project-actions__project-flipper .flip-button:hover {
 	cursor: pointer;
-	color: white;
-	border-color: var(--purple-l80);
+	color: var(--structure-strong);
+	border-color: var(--structure);
 }
 
 .cross-project-actions__scale-warning {
 	margin: 0px 0px 10px 0px;
-	background-color: hsla(285, 100%, 17%, 0.3); /* purple l15 */
+	background-color: var(--warning-soft);
 	padding: 10px;
-	border-radius: 4px;
+	border-radius: var(--radius);
 	display: inline-block;
 	max-width: 800px;
 	width: auto;
 }
 
 .cross-project-actions__page-header h1 {
-	color: var(--purple-l90);
+	color: var(--chrome-text);
 	display: inline;
 }
 
@@ -388,15 +383,15 @@
 
 #cross-project-actions__page-content h2,
 .cross-project-actions__column-layout h2 {
-	color: var(--gray-l80);
+	color: var(--chrome-text);
 	border-width: 0px 0px 1px 0px;
 	border-style: solid;
-	border-color: var(--blue-l15);
+	border-color: var(--chrome-border);
 }
 
 #cross-project-actions__page-content h3,
 .cross-project-actions__column-layout h3 {
-	color: var(--gray-l90);
+	color: var(--chrome-text);
 }
 
 #cross-project-actions__close-button {
@@ -405,19 +400,19 @@
 	width: 30px;
 	margin: 5px 0px 0px 10px;
 	padding: 5px 5px 5px 5px;
-	color: var(--purple-l80);
-	background-color: var(--purple-l15);
-	border: 1px solid var(--purple-l05);
-	border-radius: 4px;
+	color: var(--chrome-text-muted);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
 	text-align: center;
 }
 
 #cross-project-actions__close-button:hover,
 #cross-project-actions__close-button:active {
 	cursor: pointer;
-	background-color: var(--purple-l20);
-	border-color: var(--purple-l15);
-	color: white;
+	background-color: var(--chrome-bg-hover);
+	border-color: var(--chrome-border-strong);
+	color: var(--chrome-text);
 }
 
 .copy-shapes-options__checkbox,
@@ -450,11 +445,11 @@
 
 .cross-project-actions__column-header {
 	font-size: 0.8em;
-	border-bottom: 1px solid var(--blue-l20);
+	border-bottom: var(--hairline);
 	padding-left: 20px;
 	padding-bottom: 2px;
 	font-style: italic;
-	color: var(--gray-l60);
+	color: var(--chrome-text-faint);
 }
 
 #cross-project-actions__item-count {
@@ -463,15 +458,15 @@
 }
 
 .cross-project-actions__column-layout .text-value {
-	font-family: monospace;
-	color: var(--gray-l60);
+	font-family: var(--font-mono);
+	color: var(--chrome-text-muted);
 	padding-left: 20px;
 }
 
 .cross-project-actions__column-layout .glyph-id {
 	grid-column: 3;
-	font-family: monospace;
-	color: var(--gray-l60);
+	font-family: var(--font-mono);
+	color: var(--chrome-text-muted);
 	padding-left: 20px;
 }
 
@@ -486,7 +481,7 @@
 	grid-column: 5;
 	font-size: 1.4em;
 	padding-left: 20px;
-	color: var(--gray-l60);
+	color: var(--chrome-text-muted);
 }
 
 .cross-project-actions__column-layout .checkbox-wrapper {
@@ -500,7 +495,7 @@
 .cross-project-actions__column-layout .checkbox-wrapper input {
 	height: 20px;
 	width: 20px;
-	accent-color: var(--purple-l60);
+	accent-color: var(--touch);
 }
 
 .cross-project-actions__column-layout .kern-chip-wrapper {
@@ -508,12 +503,11 @@
 	padding-left: 10px;
 }
 .cross-project-actions__column-layout .kern-chip-wrapper code {
-	background-color: transparent;
-	background-color: hsla(285, 100%, 17%, 0.2); /* purple l15 */
-	border: 1px solid var(--blue-l20);
+	background-color: var(--structure-soft);
+	border: 1px solid var(--chrome-border);
 }
 .cross-project-actions__column-layout .kern-chip-wrapper .kern-group-chooser__members-divider {
-	color: var(--blue-l40);
+	color: var(--structure);
 }
 
 .cross-project-actions__column-layout label,
@@ -526,57 +520,19 @@
 }
 
 #cross-project-actions__page label:hover {
-	color: white;
+	color: var(--chrome-text);
 }
 
 .cross-project-actions__column-layout .thumbnail {
-	background-color: white;
+	background-color: var(--canvas-bg);
 	width: 50px;
 	height: 50px;
 	overflow: hidden;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 	margin-left: 20px;
 }
 
-/*
-.item-preview__row {
-	border: 1px solid var(--blue-l20);
-	padding: 2px 3px;
-	background-color: hsla(285, 100%, 17%, 0.1); /* purple l15
-	border-radius: 4px;
-	width: 100%;
-	max-width: 430px;
-	height: 58px;
-	overflow: hidden;
-	display: grid;
-	column-gap: 10px;
-	row-gap: 4px;
-	grid-template-columns: min-content max-content;
-	grid-template-rows: 2fr 1fr;
-	align-items: center;
-	grid-column: -1 / 1;
+/* the generated thumbnail <svg><path> carries no fill: draw it as ink on the paper swatch */
+.cross-project-actions__column-layout .thumbnail svg {
+	fill: var(--canvas-ink);
 }
-
-.item-preview__thumbnail {
-	background-color: white;
-	grid-column: 1;
-	grid-row: -1 / 1;
-	width: 50px;
-	height: 50px;
-	overflow: hidden;
-}
-
-.item-preview__title {
-	display: block;
-	height: min-content;
-	grid-column: 2;
-	font-size: 1.2em;
-	margin-top: 10px;
-}
-
-.item-preview__subtitle {
-	font-size: 0.8em;
-	margin-bottom: 4px;
-	color: var(--gray-l50);
-}
-*/

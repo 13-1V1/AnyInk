@@ -23,15 +23,12 @@ import { GlyphrStudioApp, showAppErrorPage } from './app.js';
  * First function to run when the browser starts
  */
 export function glyphrStudioOnLoad() {
-	console.info(`%c${asciiLogo}\n`, 'color: hsl(200, 100%, 41%);');
+	// Plain console output: no color literals live outside tokens.css.
+	console.info(`${asciiLogo}\n`);
 	try {
 		const app = getGlyphrStudioApp();
 		if (app.version) {
-			console.info(
-				`%cApp Version ${app.version}%c\n`,
-				'color:hsl(200, 100%, 41%);; background-color:hsla(200, 100%, 49%, 10%); padding: 4px 8px; border-radius: 12px;',
-				'background-color: transparent;'
-			);
+			console.info(`App Version ${app.version}\n`);
 		}
 		// log(`glyphrStudioOnLoad`, 'start');
 		// let favIcon = makeElement({
@@ -203,11 +200,12 @@ export function addProjectEditorAndSetAsImportTarget() {
 // Fancy Logging
 // --------------------------------------------------------------
 
-let colors = {};
 let depth = 0;
 /**
  * Wrapper for console.log that does some extra fancy stuff, and
- * also adheres to a global switch in settings
+ * also adheres to a global switch in settings.
+ * Console styling is token-free: no color literals live outside tokens.css, so
+ * start / end pills are set apart by weight, padding, and a currentColor border.
  * @param {String} message - message to show in the console
  * @param {String =} type - 'start', 'end', or undefined
  */
@@ -220,17 +218,12 @@ export function log(message, type) {
 			message = message.replace(/&lt;/gi, '<');
 			message = message.replace(/&gt;/gi, '>');
 
-			if (type === 'start') {
-				if (!colors[message])
-					colors[message] = `hsl(${Math.floor(Math.random() * 210 + 150)}, 90%, 20%)`;
-			}
-
 			const common = `
 				font-weight:bold;
 				position: relative;
 				left: -20px;
-				color: white;
-				background-color: ${colors[message]};
+				border-top: 1px solid;
+				border-bottom: 1px solid;
 				padding: 6px 0px 6px 0px;
 				margin: 0px;
 			`;
@@ -240,19 +233,21 @@ export function log(message, type) {
 
 			const startLeft = `
 				${common}
-				color: #FFFFFF66;
+				font-weight: normal;
+				border-left: 1px solid;
 				padding-left: 12px;
 				border-radius: 12px 0px 0px 2px;
 				${startCommon}
 			`;
 			const startMid = `
 				${common}
+				font-weight: normal;
 				padding-left: 0px;
-				color: #FFFFFF99;
 				${startCommon}
 			`;
 			const startRight = `
 				${common}
+				border-right: 1px solid;
 				padding-right: 12px;
 				border-radius: 0px 12px 2px 0px;
 				${startCommon}
@@ -260,26 +255,27 @@ export function log(message, type) {
 
 			const endLeft = `
 				${common}
-				color: #FFFFFF66;
+				font-weight: normal;
+				border-left: 1px solid;
 				padding-left: 12px;
 				border-radius: 2px 0px 0px 12px;
 				${endCommon}
 			`;
 			const endMid = `
 				${common}
+				font-weight: normal;
 				padding-left: 0px;
-				color: #FFFFFF99;
 				${endCommon}
 			`;
 			const endRight = `
 				${common}
+				border-right: 1px solid;
 				padding-right: 12px;
 				border-radius: 0px 2px 12px 0px;
 				${endCommon}
 			`;
 
 			const indent = `
-				color: rgba(127, 127, 127, 0.5);
 				font-size: 1.2em;
 			`;
 			let ch = '･ ';
@@ -311,14 +307,9 @@ export function log(message, type) {
 						endMid,
 						endRight
 					);
-					delete colors[message];
 				}
 			} else {
-				console.log(
-					`%c${ch.repeat(depth)}%c${message}`,
-					indent,
-					'color: default; border-radius: 4px;'
-				);
+				console.log(`%c${ch.repeat(depth)}%c${message}`, indent, 'border-radius: 4px;');
 			}
 		} else if (typeof message === 'object') {
 			// console.table(message);

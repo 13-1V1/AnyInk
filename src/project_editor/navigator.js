@@ -1,7 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../anyink/theme/theme.js';
 import { showAppErrorPage } from '../app/app.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { makeAppTopBar } from '../app/menu.js';
-import { accentColors } from '../common/colors.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
 import { makeIcon } from '../common/graphics.js';
@@ -331,13 +333,24 @@ function makePageChooserContent() {
 	return content;
 }
 
+/**
+ * Icon color for a page / panel chooser row: green (touch) for the one you are
+ * on, muted for the rest. Read when the row is built, never at module load.
+ * @param {Boolean} isCurrent
+ * @returns {String}
+ */
+function navIconColor(isCurrent) {
+	return token(isCurrent ? '--touch' : '--chrome-text-muted');
+}
+
 function makeNavButton_Page(pageName, iconName) {
 	let button = makeElement({
 		tag: 'button',
 		className: 'nav-dropdown__button',
 		attributes: { tabindex: '0' },
 	});
-	button.innerHTML += makeIcon({ name: iconName, color: accentColors.blue.l90 });
+	const isCurrent = getCurrentProjectEditor().nav.page === pageName;
+	button.innerHTML += makeIcon({ name: iconName, color: navIconColor(isCurrent) });
 	button.appendChild(makeElement({ content: pageName }));
 	button.addEventListener('click', () => {
 		let editor = getCurrentProjectEditor();
@@ -409,7 +422,8 @@ function makeNavButton_Panel(panelName, iconName) {
 		className: 'nav-dropdown__button',
 		attributes: { tabindex: '0' },
 	});
-	button.innerHTML += makeIcon({ name: iconName, color: accentColors.blue.l90 });
+	const isCurrent = getCurrentProjectEditor().nav.panel === panelName;
+	button.innerHTML += makeIcon({ name: iconName, color: navIconColor(isCurrent) });
 	button.appendChild(makeElement({ content: panelName }));
 	button.addEventListener('click', () => {
 		// log(`navButton.click`, 'start');

@@ -4,7 +4,7 @@ import { getCurrentProject } from '../app/main';
 import { addAsChildren, makeElement, textToNode } from '../common/dom';
 import { closeEveryTypeOfDialog, showModalDialog } from '../controls/dialogs/dialogs';
 import { panoseData } from '../lib/panose';
-import { makeOneSettingsRow } from './settings';
+import { makeOneSettingsRow, makeSettingsLabelAndInfo } from './settings';
 
 let workingPanoseValue;
 /**
@@ -30,8 +30,7 @@ export function makeSettingsTabContentFont() {
 		makeOneSettingsRow('font', 'style'),
 		makeOneSettingsRow('font', 'version'),
 		makeOneSettingsRow('font', 'description'),
-		makeOneSettingsRow('font', 'panose'),
-		makePanoseLauncherRow(),
+		makePanoseRow(),
 		textToNode('<h2>Font metrics</h2>'),
 		textToNode('<h3>Key metrics</h3>'),
 		makeOneSettingsRow('font', 'upm'),
@@ -71,18 +70,33 @@ export function makeSettingsTabContentFont() {
 }
 
 /**
- * Special settings row for the PANOSE launcher
+ * Special settings row for PANOSE: the ten digits are a read-only readout,
+ * and the interactive PANOSE builder dialog is the only way to edit them.
  * @returns {Array}
  */
-function makePanoseLauncherRow() {
-	const button = makeElement({ tag: 'a', content: 'Launch the interactive PANOSE builder' });
-	button.addEventListener('click', showPanoseBuilderDialog);
-	return [
-		textToNode('<span></span>'),
-		textToNode('<span></span>'),
-		button,
-		textToNode('<span></span>'),
-	];
+function makePanoseRow() {
+	const [label, info] = makeSettingsLabelAndInfo('font', 'panose');
+
+	const readout = makeElement({
+		tag: 'code',
+		id: 'settings-page-input__font-panose',
+		className: 'settings_read-only-value',
+		innerHTML: getCurrentProject().settings.font.panose,
+	});
+
+	const button = makeElement({
+		tag: 'fancy-button',
+		attributes: { secondary: '', style: 'height: 24px;' },
+		innerHTML: 'Edit PANOSE',
+		onClick: showPanoseBuilderDialog,
+	});
+
+	const wrapper = makeElement({
+		style: 'display: inline-flex; align-items: center; gap: var(--space-2);',
+	});
+	addAsChildren(wrapper, [readout, button]);
+
+	return [label, info, wrapper, textToNode('<span></span>')];
 }
 
 /**
@@ -154,9 +168,8 @@ function showPanoseBuilderDialog() {
 		let result = workingPanoseValue.join(' ');
 		// log(`result: ${result}`);
 		getCurrentProject().settings.font.panose = result;
-		/** @type {HTMLInputElement} */
-		const setting = document.querySelector('#settings-page-input__font-panose');
-		setting.value = result;
+		const readout = document.querySelector('#settings-page-input__font-panose');
+		if (readout) readout.textContent = result;
 		closeEveryTypeOfDialog();
 		// log(`panose builder Save button`, 'end');
 	});

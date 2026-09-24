@@ -1,6 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
+import { makeFancySlider } from '../controls/fancy-slider/fancy_slider.js';
 import { TabControl } from '../controls/tabs/tab_control.js';
 import { makeDirectCheckbox } from '../panels/cards.js';
 import { makeNavButton, toggleNavDropdown } from '../project_editor/navigator.js';
@@ -58,6 +61,48 @@ export function makePage_Settings() {
 // Individual settings
 // --------------------------------------------------------------
 /**
+ * Makes the label and info-bubble for one settings row. Shared by
+ * makeOneSettingsRow and by rows that need a custom input (like PANOSE).
+ * @param {String} groupName - section
+ * @param {String} propertyName - property
+ * @param {Boolean =} inputFirst - true when the input comes before the label
+ * @returns {Array} - [label, info]
+ */
+export function makeSettingsLabelAndInfo(groupName, propertyName, inputFirst = false) {
+	const thisSetting = settingsMap[groupName][propertyName];
+
+	let displayLabel = thisSetting.label;
+	displayLabel = displayLabel.replaceAll(' ', '&nbsp;');
+	displayLabel = displayLabel.replaceAll('-', '&#8209;');
+	displayLabel = `${displayLabel}${inputFirst ? '' : ':&emsp;'}`;
+
+	const label = makeElement({
+		tag: 'label',
+		className: 'settings__label',
+		innerHTML: displayLabel,
+	});
+
+	let info;
+	if (thisSetting?.description) {
+		info = makeElement({
+			tag: 'info-bubble',
+			innerHTML: thisSetting?.description || `${groupName}.${propertyName}`,
+		});
+
+		if (thisSetting?.example) {
+			info.innerHTML += `
+			<h4>Example</h4>
+			${thisSetting.example}
+			`;
+		}
+	} else {
+		info = textToNode('<span></span>');
+	}
+
+	return [label, info];
+}
+
+/**
  * Centralized way to make one row in a settings table.
  * @param {String} groupName - section
  * @param {String} propertyName - property
@@ -76,16 +121,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 	// log(`thisSetting: ${thisSetting}`);
 	// log(`settingValue: ${settingValue}`);
 
-	let displayLabel = thisSetting.label;
-	displayLabel = displayLabel.replaceAll(' ', '&nbsp;');
-	displayLabel = displayLabel.replaceAll('-', '&#8209;');
-	displayLabel = `${displayLabel}${inputFirst ? '' : ':&emsp;'}`;
-
-	const label = makeElement({
-		tag: 'label',
-		className: 'settings__label',
-		innerHTML: displayLabel,
-	});
+	const [label, info] = makeSettingsLabelAndInfo(groupName, propertyName, inputFirst);
 
 	let type = textToNode('<span></span>');
 	let input;
@@ -104,6 +140,54 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 			} else {
 				settings[groupName][propertyName] = newValue;
 			}
+			if (callback) callback();
+		});
+	}
+
+	if (settingType === 'Slider') {
+		// Range input with a live readout. The value is written once the drag
+		// ends ('change' on the range input), not on every 'input' tick.
+		const min = thisSetting.min ?? 0;
+		const max = thisSetting.max ?? 100;
+		const step = thisSetting.step ?? 1;
+		const currentValue = parseInt(settingValue);
+		input = makeFancySlider(isNaN(currentValue) ? min : currentValue, false, min, max, step);
+
+		const bar = input.querySelector('.fancy-slider__bar');
+		bar.addEventListener('change', (event) => {
+			// @ts-expect-error 'property does exist'
+			let newValue = parseInt(event.target.value);
+			if (isNaN(newValue)) {
+				showToast(`Could not save value - needs to be a number.`);
+			} else {
+				settings[groupName][propertyName] = newValue;
+			}
+			if (callback) callback();
+		});
+	}
+
+	if (settingType === 'Options') {
+		// Fixed list of keywords, picked from an option-chooser dropdown.
+		const currentValue = String(settingValue ?? '');
+		input = makeElement({
+			tag: 'option-chooser',
+			attributes: { 'selected-id': currentValue, 'selected-name': currentValue },
+		});
+
+		(thisSetting.options || []).forEach((optionValue) => {
+			input.appendChild(
+				makeElement({
+					tag: 'option',
+					attributes: { 'selection-id': optionValue },
+					innerHTML: optionValue,
+				})
+			);
+		});
+
+		// option-chooser dispatches 'change' whenever selected-id is set
+		input.addEventListener('change', () => {
+			const newValue = input.getAttribute('selected-id');
+			if (newValue) settings[groupName][propertyName] = newValue;
 			if (callback) callback();
 		});
 	}
@@ -139,7 +223,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 	} else {
 		type = makeElement({
 			tag: 'pre',
-			innerHTML: settingType || 'Text',
+			innerHTML: makeValueTypeText(thisSetting),
 			title: `Expected value type`,
 			className: 'value-type',
 		});
@@ -154,26 +238,21 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 
 	input.setAttribute('id', `settings-page-input__${groupName}-${propertyName}`);
 
-	let info;
-	if (thisSetting?.description) {
-		info = makeElement({
-			tag: 'info-bubble',
-			innerHTML: thisSetting?.description || `${groupName}.${propertyName}`,
-		});
-
-		if (thisSetting?.example) {
-			info.innerHTML += `
-			<h4>Example</h4>
-			${thisSetting.example}
-			`;
-		}
-	} else {
-		info = textToNode('<span></span>');
-	}
-
 	// log(`makeOneSettingsRow`, 'end');
 	if (inputFirst) return [input, label, info, type];
 	else return [label, info, input, type];
+}
+
+/**
+ * Text for the small "expected value type" chip next to a setting.
+ * Sliders show the unit of the number they set, not the control type.
+ * @param {Object} thisSetting - entry from settings_data
+ * @returns {String}
+ */
+function makeValueTypeText(thisSetting) {
+	const settingType = thisSetting?.type;
+	if (settingType === 'Slider') return thisSetting.units || 'Number';
+	return settingType || 'Text';
 }
 
 /**

@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../../common/dom.js';
 import style from './fancy-button.css?inline';
 
@@ -121,18 +123,17 @@ export class FancyButton extends HTMLElement {
 	}
 
 	/**
-	 * Fake pressed state for keyboard event
+	 * Fake pressed state for keyboard event.
+	 * Flat theme: only the 1px press nudge, no shadow.
 	 * @param {Object} elem - element that got pressed
 	 */
 	flashAsPressed(elem) {
 		elem.wrapper.style.top = '1px';
 		elem.wrapper.style.left = '1px';
-		elem.wrapper.style.boxShadow = 'none';
 
 		setTimeout(function () {
 			elem.wrapper.style.top = '0px';
 			elem.wrapper.style.left = '0px';
-			elem.wrapper.style.boxShadow = '2px 2px 2px rgba(0, 0, 0, 0.3)';
 		}, 100);
 	}
 }

@@ -1,21 +1,9 @@
-:root {
-	--dark-gradient-background: linear-gradient(135deg, var(--blue-l15), var(--purple-l05));
-	--global-focus-style: 1px dashed var(--purple-l50);
-	--global-transition: all 80ms ease;
-	--animate-fade-duration: 140ms;
-	--animate-fade-in-slide-down: var(--animate-fade-duration) ease-in fade-slide-in;
-	--animate-fade-in: var(--animate-fade-duration) ease-in fade-in;
-	--animate-fade-out: var(--animate-fade-duration) ease-out fade-out;
-	--animate-fade-update: var(--animate-fade-duration) ease-in fade-in-update;
-
-	--l1-shadow: 0px 0px 2px rgba(0, 0, 0, 0.1);
-	--l1-shadow-down: 0px 2px 2px rgba(0, 0, 0, 0.1);
-	--l2-shadow: 0px 0px 4px rgba(0, 0, 0, 0.2);
-	--l2-shadow-upper-left: -1px -1px 4px rgba(0, 0, 0, 0.2);
-	--l2-shadow-down: 0px 4px 4px rgba(0, 0, 0, 0.3);
-	--l3-shadow: 0px 0px 6px rgba(0, 0, 0, 0.3);
-	--l3-shadow-down: 0px 6px 6px rgba(0, 0, 0, 0.3);
-}
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	ANY-INK resets. Every color, shadow, radius, and motion value comes from
+	src/anyink/theme/tokens.css; this file must not define any of them.
+*/
 
 @font-face {
 	font-family: 'FiraGo';
@@ -27,8 +15,8 @@
 * {
 	margin: 0;
 	padding: 0;
-	font-family: FiraGo, Tahoma, Verdana, sans-serif;
-	font-size: 14px;
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
 	font-weight: normal;
 	text-align: left;
 	box-sizing: border-box;
@@ -37,7 +25,8 @@
 
 html,
 body {
-	background-color: var(--dark-gradient-background);
+	background-color: var(--chrome-bg);
+	color: var(--chrome-text);
 	height: 100%;
 	width: 100%;
 	min-height: 100%;
@@ -52,10 +41,7 @@ html[lang='en'] body {
 
 ::-webkit-scrollbar {
 	width: 8px;
-	padding: 1px;
-	border-radius: 4px;
-	border: 1px solid var(--gray-l90);
-	background-color: var(--offWhite);
+	background-color: transparent;
 }
 ::-webkit-scrollbar-button {
 	height: 0px;
@@ -63,13 +49,14 @@ html[lang='en'] body {
 }
 ::-webkit-scrollbar-track {
 	width: 8px;
+	background-color: transparent;
 }
 ::-webkit-scrollbar-track-piece {
 	background-color: transparent;
 }
 ::-webkit-scrollbar-thumb {
 	margin: 2px;
-	background-color: var(--gray-l80);
+	background-color: var(--chrome-scrollbar);
 	border-radius: 4px;
 }
 ::-webkit-scrollbar-corner {
@@ -77,7 +64,7 @@ html[lang='en'] body {
 }
 ::-webkit-resizer {
 	display: block;
-	border: 2px outset var(--enabled-restingLight-background);
+	border: 1px solid var(--chrome-border-strong);
 }
 
 div,
@@ -103,31 +90,31 @@ strong {
 a,
 a:visited {
 	background-color: transparent;
-	border-radius: 4px;
-	color: var(--blue-l55);
+	border-radius: var(--radius-sm);
+	color: var(--structure);
 	text-decoration: none;
 }
 
 a:active {
-	color: var(--blue-l40);
-	background-color: hsla(200, 100%, 45%, 0.1);
+	color: var(--structure-strong);
+	background-color: var(--structure-soft);
 }
 
 a:focus,
 a:hover {
-	color: var(--blue-l65);
+	color: var(--structure-strong);
 	text-decoration: underline;
 	cursor: pointer;
 }
 
 a[danger],
 a[danger]:visited {
-	color: var(--darkRed);
+	color: var(--danger);
 }
 
 a[danger]:hover,
 a[danger]:focus {
-	color: var(--red);
+	color: var(--danger-hover);
 }
 
 p {
@@ -148,35 +135,35 @@ p code {
 
 span:disabled,
 span[disabled='disabled'] {
-	color: var(--disabled-text);
+	color: var(--chrome-text-faint);
 }
 
 hr {
-	border-style: solid;
-	border-color: var(--gray-l85);
+	border: 0;
+	border-top: var(--hairline);
 }
 
 h1 {
 	margin-left: 0px;
-	color: var(--gray-l55);
+	color: var(--chrome-text);
 	font-size: 2em;
 	margin-bottom: 8px;
 	clear: right;
 }
 
 h2 {
-	color: var(--gray-l45);
+	color: var(--chrome-text);
 	font-size: 1.6em;
 }
 
 h3 {
-	color: var(--gray-l45);
+	color: var(--chrome-text);
 	font-size: 1.3em;
 	margin-bottom: 4px;
 }
 
 h4 {
-	color: var(--gray-l45);
+	color: var(--chrome-text);
 	font-size: 1.2em;
 	margin-bottom: 4px;
 }
@@ -194,7 +181,7 @@ svg {
 }
 
 .number {
-	font-family: monospace;
+	font-family: var(--font-mono);
 }
 
 label,
@@ -204,7 +191,7 @@ label:active {
 }
 
 label:hover {
-	color: black;
+	color: var(--chrome-text);
 }
 
 input,
@@ -213,35 +200,38 @@ textarea {
 	padding: 0px 0px 0px 4px;
 	height: 24px;
 	text-align: left;
-	font-family: monospace;
-	background-color: var(--enabled-restingLight-background);
-	color: var(--enabled-restingLight-text);
-	border: 1px solid var(--enabled-restingLight-border);
-	border-radius: 4px;
+	font-family: var(--font-mono);
+	background-color: var(--field-bg);
+	color: var(--field-text);
+	border: 1px solid var(--field-border);
+	border-radius: var(--radius);
 	-webkit-user-select: text;
 	-moz-user-select: text;
 	-ms-user-select: text;
 	user-select: text;
 }
 
-input:hover,
-textarea:hover {
-	background-color: var(--enabled-focus-background);
-	color: var(--enabled-focus-text);
-	border-color: var(--enabled-focus-border);
+input:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus) {
+	border-color: var(--field-border-hover);
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--field-placeholder);
 }
 
 input:focus,
 textarea:focus {
-	background-color: var(--enabled-focus-background);
-	color: var(--enabled-focus-text);
-	border-color: var(--enabled-focus-border);
+	background-color: var(--field-bg);
+	color: var(--field-text);
+	border-color: var(--field-border-focus);
 }
 
 textarea:hover::-webkit-resizer,
 textarea:focus::-webkit-resizer {
 	display: block;
-	border: 2px outset var(--enabled-focus-background);
+	border-color: var(--field-border-focus);
 }
 
 info-bubble {
@@ -253,8 +243,8 @@ button:focus,
 textarea:focus,
 info-bubble:focus,
 glyph-tile:focus {
-	outline: var(--global-focus-style);
-	outline-offset: -1px;
+	outline: none;
+	box-shadow: var(--focus-ring);
 }
 
 input[type='image'] {
@@ -267,21 +257,23 @@ input[type='image'] {
 input[type='number'] {
 	text-align: right;
 	width: 70px;
-	border: 1px solid white;
-	border: 1px solid var(--gray-l90);
+	border: 1px solid var(--field-border);
 	cursor: default;
 }
 
 input[type='text'][disabled='disabled'],
 input[type='number'][disabled='disabled'] {
-	background-color: var(--gray-l90);
-	border: 1px solid var(--gray-l90);
-	color: var(--gray-l65);
+	background-color: var(--field-disabled-bg);
+	border: 1px solid var(--chrome-border);
+	color: var(--field-disabled-text);
 }
 
 input[type='checkbox'] {
-	accent-color: var(--accent-color-dark);
-	opacity: 0.75;
+	accent-color: var(--touch);
+}
+
+input[type='range'] {
+	accent-color: var(--touch);
 }
 
 ul li {
@@ -299,7 +291,7 @@ edit-canvas:focus-visible {
 }
 
 /* --------------------------------------------------------------
-// Common variables
+// Animations (durations and names come from tokens.css)
 // ------------------------------------------------------------*/
 
 @keyframes fade-slide-in {
@@ -354,6 +346,8 @@ edit-canvas:focus-visible {
 
 /* --------------------------------------------------------------
 // Button
+// Native <button> is the secondary style: quiet edge, no fill.
+// .button__call-to-action is the primary (touch) style.
 // ------------------------------------------------------------*/
 
 button,
@@ -364,17 +358,15 @@ button:focus {
 	padding: 4px 8px;
 	margin: 2px 0px;
 	cursor: pointer;
-	border-radius: 4px;
-	border: 1px solid var(--gray-l90);
-	background-color: var(--gray-l90);
-	color: var(--enabled-text);
-	box-shadow: var(--l1-shadow);
+	border-radius: var(--radius);
+	border: 1px solid var(--chrome-border-strong);
+	background-color: transparent;
+	color: var(--chrome-text);
 }
 
 button:hover {
-	color: var(--enabled-focus-text);
-	border-color: var(--blue-l85);
-	box-shadow: var(--l1-shadow);
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-hover);
 }
 
 button[disabled],
@@ -382,9 +374,9 @@ button[disabled]:active,
 button[disabled]:hover,
 button[disabled]:hover,
 button[disabled]:focus {
-	background-color: var(--gray-l95);
-	border-color: var(--gray-l95);
-	color: var(--disabled-text);
+	background-color: transparent;
+	border-color: var(--chrome-border);
+	color: var(--chrome-text-faint);
 	cursor: default;
 }
 
@@ -392,10 +384,18 @@ button[disabled]:focus {
 .button__call-to-action:hover,
 .button__call-to-action:active,
 .button__call-to-action:focus {
-	background-color: var(--blue-l60);
-	color: var(--gray-l95);
+	background-color: var(--touch);
+	border-color: var(--touch);
+	color: var(--chrome-text-inverse);
+	font-weight: 600;
 }
 
 .button__call-to-action:hover {
-	color: white;
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+.button__call-to-action:active {
+	background-color: var(--touch-active);
+	border-color: var(--touch-active);
 }

@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../anyink/theme/theme.js';
 import { getCurrentProjectEditor } from '../app/main.js';
-import { accentColors } from '../common/colors.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import { makeActionsArea_PathPoint } from './actions.js';
 import { makeInputs_position, makeSingleCheckbox, makeSingleLabel, rowPad } from './cards.js';
@@ -61,6 +63,7 @@ export function makeCard_pathPointAttributes(selectedPoint) {
 				document
 					.getElementById(`pointTypeButton-${changedPathPoint.type}`)
 					.setAttribute('selected', '');
+				paintPointTypeButtons();
 			}
 
 			updateHandleGroup('h1', changedPathPoint);
@@ -172,8 +175,31 @@ export function makeCard_multiSelectPathPointAttributes(virtualShape) {
 // Drawing stuff
 // --------------------------------------------------------------
 
+/**
+ * Icon color for a point-type button: green (touch) when selected, muted otherwise.
+ * Read at build time, never at module load.
+ * @param {Boolean} selected
+ * @returns {String}
+ */
+function pointTypeIconColor(selected) {
+	return token(selected ? '--touch' : '--chrome-text-muted');
+}
+
+/**
+ * Recolor the three point-type icons to match their selected attribute.
+ * Called whenever the selected point type changes.
+ */
+function paintPointTypeButtons() {
+	['symmetric', 'flat', 'corner'].forEach((type) => {
+		const button = document.getElementById(`pointTypeButton-${type}`);
+		if (!button) return;
+		const group = button.querySelector('g');
+		if (group) group.setAttribute('fill', pointTypeIconColor(button.hasAttribute('selected')));
+	});
+}
+
 export function makePointTypeButton(type, selected, clickHandler) {
-	let color = accentColors.gray.l40;
+	let color = pointTypeIconColor(selected);
 
 	let button = makeElement({
 		tag: 'button',

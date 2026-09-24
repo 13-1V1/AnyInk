@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK theme tokens</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-4); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+		.swatch { width: 150px; padding: var(--space-2); border-radius: var(--radius); background: var(--chrome-bg-raised); font-size: var(--text-xs); }
+		.swatch .chip { height: 36px; border-radius: var(--radius-sm); margin-bottom: var(--space-1); box-shadow: 0 0 0 1px var(--chrome-border); }
+		.swatch .name { color: var(--chrome-text-muted); font-family: var(--font-mono); word-break: break-all; }
+		.swatch .ratio { color: var(--chrome-text-faint); }
+		.bad .ratio { color: var(--danger); }
+		.sheet { background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge); border-radius: var(--radius); padding: var(--space-4); margin-top: var(--space-3); }
+		canvas { display: block; }
+		button { font: inherit; background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-4); font-weight: 600; cursor: pointer; }
+		button:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		.controls { display: flex; gap: var(--space-2); align-items: center; }
+	</style>
+</head>
+<body>
+	<h1>ANY-INK theme tokens</h1>
+	<div class="controls">
+		<button id="toggle">Toggle canvas (paper / slate)</button>
+		<button class="secondary" id="reload">Re-read tokens</button>
+		<span id="mode" style="color: var(--chrome-text-muted)"></span>
+	</div>
+
+	<h2>Chrome</h2>
+	<div class="row" id="chrome"></div>
+
+	<h2>Canvas (contrast is measured against --canvas-bg)</h2>
+	<div class="row" id="canvas"></div>
+
+	<h2>Canvas sample: guides, points, handles, selection</h2>
+	<div class="sheet"><canvas id="sample" width="720" height="240"></canvas></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { token, withAlpha, toggleCanvasTheme, getCanvasTheme, initTheme, onThemeChange, parseToRGB } from '../src/anyink/theme/theme.js';
+
+		const CHROME = ['--chrome-bg','--chrome-bg-raised','--chrome-bg-sunken','--chrome-bg-hover','--chrome-border','--chrome-border-strong','--chrome-text','--chrome-text-muted','--chrome-text-faint','--touch','--touch-hover','--touch-soft','--structure','--structure-strong','--structure-deep','--danger','--warning'];
+		const CANVAS = ['--canvas-bg','--canvas-ink','--canvas-ink-outline','--canvas-ink-faint','--canvas-grid','--canvas-guide','--canvas-guide-muted','--canvas-guide-label','--canvas-guide-hover','--canvas-handle','--canvas-point','--canvas-point-selected','--canvas-selection','--canvas-selection-soft','--canvas-component','--canvas-kern','--canvas-kern-negative','--canvas-link','--canvas-error'];
+
+		const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+		const ratio = (a, b) => { const x = lum(parseToRGB(a)), y = lum(parseToRGB(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+
+		function fill(id, names, bgName) {
+			const root = document.getElementById(id); root.innerHTML = '';
+			const bg = token(bgName);
+			for (const n of names) {
+				const v = token(n);
+				const solid = !/rgba?\(.*,\s*0?\.\d+\)/.test(v);
+				const r = solid ? ratio(v, bg) : null;
+				const el = document.createElement('div');
+				el.className = 'swatch' + (r !== null && r < 3 && n !== bgName ? ' bad' : '');
+				el.innerHTML = `<div class="chip" style="background:${v}"></div><div class="name">${n}</div><div class="ratio">${v}${r !== null && n !== bgName ? ' · ' + r.toFixed(1) + ':1' : ''}</div>`;
+				root.appendChild(el);
+			}
+		}
+
+		function drawSample() {
+			const c = document.getElementById('sample'); const ctx = c.getContext('2d');
+			ctx.clearRect(0, 0, c.width, c.height);
+			// grid
+			ctx.fillStyle = token('--canvas-grid');
+			for (let x = 0; x < c.width; x += 24) ctx.fillRect(x, 0, 1, c.height);
+			for (let y = 0; y < c.height; y += 24) ctx.fillRect(0, y, c.width, 1);
+			// metric lines + labels
+			const lines = [['ascender', 30], ['cap height', 60], ['x-height', 110], ['baseline', 190], ['descender', 225]];
+			ctx.font = '10px ' + token('--font-ui');
+			for (const [name, y] of lines) {
+				ctx.fillStyle = name === 'x-height' ? token('--canvas-guide-hover') : token('--canvas-guide');
+				ctx.fillRect(0, y, c.width, 1);
+				ctx.fillStyle = token('--canvas-guide-label'); ctx.fillText(name, 6, y - 3);
+			}
+			// a glyph-ish shape
+			ctx.fillStyle = token('--canvas-ink');
+			ctx.beginPath(); ctx.moveTo(140, 190); ctx.bezierCurveTo(140, 100, 260, 100, 260, 190); ctx.lineTo(230, 190); ctx.bezierCurveTo(230, 130, 170, 130, 170, 190); ctx.closePath(); ctx.fill();
+			// context character
+			ctx.fillStyle = token('--canvas-ink-faint'); ctx.fillRect(300, 110, 60, 80);
+			// handles + points
+			ctx.strokeStyle = token('--canvas-handle'); ctx.lineWidth = 1;
+			ctx.beginPath(); ctx.moveTo(140, 190); ctx.lineTo(140, 100); ctx.moveTo(260, 190); ctx.lineTo(260, 100); ctx.stroke();
+			for (const [x, y] of [[140, 100], [260, 100]]) { ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fillStyle = token('--canvas-handle-fill'); ctx.fill(); ctx.stroke(); }
+			ctx.strokeStyle = token('--canvas-point'); ctx.fillStyle = token('--canvas-point-fill');
+			ctx.fillRect(256, 186, 8, 8); ctx.strokeRect(256.5, 186.5, 7, 7);
+			ctx.fillStyle = token('--canvas-point-selected'); ctx.fillRect(136, 186, 8, 8);
+			// selection bbox + drag box
+			ctx.strokeStyle = token('--canvas-selection'); ctx.strokeRect(130.5, 120.5, 140, 80);
+			ctx.fillStyle = token('--canvas-selection-soft'); ctx.fillRect(420, 60, 160, 120); ctx.strokeRect(420.5, 60.5, 160, 120);
+			// kern bar + label with halo
+			ctx.fillStyle = token('--canvas-kern-negative'); ctx.fillRect(360, 190, 40, 24);
+			ctx.font = '11px ' + token('--font-ui'); ctx.lineWidth = 3; ctx.strokeStyle = token('--canvas-label-halo'); ctx.strokeText('kern: -40', 362, 205);
+			ctx.fillStyle = token('--canvas-kern'); ctx.fillText('kern: -40', 362, 205);
+			// quality ring + component outline
+			ctx.strokeStyle = token('--canvas-error'); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(140, 190, 9, 0, Math.PI * 2); ctx.stroke();
+			ctx.strokeStyle = token('--canvas-component'); ctx.strokeRect(620.5, 100.5, 60, 90);
+		}
+
+		function render() {
+			document.getElementById('mode').textContent = 'canvas: ' + getCanvasTheme();
+			fill('chrome', CHROME, '--chrome-bg');
+			fill('canvas', CANVAS, '--canvas-bg');
+			drawSample();
+		}
+		initTheme();
+		onThemeChange(render);
+		document.getElementById('toggle').onclick = () => toggleCanvasTheme();
+		document.getElementById('reload').onclick = render;
+		render();
+	</script>
+</body>
+</html>

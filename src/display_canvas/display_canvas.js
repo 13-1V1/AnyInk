@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { onThemeChange, token } from '../anyink/theme/theme.js';
 import { getCurrentProject, getGlyphrStudioApp } from '../app/main.js';
-import { accentColors, uiColors } from '../common/colors.js';
 import { makeElement } from '../common/dom.js';
 import {
 	caseCamelToKebab,
@@ -118,6 +120,10 @@ export class DisplayCanvas extends HTMLElement {
 		this.ctx = this.canvas.getContext('2d');
 		this.drawCrisp = false;
 
+		// Redraw when the canvas flips between paper and slate
+		if (this.unsubscribeThemeChange) this.unsubscribeThemeChange();
+		this.unsubscribeThemeChange = onThemeChange(() => this.redraw());
+
 		// Finish
 		this.isSetUp = true;
 		if (this.resizeAndRedraw) this.resizeAndRedraw();
@@ -126,6 +132,16 @@ export class DisplayCanvas extends HTMLElement {
 		}
 
 		// log(`DisplayCanvas.connectedCallback`, 'end');
+	}
+
+	/**
+	 * Stop listening for theme changes once removed from the page
+	 */
+	disconnectedCallback() {
+		if (this.unsubscribeThemeChange) {
+			this.unsubscribeThemeChange();
+			this.unsubscribeThemeChange = false;
+		}
 	}
 
 	/**
@@ -361,7 +377,7 @@ export class DisplayCanvas extends HTMLElement {
 			});
 		} else {
 			if (this.textBlockOptions.showPlaceholderMessage) {
-				this.ctx.fillStyle = uiColors.disabled.text;
+				this.ctx.fillStyle = token('--canvas-ink-faint');
 				this.ctx.font = '14px sans-serif';
 				this.ctx.textBaseline = 'middle';
 				let x = this.textBlock.canvasMaxes.xMin;
@@ -411,7 +427,7 @@ export class DisplayCanvas extends HTMLElement {
 		// log(`\t new t/b/l/r: ${top} / ${bottom} / ${left} / ${right}`);
 
 		ctx.fillStyle = 'transparent';
-		ctx.strokeStyle = accentColors.gray.l90;
+		ctx.strokeStyle = token('--canvas-guide-muted');
 		ctx.lineWidth = 1;
 
 		ctx.strokeRect(makeCrisp(left), makeCrisp(top), round(width), round(height));
@@ -427,7 +443,7 @@ export class DisplayCanvas extends HTMLElement {
 	 */
 	drawDisplayLineExtras(ctx, charData, textBlock) {
 		// log(`displayCanvas.drawDisplayLineExtras`, 'start');
-		ctx.strokeStyle = accentColors.gray.l85;
+		ctx.strokeStyle = token('--canvas-guide-muted');
 		ctx.beginPath();
 		ctx.moveTo(textBlock.canvasMaxes.xMin, charData.view.dy);
 		ctx.lineTo(textBlock.canvasMaxes.xMax, charData.view.dy);
@@ -455,14 +471,16 @@ export class DisplayCanvas extends HTMLElement {
 		// log(`\t drawing ${charData.char}`);
 
 		if (charData.widths.kern) {
-			ctx.fillStyle = 'orange';
-			ctx.globalAlpha = 0.3;
+			// The tint tokens carry their own alpha
+			ctx.fillStyle =
+				charData.widths.kern > 0
+					? token('--canvas-kern-positive')
+					: token('--canvas-kern-negative');
 			ctx.fillRect(drawX + drawWidth - drawK, drawY, drawK, drawHeight);
-			ctx.globalAlpha = 1;
 		}
 
 		ctx.fillStyle = 'transparent';
-		ctx.strokeStyle = accentColors.blue.l85;
+		ctx.strokeStyle = token('--canvas-guide-muted');
 		ctx.lineWidth = 1;
 
 		if (this.drawCrisp) {
@@ -498,9 +516,9 @@ export class DisplayCanvas extends HTMLElement {
 		// log(`dx: ${view.dx}, dy: ${view.dy}, dz: ${view.dz}`);
 
 		if (item) {
-			ctx.fillStyle = uiColors.enabled.resting.text;
+			ctx.fillStyle = token('--canvas-ink');
 			ctx.strokeStyle = 'transparent';
-			drawGlyph(item, ctx, view, 1);
+			drawGlyph(item, ctx, view, 1, token('--canvas-ink'));
 		}
 
 		// log(`displayCanvas.drawDisplayCharacter`, 'end');

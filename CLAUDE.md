@@ -58,7 +58,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 1. Fork and run — DONE 09/23/2026 (builds, 613 tests pass, runs unchanged).
 2. Rename — DONE 09/23/2026 (visible branding, About credits, new nib icon + wordmark; internal identifiers kept, see docs/DECISIONS.md D-001)
 3. Visual audit — DONE 09/23/2026 (docs/AUDIT-VISUAL.md; every text/code entry point mapped to a milestone)
-4. Reskin — pending
+4. Reskin — DONE 09/23/2026 (tokens.css is the only color source; theme.js token() for canvas code; paper/slate toggle remembered in app prefs; see docs/THEME.md)
 5. Visual editing (metrics, kerning, preview strip, undo gaps) — pending
 6. Files (FSA open/save, autosave, crash recovery, OTF export, format) — pending
 7. Trace layer — pending

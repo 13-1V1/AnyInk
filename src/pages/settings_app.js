@@ -24,7 +24,8 @@ export function makeSettingsTabContentApp() {
 	addAsChildren(tabContent, [
 		textToNode('<h3>Saving</h3>'),
 		makeOneSettingsRow('app', 'stopPageNavigation', updateWindowUnloadEvent),
-		makeOneSettingsRow('app', 'formatSaveFile'),
+		// formatSaveFile is intentionally not shown: project files always save compact.
+		// The setting and its default stay in place so existing project files round-trip.
 		makeOneSettingsRow('app', 'saveLivePreviews'),
 		makeOneSettingsRow('app', 'autoSave'),
 		textToNode('<label class="settings__label">Delete all auto-saved backups:</label>'),

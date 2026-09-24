@@ -1,6 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token, withAlpha } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main';
 import { charsToHexArray } from '../common/character_ids';
-import { accentColors, getColorFromRGBA, transparencyToAlpha } from '../common/colors';
+import { transparencyToAlpha } from '../common/colors';
 import { makeCrisp } from '../common/functions';
 import { drawGlyph } from '../display_canvas/draw_paths';
 import {
@@ -21,9 +24,16 @@ const contextCharacters = {
 	leftBlock: false,
 	/** @type {TextBlock | false} */
 	rightBlock: false,
+	// Read at draw time so the canvas theme can switch
 	labelColors: {
-		link: 'rgb(214, 71, 0)',
-		selected: 'rgb(128, 43, 0)',
+		/** Clickable name of a neighboring character */
+		get link() {
+			return token('--canvas-link');
+		},
+		/** Name of the character being edited (not a link) */
+		get selected() {
+			return token('--canvas-guide-label');
+		},
 	},
 };
 
@@ -145,7 +155,7 @@ export function drawContextCharacters(ctx) {
 	if (project.settings.app.contextCharacters.showGuides) {
 		const item = editor.selectedItem;
 		const alpha = transparencyToAlpha(project.settings.app.contextCharacters.guidesTransparency);
-		const textColor = getColorFromRGBA(contextCharacters.labelColors.selected, alpha);
+		const textColor = withAlpha(contextCharacters.labelColors.selected, alpha);
 		drawCharacterNameExtra(
 			ctx,
 			item.name.replace(/latin /i, ''),
@@ -155,7 +165,7 @@ export function drawContextCharacters(ctx) {
 			false
 		);
 
-		const lineColor = getColorFromRGBA(contextCharacters.labelColors.link, alpha);
+		const lineColor = withAlpha(contextCharacters.labelColors.link, alpha);
 		ctx.fillStyle = lineColor;
 		drawEmVerticalLine(ctx, 0, editor.view);
 		drawEmVerticalLine(ctx, editor.selectedItem.advanceWidth, editor.view);
@@ -334,10 +344,9 @@ function drawContextCharacterRightLineExtras(ctx, char, block) {
  * @param {Number} width
  */
 function drawBaseline(ctx, x, y, width) {
-	// ctx.fillStyle = accentColors.gray.l90;
 	const transparency = getCurrentProject().settings.app.contextCharacters.guidesTransparency;
 	const alpha = transparencyToAlpha(transparency);
-	ctx.fillStyle = getColorFromRGBA(guideColorDark, alpha);
+	ctx.fillStyle = withAlpha(guideColorDark(), alpha);
 	ctx.fillRect(x, Math.ceil(y), width, 1);
 }
 
@@ -358,10 +367,10 @@ function drawContextCharacterExtras(ctx, char) {
 		const advanceWidth = char.widths.advance * char.view.dz;
 		const currentX = char.view.dx; // * view.dz;
 		const rightX = currentX + advanceWidth;
-		let color = getColorFromRGBA(contextCharacters.labelColors.link, alpha);
+		let color = withAlpha(contextCharacters.labelColors.link, alpha);
 		let linkID = char.item.id;
 		if (editor.selectedItemID === char.item.id) {
-			color = getColorFromRGBA(contextCharacters.labelColors.selected, alpha);
+			color = withAlpha(contextCharacters.labelColors.selected, alpha);
 			linkID = false;
 		}
 
@@ -418,7 +427,7 @@ function drawCharacterNameExtra(ctx, text, currentX, advanceWidth, color, hotspo
 
 	// Item label
 	ctx.font = '12px Tahoma, Verdana, sans-serif';
-	ctx.strokeStyle = 'white';
+	ctx.strokeStyle = token('--canvas-label-halo');
 	ctx.lineWidth = 4;
 	ctx.strokeText(text, textX, textY);
 	ctx.fillStyle = color;
@@ -455,24 +464,26 @@ function drawCharacterNameExtra(ctx, text, currentX, advanceWidth, color, hotspo
  */
 export function drawCharacterKernExtra(ctx, kern, rightX, scale) {
 	const topY = sYcY(getCurrentProject().settings.font.descent);
-	const color = accentColors.purple.l70;
+	// The tint tokens carry their own alpha; the label below uses the solid kern color
+	const barFill = kern > 0 ? token('--canvas-kern-positive') : token('--canvas-kern-negative');
 	const barHeight = Math.max(scale * 10, 1);
 	// const offset = barHeight * -1;
 	const offset = 0;
 
 	ctx.font = '12px Tahoma, Verdana, sans-serif';
-	ctx.fillStyle = color;
+	ctx.fillStyle = barFill;
 	ctx.fillRect(Math.floor(rightX), topY + offset, Math.ceil(kern * scale), barHeight);
 
 	const text = 'kern: ' + kern;
 	const textWidth = ctx.measureText(text).width;
 	const textX = rightX - (-1 * kern * scale - textWidth) / 2 - textWidth;
 
-	ctx.strokeStyle = 'white';
+	ctx.strokeStyle = token('--canvas-label-halo');
 	ctx.lineWidth = 4;
 	ctx.miterLimit = 1;
 	let textOffset = 25;
 	ctx.strokeText(text, textX, topY + offset + barHeight + textOffset);
+	ctx.fillStyle = token('--canvas-kern');
 	ctx.fillText(text, textX, topY + offset + barHeight + textOffset);
 }
 
@@ -490,7 +501,8 @@ function drawSingleContextCharacter(ctx, charData) {
 			charData.item,
 			ctx,
 			charData.view,
-			transparencyToAlpha(getCurrentProject().settings.app.contextCharacters.characterTransparency)
+			transparencyToAlpha(getCurrentProject().settings.app.contextCharacters.characterTransparency),
+			token('--canvas-ink-faint')
 		);
 	}
 	// log('drawSingleContextCharacter', 'end');
@@ -663,7 +675,7 @@ export function findAndUnderlineHotspot(cx, cy) {
 		const t = getCurrentProject().settings.app.contextCharacters.guidesTransparency;
 		// var t2 = (((100 - t) / 2) + t);
 		const alpha = transparencyToAlpha(t);
-		const rgb = getColorFromRGBA('rgb(204,81,0)', alpha);
+		const rgb = withAlpha(token('--canvas-link'), alpha);
 
 		ctx.strokeStyle = rgb;
 		ctx.lineWidth = 1;

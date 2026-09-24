@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
-import { accentColors } from '../common/colors.js';
 import { round } from '../common/functions.js';
 import { sXcX, sYcY } from '../edit_canvas/edit_canvas.js';
 import { ComponentInstance } from '../project_data/component_instance.js';
@@ -16,10 +18,16 @@ import { Path } from '../project_data/path.js';
  * @param {Object} ctx - canvas context
  * @param {Object} view - x/y/z view object
  * @param {Number} alpha - transparency between 0 and 1
- * @param {String} fill - glyph fill color
+ * @param {String =} fill - glyph fill color, defaults to the canvas ink token
  * @returns {Number} - Advance Width, according to view.z
  */
-export function drawGlyph(glyph, ctx, view = { x: 0, y: 0, z: 1 }, alpha = 1, fill = '#000') {
+export function drawGlyph(
+	glyph,
+	ctx,
+	view = { x: 0, y: 0, z: 1 },
+	alpha = 1,
+	fill = token('--canvas-ink')
+) {
 	// log('drawGlyph', 'start');
 	// log(glyph.name);
 	// log('view ' + json(view, true));
@@ -73,11 +81,12 @@ export function drawGlyphOutlineMode(glyph, ctx, view = { x: 0, y: 0, z: 1 }) {
 	glyph.shapes.forEach((shape) => {
 		if (!getCurrentProjectEditor().multiSelect.shapes.isSelected(shape)) {
 			ctx.beginPath();
-			ctx.strokeStyle = accentColors.royal.l35;
+			ctx.strokeStyle = token('--canvas-ink-outline');
 			if (shape.objType === 'ComponentInstance') {
-				ctx.strokeStyle = accentColors.green.l30;
+				ctx.strokeStyle = token('--canvas-component');
 			} else if (shape.winding > 0) {
-				ctx.strokeStyle = accentColors.royal.l20;
+				// Positive winding gets the full ink so the two directions stay distinguishable
+				ctx.strokeStyle = token('--canvas-ink');
 			}
 			drewShape = drawShape(shape, ctx, view);
 			if (drewShape) {

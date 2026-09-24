@@ -1,5 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { token, withAlpha } from '../anyink/theme/theme.js';
 import { getCurrentProjectEditor } from '../app/main.js';
-import { accentColors, uiColors } from '../common/colors.js';
 import {
 	calculateAngle,
 	calculateLength,
@@ -25,12 +27,20 @@ import { canResize } from './events_mouse.js';
 
 export let canvasUIPointSize = 7;
 let rotateHandleHeight = 40;
-let accentBlue = accentColors.blue.l65;
-let accentGreen = accentColors.green.l65;
-let accentGray = accentColors.gray.l65;
-let pathFill = '#000';
-let pointFill = '#FFF';
 let multiSelectThickness = 3;
+
+// --------------------------------------------------------------
+// Colors (read at draw time so the canvas theme can switch)
+// --------------------------------------------------------------
+
+/** Bounding box, selected path outline, drag-select stroke. */
+const selectionColor = () => token('--canvas-selection');
+/** Selection accent when more than one shape is selected. */
+const multiSelectColor = () => token('--canvas-multiselect');
+/** Selection accent for a component instance. */
+const componentColor = () => token('--canvas-component');
+/** Interior of resize / rotate handles. */
+const handleFill = () => token('--canvas-handle-fill');
 
 // --------------------------------------------------------------
 // Compute and Draw functions
@@ -86,13 +96,13 @@ function computeSelectionStyle() {
 	const editor = getCurrentProjectEditor();
 	let msShapes = editor.multiSelect.shapes;
 	let thickness = 1;
-	let accent = accentBlue;
+	let accent = selectionColor();
 	if (msShapes.length > 1) {
 		thickness = multiSelectThickness;
-		accent = accentGray;
+		accent = multiSelectColor();
 	} else {
 		if (msShapes.singleton.objType === 'ComponentInstance') {
-			accent = accentGreen;
+			accent = componentColor();
 		}
 	}
 	return { thickness: thickness, accent: accent };
@@ -138,7 +148,7 @@ export function drawBoundingBox(ctx, maxes, thickness, accent) {
 function drawBoundingBoxHandles(ctx, maxes, thickness, accent) {
 	// log(`drawBoundingBoxHandles`, 'start');
 	let bb = getBoundingBoxAndHandleDimensions(maxes, thickness);
-	ctx.fillStyle = pointFill;
+	ctx.fillStyle = handleFill();
 	ctx.lineWidth = 1;
 	ctx.strokeStyle = accent;
 
@@ -191,7 +201,7 @@ function drawBoundingBoxHandles(ctx, maxes, thickness, accent) {
  * @param {String} accent - color for the handle
  * @param {Number} thickness - how thick the line should be
  */
-function drawRotationAffordance(ctx, accent = accentBlue, thickness = 1) {
+function drawRotationAffordance(ctx, accent = selectionColor(), thickness = 1) {
 	// log(`drawRotationAffordance`, 'start');
 	// const editor = getCurrentProjectEditor();
 	const ehd = eventHandlerData;
@@ -250,7 +260,7 @@ function drawRotationAffordance(ctx, accent = accentBlue, thickness = 1) {
 
 	// rotate Handle
 	ctx.strokeStyle = accent;
-	ctx.fillStyle = pointFill;
+	ctx.fillStyle = handleFill();
 	ctx.lineWidth = thickness;
 	drawLine(ctx, { x: canvasHandle.x, y: canvasHandle.y }, { x: canvasCenter.x, y: canvasCenter.y });
 	ctx.lineWidth = 1;
@@ -465,9 +475,9 @@ export function drawNewBasicPath(ctx, path, view) {
 	drawShape(path, ctx, view);
 	ctx.closePath();
 
-	ctx.fillStyle = pathFill;
+	ctx.fillStyle = token('--canvas-ink-faint');
 	ctx.fill();
-	ctx.strokeStyle = accentBlue;
+	ctx.strokeStyle = selectionColor();
 	ctx.stroke();
 
 	drawBoundingBox(ctx, path.maxes);
@@ -555,7 +565,7 @@ export function testDrawAllPathPointHandles(ctx) {
 	// let points = editor.multiSelect.points;
 	let msShapes = editor.selectedItem.shapes;
 
-	ctx.strokeStyle = 'purple';
+	ctx.strokeStyle = token('--canvas-handle');
 	msShapes.forEach((shape) => {
 		if (shape.objType === 'ComponentInstance') return;
 		shape.pathPoints.forEach((point) => {
@@ -608,7 +618,7 @@ export function drawPathPointHover(ctx, point) {
 	// log(point);
 	let size = canvasUIPointSize;
 	if (point) {
-		ctx.fillStyle = accentColors.blue.l85;
+		ctx.fillStyle = withAlpha(token('--canvas-point-selected'), 0.5);
 		ctx.fillRect(point.x, point.y, size, size);
 	}
 	// log(`drawPathPointHover`, 'end');
@@ -617,6 +627,22 @@ export function drawPathPointHover(ctx, point) {
 // --------------------------------------------------------------
 // Points and handles
 // --------------------------------------------------------------
+
+/**
+ * Stroke and fill for an on-curve point: hollow purple when resting,
+ * solid green when selected.
+ * @param {Boolean} isSelected
+ * @returns {Object} - stroke and fill color strings
+ */
+function pointStyle(isSelected) {
+	if (isSelected) {
+		return {
+			stroke: token('--canvas-point-selected'),
+			fill: token('--canvas-point-selected-fill'),
+		};
+	}
+	return { stroke: token('--canvas-point'), fill: token('--canvas-point-fill') };
+}
 
 /**
  * Draws this point on the edit canvas
@@ -629,12 +655,10 @@ export function drawPoint(point, ctx, isSelected) {
 	// log('sel = ' + isSelected);
 
 	let canvasUIPointSize = 7;
-	let pointFill = uiColors.offWhite;
-	let accent = uiColors.accent;
+	const style = pointStyle(isSelected);
 	const halfPointSize = canvasUIPointSize / 2;
-	// ctx.fillStyle = sel? 'white' : accent;
-	ctx.fillStyle = isSelected ? pointFill : accent;
-	ctx.strokeStyle = accent;
+	ctx.fillStyle = style.fill;
+	ctx.strokeStyle = style.stroke;
 	ctx.font = '10px Consolas';
 
 	let px = sXcX(point.p.x) - halfPointSize;
@@ -642,10 +666,9 @@ export function drawPoint(point, ctx, isSelected) {
 	ctx.fillRect(px, py, canvasUIPointSize, canvasUIPointSize);
 	ctx.strokeRect(px, py, canvasUIPointSize, canvasUIPointSize);
 
-	// ctx.fillStyle = 'orange';
 	// ctx.fillText(point.__ID, px + 12, py);
 
-	ctx.fillStyle = accent;
+	ctx.fillStyle = style.stroke;
 	// ctx.fillText(point.pointNumber, sXcX(point.p.x + 12), sYcY(point.p.y));
 	// log('PathPoint.drawPoint', 'end');
 }
@@ -658,13 +681,11 @@ export function drawPoint(point, ctx, isSelected) {
  * @param {Object} next - next Point in the path sequence
  */
 export function drawDirectionalityPoint(point, ctx, isSelected, next) {
-	// ctx.fillStyle = sel? 'white' : accent;
 	// let canvasUIPointSize = 7;
-	let pointFill = uiColors.offWhite;
-	let accent = uiColors.accent;
+	const style = pointStyle(isSelected);
 
-	ctx.fillStyle = isSelected ? pointFill : accent;
-	ctx.strokeStyle = accent;
+	ctx.fillStyle = style.fill;
+	ctx.strokeStyle = style.stroke;
 	ctx.lineWidth = 1;
 
 	const begin = { x: point.p.x, y: point.p.y };
@@ -713,7 +734,7 @@ export function drawDirectionalityPoint(point, ctx, isSelected, next) {
 	ctx.stroke();
 
 	// Exact Middle Point
-	ctx.fillStyle = accent;
+	ctx.fillStyle = style.stroke;
 	ctx.fillRect(makeCrisp(sXcX(point.p.x)), makeCrisp(sYcY(point.p.y)), 1, 1);
 }
 
@@ -725,8 +746,9 @@ export function drawDirectionalityPoint(point, ctx, isSelected, next) {
  * @param {Boolean} drawH2 - draw the second handle
  */
 export function drawHandles(point, ctx, drawH1 = true, drawH2 = true) {
-	let accent = uiColors.accent;
-	ctx.fillStyle = accent;
+	const accent = token('--canvas-handle');
+	const dotFill = token('--canvas-handle-fill');
+	ctx.fillStyle = dotFill;
 	ctx.strokeStyle = accent;
 	ctx.lineWidth = 1;
 	ctx.font = '10px Consolas';
@@ -742,6 +764,7 @@ export function drawHandles(point, ctx, drawH1 = true, drawH2 = true) {
 	function drawOneHandle(handle, label) {
 		const hx = sXcX(handle.x);
 		const hy = sYcY(handle.y);
+		ctx.fillStyle = dotFill;
 		drawCircleHandle(ctx, { x: hx, y: hy });
 
 		ctx.beginPath();
@@ -750,6 +773,7 @@ export function drawHandles(point, ctx, drawH1 = true, drawH2 = true) {
 		ctx.closePath();
 		ctx.stroke();
 
+		ctx.fillStyle = accent;
 		ctx.fillText(label, hx + 12, hy);
 	}
 }
@@ -777,9 +801,8 @@ export function computeAndDrawDragToSelectBox(ctx, eventHandlerData) {
 		yMax: Math.max(eventHandlerData.firstY, mouseY),
 	});
 
-	// ctx.fillStyle = 'hsla(125, 100%, 36%, 0.05)';
-	ctx.fillStyle = 'hsl(200, 17%, 45%, 0.05)';
-	ctx.strokeStyle = accentGray;
+	ctx.fillStyle = token('--canvas-selection-soft');
+	ctx.strokeStyle = selectionColor();
 	ctx.lineWidth = 1;
 	ctx.setLineDash([3, 3]);
 	ctx.fillRect(box.xMin, box.yMin, box.width, box.height);
@@ -867,7 +890,7 @@ export function drawPointHighlight(point, ctx) {
 	ctx.beginPath();
 	ctx.arc(px, py, canvasUIPointSize + 4, 0, Math.PI * 2, true);
 	ctx.closePath();
-	ctx.strokeStyle = 'red';
+	ctx.strokeStyle = token('--canvas-error');
 	ctx.stroke();
 	// log(`drawPointHighlight`, 'end');
 }
@@ -882,7 +905,7 @@ export function drawPointHighlight(point, ctx) {
  * @param {Array} xyPoints - collection of points
  * @param {String =} color - what color to draw the points
  */
-export function debugDrawPoints(xyPoints = [], color = 'rgb(200,50,60)') {
+export function debugDrawPoints(xyPoints = [], color = token('--canvas-error')) {
 	// log('debugDrawPoints', 'start');
 	// log(xyPoints);
 	let ctx = getCurrentProjectEditor().editCanvas.ctx;
