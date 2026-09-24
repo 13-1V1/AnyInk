@@ -1,6 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
+import { refreshPanel } from '../../panels/panels.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
 import { round, valuesAreClose } from '../../common/functions.js';
@@ -332,6 +333,8 @@ export function selectTool(tool) {
 		if (tool === 'canvasTheme') {
 			// Flips html[data-canvas]; the edit canvas also redraws through onThemeChange
 			toggleCanvasTheme();
+			// Guide swatches in the Guides panel are drawn from the canvas tokens; redraw them too.
+			if (getCurrentProjectEditor().nav.panel === 'Guides') refreshPanel();
 		}
 		editor.publish('editCanvasView', editor.view);
 	} else {

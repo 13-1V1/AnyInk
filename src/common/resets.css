@@ -239,10 +239,10 @@ info-bubble {
 }
 
 input:focus,
-button:focus,
+button:focus-visible,
 textarea:focus,
-info-bubble:focus,
-glyph-tile:focus {
+info-bubble:focus-visible,
+glyph-tile:focus-visible {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
