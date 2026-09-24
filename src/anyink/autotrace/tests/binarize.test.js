@@ -761,46 +761,44 @@ describe('binarizeFollowingPreview (finalize)', () => {
 		expect(full.autoThreshold).toBe(preview.autoThreshold);
 	});
 
-	it('thin lines and slits are in the result exactly when the preview shows them, at 8 alignments', () => {
-		const cases = [
-			[2000, 'line', 4],
-			[2000, 'slit', 5],
-			[2000, 'slit', 6],
-			[1250, 'line', 3],
-			[1250, 'slit', 3],
-			[1333, 'line', 3],
-		];
-		for (const [W, kind, width] of cases) {
-			let shownCount = 0;
-			for (let offset = 0; offset < 8; offset++) {
-				const x0 = 400 + offset;
-				const image = makeImage(W, 200, (x, y) => {
-					if (y < 40 || y > 160) return 240;
-					if (kind === 'line') return x >= x0 && x < x0 + width ? 10 : 240;
-					const left = x >= x0 - 60 && x < x0;
-					const right = x >= x0 + width && x < x0 + width + 60;
-					return left || right ? 10 : 240;
-				});
-				const { imageData: small, factor } = downscaleImageData(image, 1000);
-				const preview = binarize(small, {});
-				const full = binarizeFollowingPreview(image, small, {}, { factor, speckArea: 1 });
-				const row = Math.floor(100 * factor) * small.width;
-				let previewShows = false;
-				for (let x = Math.floor(x0 * factor); x <= Math.floor((x0 + width - 1) * factor); x++) {
-					const ink = preview.mask[row + x] === 1;
-					if (kind === 'line' ? ink : !ink) previewShows = true;
-				}
-				let fullShows = false;
-				for (let x = x0; x < x0 + width; x++) {
-					const ink = full.mask[100 * W + x] === 1;
-					if (kind === 'line' ? ink : !ink) fullShows = true;
-				}
-				expect(fullShows, `${W} ${kind} ${width} at +${offset}`).toBe(previewShows);
-				if (previewShows) shownCount++;
+	// Keep each image case within its own timeout on slower CI runners.
+	it.each([
+		[2000, 'line', 4],
+		[2000, 'slit', 5],
+		[2000, 'slit', 6],
+		[1250, 'line', 3],
+		[1250, 'slit', 3],
+		[1333, 'line', 3],
+	])('thin lines/slits match preview at 8 alignments: %i %s %i', (W, kind, width) => {
+		let shownCount = 0;
+		for (let offset = 0; offset < 8; offset++) {
+			const x0 = 400 + offset;
+			const image = makeImage(W, 200, (x, y) => {
+				if (y < 40 || y > 160) return 240;
+				if (kind === 'line') return x >= x0 && x < x0 + width ? 10 : 240;
+				const left = x >= x0 - 60 && x < x0;
+				const right = x >= x0 + width && x < x0 + width + 60;
+				return left || right ? 10 : 240;
+			});
+			const { imageData: small, factor } = downscaleImageData(image, 1000);
+			const preview = binarize(small, {});
+			const full = binarizeFollowingPreview(image, small, {}, { factor, speckArea: 1 });
+			const row = Math.floor(100 * factor) * small.width;
+			let previewShows = false;
+			for (let x = Math.floor(x0 * factor); x <= Math.floor((x0 + width - 1) * factor); x++) {
+				const ink = preview.mask[row + x] === 1;
+				if (kind === 'line' ? ink : !ink) previewShows = true;
 			}
-			// Each case is one the old rule got wrong somewhere: not all shown, or not all gone
-			expect([W, kind, width, shownCount]).not.toEqual([W, kind, width, -1]);
+			let fullShows = false;
+			for (let x = x0; x < x0 + width; x++) {
+				const ink = full.mask[100 * W + x] === 1;
+				if (kind === 'line' ? ink : !ink) fullShows = true;
+			}
+			expect(fullShows, `${W} ${kind} ${width} at +${offset}`).toBe(previewShows);
+			if (previewShows) shownCount++;
 		}
+		// Each case is one the old rule got wrong somewhere: not all shown, or not all gone
+		expect([W, kind, width, shownCount]).not.toEqual([W, kind, width, -1]);
 	});
 
 	it('large shapes keep full-size edges; counters stay open', () => {
