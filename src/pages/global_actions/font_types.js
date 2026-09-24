@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject } from '../../app/main.js';
 import { decToHex, validateAsHex } from '../../common/character_ids.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
@@ -16,6 +18,8 @@ import { addCharacterRangeToCurrentProject } from '../settings_project.js';
 import { makeOneSettingsRow } from '../settings.js';
 import { make_globalActionFontTypeSettingsTable } from './diacritics.js';
 import { copyShapesFromTo } from '../../project_editor/actions.js';
+import { makeSliderRow, makeSliderTable } from '../../anyink/controls/slider_row.js';
+import { maxFromUpm } from '../../anyink/controls/slider_math.js';
 
 // --------------------------------------------------------------
 // Monospace
@@ -31,7 +35,7 @@ export function makeCard_Monospace() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Monospace fonts are fonts where each glyph has the same width. This is useful for coding fonts, and fonts used for textual output. The width value must be greater than zero.`,
+		content: `Monospace fonts are fonts where each glyph has the same width. This is useful for coding fonts, and fonts used for textual output. Drag a width greater than zero, then press the button.`,
 	});
 	card.appendChild(description);
 
@@ -41,15 +45,17 @@ export function makeCard_Monospace() {
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="monospaceWidth">Glyph&nbsp;Width:</label>
-			<input-number id="monospaceWidth" type="number" value="500"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-		`,
+	// ANY-INK (audit D3): a slider with a readout, clamped to the font's units per em
+	const upm = maxFromUpm(2048, getCurrentProject().settings.font.upm);
+	const widthRow = makeSliderRow({
+		id: 'monospaceWidth',
+		label: 'Glyph width',
+		value: Math.min(500, upm),
+		min: 0,
+		max: upm,
+		unit: 'em',
 	});
-	card.appendChild(table);
+	card.appendChild(makeSliderTable([widthRow]));
 
 	let button = makeElement({
 		tag: 'fancy-button',
@@ -59,9 +65,7 @@ export function makeCard_Monospace() {
 	button.addEventListener('click', () => {
 		// log('convertProjectToMonospace', 'start');
 
-		/** @type {HTMLInputElement} */
-		const widthInput = document.querySelector('#monospaceWidth');
-		const width = parseFloat(widthInput.value);
+		const width = widthRow.value;
 		// log(`width input: ${width}`);
 
 		if (isNaN(width) || width === 0) {

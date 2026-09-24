@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK history: settings entries, creation undo, aliasing</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 70ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-4); font-weight: 600; cursor: pointer; }
+		button:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		button[disabled] { opacity: 0.5; cursor: default; }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); }
+		.readout { font-family: var(--font-mono); font-size: var(--text-sm); display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
+		.readout span:nth-child(odd) { color: var(--chrome-text-muted); }
+		ol { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); }
+		li { padding: 2px 0; }
+		li.current { color: var(--touch); }
+		li .kind { color: var(--structure); font-family: var(--font-mono); font-size: var(--text-xs); margin-left: var(--space-2); }
+		li.hidden-post { color: var(--chrome-text-faint); }
+		#events { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); max-height: 160px; overflow: auto; white-space: pre-wrap; }
+		input { font: inherit; background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); width: 10ch; }
+		input:focus { outline: none; border-color: var(--field-border-focus); }
+	</style>
+</head>
+<body>
+	<h1>History: settings entries, creation undo, no aliasing</h1>
+	<p>
+		Loads only ProjectEditor + History with a two-glyph project. Ctrl+Z / Ctrl+Y work anywhere on this
+		page except inside the text field (the keyboard handler is the real one). Nothing here draws a canvas.
+	</p>
+
+	<h2>Make changes</h2>
+	<div class="row">
+		<button id="xh">x-height +20 → addSettingsState</button>
+		<button id="asc">ascent −25 → addSettingsState</button>
+		<button id="guide">toggle x-height guide → addSettingsState</button>
+		<button id="width" class="secondary">A width +50 → addState</button>
+		<button id="bulk" class="secondary">bulk: every width ×2 (pre / post)</button>
+		<button id="comp" class="secondary">create component (pre / post)</button>
+		<button id="liga" class="secondary">create ligature ff (pre / post)</button>
+		<button id="glyph" class="secondary">view missing glyph C (auto-create)</button>
+	</div>
+	<h2>Undo / redo</h2>
+	<div class="row">
+		<button id="undo">Undo (Ctrl+Z)</button>
+		<button id="redo">Redo (Ctrl+Y)</button>
+		<button id="initial" class="secondary">Jump to initial state</button>
+		<label>Type here, Ctrl+Z must not undo: <input id="field" type="text" /></label>
+	</div>
+
+	<div class="grid">
+		<div class="card">
+			<h2>Live values</h2>
+			<div class="readout" id="values"></div>
+		</div>
+		<div class="card">
+			<h2>Undo queue (newest first)</h2>
+			<ol id="queue"></ol>
+			<h2>Redo queue</h2>
+			<div id="redoList" class="readout"></div>
+		</div>
+	</div>
+	<div class="card" style="margin-top: var(--space-3)">
+		<h2>Published topics</h2>
+		<div id="events"></div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { setCurrentProjectEditor } from '../src/app/main.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { GlyphrStudioProject } from '../src/project_data/glyphr_studio_project.js';
+		import { handleKeyPress, handleKeyUp } from '../src/edit_canvas/events_keyboard.js';
+		import { createComponent } from '../src/pages/components.js';
+		import { createLigatures } from '../src/pages/ligatures.js';
+
+		const square = {
+			pathPoints: [
+				{ p: { coord: { x: 100, y: 100 } } },
+				{ p: { coord: { x: 300, y: 100 } } },
+				{ p: { coord: { x: 300, y: 300 } } },
+				{ p: { coord: { x: 100, y: 300 } } },
+			],
+		};
+		const project = new GlyphrStudioProject({
+			settings: {
+				project: { name: 'History page', id: 'g2_HISTORYPAGE', characterRanges: [{ name: 'Basic Latin', begin: '0x20', end: '0x7F' }] },
+				font: { family: 'HistPage', upm: 1000, ascent: 800, descent: -200, capHeight: 700, xHeight: 500 },
+				app: { autoSave: false },
+			},
+			glyphs: {
+				'glyph-0x41': { id: 'glyph-0x41', advanceWidth: 600, shapes: [square] },
+				'glyph-0x42': { id: 'glyph-0x42', advanceWidth: 620, shapes: [square] },
+			},
+		});
+		const editor = new ProjectEditor({ project });
+		setCurrentProjectEditor(editor);
+		editor.nav.page = 'Characters';
+		editor.editCanvas = { redraw() {} };
+
+		// The app registers these once an edit canvas exists; this page has none
+		document.addEventListener('keydown', handleKeyPress);
+		document.addEventListener('keyup', handleKeyUp);
+
+		const events = document.querySelector('#events');
+		['fontMetrics', 'guides', 'editCanvasView', 'currentItem', 'kernPairs'].forEach((topic) => {
+			editor.subscribe({
+				topic,
+				subscriberID: `anyink.historypage.${topic}`,
+				callback: () => {
+					events.textContent = `${new Date().toLocaleTimeString()}  ${topic}\n` + events.textContent;
+					render();
+				},
+			});
+		});
+
+		const font = () => editor.project.settings.font;
+		const glyphA = () => editor.project.glyphs['glyph-0x41'];
+
+		function render() {
+			const p = editor.project;
+			const guides = p.settings.app.guides;
+			document.querySelector('#values').innerHTML = [
+				['x-height', font().xHeight],
+				['ascent', font().ascent],
+				['A advance width', glyphA() ? glyphA().advanceWidth : '(missing)'],
+				['B advance width', p.glyphs['glyph-0x42']?.advanceWidth ?? '(missing)'],
+				['glyphs', Object.keys(p.glyphs).join(', ')],
+				['components', Object.keys(p.components).join(', ') || '(none)'],
+				['ligatures', Object.keys(p.ligatures).join(', ') || '(none)'],
+				['system guides shown', guides.systemGuides.join(', ')],
+				['editor.systemGuides.xHeight', editor.systemGuides.xHeight],
+				['page / item', `${editor.nav.page} / ${editor.selectedItemID}`],
+				['document.title', document.title],
+				['same font object as at load', font() === firstFont],
+			].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+
+			const q = editor.history.queue;
+			document.querySelector('#queue').innerHTML = q.length
+				? q.map((e, i) => {
+						const kind = e.settingsSave ? 'settings' : e.wholeProjectSave ? 'project' : 'item';
+						const post = e.title === '_whole_project_change_post_state_';
+						return `<li class="${i === 0 ? 'current' : ''} ${post ? 'hidden-post' : ''}">${post ? '(post state)' : e.title}<span class="kind">${kind} · ${e.itemID || '-'}</span></li>`;
+				  }).join('')
+				: '<li>(empty: live state equals the initial project)</li>';
+			document.querySelector('#redoList').innerHTML = editor.history.redoQueue.length
+				? editor.history.redoQueue.map((group) => `<span>${group.length} entr${group.length === 1 ? 'y' : 'ies'}</span><span>${group[0].title === '_whole_project_change_post_state_' ? group[1]?.title : group[0].title}</span>`).join('')
+				: '<span>(empty)</span><span></span>';
+			document.querySelector('#undo').disabled = q.length === 0;
+			document.querySelector('#redo').disabled = editor.history.redoQueue.length === 0;
+		}
+		const firstFont = font();
+
+		document.querySelector('#xh').onclick = () => { font().xHeight += 20; editor.history.addSettingsState(`x-height → ${font().xHeight}`); render(); };
+		document.querySelector('#asc').onclick = () => { font().ascent -= 25; editor.history.addSettingsState(`ascent → ${font().ascent}`); render(); };
+		document.querySelector('#guide').onclick = () => {
+			const list = editor.project.settings.app.guides.systemGuides;
+			const on = list.includes('xHeight');
+			if (on) list.splice(list.indexOf('xHeight'), 1); else list.push('xHeight');
+			editor.systemGuides.xHeight = !on;
+			editor.history.addSettingsState(`${on ? 'Hid' : 'Showed'} the x-height guide`);
+			render();
+		};
+		document.querySelector('#width').onclick = () => {
+			editor.nav.page = 'Characters';
+			editor.selectedGlyphID = 'glyph-0x41';
+			glyphA().advanceWidth += 50;
+			editor.history.addState(`A width → ${glyphA().advanceWidth}`);
+			render();
+		};
+		document.querySelector('#bulk').onclick = () => {
+			editor.history.addWholeProjectChangePreState('Doubled every advance width');
+			Object.values(editor.project.glyphs).forEach((g) => (g.advanceWidth *= 2));
+			editor.history.addWholeProjectChangePostState();
+			render();
+		};
+		document.querySelector('#comp').onclick = () => { editor.nav.page = 'Components'; createComponent(`Part ${Object.keys(editor.project.components).length + 1}`); render(); };
+		document.querySelector('#liga').onclick = () => { editor.nav.page = 'Ligatures'; const r = createLigatures(['ff']); if (r.errors.length) events.textContent = `error: ${r.errors.join(' ')}\n` + events.textContent; render(); };
+		document.querySelector('#glyph').onclick = () => { editor.nav.page = 'Characters'; editor._selectedGlyphID = 'glyph-0x43'; editor.selectedGlyph; render(); };
+		document.querySelector('#undo').onclick = () => { editor.history.restoreState(); render(); };
+		document.querySelector('#redo').onclick = () => { editor.history.redoState(); render(); };
+		document.querySelector('#initial').onclick = () => { editor.history.jumpToState(editor.history.queue.length); render(); };
+		document.addEventListener('keyup', render);
+		render();
+	</script>
+</body>
+</html>

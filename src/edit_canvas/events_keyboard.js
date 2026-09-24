@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { getUndoRedoAction, isTextEntryElement } from '../anyink/history/undo_shortcut.js';
+import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
@@ -88,6 +90,18 @@ export function handleKeyPress(event) {
 		}
 	}
 
+	// Ctrl+Z - Undo / Ctrl+Y or Ctrl+Shift+Z - Redo
+	// ANY-INK: works on every page (settings entries can be undone from
+	// the Settings page), as long as focus is not in a text field.
+	const undoRedo = getUndoRedoAction(key, ehd);
+	if (undoRedo === 'redo') {
+		cancelDefaultEventActions(event);
+		editor.history.redoState();
+	} else if (undoRedo === 'undo') {
+		cancelDefaultEventActions(event);
+		editor.history.restoreState();
+	}
+
 	// --------------------------------------------------------------
 	// Only the following stuff on Edit Canvas pages
 	// --------------------------------------------------------------
@@ -114,21 +128,6 @@ export function handleKeyPress(event) {
 
 	if (key === 'Escape') {
 		closeEveryTypeOfDialog();
-	}
-
-	// Ctrl+Shift+Z or Ctrl+Y - Redo (must come before plain Ctrl+Z check)
-	if (
-		key === 'Redo' ||
-		(ehd.isCtrlDown && key === 'y') ||
-		(ehd.isCtrlDown && ehd.isShiftDown && key === 'z') ||
-		(ehd.isCtrlDown && ehd.isShiftDown && key === 'Z')
-	) {
-		cancelDefaultEventActions(event);
-		editor.history.redoState();
-	} else if (key === 'Undo' || (ehd.isCtrlDown && key === 'z')) {
-		// Ctrl+Z - Undo
-		cancelDefaultEventActions(event);
-		editor.history.restoreState();
 	}
 
 	// Ctrl+Plus - Zoom in
@@ -445,9 +444,16 @@ function nudge(dx, dy) {
 		editor.selectedKernGroup.value += delta;
 		editor.history.addState(`Nudged kern group ${editor.selectedKernGroupID} by ${delta}`);
 		editor.publish('currentKernGroup', editor.selectedKernGroup);
+		// ANY-INK: the preview strip and pair view re-flow from the kerning lookup
+		notifyKernPairsChanged(editor, {
+			groupID: editor.selectedKernGroupID,
+			value: editor.selectedKernGroup.value,
+		});
 		editor.editCanvas.redraw('keyboard:nudge');
 	} else if (editMode === 'arrow') {
 		const msShapes = editor.multiSelect.shapes;
+		// ANY-INK: nothing selected means nothing to nudge (and no history entry)
+		if (!msShapes.length) return;
 		msShapes.updateShapePosition(mx, my);
 		editor.history.addState(`Nudged shape(s) by ${mx}, ${my}`);
 		editor.publish('currentItem', editor.selectedItem);
@@ -631,10 +637,9 @@ function handleSpecialKeys(key, keyDirection) {
 /**
  * Ensures an input element doesn't have it's key inputs
  * stolen by the keyboard event handlers
+ * (ANY-INK: also covers contenteditable regions, but not the edit canvas)
  * @returns {Boolean}
  */
 function isFocusedOnInput() {
-	const elements = ['input', 'input-number', 'option-chooser', 'option-toggle', 'textarea'];
-	const activeElement = document.activeElement.tagName.toLowerCase();
-	return elements.includes(activeElement);
+	return isTextEntryElement(document.activeElement);
 }

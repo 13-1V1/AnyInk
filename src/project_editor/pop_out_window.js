@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import pointsSliderStyle from '../anyink/preview/points-slider.css?inline';
 import { applyThemeTo, onThemeChange } from '../anyink/theme/theme.js';
 import tokenStyle from '../anyink/theme/tokens.css?inline';
 import { getCurrentProjectEditor } from '../app/main';
@@ -8,6 +9,7 @@ import logo from '../common/graphics/anyink-icon.svg?raw';
 import resetStyle from '../common/resets.css?inline';
 import { closeEveryTypeOfDialog, makeModalDialog, showToast } from '../controls/dialogs/dialogs';
 import dialogStyle from '../controls/dialogs/dialogs.css?inline';
+import fancySliderStyle from '../controls/fancy-slider/fancy-slider.css?inline';
 import { FontPreview } from '../controls/font-preview/font_preview';
 import { DisplayCanvas } from '../display_canvas/display_canvas';
 import { TextBlockOptions } from '../display_canvas/text_block_options';
@@ -60,6 +62,12 @@ export function openPopOutWindow() {
 	popDoc.head.appendChild(dialogs);
 	const panels = makeElement({ tag: 'style', innerHTML: panelStyle });
 	popDoc.head.appendChild(panels);
+	// ANY-INK: the 'Edit live previews' dialog holds a points slider (fancy-slider bar +
+	// points-slider row). Same id makePointsSlider uses, so its injectStyleOnce is a no-op here.
+	popDoc.head.appendChild(makeElement({ tag: 'style', innerHTML: fancySliderStyle }));
+	const pointsSlider = makeElement({ tag: 'style', innerHTML: pointsSliderStyle });
+	pointsSlider.id = 'anyink-points-slider-style';
+	popDoc.head.appendChild(pointsSlider);
 
 	popDoc.body.appendChild(
 		makeElement({

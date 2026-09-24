@@ -1,8 +1,19 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeElement } from '../../common/dom.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { Glyph } from '../../project_data/glyph.js';
 import { getComponentInstancesFromRoot } from '../../project_editor/cross_item_actions.js';
+import { makeSliderRow, makeSliderTable } from '../../anyink/controls/slider_row.js';
 import { glyphIterator } from './page.js';
+
+/*
+	ANY-INK (Milestone 5, audit D3): every typed number here is a slider with a live readout
+	and a Reset. The Apply buttons stay, because a global action runs as a batch with progress
+	and one undo step (glyphIterator, unchanged); the values are set by dragging.
+	Ranges: move -1000..1000 em, scale 0.25..4 (step 0.01), resize -500..500 em, skew
+	-45..45 deg, side bearings -200..500 em.
+*/
 
 // --------------------------------------------------------------
 // Move
@@ -18,7 +29,7 @@ export function makeCard_Move() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Given a positive or negative X and/or Y value, all the glyphs in this font will have their position updated by the specified number of Em units.`,
+		content: `Drag the X and/or Y sliders, then press the button: all the glyphs in this font will have their position updated by that many Em units.`,
 	});
 	card.appendChild(description);
 
@@ -30,18 +41,21 @@ export function makeCard_Move() {
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="moveX">X&nbsp;move:</label>
-			<input-number id="moveX" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-			<label for="moveY">Y&nbsp;move:</label>
-			<input-number id="moveY" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-		`,
+	const moveXRow = makeSliderRow({
+		id: 'moveX',
+		label: 'X move',
+		min: -1000,
+		max: 1000,
+		unit: 'em',
 	});
-	card.appendChild(table);
+	const moveYRow = makeSliderRow({
+		id: 'moveY',
+		label: 'Y move',
+		min: -1000,
+		max: 1000,
+		unit: 'em',
+	});
+	card.appendChild(makeSliderTable([moveXRow, moveYRow]));
 
 	const button = makeElement({
 		tag: 'fancy-button',
@@ -49,12 +63,8 @@ export function makeCard_Move() {
 		content: 'Move all glyphs',
 	});
 	button.addEventListener('click', () => {
-		/**@type {HTMLInputElement} */
-		const moveXInput = document.querySelector('#moveX');
-		const moveX = parseFloat(moveXInput.value) || 0;
-		/**@type {HTMLInputElement} */
-		const moveYInput = document.querySelector('#moveY');
-		const moveY = parseFloat(moveYInput.value) || 0;
+		const moveX = moveXRow.value || 0;
+		const moveY = moveYRow.value || 0;
 
 		glyphIterator({
 			title: 'Moving glyph',
@@ -88,7 +98,7 @@ export function makeCard_ScaleHorizontal() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Given a multiplier, scale all the glyph shapes in the horizontal direction. Entering <code>1</code> will result in no change, between zero and one will reduce the width, and above one will increase the width. Optionally scale the advance width of the glyph as well.`,
+		content: `Drag a multiplier to scale all the glyph shapes in the horizontal direction. <code>1.00</code> is no change, below one narrows, above one widens. Optionally scale the advance width of the glyph as well.`,
 	});
 	card.appendChild(description);
 
@@ -100,16 +110,18 @@ export function makeCard_ScaleHorizontal() {
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="scaleHorizontal">Scale&nbsp;value:</label>
-			<input-number id="scaleHorizontal" type="number" value="1"></input-number>
-			<pre title="Expected value type" class="value-type">Scale factor</pre>
-		`,
+	const scaleRow = makeSliderRow({
+		id: 'scaleHorizontal',
+		label: 'Scale factor',
+		value: 1,
+		min: 0.25,
+		max: 4,
+		step: 0.01,
+		unit: '×',
 	});
-	card.appendChild(table);
-	table = makeElement({
+	card.appendChild(makeSliderTable([scaleRow]));
+
+	let table = makeElement({
 		className: 'settings-table',
 		innerHTML: `
 			<span><input id="scaleHorizontalUpdateAdvanceWidth" type="checkbox" checked></span>
@@ -124,9 +136,7 @@ export function makeCard_ScaleHorizontal() {
 		content: 'Scale all glyphs',
 	});
 	button.addEventListener('click', () => {
-		/** @type {HTMLInputElement} */
-		const scaleHorizontalInput = document.querySelector('#scaleHorizontal');
-		const scaleHorizontal = parseFloat(scaleHorizontalInput.value) || 1;
+		const scaleHorizontal = scaleRow.value || 1;
 
 		/** @type {HTMLInputElement} */
 		const updateAdvanceWidthBox = document.querySelector('#scaleHorizontalUpdateAdvanceWidth');
@@ -169,7 +179,7 @@ export function makeCard_ScaleVertical() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Given a multiplier, scale all the glyph shapes in the vertical direction. Entering <code>1</code> will result in no change, between zero and one will scale down the height, and above one will increase the height.`,
+		content: `Drag a multiplier to scale all the glyph shapes in the vertical direction. <code>1.00</code> is no change, below one shortens, above one makes them taller.`,
 	});
 	card.appendChild(description);
 
@@ -181,15 +191,16 @@ export function makeCard_ScaleVertical() {
 	});
 	card.appendChild(effect);
 
-	const table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="scaleVertical">Scale&nbsp;value:</label>
-			<input-number id="scaleVertical" type="number" value="1"></input-number>
-			<pre title="Expected value type" class="value-type">Scale factor</pre>
-		`,
+	const scaleRow = makeSliderRow({
+		id: 'scaleVertical',
+		label: 'Scale factor',
+		value: 1,
+		min: 0.25,
+		max: 4,
+		step: 0.01,
+		unit: '×',
 	});
-	card.appendChild(table);
+	card.appendChild(makeSliderTable([scaleRow]));
 
 	const button = makeElement({
 		tag: 'fancy-button',
@@ -197,9 +208,7 @@ export function makeCard_ScaleVertical() {
 		content: 'Scale all glyphs',
 	});
 	button.addEventListener('click', () => {
-		/** @type {HTMLInputElement} */
-		const scaleVerticalInput = document.querySelector('#scaleVertical');
-		const scaleVertical = parseFloat(scaleVerticalInput.value) || 1;
+		const scaleVertical = scaleRow.value || 1;
 
 		glyphIterator({
 			title: 'Vertically scaling glyph',
@@ -234,7 +243,7 @@ export function makeCard_Resize() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Given a positive or negative Width and/or Height value, all the glyphs in this font will have their size updated by the specified number of Em units.`,
+		content: `Drag a positive or negative Width and/or Height change, then press the button: all the glyphs in this font will have their size updated by that many Em units.`,
 	});
 	card.appendChild(description);
 
@@ -246,20 +255,23 @@ export function makeCard_Resize() {
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="resizeWidth">&#916;&nbsp;Width:</label>
-			<input-number id="resizeWidth" type="number" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-
-			<label for="resizeHeight">&#916;&nbsp;Height:</label>
-			<input-number id="resizeHeight" type="number" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-		`,
+	const widthRow = makeSliderRow({
+		id: 'resizeWidth',
+		label: 'Δ Width',
+		min: -500,
+		max: 500,
+		unit: 'em',
 	});
-	card.appendChild(table);
-	table = makeElement({
+	const heightRow = makeSliderRow({
+		id: 'resizeHeight',
+		label: 'Δ Height',
+		min: -500,
+		max: 500,
+		unit: 'em',
+	});
+	card.appendChild(makeSliderTable([widthRow, heightRow]));
+
+	let table = makeElement({
 		className: 'settings-table',
 		innerHTML: `
 			<span><input id="resizeUpdateAdvanceWidth" type="checkbox" checked></span>
@@ -267,7 +279,7 @@ export function makeCard_Resize() {
 			<span>&nbsp;</span>
 
 			<span><input id="resizeMaintainAspectRatio" type="checkbox"></span>
-			<label for="resizeMaintainAspectRatio">Maintain aspect ratio (<i>leave either &#916;&nbsp;Width or &#916;&nbsp;Height as zero</i>)</label>
+			<label for="resizeMaintainAspectRatio">Maintain aspect ratio (<i>leave either &#916;&nbsp;Width or &#916;&nbsp;Height at zero</i>)</label>
 			<span>&nbsp;</span>
 		`,
 	});
@@ -280,13 +292,8 @@ export function makeCard_Resize() {
 	});
 	button.addEventListener('click', () => {
 		// log('updateAllGlyphSizesByEm', 'start');
-		/** @type {HTMLInputElement} */
-		const resizeWInput = document.querySelector('#resizeWidth');
-		let resizeW = parseFloat(resizeWInput.value) || 0;
-
-		/** @type {HTMLInputElement} */
-		const resizeHInput = document.querySelector('#resizeHeight');
-		const resizeH = parseFloat(resizeHInput.value) || 0;
+		let resizeW = widthRow.value || 0;
+		const resizeH = heightRow.value || 0;
 
 		/** @type {HTMLInputElement} */
 		const ratioBox = document.querySelector('#resizeMaintainAspectRatio');
@@ -334,7 +341,7 @@ export function makeCard_Skew() {
 
 	let description = makeElement({
 		className: 'global-actions__description',
-		content: `Skew all paths by a given angle, measured in degrees. The degrees system starts with the
+		content: `Skew all paths by an angle, measured in degrees. The degrees system starts with the
 		twelve o'clock / up position as zero, and positive degrees will slant paths to the right, and
 		negative degrees will slant paths to the left.<br><br>This could be a good first step if you
 		are trying to make an italic version of an existing font.`,
@@ -349,16 +356,16 @@ export function makeCard_Skew() {
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="skewAngle">Scale&nbsp;value:</label>
-			<input-number id="skewAngle" type="number" value="1"></input-number>
-			<pre title="Expected value type" class="value-type">Angle in degrees</pre>
-		`,
+	const skewRow = makeSliderRow({
+		id: 'skewAngle',
+		label: 'Skew angle',
+		min: -45,
+		max: 45,
+		unit: '°',
 	});
-	card.appendChild(table);
-	table = makeElement({
+	card.appendChild(makeSliderTable([skewRow]));
+
+	let table = makeElement({
 		className: 'settings-table',
 		innerHTML: `
 			<span><input id="skewAngleUpdateAdvanceWidth" type="checkbox" checked></span>
@@ -373,9 +380,7 @@ export function makeCard_Skew() {
 		content: 'Skew all glyphs',
 	});
 	button.addEventListener('click', () => {
-		/** @type {HTMLInputElement} */
-		const skewAngleInput = document.querySelector('#skewAngle');
-		const skewAngle = parseFloat(skewAngleInput.value) || 0;
+		const skewAngle = skewRow.value || 0;
 
 		/** @type {HTMLInputElement} */
 		const updateAdvanceWidthBox = document.querySelector('#skewAngleUpdateAdvanceWidth');
@@ -416,28 +421,33 @@ export function makeCard_SideBearings() {
 
 	let effect = makeElement({
 		className: 'global-actions__effect-description',
-		content: `Each ligature and glyph will have their shapes moved and/or their advance width updated to create the specified side bearing widths.`,
+		content: `Each ligature and glyph will have their shapes moved and/or their advance width updated to create the specified side bearing widths. Tick a side to include it.`,
 	});
 	card.appendChild(effect);
 
-	let table = makeElement({
-		className: 'settings-table',
-		innerHTML: `
-			<label for="sideBearingLeft">
-				<input type="checkbox" style="position: relative; top: 5px;" id="sideBearingLeftCheckbox">
-				&nbsp;Left&nbsp;Side&nbsp;Bearing:
-			</label>
-			<input-number id="sideBearingLeft" type="number" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-			<label for="sideBearingRight">
-				<input type="checkbox" style="position: relative; top: 5px;" id="sideBearingRightCheckbox">
-				&nbsp;Right&nbsp;Side&nbsp;Bearing:
-			</label>
-			<input-number id="sideBearingRight" type="number" value="0"></input-number>
-			<pre title="Expected value type" class="value-type">Em</pre>
-		`,
+	const leftRow = makeSliderRow({
+		id: 'sideBearingLeft',
+		labelHTML: `<input type="checkbox" id="sideBearingLeftCheckbox">Left side bearing`,
+		min: -200,
+		max: 500,
+		unit: 'em',
 	});
-	card.appendChild(table);
+	const rightRow = makeSliderRow({
+		id: 'sideBearingRight',
+		labelHTML: `<input type="checkbox" id="sideBearingRightCheckbox">Right side bearing`,
+		min: -200,
+		max: 500,
+		unit: 'em',
+	});
+	card.appendChild(makeSliderTable([leftRow, rightRow]));
+
+	/** @type {HTMLInputElement} */
+	const leftCheckboxBox = leftRow.element.querySelector('#sideBearingLeftCheckbox');
+	/** @type {HTMLInputElement} */
+	const rightCheckboxBox = rightRow.element.querySelector('#sideBearingRightCheckbox');
+	// Touching a side's slider is a clear signal to include that side
+	leftRow.bar.addEventListener('input', () => (leftCheckboxBox.checked = true));
+	rightRow.bar.addEventListener('input', () => (rightCheckboxBox.checked = true));
 
 	let button = makeElement({
 		tag: 'fancy-button',
@@ -446,22 +456,9 @@ export function makeCard_SideBearings() {
 	});
 	button.addEventListener('click', () => {
 		// log('updateSideBearings', 'start');
-		/** @type {HTMLInputElement} */
-		const leftInput = document.querySelector('#sideBearingLeft');
-		const left = parseFloat(leftInput.value);
-		// log(`left input: ${left}`);
-
-		/** @type {HTMLInputElement} */
-		const leftCheckboxBox = document.querySelector('#sideBearingLeftCheckbox');
+		const left = leftRow.value;
+		const right = rightRow.value;
 		let leftCheckbox = leftCheckboxBox.checked;
-
-		/** @type {HTMLInputElement} */
-		const rightInput = document.querySelector('#sideBearingRight');
-		const right = parseFloat(rightInput.value);
-		// log(`right input: ${right}`);
-
-		/** @type {HTMLInputElement} */
-		const rightCheckboxBox = document.querySelector('#sideBearingRightCheckbox');
 		let rightCheckbox = rightCheckboxBox.checked;
 
 		if (leftCheckbox || rightCheckbox) {
@@ -485,7 +482,7 @@ export function makeCard_SideBearings() {
 				});
 			}
 		} else {
-			showToast('Select a checkbox to enable Left and/or Right Side Bearings.');
+			showToast('Tick a checkbox to enable Left and/or Right Side Bearings.');
 		}
 
 		// log('updateSideBearings', 'end');

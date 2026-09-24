@@ -1,10 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
-import {
-	charToHex,
-	hexesToChars,
-	normalizePrefixes,
-	validateDecOrHexSuffix,
-} from '../common/character_ids.js';
+import { charToHex } from '../common/character_ids.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
 import {
 	closeAllInfoBubbles,
@@ -261,11 +258,86 @@ const ligaturesWithCodePoints = [
  * Adds the list of common ligatures to the current project
  */
 function addCommonLigaturesToProject() {
-	ligaturesWithCodePoints.forEach((lig) => addLigature(lig.chars));
+	createLigatures(
+		ligaturesWithCodePoints.map((lig) => lig.chars),
+		'Added the common Latin ligatures'
+	);
 	const editor = getCurrentProjectEditor();
 	editor.nav.page = 'Ligatures';
 	editor.navigate();
-	editor.history.addWholeProjectChangePostState();
+}
+
+/**
+ * ANY-INK: Checks a ligature sequence before anything is created.
+ * Plain characters only (audit B6): no U+ or 0x notation.
+ * @param {String} sequence - characters that make up this Ligature
+ * @returns {String | false} - error message, or false when the sequence is fine
+ */
+export function validateLigatureSequence(sequence = '') {
+	// Use spread operator to count actual characters, not code units (for surrogate pairs)
+	if ([...sequence].length < 2) {
+		return 'Ligature sequences need to be two or more characters.';
+	}
+	const newID = makeLigatureID(sequence);
+	if (newID === false) {
+		return 'Characters could not be read for the ligature sequence.';
+	}
+	if (getCurrentProject().ligatures[newID]) {
+		return 'Ligature already exists.';
+	}
+	return false;
+}
+
+/**
+ * ANY-INK: Creates one or more ligatures as a single undoable step
+ * (whole-project pre state before, post state after) and selects the last one.
+ * Sequences that fail validation never touch the history.
+ * @param {Array<String>} sequences - character sequences, one per ligature
+ * @param {String} title - History panel title (optional)
+ * @returns {Object} { created: Array<Glyph>, errors: Array<String> }
+ */
+export function createLigatures(sequences = [], title = '') {
+	const editor = getCurrentProjectEditor();
+	const errors = [];
+	const created = [];
+
+	// Validate first, so a failed dialog leaves the undo queue untouched
+	const seen = new Set();
+	const valid = sequences.filter((sequence) => {
+		if (seen.has(sequence)) {
+			errors.push(`Ligature ${sequence} was listed more than once.`);
+			return false;
+		}
+		seen.add(sequence);
+		const problem = validateLigatureSequence(sequence);
+		if (problem) errors.push(`${sequence}: ${problem}`);
+		return !problem;
+	});
+
+	if (valid.length) {
+		const historyTitle =
+			title ||
+			(valid.length === 1 ? `Created ligature ${valid[0]}` : `Created ${valid.length} ligatures`);
+		editor.history.addWholeProjectChangePreState(historyTitle);
+		valid.forEach((sequence) => {
+			const result = addLigature(sequence);
+			if (typeof result === 'string') {
+				errors.push(`${sequence}: ${result}`);
+			} else {
+				result.hasChangedThisSession = false;
+				result.wasCreatedThisSession = true;
+				created.push(result);
+			}
+		});
+		if (created.length) {
+			editor.selectedLigatureID = created.at(-1).id;
+			editor.history.addWholeProjectChangePostState();
+		} else {
+			editor.history.discardLatestState();
+		}
+	}
+
+	return { created, errors };
 }
 
 /**
@@ -276,62 +348,17 @@ function addCommonLigaturesToProject() {
  */
 function addLigature(sequence) {
 	// log(`addLigature`, 'start');
-
-	// Use spread operator to count actual characters, not code units (for surrogate pairs)
-	if ([...sequence].length < 2) {
+	const problem = validateLigatureSequence(sequence);
+	if (problem) {
 		// log(`addLigature`, 'end');
-		return 'Ligature sequences need to be two or more characters.';
+		return problem;
 	}
-
-	// Test to see if Unicode or Hex notation is being used
-	let prefix = '';
-	const workingSequence = normalizePrefixes(sequence);
-	let workingArr = [];
-	if (workingSequence.startsWith('U+')) {
-		workingArr = workingSequence.split('U+');
-		workingArr = workingArr.slice(1);
-		prefix = 'U+';
-	} else if (workingSequence.startsWith('0x')) {
-		workingArr = workingSequence.split('0x');
-		workingArr = workingArr.slice(1);
-		prefix = '0x';
-	}
-
-	// log(`prefix: ${prefix}`);
-	// log(`workingArr: ${workingArr}`);
-
-	if (prefix && workingArr.length > 1) {
-		sequence = '';
-		for (let i = 0; i < workingArr.length; i++) {
-			let id = workingArr[i];
-			// log(`id: ${id}`);
-			let validatedSuffix = validateDecOrHexSuffix(id);
-			// log(`validatedSuffix: ${validatedSuffix}`);
-
-			if (validatedSuffix) sequence += hexesToChars(`0x${validatedSuffix}`);
-			else {
-				// log(`addLigature`, 'end');
-				return `Invalid Hex or Unicode format: ${prefix}${id}.`;
-			}
-		}
-	}
-
-	// log(`sequence: ${sequence}`);
 
 	// Finish up creating new ID and Ligature
 	const newID = makeLigatureID(sequence);
 	// log(`newID: ${newID}`);
 
 	const project = getCurrentProject();
-	if (project.ligatures[newID]) {
-		// log(`addLigature`, 'end');
-		return 'Ligature already exists.';
-	}
-
-	if (newID === false) {
-		return 'Characters could not be read for the ligature sequence.';
-	}
-
 	project.addItemByType(
 		new Glyph({
 			id: newID,
@@ -384,7 +411,7 @@ export function showAddLigatureDialog() {
 	const content = makeElement({
 		innerHTML: `
 			<h2 id="ligatures__new-ligature-title">Create a new ligature</h2>
-			Create a new ligature by specifying two or more individual characters.
+			Type the two or more characters this ligature replaces, for example <code>ff</code> or <code>fi</code>.
 			<br>
 			<div class="panel__card no-card">
 				<input type="checkbox" id="ligatures__multi-input-checkbox" style="margin: 0 0 15px 0;"/>
@@ -393,20 +420,6 @@ export function showAddLigatureDialog() {
 			<input id="ligatures__new-ligature-input" type="text" style="width: 90%;"
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
 			/>
-			<info-bubble style="display: inline-block; margin-left: 10px;">
-				Ligature characters can be specified in three different formats:
-				<ul>
-					<li>By just typing characters: <code>ff</code></li>
-					<li>Specifying Unicode code points: <code>U+66U+66</code></li>
-					<li>Specifying Hexadecimal format: <code>0x660x66</code></li>
-				</ul>
-				<br><br>
-				Hexadecimal, Unicode, and regular character formats cannot be mixed - choose one type!
-				<br><br>
-				<b>Warning!</b><br>
-				Specifying ligature characters beyond the Basic Multilingual Plane
-				(above Unicode <code>U+FFFF</code>) will cause errors!
-			</info-bubble>
 			<br><br>
 			<fancy-button disabled id="ligatures__add-new-ligature-button">Create ligature</fancy-button>
 		`,
@@ -442,42 +455,26 @@ export function showAddLigatureDialog() {
 
 	submitButton.addEventListener('click', () => {
 		// log(`showAddLigatureDialog button click handler`, 'start');
-		let result;
-		let latestID;
-
+		let sequences;
 		if (multiLigatureCheckbox.checked) {
 			const sanitizedString = newLigatureInput.value.replaceAll(' ', '');
-			const inputList = sanitizedString.split(',');
-			inputList.forEach((input) => {
-				let oneResult = addLigature(input);
-				if (typeof oneResult === 'string') {
-					if (typeof result !== 'string')
-						result = 'One or more ligature could not be created:<br><br>';
-					result = '' + result + oneResult + '<br><br>';
-				} else {
-					oneResult.hasChangedThisSession = false;
-					oneResult.wasCreatedThisSession = true;
-					latestID = oneResult.id;
-				}
-			});
+			sequences = sanitizedString.split(',').filter((input) => input.length);
 		} else {
-			result = addLigature(newLigatureInput.value);
-			if (typeof result !== 'string') {
-				result.hasChangedThisSession = false;
-				result.wasCreatedThisSession = true;
-				latestID = result.id;
-			}
+			sequences = [newLigatureInput.value];
 		}
-		// log(`result: ${result}`);
 
-		if (typeof result === 'string') {
-			showError(result);
-		} else {
-			const editor = getCurrentProjectEditor();
-			editor.selectedLigatureID = latestID;
-			editor.navigate();
-			editor.history.addWholeProjectChangePostState();
+		const { created, errors } = createLigatures(sequences);
+		// log(`created: ${created.length}, errors: ${errors.length}`);
+
+		if (created.length) {
+			getCurrentProjectEditor().navigate();
 			closeEveryTypeOfDialog();
+		}
+		if (errors.length) {
+			const intro = created.length
+				? 'Some ligatures could not be created:<br><br>'
+				: 'The ligature could not be created:<br><br>';
+			showError(intro + errors.join('<br><br>'));
 		}
 		// log(`showAddLigatureDialog button click handler`, 'end');
 	});

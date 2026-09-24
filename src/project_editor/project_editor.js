@@ -255,8 +255,15 @@ export class ProjectEditor {
 		const selectedID = this.selectedGlyphID;
 		// log(`selectedGlyphID ${selectedID}`);
 		if (!this.project.glyphs[selectedID]) {
+			// ANY-INK: record the creation as a pre / post pair so undo removes
+			// the new glyph. Skipped while an undo / redo is applying state.
+			const recordHistory = !this.history.isRestoring;
+			if (recordHistory) {
+				const name = this.project.getItemName(selectedID, true);
+				this.history.addWholeProjectChangePreState(`Created ${name}`);
+			}
 			this.project.addItemByType(new Glyph(), 'Glyph', selectedID);
-			this.history.addWholeProjectChangePostState();
+			if (recordHistory) this.history.addWholeProjectChangePostState();
 		}
 		let re = this.project.glyphs[selectedID];
 		// log(re);
@@ -1106,7 +1113,9 @@ export class ProjectEditor {
 
 	setProjectAsSaved() {
 		this.project.resetSessionStateForAllItems();
-		document.title = document.title.slice(0, document.title.indexOf(' •'));
+		// Only trim the unsaved marker when it is there (indexOf -1 would chop a character)
+		const marker = document.title.indexOf(' •');
+		if (marker > -1) document.title = document.title.slice(0, marker);
 	}
 	setProjectAsUnsaved() {
 		if (document.title.indexOf(' •') < 0) document.title += ' •';

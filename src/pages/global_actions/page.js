@@ -194,9 +194,7 @@ export function glyphIterator(oa) {
 				console.warn(`\n⮟Global Action failures⮟`);
 				console.warn(failures);
 			}
-			getCurrentProjectEditor().history.addWholeProjectChangePreState(
-				`Global action: ${title.replace('ing', 'ed')} (${listOfItemIDs.length} items)`
-			);
+			getCurrentProjectEditor().history.addWholeProjectChangePostState();
 			if (callback) callback();
 		}
 		// log(`glyphIterator>processOneItem`, 'end');
@@ -237,7 +235,10 @@ export function glyphIterator(oa) {
 
 		// log('item list');
 		// log(listOfItemIDs);
-		getCurrentProjectEditor().history.addWholeProjectChangePostState();
+		// ANY-INK: Pre-then-Post, so the titled entry carries the BEFORE state
+		getCurrentProjectEditor().history.addWholeProjectChangePreState(
+			`Global action: ${title.replace('ing', 'ed')} (${listOfItemIDs.length} items)`
+		);
 		// Kick off the process
 		setTimeout(processOneItem, 10);
 		// log(`makeItemList`, 'end');

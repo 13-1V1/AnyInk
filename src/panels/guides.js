@@ -1,5 +1,12 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { commitSettingsHistory } from '../anyink/metrics/font_metrics.js';
+import { DRAGGABLE_METRIC_KEYS } from '../anyink/metrics/metrics_math.js';
+import {
+	bindAdvanceWidthReadout,
+	bindCustomGuideReadout,
+	bindSystemMetricReadout,
+} from '../anyink/metrics/readouts.js';
 import { token } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -117,7 +124,7 @@ export function makeSystemGuidesCard() {
 	});
 
 	const metrics = getCurrentProject().settings.font;
-	const advanceWidth = getCurrentProjectEditor().selectedItem.advanceWidth;
+	const advanceWidth = getCurrentProjectEditor().selectedItem?.advanceWidth ?? 0;
 	addAsChildren(systemCard, [
 		makeSystemGuideRow('ascent', 'Ascent', metrics.ascent),
 		makeSystemGuideRow('capHeight', 'Cap height', metrics.capHeight),
@@ -145,7 +152,10 @@ function makeSystemGuideRow(property, title, value = '0000') {
 			}
 		} else {
 			if (shownGuides.includes(property)) {
-				shownGuides = shownGuides.filter((g) => g !== property);
+				// ANY-INK: write the filtered list back, so unchecking persists in the project
+				editor.project.settings.app.guides.systemGuides = shownGuides.filter(
+					(g) => g !== property
+				);
 			}
 		}
 		editor.editCanvas.redraw('guides system view toggle');
@@ -172,6 +182,9 @@ function makeSystemGuideRow(property, title, value = '0000') {
 
 	// Value
 	const valueDisplay = makeElement({ className: 'guide-system-value', content: value });
+	// ANY-INK (audit A1): live readouts that follow canvas drags (Shift snaps to 10, arrows nudge)
+	if (DRAGGABLE_METRIC_KEYS.includes(property)) bindSystemMetricReadout(valueDisplay, property);
+	if (property === 'rightSide') bindAdvanceWidthReadout(valueDisplay);
 	valueDisplay.setAttribute(
 		'title',
 		`Guide line position\nThese are based on this font's key metrics,\nwhich you can edit on the Font Settings page.`
@@ -266,7 +279,17 @@ function makeCustomGuideRow(guide, number) {
 
 	// Value
 	const valueInput = makeSingleInput(guide, 'location', 'editCanvasView', 'input-number');
-	valueInput.setAttribute('title', 'Guide line position');
+	valueInput.setAttribute('title', 'Guide line position (drag the guide on the canvas to move it)');
+	// ANY-INK (audit C5): a typed value publishes 'guides' and is undoable, and the field
+	// follows canvas drags of this guide.
+	valueInput.addEventListener('change', () => {
+		const editor = getCurrentProjectEditor();
+		const guides = editor.project.settings.app.guides;
+		guide.location = Math.round(Number(guide.location)) || 0;
+		editor.publish('guides', { index: number, guide, guides });
+		commitSettingsHistory(`Moved ${guide.name} to ${guide.location}`);
+	});
+	bindCustomGuideReadout(valueInput, number);
 
 	return [viewCheckbox, nameInput, deleteButton, angleButton, valueInput];
 }

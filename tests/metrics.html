@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK draggable metrics</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-4) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); margin: 0 0 var(--space-3); max-width: 900px; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button, select, input[type=text] { font: inherit; border-radius: var(--radius); padding: var(--space-1) var(--space-3); }
+		button { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: transparent; font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible, select:focus-visible, input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		select, input[type=text] { background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); width: 5em; }
+		.editor-page__edit-canvas-wrapper { width: 900px; height: 560px; background: var(--canvas-bg); box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge); border-radius: var(--radius); overflow: hidden; }
+		.readouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-2); max-width: 900px; }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); font-size: var(--text-sm); }
+		.card .k { color: var(--chrome-text-faint); font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; }
+		.card .v { font-family: var(--font-mono); font-size: var(--text-lg); }
+		.card.touch .v { color: var(--touch); }
+		#history { max-width: 900px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); white-space: pre-wrap; }
+		.row { display: flex; gap: var(--space-3); align-items: center; }
+	</style>
+</head>
+<body>
+	<h1>Draggable metrics and the guides layer</h1>
+	<p>
+		Hover a purple line: it turns green and shows its value. Drag it. Shift snaps to 10; with a line
+		hovered, the arrow keys nudge it by 1 (Shift 10). The left and right lines are the side bearings.
+		Dragging the baseline shows a ghost where the glyph will land, then moves every outline on release.
+	</p>
+
+	<div class="controls">
+		<label>Glyph <input id="char" type="text" value="A" maxlength="1" /></label>
+		<label>Tool
+			<select id="tool">
+				<option value="resize">arrow (resize)</option>
+				<option value="pathEdit">pen (path edit)</option>
+				<option value="pathAddPoint">add point</option>
+			</select>
+		</label>
+		<button id="addH">Add horizontal guide</button>
+		<button id="addV">Add vertical guide</button>
+		<button id="labels">Toggle guide labels</button>
+		<button id="theme">Paper / slate</button>
+		<button id="undo" class="primary">Undo</button>
+		<button id="redo">Redo</button>
+		<button id="kern">Kern page</button>
+	</div>
+
+	<div class="editor-page__edit-canvas-wrapper" id="wrapper"></div>
+
+	<h2>Live metrics (settings.font, published on 'fontMetrics')</h2>
+	<div class="readouts" id="metrics"></div>
+
+	<h2>Settings-row readout (same wiring as Settings &gt; Font)</h2>
+	<div class="row">
+		<span>X height</span> <span id="xh-slot"></span>
+		<span style="color: var(--chrome-text-faint)">type a number, or drag the x-height line and watch it follow</span>
+	</div>
+
+	<h2>Layer state</h2>
+	<div class="readouts" id="state"></div>
+
+	<h2>History (newest first)</h2>
+	<div id="history"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { initTheme, toggleCanvasTheme } from '../src/anyink/theme/theme.js';
+		initTheme();
+		import { getCurrentProjectEditor } from '../src/app/main.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import { Guide } from '../src/project_editor/guide.js';
+		import simpleExampleProject from '../src/samples/simpleExampleProject.json';
+		import { EditCanvas } from '../src/edit_canvas/edit_canvas.js';
+		import { InputNumber } from '../src/controls/input-number/input_number.js';
+		import { guidesLayerState } from '../src/anyink/metrics/guides_layer.js';
+		import { makeMetricSettingsInput } from '../src/anyink/metrics/readouts.js';
+
+		if (!customElements.get('input-number')) customElements.define('input-number', InputNumber);
+		if (!customElements.get('edit-canvas')) customElements.define('edit-canvas', EditCanvas);
+
+		const editor = getCurrentProjectEditor();
+		editor.project = importGlyphrProjectFromText(simpleExampleProject);
+		editor.nav.page = 'Characters';
+		editor.selectedGlyphID = 'glyph-0x41';
+		editor.selectedKernGroupID = 'kern-0';
+		// Show every system guide: the editor flags drive drawing and hit testing, the project
+		// list is what a settings undo restores them from (and what gets saved).
+		const allGuides = ['ascent', 'capHeight', 'xHeight', 'baseline', 'descent', 'leftSide', 'rightSide'];
+		allGuides.forEach((key) => (editor.systemGuides[key] = true));
+		editor.project.settings.app.guides.systemGuides = allGuides.slice();
+
+		const wrapper = document.getElementById('wrapper');
+		let canvas;
+		function mountCanvas(itemID) {
+			wrapper.innerHTML = '';
+			canvas = document.createElement('edit-canvas');
+			canvas.setAttribute('width', '900');
+			canvas.setAttribute('height', '560');
+			canvas.setAttribute('editing-item-id', itemID);
+			wrapper.appendChild(canvas);
+		}
+		mountCanvas('glyph-0x41');
+
+		// Readouts
+		const metricsEl = document.getElementById('metrics');
+		const stateEl = document.getElementById('state');
+		const historyEl = document.getElementById('history');
+		const card = (k, v, touch = false) => `<div class="card${touch ? ' touch' : ''}"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+		function render() {
+			const font = editor.project.settings.font;
+			const item = editor.selectedItem;
+			const guides = editor.project.settings.app.guides.custom || [];
+			const drag = guidesLayerState.dragging;
+			const hot = (key) => drag === key || guidesLayerState.hover === key;
+			metricsEl.innerHTML =
+				card('ascent', font.ascent, hot('ascent')) +
+				card('cap height', font.capHeight, hot('capHeight')) +
+				card('x-height', font.xHeight, hot('xHeight')) +
+				card('baseline', drag === 'baseline' ? `Δ ${guidesLayerState.baselineDelta}` : 0, hot('baseline')) +
+				card('descent', font.descent, hot('descent')) +
+				card('upm', font.upm) +
+				(item && item.objType !== 'KernGroup'
+					? card('left side bearing', Math.round(item.leftSideBearing * 100) / 100, hot('lsb')) +
+						card('right side bearing', Math.round(item.rightSideBearing * 100) / 100, hot('rsb')) +
+						card('advance width', item.advanceWidth)
+					: card('kern value', item ? item.value : '')) +
+				guides.map((g, i) => card(`${g.name} (${g.angle === 90 ? 'horizontal' : 'vertical'})`, g.location, hot(`guide:${i}`))).join('');
+			stateEl.innerHTML =
+				card('hover', guidesLayerState.hover || '—') +
+				card('dragging', guidesLayerState.dragging || '—') +
+				card('page', editor.nav.page) +
+				card('tool', editor.selectedTool) +
+				card('view', `${Math.round(editor.view.dx)}, ${Math.round(editor.view.dy)} @ ${editor.view.dz.toFixed(3)}`);
+			historyEl.textContent = (editor.history.queue || []).slice(0, 8).map((e) => e.title).join('\n') || '(empty)';
+		}
+		editor.subscribe({
+			topic: ['fontMetrics', 'guides', 'currentItem', 'editCanvasView', 'whichGlyphIsSelected', 'whichKernGroupIsSelected'],
+			subscriberID: 'anyink.testpage.metrics',
+			callback: render,
+		});
+		render();
+
+		// Settings-row style readout
+		document.getElementById('xh-slot').appendChild(makeMetricSettingsInput('xHeight'));
+
+		// Controls
+		document.getElementById('char').addEventListener('change', (e) => {
+			const ch = e.target.value || 'A';
+			const id = `glyph-0x${ch.codePointAt(0).toString(16).toUpperCase()}`;
+			editor.nav.page = 'Characters';
+			editor.selectedGlyphID = id;
+			mountCanvas(id);
+			render();
+		});
+		document.getElementById('tool').addEventListener('change', (e) => {
+			editor.selectedTool = e.target.value;
+			editor.publish('whichToolIsSelected', editor.selectedTool);
+			render();
+		});
+		document.getElementById('addH').onclick = () => {
+			editor.project.settings.app.guides.custom.push(new Guide({ visible: true, angle: 90, location: 300 }));
+			editor.publish('guides', {});
+		};
+		document.getElementById('addV').onclick = () => {
+			editor.project.settings.app.guides.custom.push(new Guide({ visible: true, angle: 0, location: 250 }));
+			editor.publish('guides', {});
+		};
+		document.getElementById('labels').onclick = () => {
+			const g = editor.project.settings.app.guides;
+			g.systemShowLabels = !g.systemShowLabels;
+			g.customShowLabels = g.systemShowLabels;
+			editor.publish('editCanvasView', editor.view);
+		};
+		document.getElementById('theme').onclick = () => toggleCanvasTheme();
+		document.getElementById('undo').onclick = () => { editor.history.restoreState(); render(); };
+		document.getElementById('redo').onclick = () => { editor.history.redoState(); render(); };
+		document.getElementById('kern').onclick = () => {
+			const onKern = editor.nav.page === 'Kerning';
+			editor.nav.page = onKern ? 'Characters' : 'Kerning';
+			editor.selectedTool = onKern ? 'resize' : 'kern';
+			mountCanvas(onKern ? editor.selectedGlyphID : editor.selectedKernGroupID);
+			render();
+		};
+		window._editor = editor;
+	</script>
+</body>
+</html>

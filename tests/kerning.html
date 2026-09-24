@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK kerning pair view</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/pages/editor-pages.css" />
+	<link rel="stylesheet" href="../src/pages/content-pages.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p.hint { color: var(--chrome-text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-3); max-width: 900px; }
+		.layout { display: grid; grid-template-columns: 470px minmax(0, 1fr); column-gap: var(--space-4); align-items: start; }
+		/* the edit canvas is 2000 x 2000 px like the app's; the wrapper is the visible window */
+		.editor-page__edit-canvas-wrapper { width: 100%; min-width: 0; height: 520px; overflow: hidden; position: relative; box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge); }
+		edit-canvas { display: block; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: transparent; font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		#groups { display: grid; row-gap: var(--space-2); margin-bottom: var(--space-3); }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 120px; overflow-y: auto; white-space: pre-wrap; }
+		#lookup { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--structure); }
+		.live-preview-page__canvas-wrapper { padding: var(--space-2); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--chrome-border); }
+	</style>
+</head>
+<body>
+	<h1>Kerning pair view</h1>
+	<p class="hint">
+		Sample project (A, B, C) with three kern groups. Drag the <b>right</b> letter or the handle on
+		its line: Shift snaps to 10, arrows nudge (Shift 10). Alt-drag on a class group makes a
+		one-by-one exception for the shown pair. Click a chip in the card to change the glyph shown.
+		Ctrl+Z undoes. Dialogs below pick members from glyph tiles.
+	</p>
+
+	<div class="controls">
+		<button id="theme">Toggle canvas (paper / slate)</button>
+		<button id="add" class="primary">Create a kern group</button>
+		<button id="edit">Edit this kern group</button>
+		<button id="find">Find a letter pair</button>
+		<button id="del">Delete a letter pair</button>
+		<button id="undo">Undo</button>
+		<button id="redo">Redo</button>
+	</div>
+
+	<div class="layout">
+		<div>
+			<h2>Kern groups</h2>
+			<div id="groups"></div>
+			<h2>Attributes card</h2>
+			<div id="panel"></div>
+			<h2>Lookup: calculateKernOffset</h2>
+			<div id="lookup"></div>
+			<h2>Events</h2>
+			<div id="log"></div>
+		</div>
+		<div>
+			<div class="editor-page__edit-canvas-wrapper" id="wrapper"></div>
+			<h2>Preview line through the same lookup</h2>
+			<div class="live-preview-page__canvas-wrapper"><display-canvas id="strip" text="ACABCB ACQS" font-size="72" width="900" height="120"></display-canvas></div>
+		</div>
+	</div>
+
+	<script type="module">
+		// Upstream modules call a bare log(); the app sets it in index.html. Test pages must too.
+		window.log = () => {};
+		import { initTheme, toggleCanvasTheme } from '../src/anyink/theme/theme.js';
+		import { setCurrentProjectEditor, getCurrentProjectEditor } from '../src/app/main.js';
+		import { GlyphrStudioProject } from '../src/project_data/glyphr_studio_project.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import simpleExampleProject from '../src/samples/simpleExampleProject.json';
+		import { EditCanvas } from '../src/edit_canvas/edit_canvas.js';
+		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
+		import { GlyphTile } from '../src/controls/glyph-tile/glyph_tile.js';
+		import { InputNumber } from '../src/controls/input-number/input_number.js';
+		import { FancyButton } from '../src/controls/fancy-button/fancy_button.js';
+		import { InfoBubble } from '../src/controls/info-bubble/info_bubble.js';
+		import { OptionChooser } from '../src/controls/option-chooser/option_chooser.js';
+		import { makeCard_kernGroup } from '../src/panels/card_kern_group.js';
+		import { makeOneKernGroupRow } from '../src/panels/item_chooser.js';
+		import {
+			showAddEditKernGroupDialog,
+			showFindSingleLetterPairDialog,
+			showDeleteSingleLetterPairDialog,
+		} from '../src/pages/kerning.js';
+		import { calculateKernOffset } from '../src/display_canvas/text_block.js';
+		import { kernPairState } from '../src/anyink/kerning/pair_state.js';
+		import { eventHandlerData } from '../src/edit_canvas/events.js';
+
+		initTheme();
+
+		// A real project in a real editor, on the Kerning page with the kern tool.
+		// The editor exists before any custom element upgrades, so the elements see it.
+		const project = new GlyphrStudioProject(structuredClone(simpleExampleProject));
+		const editor = new ProjectEditor({ project });
+		setCurrentProjectEditor(editor);
+		editor.nav.page = 'Kerning';
+		editor.selectedTool = 'kern';
+		editor.selectedKernGroupID = 'kern-0';
+
+		const define = (name, cls) => { if (!customElements.get(name)) customElements.define(name, cls); };
+		define('glyph-tile', GlyphTile);
+		define('input-number', InputNumber);
+		define('fancy-button', FancyButton);
+		define('info-bubble', InfoBubble);
+		define('option-chooser', OptionChooser);
+		define('edit-canvas', EditCanvas);
+		define('display-canvas', DisplayCanvas);
+		// navigate() rebuilds the whole app page; on this page just refresh our own pieces
+		editor.navigate = () => { renderGroups(); renderPanel(); mountCanvas(); };
+
+		const logEl = document.getElementById('log');
+		const say = (msg) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${msg}\n` + logEl.textContent; };
+		window.addEventListener('error', (event) => say(`ERROR ${event.message}\n${event.error?.stack || ''}`));
+		// Payloads may be plain objects (this track) or a KernGroup with a parent (upstream nudge); print either
+		const brief = (d) => { try { return JSON.stringify(d?.objType === 'KernGroup' ? { kernGroup: d.id, value: d.value } : d); } catch { return String(d); } };
+		editor.subscribe({ topic: 'kernPairs', subscriberID: 'anyink.testpage.kernPairs', callback: (d) => { say(`kernPairs ${brief(d)}`); renderLookup(); refreshStrip(); } });
+		editor.subscribe({ topic: 'currentKernGroup', subscriberID: 'anyink.testpage.currentKernGroup', callback: () => { renderLookup(); refreshStrip(); } });
+		editor.subscribe({ topic: 'whichKernGroupIsSelected', subscriberID: 'anyink.testpage.whichKern', callback: (id) => { say(`selected ${id}`); mountCanvas(); renderGroups(); renderPanel(); } });
+
+		const wrapper = document.getElementById('wrapper');
+		function mountCanvas() {
+			if (!editor.selectedKernGroupID) { wrapper.innerHTML = '<p style="padding: 16px; color: var(--canvas-ink)">No kern groups. Create one above.</p>'; return; }
+			// Like the app's Kerning page: keep the canvas element and retarget it, so a drag
+			// that switches groups (Alt-drag exception) keeps its tool instance.
+			const existing = wrapper.querySelector('edit-canvas');
+			if (existing) { existing.setAttribute('editing-item-id', editor.selectedKernGroupID); return; }
+			wrapper.innerHTML = '';
+			// Create first, set attributes after (as upstream's makeElement does): the
+			// constructor builds the drawing context before the first attribute redraw.
+			const canvas = document.createElement('edit-canvas');
+			canvas.id = 'editor-page__edit-canvas';
+			canvas.setAttribute('editing-item-id', editor.selectedKernGroupID);
+			wrapper.appendChild(canvas);
+		}
+
+		function renderGroups() {
+			const root = document.getElementById('groups');
+			root.innerHTML = '';
+			const ids = Object.keys(project.kerning);
+			if (!ids.length) root.innerHTML = '<i style="color: var(--chrome-text-faint)">none</i>';
+			ids.forEach((id) => {
+				const row = makeOneKernGroupRow(id);
+				if (id === editor.selectedKernGroupID) row.setAttribute('selected', '');
+				row.appendChild(Object.assign(document.createElement('span'), { textContent: `  = ${project.kerning[id].value}`, style: 'margin-left: 12px; color: var(--chrome-text-muted)' }));
+				row.addEventListener('click', () => { editor.selectedKernGroupID = id; });
+				root.appendChild(row);
+			});
+		}
+
+		function renderPanel() {
+			const panel = document.getElementById('panel');
+			panel.innerHTML = '';
+			if (editor.selectedKernGroup) panel.appendChild(makeCard_kernGroup(editor.selectedKernGroup));
+		}
+
+		function renderLookup() {
+			const pairs = [['A', 'C'], ['B', 'C'], ['C', 'C'], ['Q', 'S'], ['A', 'S'], ['A', 'B']];
+			document.getElementById('lookup').innerHTML = pairs
+				.map(([l, r]) => `${l}${r}: ${calculateKernOffset(l, r)}`)
+				.join('&emsp;');
+			renderGroups();
+		}
+
+		function refreshStrip() {
+			const strip = document.getElementById('strip');
+			if (strip?.resizeAndRedraw) strip.resizeAndRedraw(); // rebuilds the TextBlock, so kern changes show
+		}
+
+		document.getElementById('theme').onclick = () => toggleCanvasTheme();
+		document.getElementById('add').onclick = () => showAddEditKernGroupDialog(false);
+		document.getElementById('edit').onclick = () => editor.selectedKernGroup && showAddEditKernGroupDialog(editor.selectedKernGroup);
+		document.getElementById('find').onclick = () => showFindSingleLetterPairDialog();
+		document.getElementById('del').onclick = () => showDeleteSingleLetterPairDialog();
+		document.getElementById('undo').onclick = () => { editor.history.restoreState(); renderLookup(); renderPanel(); mountCanvas(); };
+		document.getElementById('redo').onclick = () => { editor.history.redoState(); renderLookup(); renderPanel(); mountCanvas(); };
+
+		window.anyinkTest = { editor, project, kernPairState, eventHandlerData };
+		mountCanvas();
+		renderGroups();
+		renderPanel();
+		renderLookup();
+	</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK slider rows</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 640px; margin: 0 0 var(--space-3); }
+		.cards { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; }
+		/* Stand-ins for .panel__card (450px, two columns) and .global-actions__card (one column) */
+		.panel-card { display: grid; grid-template-columns: clamp(110px, 150px, 190px) 1fr; align-items: center; justify-items: left; row-gap: 5px; column-gap: 11px; width: 450px; padding: var(--space-4); background: var(--chrome-bg-raised); border-radius: var(--radius); }
+		.panel-card h3 { grid-column: 1 / -1; margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600; }
+		.panel-card label { grid-column: 1; line-height: 20px; color: var(--chrome-text-muted); }
+		.panel-card input { width: 100%; }
+		.action-card { display: grid; grid-template-columns: 1fr; justify-items: left; row-gap: 10px; width: 560px; padding: 10px 20px 10px 10px; background: var(--chrome-bg-raised); border-radius: var(--radius); }
+		.action-card h3 { grid-column: 1 / -1; margin: 0; font-size: var(--text-base); font-weight: 600; }
+		.action-card label { line-height: 24px; width: max-content; }
+		.log { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-3); min-height: 120px; max-height: 240px; overflow: auto; white-space: pre; }
+		.log .release { color: var(--touch); }
+		.log .reset { color: var(--structure); }
+		.readout { font-family: var(--font-mono); color: var(--chrome-text); }
+		button.secondary { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+	</style>
+</head>
+<body>
+	<h1>ANY-INK slider rows</h1>
+	<p>
+		Every row: drag for a live readout, release to commit (one history entry in the app),
+		Shift while dragging snaps to 10 units, arrow keys nudge 1 (Shift 10), Home / End, and
+		&#x21BA; (or double-clicking the readout) returns to neutral. Nothing here touches a project.
+	</p>
+
+	<div class="cards">
+		<div class="panel-card" id="transforms">
+			<h3>Transforms panel (bare rows under their labels)</h3>
+		</div>
+		<div class="action-card" id="actions">
+			<h3>Global actions (rows lined up in one table)</h3>
+		</div>
+	</div>
+
+	<h2>Relative skew: the panel skews by the difference in tan space</h2>
+	<p>
+		Skew angle is additive in tan(angle), not degrees. The transforms panel applies
+		<code>atan(tan(next) - tan(last))</code> on each release so the shape lands on the slider's
+		angle. Drag the skew slider above and watch:
+		<span class="readout" id="skewMath">last 0°, next 0°, apply 0°</span>
+	</p>
+
+	<h2>Events</h2>
+	<div class="log" id="log"></div>
+	<p style="margin-top: var(--space-2)"><button class="secondary" id="clear">Clear log</button></p>
+
+	<script type="module">
+		window.log = () => {};
+		import { makeSliderRow, makeSliderTable } from '../src/anyink/controls/slider_row.js';
+		import { skewAngleDelta, formatValue } from '../src/anyink/controls/slider_math.js';
+
+		const logBox = document.getElementById('log');
+		const say = (text, cls = '') => {
+			const line = document.createElement('div');
+			if (cls) line.className = cls;
+			line.textContent = text;
+			logBox.prepend(line);
+		};
+		document.getElementById('clear').onclick = () => (logBox.innerHTML = '');
+
+		const wire = (name, row) => {
+			row.bar.addEventListener('input', () => say(`${name}  input   ${formatValue(row.value, row.bar.step)}`));
+			row.bar.addEventListener('change', () =>
+				say(`${name}  RELEASE ${formatValue(row.value, row.bar.step)}`, row.value === row.neutral ? 'reset' : 'release')
+			);
+			return row;
+		};
+
+		// --- Transforms panel: label on its own line, bare row spanning both columns
+		const transforms = document.getElementById('transforms');
+		const addLabeled = (text, row) => {
+			const label = document.createElement('label');
+			label.textContent = text;
+			transforms.appendChild(label);
+			transforms.appendChild(row.element);
+			return row;
+		};
+		let lastSkew = 0;
+		const skewMath = document.getElementById('skewMath');
+		const skewAngle = addLabeled(
+			'Skew angle:',
+			wire('skewAngle   ', makeSliderRow({
+				id: 'skewAngle_slider', min: -45, max: 45, unit: '°',
+				onInput: (v) => (skewMath.textContent = `last ${lastSkew}°, next ${v}°, apply ${skewAngleDelta(lastSkew, v).toFixed(2)}°`),
+				onChange: (v) => { skewMath.textContent = `last ${lastSkew}°, next ${v}°, applied ${skewAngleDelta(lastSkew, v).toFixed(2)}° -> last is now ${v}°`; lastSkew = v; },
+			}))
+		);
+		addLabeled('Skew distance:', wire('skewDistance', makeSliderRow({ id: 'skewDistance_slider', min: -500, max: 500, unit: 'em' })));
+		addLabeled('Offset distance:', wire('offset      ', makeSliderRow({ id: 'offsetPath_slider', min: -200, max: 200, unit: 'em' })));
+		addLabeled('Rotation angle:', wire('rotation    ', makeSliderRow({ id: 'rotation_slider', min: -180, max: 180, unit: '°' })));
+		const disabledRow = addLabeled('Disabled (no selection):', makeSliderRow({ min: -45, max: 45, unit: '°', disabled: true }));
+		disabledRow.value = 12;
+
+		// --- Global actions: one table keeps the bars lined up
+		const actions = document.getElementById('actions');
+		const rows = [
+			wire('moveX       ', makeSliderRow({ id: 'moveX', label: 'X move', min: -1000, max: 1000, unit: 'em' })),
+			wire('moveY       ', makeSliderRow({ id: 'moveY', label: 'Y move', min: -1000, max: 1000, unit: 'em' })),
+			wire('scaleH      ', makeSliderRow({ id: 'scaleHorizontal', label: 'Scale factor', value: 1, min: 0.25, max: 4, step: 0.01, unit: '×' })),
+			wire('resizeW     ', makeSliderRow({ id: 'resizeWidth', label: 'Δ Width', min: -500, max: 500, unit: 'em' })),
+			wire('skewAll     ', makeSliderRow({ id: 'skewAngle', label: 'Skew angle', min: -45, max: 45, unit: '°' })),
+			wire('lsb         ', makeSliderRow({ id: 'sideBearingLeft', labelHTML: '<input type="checkbox" id="lsbBox">Left side bearing', min: -200, max: 500, unit: 'em' })),
+			wire('monospace   ', makeSliderRow({ id: 'monospaceWidth', label: 'Glyph width', value: 500, min: 0, max: 2048, unit: 'em' })),
+		];
+		actions.appendChild(makeSliderTable(rows));
+		say('ready: drag, Shift-drag, arrow keys, Home/End, reset');
+	</script>
+</body>
+</html>

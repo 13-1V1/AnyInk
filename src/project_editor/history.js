@@ -1,4 +1,21 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import {
+	collectionNameFromID,
+	indexOfNextItemEntry,
+	indexOfSettingsEntryBetween,
+	isNavigationBetween,
+	objTypeFromID,
+} from '../anyink/history/history_helpers.js';
+import {
+	applySettingsSnapshot,
+	findPreviousSettingsSnapshot,
+	makeSettingsSnapshot,
+	systemGuidesFromList,
+} from '../anyink/history/settings_snapshot.js';
+import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
+import { clone } from '../common/functions.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
 import { refreshPanel } from '../panels/panels.js';
 import { Glyph } from '../project_data/glyph.js';
@@ -10,6 +27,14 @@ import { KernGroup } from '../project_data/kern_group.js';
 	An object that stores a Glyphr Studio Project
 	state, to enable undo.  History changes are saved per
 	item (Glyph, Component, Ligature, Kern)
+
+	ANY-INK (D-018): three kinds of entry share the queue.
+	  - item entry: itemState is a Glyph or KernGroup (upstream)
+	  - whole-project entry: itemState is a GlyphrStudioProject (upstream)
+	  - settings entry: settingsSave is true and settingsState holds a copy
+	    of settings.font and settings.app.guides (metric / guide drags)
+	queue[0] always mirrors the live state; undo applies the nearest older
+	entry of the same kind and moves queue[0] to the redo queue.
 **/
 export class History {
 	constructor() {
@@ -21,6 +46,9 @@ export class History {
 		this.storageReady = Promise.resolve();
 		this.storageDirty = false;
 		this.storageWrite = Promise.resolve();
+		// True while restoreState / redoState run, so on-demand item creation
+		// (ProjectEditor.selectedGlyph) does not push entries mid-restore
+		this.isRestoring = false;
 	}
 
 	initialize(project) {
@@ -84,6 +112,21 @@ export class History {
 		this.updateAfterSaveState();
 		// log(this);
 		// log(`History.addState`, 'end');
+	}
+
+	/**
+	 * ANY-INK: Capture the font metrics and guide settings after a change
+	 * (metric line drag, guide drag, guide visibility) as a lightweight
+	 * 'settings' entry. Call it AFTER the change, like addState.
+	 * @param {String} title - What to call this change in the History panel
+	 */
+	addSettingsState(title = '') {
+		const editor = getCurrentProjectEditor();
+		const entry = makeSettingsHistoryEntry(title, editor, this.queue[0]);
+		this.queue.unshift(entry);
+		this.redoQueue = [];
+		this.persist();
+		this.updateAfterSaveState();
 	}
 
 	/**
@@ -169,7 +212,6 @@ export class History {
 	restoreState() {
 		// log(`History.restoreState`, 'start');
 		const editor = getCurrentProjectEditor();
-
 		let q = this.queue;
 
 		// --------------------------------------------------------------
@@ -186,126 +228,124 @@ export class History {
 			return;
 		}
 
-		// --------------------------------------------------------------
-		// Check if next item is different than current item
-		// --------------------------------------------------------------
+		this.isRestoring = true;
+		try {
+			// --------------------------------------------------------------
+			// Settings entries (metrics, guides) belong to no item
+			// --------------------------------------------------------------
 
-		if (q[0] && q[1]) {
-			if (q[0].itemID !== q[1].itemID) {
+			if (q[0].settingsSave) {
+				const snapshot = findPreviousSettingsSnapshot(q, 1, this.initialProject);
+				applySettingsToEditor(editor, snapshot);
+				const redoEntries = [q.shift()];
+				this.redoQueue.unshift(redoEntries);
+				this.persist();
+				this.finishUndoUI(editor);
+				return;
+			}
+
+			// --------------------------------------------------------------
+			// Find the entry holding the previous state of the item, and
+			// check if it is for a different item than the current one
+			// --------------------------------------------------------------
+
+			let topIndex = 0;
+			let nextIndex = indexOfNextItemEntry(q, 1);
+			let nextEntry = nextIndex > -1 ? q[nextIndex] : false;
+
+			if (isNavigationBetween(q[0], nextEntry)) {
 				// Assumes navigate adds an entry to the queue
-				if (q[1].page) editor.nav.page = q[1].page;
-				if (q[1].itemID) editor.selectedItemID = q[1].itemID;
+				if (nextEntry.page) editor.nav.page = nextEntry.page;
+				if (nextEntry.itemID) {
+					ensureItemExists(editor, nextEntry);
+					editor.selectedItemID = nextEntry.itemID;
+				}
 				q.shift();
+				nextIndex -= 1;
+				this.persist();
 				editor.navigate();
 
-				if (q[0]?.itemWasDeleted) {
-					showToast(`Restored deleted item<br>${q[0].itemState.name}`);
+				if (nextEntry.itemWasDeleted) {
+					showToast(`Restored deleted item<br>${nextEntry.itemState.name}`);
+					// Continue: undo the deletion entry itself
+					topIndex = nextIndex;
+					nextIndex = indexOfNextItemEntry(q, topIndex + 1);
+					nextEntry = nextIndex > -1 ? q[nextIndex] : false;
 				} else {
 					showToast('Navigated without undo-ing');
+					if (editor.nav.panel === 'History') refreshPanel();
 					// log(`Need to navigate to next changed item`);
 					// log(`History.restoreState`, 'end');
 					return;
 				}
 			}
-		}
 
-		// --------------------------------------------------------------
-		// get the next item
-		// --------------------------------------------------------------
+			const undoneEntry = q[topIndex];
 
-		let nextEntry;
-		if (q.length === 1) {
-			// With only one change in the queue, undo falls back to the initial project state
-			// log(this.initialProject);
-			let baseItemState;
-			let baseItem;
+			// --------------------------------------------------------------
+			// Nothing older in the queue: fall back to the initial project
+			// --------------------------------------------------------------
 
-			if (editor.nav.page === 'Characters') {
-				// log(`editor.selectedGlyphID : ${editor.selectedGlyphID}`);
-				if (editor.selectedGlyphID) {
-					baseItem = this.initialProject.glyphs[editor.selectedGlyphID];
-					// log(baseItem);
-					baseItemState = baseItem.save();
-				}
-			} else if (editor.nav.page === 'Ligatures') {
-				// log(`editor.selectedLigatureID : ${editor.selectedLigatureID}`);
-				if (editor.selectedLigatureID) {
-					baseItem = this.initialProject.ligatures[editor.selectedLigatureID];
-					// log(baseItem);
-					baseItemState = baseItem.save();
-				}
-			} else if (editor.nav.page === 'Components') {
-				// log(`editor.selectedComponentID : ${editor.selectedComponentID}`);
-				if (editor.selectedComponentID) {
-					baseItem = this.initialProject.components[editor.selectedComponentID];
-					// log(baseItem);
-					baseItemState = baseItem.save();
-				}
-			} else if (editor.nav.page === 'Kerning') {
-				// log(`editor.selectedKernGroupID : ${editor.selectedKernGroupID}`);
-				if (editor.selectedKernGroupID) {
-					baseItem = this.initialProject.kerning[editor.selectedKernGroupID];
-					// log(baseItem);
-					baseItemState = baseItem.save();
-				}
+			if (!nextEntry) {
+				nextEntry = makeInitialFallbackEntry(editor, this.initialProject, undoneEntry);
+				// log(`No older item entry, setting 'nextEntry' to base project`);
+				// log(nextEntry);
 			}
 
-			nextEntry = {
-				itemState: baseItemState,
-				itemID: editor.selectedItemID,
-				title: 'Initial state',
-			};
-			// log(`Queue length was 1, setting 'nextEntry' to base project`);
-			// log(nextEntry);
-		} else {
-			nextEntry = q[1];
-		}
+			// --------------------------------------------------------------
+			// proceed with the undo
+			// --------------------------------------------------------------
 
-		// --------------------------------------------------------------
-		// proceed with the undo
-		// --------------------------------------------------------------
+			// log(`Undoing to: ${nextEntry.title}`);
 
-		// log(`Undoing to: ${nextEntry.title}`);
-		// log(`nextEntry:`);
-		// log(nextEntry);
+			// Clear selections
+			editor.multiSelect.points.clear();
+			editor.multiSelect.shapes.clear();
 
-		// Clear selections
-		editor.multiSelect.points.clear();
-		editor.multiSelect.shapes.clear();
+			// Capture entries being removed from the queue for redo
+			const redoEntries = [undoneEntry];
 
-		// Capture entries being removed from the queue for redo
-		const redoEntries = [q[0]];
-
-		// Overwrite the current item with the previous state
-		if (nextEntry.wholeProjectSave) {
-			// log(`Overwriting whole project`);
-			// log(`\n⮟nextEntry.itemState⮟`);
-			// log(nextEntry.itemState);
-			editor._project = nextEntry.itemState;
-			if (q[0].wholeProjectSave) {
-				q.shift();
-				redoEntries.push(nextEntry);
+			if (nextEntry.wholeProjectSave) {
+				// log(`Overwriting whole project`);
+				// Settings changed after that project snapshot stay as they are
+				const settingsIndex =
+					nextIndex > -1 ? indexOfSettingsEntryBetween(q, topIndex, nextIndex) : -1;
+				const settingsOverride = settingsIndex > -1 ? q[settingsIndex].settingsState : false;
+				swapProject(editor, nextEntry.itemState, settingsOverride);
+				if (undoneEntry.wholeProjectSave && nextIndex > -1) {
+					// Pre and post states of one change leave the queue together
+					redoEntries.push(nextEntry);
+					q.splice(nextIndex, 1);
+				}
+				q.splice(topIndex, 1);
+				reconcileSelectionAfterProjectSwap(editor);
+			} else {
+				// log(`overwriting ${nextEntry.itemID}`);
+				applyItemState(editor, nextEntry);
+				q.splice(topIndex, 1);
 			}
-		} else {
-			// log(editor.selectedItem.print());
-			// log(`overwriting ${editor.selectedItem.name}`);
-			// log(`with:`);
-			// log(nextEntry.itemState);
-			editor.selectedItem = nextEntry.itemState;
-			// log(editor.selectedItem.print());
+			publishCurrentItem(editor);
+
+			// Save undone state for redo
+			this.redoQueue.unshift(redoEntries);
+			this.persist();
+
+			// Finalize UI stuff
+			this.finishUndoUI(editor);
+		} finally {
+			this.isRestoring = false;
 		}
-		editor.publish('currentItem', editor.selectedItem);
+		// log(q);
+		// log(`History.restoreState`, 'end');
+	}
 
-		// Index 0 is the previous current state, so remove it
-		q.shift();
-
-		// Save undone state for redo
-		this.redoQueue.unshift(redoEntries);
-		this.persist();
-
-		// Finalize UI stuff
+	/**
+	 * Shared UI updates at the end of an undo
+	 * @param {Object} editor - current ProjectEditor
+	 */
+	finishUndoUI(editor) {
 		if (editor.nav.panel === 'History') refreshPanel();
-		if (q.length === 0) {
+		if (this.queue.length === 0) {
 			editor.setProjectAsSaved();
 			const undoButton = document.querySelector('#actionButtonUndo');
 			if (undoButton) undoButton.setAttribute('disabled', 'disabled');
@@ -313,9 +353,6 @@ export class History {
 
 		const redoButton = document.querySelector('#actionButtonRedo');
 		if (redoButton) redoButton.removeAttribute('disabled');
-
-		// log(q);
-		// log(`History.restoreState`, 'end');
 	}
 
 	/**
@@ -347,21 +384,29 @@ export class History {
 		const entries = this.redoQueue.shift();
 		const targetEntry = entries[0];
 
-		editor.multiSelect.points.clear();
-		editor.multiSelect.shapes.clear();
+		this.isRestoring = true;
+		try {
+			editor.multiSelect.points.clear();
+			editor.multiSelect.shapes.clear();
 
-		if (targetEntry.wholeProjectSave) {
-			editor._project = targetEntry.itemState;
-		} else {
-			editor.selectedItem = targetEntry.itemState;
-		}
-		editor.publish('currentItem', editor.selectedItem);
+			if (targetEntry.settingsSave) {
+				applySettingsToEditor(editor, targetEntry.settingsState);
+			} else if (targetEntry.wholeProjectSave) {
+				swapProject(editor, targetEntry.itemState);
+				reconcileSelectionAfterProjectSwap(editor);
+			} else {
+				applyItemState(editor, targetEntry);
+			}
+			publishCurrentItem(editor);
 
-		// Restore the queue entries so subsequent undos behave correctly
-		for (let i = entries.length - 1; i >= 0; i--) {
-			this.queue.unshift(entries[i]);
+			// Restore the queue entries so subsequent undos behave correctly
+			for (let i = entries.length - 1; i >= 0; i--) {
+				this.queue.unshift(entries[i]);
+			}
+			this.persist();
+		} finally {
+			this.isRestoring = false;
 		}
-		this.persist();
 
 		editor.setProjectAsUnsaved();
 		if (editor.nav.panel === 'History') refreshPanel();
@@ -375,6 +420,10 @@ export class History {
 		}
 	}
 }
+
+// --------------------------------------------------------------
+// Making entries
+// --------------------------------------------------------------
 
 function makeHistoryEntry({ title = '', itemWasDeleted = false, wholeProjectSave = false }) {
 	const editor = getCurrentProjectEditor();
@@ -403,30 +452,220 @@ function makeHistoryEntry({ title = '', itemWasDeleted = false, wholeProjectSave
 		page: page,
 		itemWasDeleted: itemWasDeleted,
 		wholeProjectSave: wholeProjectSave,
+		settingsSave: false,
+		settingsState: false,
 	};
 
 	return newEntry;
 }
 
-function serializeHistoryEntry(entry) {
+/**
+ * ANY-INK: settings entry. It carries no item state; itemID and page are
+ * inherited from the entry below it so the History panel groups it with the
+ * item the user was looking at, and undo never mistakes it for a navigation.
+ * @param {String} title
+ * @param {Object} editor - current ProjectEditor
+ * @param {Object | undefined} topEntry - queue[0] before this entry is added
+ */
+function makeSettingsHistoryEntry(title, editor, topEntry) {
 	return {
-		timeStamp: entry.timeStamp,
-		itemID: entry.itemID,
-		itemState: entry.itemState.save(),
-		title: entry.title,
-		page: entry.page,
-		itemWasDeleted: entry.itemWasDeleted,
-		wholeProjectSave: entry.wholeProjectSave,
+		timeStamp: new Date().getTime(),
+		itemID: topEntry ? topEntry.itemID : editor.selectedItemID,
+		itemState: false,
+		title: title || 'Changed font metrics or guides',
+		page: topEntry ? topEntry.page : editor.nav.page,
+		itemWasDeleted: false,
+		wholeProjectSave: false,
+		settingsSave: true,
+		settingsState: makeSettingsSnapshot(editor.project.settings),
 	};
 }
 
-function deserializeHistoryEntry(entry) {
+/**
+ * When nothing older is left in the queue, undo goes back to the project
+ * as it was when it was opened.
+ * @param {Object} editor
+ * @param {GlyphrStudioProject} initialProject
+ * @param {Object} undoneEntry - the entry being undone
+ * @returns {Object} entry-like object
+ */
+function makeInitialFallbackEntry(editor, initialProject, undoneEntry) {
+	if (undoneEntry.wholeProjectSave) {
+		return { itemState: initialProject, wholeProjectSave: true, title: 'Initial state' };
+	}
+
+	const itemID = undoneEntry.itemID || editor.selectedItemID;
+	const objType = objTypeFromID(itemID);
+	const collection = collectionNameFromID(itemID);
+	const baseItem = collection ? initialProject?.[collection]?.[itemID] : false;
+
+	let itemState;
+	if (baseItem) {
+		itemState = baseItem.save();
+	} else if (objType === 'KernGroup') {
+		// Item did not exist when the project was opened: back to blank
+		itemState = new KernGroup({}).save();
+	} else {
+		itemState = new Glyph({ id: itemID, objType: objType || 'Glyph' }).save();
+	}
+
+	return {
+		itemState: itemState,
+		itemID: itemID,
+		page: undoneEntry.page || editor.nav.page,
+		title: 'Initial state',
+	};
+}
+
+// --------------------------------------------------------------
+// Applying entries
+// --------------------------------------------------------------
+
+/**
+ * Replaces the editor's project with a fresh copy of a snapshot (never the
+ * snapshot object itself, so later undos cannot corrupt the queue).
+ * @param {Object} editor
+ * @param {GlyphrStudioProject} snapshotProject
+ * @param {Object | false} settingsOverride - newer settings snapshot to keep
+ */
+function swapProject(editor, snapshotProject, settingsOverride = false) {
+	editor._project = new GlyphrStudioProject(snapshotProject.save());
+	if (settingsOverride) applySettingsSnapshot(editor._project.settings, settingsOverride);
+	syncSettingsToEditor(editor);
+	// Kern groups are new objects now; the lookup and the preview strip must follow.
+	notifyKernPairsChanged(editor);
+}
+
+/**
+ * Writes a settings snapshot into the live project and tells everyone.
+ * @param {Object} editor
+ * @param {Object | false} snapshot
+ */
+function applySettingsToEditor(editor, snapshot) {
+	if (snapshot) applySettingsSnapshot(editor.project.settings, snapshot);
+	syncSettingsToEditor(editor);
+	editor.publish('editCanvasView', editor.view);
+}
+
+/**
+ * Re-syncs editor.systemGuides from the project (in place) and publishes the
+ * settings topics that metric readouts, guides, and the preview strip follow.
+ * @param {Object} editor
+ */
+function syncSettingsToEditor(editor) {
+	const settings = editor.project.settings;
+	const guides = settings.app.guides;
+	if (Array.isArray(guides?.systemGuides)) {
+		if (!editor.systemGuides) editor.systemGuides = {};
+		Object.assign(editor.systemGuides, systemGuidesFromList(guides.systemGuides));
+	}
+	editor.publish('fontMetrics', settings.font);
+	editor.publish('guides', guides);
+}
+
+/**
+ * If an entry's item is missing from the project (it was deleted), add it
+ * back so the selection setters can point at it.
+ * @param {Object} editor
+ * @param {Object} entry - history entry with itemID and itemState
+ */
+function ensureItemExists(editor, entry) {
+	const id = entry.itemID;
+	if (!id || !entry.itemState || entry.wholeProjectSave) return;
+	if (editor.project.getItem(id)) return;
+	const objType = objTypeFromID(id);
+	if (!objType) return;
+	const state =
+		typeof entry.itemState.save === 'function' ? entry.itemState.save() : entry.itemState;
+	const item = objType === 'KernGroup' ? new KernGroup(state) : new Glyph(state);
+	editor.project.addItemByType(item, objType, id);
+}
+
+/**
+ * Writes an item entry's state into the project. If the editor is looking
+ * somewhere else (undo from the Settings page, or after a deletion), it moves
+ * to the item first so the state lands in the right slot.
+ * @param {Object} editor
+ * @param {Object} entry
+ */
+function applyItemState(editor, entry) {
+	let moved = false;
+	if (entry.page && editor.nav.page !== entry.page) {
+		editor.nav.page = entry.page;
+		moved = true;
+	}
+	if (entry.itemID && editor.selectedItemID !== entry.itemID) {
+		ensureItemExists(editor, entry);
+		editor.selectedItemID = entry.itemID;
+		moved = true;
+	}
+	editor.selectedItem = entry.itemState;
+	if (moved) editor.navigate();
+	if (objTypeFromID(entry.itemID) === 'KernGroup') {
+		notifyKernPairsChanged(editor, { groupID: entry.itemID, value: entry.itemState?.value });
+	}
+}
+
+/**
+ * After a whole-project swap the selected item may no longer exist (undo of
+ * a creation). Pick the next best item and rebuild the page.
+ * @param {Object} editor
+ * @returns {Boolean} true when the selection had to change
+ */
+function reconcileSelectionAfterProjectSwap(editor) {
+	const id = editor.selectedItemID;
+	if (!id) return false;
+	if (editor.project.getItem(id)) return false;
+	const fallbackAcrossItemType = editor.selectFallbackItem(editor.nav.page);
+	if (fallbackAcrossItemType) editor.nav.page = 'Characters';
+	editor.navigate();
+	return true;
+}
+
+/**
+ * Publishes 'currentItem' without forcing an item into existence
+ * (editor.selectedItem creates missing glyphs on read).
+ * @param {Object} editor
+ */
+function publishCurrentItem(editor) {
+	const item = editor.project.getItem(editor.selectedItemID);
+	if (item) editor.publish('currentItem', item);
+}
+
+// --------------------------------------------------------------
+// Serializing entries
+// --------------------------------------------------------------
+
+export function serializeHistoryEntry(entry) {
+	const hasItem = entry.itemState && typeof entry.itemState.save === 'function';
+	return {
+		timeStamp: entry.timeStamp,
+		itemID: entry.itemID,
+		itemState: hasItem ? entry.itemState.save() : false,
+		title: entry.title,
+		page: entry.page,
+		itemWasDeleted: !!entry.itemWasDeleted,
+		wholeProjectSave: !!entry.wholeProjectSave,
+		settingsSave: !!entry.settingsSave,
+		settingsState: entry.settingsSave && entry.settingsState ? clone(entry.settingsState) : false,
+	};
+}
+
+export function deserializeHistoryEntry(entry) {
+	if (entry.settingsSave) {
+		return {
+			...entry,
+			itemState: false,
+			settingsState: entry.settingsState ? clone(entry.settingsState) : false,
+		};
+	}
+
 	let itemState;
 	if (entry.wholeProjectSave) itemState = new GlyphrStudioProject(entry.itemState);
 	else if (entry.page === 'Kerning') itemState = new KernGroup(entry.itemState);
 	else itemState = new Glyph(entry.itemState);
 
-	return { ...entry, itemState };
+	return { ...entry, itemState, settingsSave: false, settingsState: false };
 }
 
 // --------------------------------------------------------------
@@ -436,7 +675,8 @@ function deserializeHistoryEntry(entry) {
 const DATABASE_NAME = 'GlyphrStudio';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'history';
-const HISTORY_FORMAT_VERSION = 2;
+// Bumped from 2 to 3 for the settings entry kind; older stored queues are ignored.
+export const HISTORY_FORMAT_VERSION = 3;
 
 function openDatabase() {
 	return new Promise((resolve, reject) => {

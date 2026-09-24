@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { calculateAngle, clone } from '../../common/functions.js';
 import { refreshPanel } from '../../panels/panels.js';
@@ -13,7 +15,7 @@ import {
 	selectItemsInArea,
 } from '../events_mouse.js';
 import { isAngleMoreHorizontal } from './path_edit.js';
-import { getShapeAtLocation, isSideBearingHere } from './tools.js';
+import { getShapeAtLocation } from './tools.js';
 
 /**
 	// ----------------------------------------------------------------
@@ -25,6 +27,9 @@ export class Tool_Resize {
 		this.dragging = false;
 		this.resizing = false;
 		this.rotating = false;
+		// ANY-INK (D-008): side bearings are dragged by the guides layer
+		// (src/anyink/metrics/guides_layer.js), which sees the pointer before this tool.
+		// These two stay false; drawSystemGuidelines still reads them.
 		/** @type {String | false} */
 		this.sideBearingEdit = false;
 		/** @type {String | false} */
@@ -53,12 +58,8 @@ export class Tool_Resize {
 
 		this.didStuff = false;
 		this.clickedShape = getShapeAtLocation(ehd.mousePosition.x, ehd.mousePosition.y);
-		this.sideBearingEdit = isSideBearingHere(
-			ehd.mousePosition.x,
-			ehd.mousePosition.y,
-			editor.selectedItem
-		);
-		this.sideBearingHover = this.sideBearingEdit;
+		this.sideBearingEdit = false;
+		this.sideBearingHover = false;
 		this.resizing = false;
 		this.dragging = false;
 		this.rotating = false;
@@ -109,7 +110,7 @@ export class Tool_Resize {
 			// log('clicked on nothing');
 			if (!ehd.isCtrlDown) clickEmptySpace();
 			const clickedHotspot = findAndCallHotspot(ehd.mousePosition.x, ehd.mousePosition.y);
-			if (!clickedHotspot && !this.sideBearingEdit) ehd.selecting = true;
+			if (!clickedHotspot) ehd.selecting = true;
 		}
 		// log(`Tool_Resize.mousedown`, 'end');
 	}
@@ -187,25 +188,6 @@ export class Tool_Resize {
 				this.historyTitle = `Rotated ${msShapes.members.length} shapes`;
 			}
 			this.didStuff = true;
-		} else if (this.sideBearingEdit) {
-			// log(`detected SIDEBEARING ${this.sideBearingEdit}`);
-			const dx = (ehd.mousePosition.x - ehd.lastX) / view.dz;
-			const item = editor.selectedItem;
-			if (this.sideBearingEdit === 'lsb') {
-				const oldLSB = item.leftSideBearing;
-				item.leftSideBearing = Math.round(item.leftSideBearing - dx);
-				const deltaLSB = oldLSB - item.leftSideBearing;
-				let view = editor.view;
-				editor.view.dx += deltaLSB * view.dz;
-				editor.publish('currentItem', item);
-				this.historyTitle = `Updated left side bearing.`;
-				this.didStuff = true;
-			}
-			if (this.sideBearingEdit === 'rsb') {
-				item.rightSideBearing = Math.round(item.rightSideBearing + dx);
-				this.historyTitle = `Updated right side bearing.`;
-				this.didStuff = true;
-			}
 		} else if (ehd.selecting) {
 			selectItemsInArea(ehd.lastX, ehd.lastY, ehd.mousePosition.x, ehd.mousePosition.y, 'shapes');
 			editor.editCanvas.redraw('resize:mousemove');
@@ -213,12 +195,6 @@ export class Tool_Resize {
 
 		// Figure out cursor
 		const hoveredPath = getShapeAtLocation(ehd.mousePosition.x, ehd.mousePosition.y);
-		const oldSBH = this.sideBearingHover;
-		this.sideBearingHover = isSideBearingHere(
-			ehd.mousePosition.x,
-			ehd.mousePosition.y,
-			editor.selectedItem
-		);
 
 		if (corner) {
 			setCursor(corner);
@@ -236,9 +212,6 @@ export class Tool_Resize {
 			} else {
 				setCursor('arrowPlus');
 			}
-		} else if (this.sideBearingEdit || this.sideBearingHover) {
-			setCursor('col-resize');
-			editor.publish('editCanvasView', editor.selectedItem);
 		} else {
 			if (hoveredPath) {
 				setCursor('arrowSquare');
@@ -246,8 +219,6 @@ export class Tool_Resize {
 				setCursor('arrow');
 			}
 		}
-
-		if(oldSBH !== this.sideBearingHover) editor.publish('editCanvasView', editor.selectedItem);
 
 		checkForMouseOverHotspot(ehd.mousePosition.x, ehd.mousePosition.y);
 

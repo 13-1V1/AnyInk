@@ -1,5 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { kernOffsetFor } from '../anyink/kerning/kern_lookup.js';
+import { token } from '../anyink/theme/theme.js';
 import { getCurrentProject } from '../app/main.js';
-import { charToHex, parseCharsInputAsHex } from '../common/character_ids.js';
+import { charToHex } from '../common/character_ids.js';
 import { Maxes } from '../project_data/maxes.js';
 import { TextBlockOptions } from './text_block_options.js';
 
@@ -149,7 +153,7 @@ export class TextBlock {
 		// log(`TextBlock.drawCanvasMaxes`, 'start');
 		// log(this.canvasMaxes);
 		ctx.fillStyle = 'transparent';
-		ctx.strokeStyle = 'lime';
+		ctx.strokeStyle = token('--canvas-selection');
 		ctx.lineWidth = 1;
 		ctx.strokeRect(
 			this.canvasMaxes.xMin,
@@ -427,6 +431,9 @@ function getNextLineBreaker(block, start) {
  * Takes two glyphs as arguments, and determines the number of Em units of
  * offset between them.  First checks to see if there are custom kern values
  * for the pair, and if not, returns 0.
+ * ANY-INK (D-010): answered by the cached kern lookup in src/anyink/kerning/kern_lookup.js,
+ * so the priority between overlapping groups is deterministic (one-by-one exceptions win,
+ * then the lowest kern-N id) and the pair view, the strip, and export agree.
  * @param {String} c1 - first character to check
  * @param {String} c2 - second character to check
  * @returns {Number} - Kern value in Em units
@@ -434,39 +441,8 @@ function getNextLineBreaker(block, start) {
 export function calculateKernOffset(c1, c2) {
 	// log('calculateKernOffset', 'start');
 	// log('passed: ' + c1 + ' and ' + c2);
-
 	if (!c1 || !c2) return 0;
-
-	c1 = parseCharsInputAsHex(c1).join('');
-	c2 = parseCharsInputAsHex(c2).join('');
-	// log('converted: ' + c1 + ' and ' + c2);
-
-	let kernPairs = getCurrentProject().kerning;
-	let leftGroupChar;
-	let rightGroupChar;
-	let result;
-
-	for (let p of Object.keys(kernPairs)) {
-		for (let l = 0; l < kernPairs[p].leftGroup.length; l++) {
-			leftGroupChar = kernPairs[p].leftGroup[l];
-			// log('checking leftGroup ' + leftGroupChar + ' against ' + c1);
-			if (parseCharsInputAsHex(leftGroupChar)[0] === c1) {
-				// log('LEFT GROUP MATCH! for ' + c1);
-				for (let r = 0; r < kernPairs[p].rightGroup.length; r++) {
-					rightGroupChar = kernPairs[p].rightGroup[r];
-					if (parseCharsInputAsHex(rightGroupChar)[0] === c2) {
-						result = kernPairs[p].value;
-						// log('FOUND MATCH! returning ' + result);
-						// log('calculateKernOffset', 'end');
-						return result;
-					}
-				}
-			}
-		}
-	}
-
-	// log('calculateKernOffset', 'end');
-	return 0;
+	return kernOffsetFor(getCurrentProject(), c1, c2);
 }
 
 /**

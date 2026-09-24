@@ -98,6 +98,11 @@ within a point's hit radius.
 **Chose:** dragging the baseline moves all glyph outlines by the delta (ascent and descent adjusted so
 the top and bottom stay put), recorded as a whole-project change. Ascender, cap height, x-height,
 descender clamp so that descent < 0 < x-height <= cap height <= ascent.
+**Amended 09/23/2026 (built):** the baseline drag shifts ascent, descent, cap height, and x-height
+by the same delta (`BASELINE_SHIFTED_KEYS` in `src/anyink/metrics/metrics_math.js`) so every line
+stays on the letters; custom guides keep their em location; component instances are not moved
+(their source glyph moves). During the drag only the line and a ghost of the current glyph move;
+the shift is applied once on release.
 **Because:** the brief lists the baseline as draggable, and in font units the baseline is y = 0, so the
 only meaningful drag is "move the drawing relative to the baseline".
 
@@ -124,6 +129,11 @@ metrics, and alternates topics; a toggle switches to `FontPreview` (real OTF via
 rebuilt on release only) to prove export behavior including calt cycling. Size slider in points
 (stored px = pt * 96 / 72), editable text, presets, double-click a glyph to jump to it.
 **Because:** the OTF renderer rebuilds a whole font per change and cannot run per pointermove.
+**Amended 09/23/2026 (built):** `<preview-strip>` is a light-DOM element fixed to the window bottom
+(150 px); `<html>` carries `--anyink-strip-height` (0px hidden, 150px shown) and `#app__wrapper`
+subtracts it. `DisplayCanvas` gained `hi-dpi` and `show-metric-lines` attributes. Sample text and
+size live in app prefs (`previewText`, `previewPt`, `previewRealFont`, `previewMetrics`). Real-font
+mode rebuilds at most every 400 ms.
 
 ## D-012: Files on the raw File System Access API with idb-keyval; binary assets beside the project
 **Decided:** 09/23/2026

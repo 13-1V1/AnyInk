@@ -34,7 +34,7 @@ export function makeFancySlider(initialValue = 50, callback, min = 0, max = 100,
 	});
 	bar.addEventListener('input', (event) => {
 		// @ts-expect-error 'property does exist'
-		const value = parseInt(event.target.value);
+		const value = parseFloat(event.target.value);
 		sliderReadout.innerHTML = '' + value;
 		if (callback) callback(value);
 	});

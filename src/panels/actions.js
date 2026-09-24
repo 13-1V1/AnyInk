@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { getFilesFromFilePicker } from '../app/open_project.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -444,6 +445,8 @@ export function getActionData(name) {
 					editor.deleteSelectedItemFromProject();
 					editor.history.addState(`Automatically navigated to ${editor.selectedItemID}`);
 					editor.publish('whichKernGroupIsSelected', editor.selectedItemID);
+					// ANY-INK: the pair view and preview strip re-flow from the kerning lookup
+					notifyKernPairsChanged(editor, { deleted: [name] });
 					showToast(`
 						Deleted ${name}.<br>
 						(Don't worry, this action can be undone)<br>

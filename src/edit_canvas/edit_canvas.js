@@ -1,7 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
-import { drawGuidesLayerOverlay } from '../anyink/metrics/guides_layer.js';
+import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guides_layer.js';
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { transparencyToAlpha } from '../common/colors.js';
@@ -399,14 +399,11 @@ export class EditCanvas extends HTMLElement {
 
 			// Verticals
 			if (drawVerticals) {
+				// ANY-INK: the always-active guides layer owns side bearing hover / drag
 				/** @type {String | false} */
 				let sbHover = false;
-				if (editor.selectedTool === 'resize') {
-					const tool = editor.eventHandlers.tool_resize;
-					if (!tool.dragging && !tool.resizing && !tool.rotating) {
-						sbHover = tool.sideBearingHover || tool.sideBearingEdit;
-					}
-				}
+				const layerLine = guidesLayerState.dragging || guidesLayerState.hover;
+				if (layerLine === 'lsb' || layerLine === 'rsb') sbHover = layerLine;
 
 				if (editor.systemGuides.leftSide) {
 					if (sbHover === 'lsb') {

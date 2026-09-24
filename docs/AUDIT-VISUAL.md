@@ -41,7 +41,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 | C1 | Glyph card: advance width, left / right side bearing | numbers | **Readout** (side bearings already drag on canvas; advance width follows). M4 keeps fields as secondary readouts |
 | C2 | Path / point / handle cards: x, y, w, h, h1, h2 | numbers | **Readout** (canvas drags them). M4 |
 | C3 | Component instance card: translate, resize, rotation | numbers | **Readout** with canvas drag. M4 |
-| C4 | Transforms panel: skew angle / distance, offset distance, rotation, each with Apply | type then apply blind | **Visual in M5**: sliders with live canvas preview; offset distance becomes the Weight slider in M12 |
+| C4 | Transforms panel: skew angle / distance, offset distance, rotation, each with Apply | type then apply blind | **Done in M5**: skew angle / distance and rotation are sliders that apply on release (one undo entry each, no Apply); offset keeps its slider + Apply because upstream rebuilds the outline; offset distance becomes the Weight slider in M12 |
 | C5 | Guides panel: custom guide location, grid divisions | numbers | **Visual in M5**: drag custom guides on canvas; grid divisions slider |
 | C6 | Guides panel: custom guide color picker | color | **Hide** in M4: all guides use the purple structure token |
 | C7 | Zoom readout (disabled input) | percentage | **Visual in M4**: zoom slider with readout |
@@ -54,7 +54,7 @@ by a visual control in that milestone; the number field stays as a secondary rea
 |---|---|---|---|
 | D1 | Live preview panel: font size and line gap in px | numbers | **Visual in M5**: points slider in the preview strip |
 | D2 | Live preview text and `{{swadesh_207_short}}` placeholder codes | sample text | **Allowed** for text; placeholder codes replaced by the existing pangram / glyph-set buttons (M5) |
-| D3 | Global actions: move x/y, scale factors, resize deltas, skew angle, side bearings, monospace width | numbers applied blind to the whole font | **Visual in M5**: sliders with live preview strip feedback and one undo step |
+| D3 | Global actions: move x/y, scale factors, resize deltas, skew angle, side bearings, monospace width | numbers applied blind to the whole font | **Done in M5**: slider rows with live readouts and Reset; Apply kept for the batch / one undo step; the preview strip re-flows after Apply |
 | D4 | Global actions: character range filter shows hex begin/end | read-only | **Allowed** as readout |
 
 ## E. Names and files (allowed)

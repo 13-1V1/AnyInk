@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { makeMetricSettingsInput } from '../anyink/metrics/readouts.js';
+import { isFontMetricKey } from '../anyink/metrics/metrics_math.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
@@ -126,7 +128,13 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 	let type = textToNode('<span></span>');
 	let input;
 
-	if (settingType === 'Degree' || settingType === 'Em' || settingType === 'Number') {
+	if (groupName === 'font' && settingType === 'Em' && isFontMetricKey(propertyName)) {
+		// ANY-INK (audit A1): vertical metrics are dragged on the canvas; this field is a
+		// secondary readout. Writes go through setFontMetric (clamped, published, undoable)
+		// and the field follows canvas drags through the 'fontMetrics' topic.
+		input = makeMetricSettingsInput(propertyName);
+		if (callback) input.addEventListener('change', () => callback());
+	} else if (settingType === 'Degree' || settingType === 'Em' || settingType === 'Number') {
 		input = makeElement({
 			tag: 'input-number',
 			attributes: { value: parseInt(settingValue) },

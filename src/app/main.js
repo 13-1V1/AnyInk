@@ -1,6 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 /* Web Components */
+import { PreviewStrip } from '../anyink/preview/preview_strip.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -10,6 +11,7 @@ import { OptionChooser } from '../controls/option-chooser/option_chooser.js';
 import { OptionToggle } from '../controls/option-toggle/option_toggle.js';
 import { DisplayCanvas } from '../display_canvas/display_canvas.js';
 import { EditCanvas } from '../edit_canvas/edit_canvas.js';
+import { handleKeyPress, handleKeyUp } from '../edit_canvas/events_keyboard.js';
 
 /* Other stuff */
 import asciiLogo from '../common/graphics/anyink-ascii-wordmark.txt?raw';
@@ -82,6 +84,8 @@ function registerCustomComponents() {
 		{ fileName: 'info-bubble', className: InfoBubble },
 		{ fileName: 'input-number', className: InputNumber },
 		{ fileName: 'edit-canvas', className: EditCanvas },
+		// ANY-INK: after display-canvas and font-preview, which it constructs
+		{ fileName: 'preview-strip', className: PreviewStrip },
 	];
 
 	data.forEach((control) => {
@@ -109,6 +113,11 @@ function addGlobalEventListeners() {
 		closeAllOptionChoosers();
 		closeAllInfoBubbles();
 	});
+	// ANY-INK: Ctrl+Z / Ctrl+Y must work on every page (Settings, Overview) before the
+	// first edit canvas exists. initEventHandlers adds the same function references
+	// later, so the second addEventListener is a no-op.
+	document.addEventListener('keydown', handleKeyPress, false);
+	document.addEventListener('keyup', handleKeyUp, false);
 	// @ts-expect-error 'property does exist'
 	window.getShipDate = getShipDate;
 	// }

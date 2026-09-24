@@ -1,0 +1,134 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* ANY-INK slider row: [label] [slider + readout] [unit] [reset]. Colors are tokens only. */
+
+.anyink-slider-row {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: minmax(90px, max-content) minmax(120px, 1fr) max-content 26px;
+	align-items: center;
+	column-gap: var(--space-2);
+	width: 100%;
+	min-height: 26px;
+}
+
+.anyink-slider-row--no-label {
+	grid-template-columns: minmax(120px, 1fr) max-content 26px;
+}
+
+/* Several rows in one grid keep their bars lined up */
+.anyink-slider-table {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: max-content minmax(140px, 1fr) max-content 26px;
+	align-items: center;
+	column-gap: var(--space-2);
+	row-gap: var(--space-2);
+	width: 100%;
+	max-width: 560px;
+	justify-self: stretch;
+}
+
+.anyink-slider-table > .anyink-slider-row {
+	display: contents;
+}
+
+.anyink-slider-row__label {
+	grid-column: 1;
+	color: var(--chrome-text-muted);
+	line-height: 24px;
+	white-space: nowrap;
+	width: max-content;
+}
+
+.anyink-slider-row__label input[type='checkbox'] {
+	position: relative;
+	top: 4px;
+	width: 18px;
+	height: 18px;
+	margin-right: var(--space-1);
+	accent-color: var(--touch);
+}
+
+/* Upstream slider inside the row: full width bar, room for "-1000" in the readout */
+.anyink-slider-row .fancy-slider__wrapper {
+	grid-template-columns: 1fr 56px;
+	align-items: center;
+	min-width: 0;
+}
+
+.anyink-slider-row .fancy-slider__bar {
+	width: 100%;
+	min-width: 0;
+	cursor: pointer;
+}
+
+.anyink-slider-row .fancy-slider__bar:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+	border-radius: var(--radius-sm);
+}
+
+.anyink-slider-row .fancy-slider__slider-readout {
+	box-sizing: border-box;
+	width: 56px;
+	padding-top: 0;
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	cursor: default;
+}
+
+.anyink-slider-row--neutral .fancy-slider__slider-readout {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-slider-row__unit {
+	color: var(--chrome-text-faint);
+	font-size: var(--text-xs);
+	min-width: 2ch;
+	line-height: 24px;
+}
+
+.anyink-slider-row__reset {
+	box-sizing: border-box;
+	width: 26px;
+	height: 24px;
+	padding: 0;
+	font: inherit;
+	font-size: 15px;
+	line-height: 1;
+	color: var(--chrome-text-muted);
+	background: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+	transition: var(--global-transition);
+}
+
+.anyink-slider-row__reset:hover {
+	background: var(--chrome-bg-hover);
+	color: var(--chrome-text);
+}
+
+.anyink-slider-row__reset:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-slider-row--neutral .anyink-slider-row__reset {
+	opacity: 0.45;
+}
+
+.anyink-slider-row--disabled .fancy-slider__bar,
+.anyink-slider-row--disabled .fancy-slider__slider-readout,
+.anyink-slider-row--disabled .anyink-slider-row__label,
+.anyink-slider-row--disabled .anyink-slider-row__unit {
+	color: var(--chrome-text-faint);
+	opacity: 0.6;
+	cursor: default;
+}
+
+.anyink-slider-row__reset:disabled {
+	opacity: 0.3;
+	cursor: default;
+}

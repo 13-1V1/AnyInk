@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK preview strip</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<style>
+		html, body { height: 100%; }
+		body {
+			font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text);
+			margin: 0; padding: var(--space-5); box-sizing: border-box;
+			/* the strip publishes its height on <html>; leave room for it like #app__wrapper does */
+			height: calc(100% - var(--anyink-strip-height, 0px)); overflow: auto;
+		}
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 70ch; margin: 0 0 var(--space-4); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-4) 0 var(--space-2); font-weight: normal; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; font-size: var(--text-sm); background: var(--touch); color: var(--chrome-text-inverse); border: 0; border-radius: var(--radius); padding: var(--space-2) var(--space-3); font-weight: 600; cursor: pointer; }
+		button:hover { background: var(--touch-hover); }
+		button.secondary { background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); font-weight: normal; }
+		button.secondary:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); white-space: pre-wrap; background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); margin: 0; max-height: 240px; overflow: auto; }
+		#state { color: var(--chrome-text-muted); font-family: var(--font-mono); font-size: var(--text-sm); }
+	</style>
+</head>
+<body>
+	<h1>ANY-INK preview strip</h1>
+	<p>
+		The <code>&lt;preview-strip&gt;</code> below is mounted against a ProjectEditor loaded from
+		<code>src/samples/simpleExampleProject.json</code> (glyphs: space, A, B, C and the ligature AB) with no
+		app around it. Type in the strip, drag the size slider (Shift snaps to 10 pt), open Presets, flip
+		Real font / Metrics, and double-click a glyph in the strip to select it.
+	</p>
+
+	<h2>Drive the editor</h2>
+	<div class="controls">
+		<button id="text">Text: "AC BC CA B" (no AB ligature, A-C kerned)</button>
+		<button id="nudge">Move glyph A up 40 (publish currentItem)</button>
+		<button id="metrics">x-height +20 (publish fontMetrics)</button>
+		<button id="kern">Kern A-C tighter (publish kernPairs)</button>
+		<button id="theme" class="secondary">Toggle canvas paper / slate</button>
+		<button id="hide" class="secondary">Page change: app level (hide)</button>
+		<button id="show" class="secondary">Page change: Characters (show)</button>
+		<button id="switch" class="secondary">Switch to a second editor (re-subscribe)</button>
+	</div>
+
+	<h2>State</h2>
+	<div id="state"></div>
+
+	<h2>Log (what the strip publishes, what the editor selects)</h2>
+	<pre id="log"></pre>
+
+	<preview-strip></preview-strip>
+
+	<script type="module">
+		// Upstream modules call a bare log(); the app sets it in index.html. Test pages must too.
+		window.log = () => {};
+		import sample from '../src/samples/simpleExampleProject.json?raw';
+		import { initTheme, toggleCanvasTheme, getCanvasTheme } from '../src/anyink/theme/theme.js';
+		import { getCurrentProjectEditor, setCurrentProjectEditor } from '../src/app/main.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
+		import { FontPreview } from '../src/controls/font-preview/font_preview.js';
+		import { PreviewStrip, STRIP_HEIGHT_VAR } from '../src/anyink/preview/preview_strip.js';
+
+		const logEl = document.querySelector('#log');
+		const stateEl = document.querySelector('#state');
+		function log(message) {
+			const time = new Date().toLocaleTimeString();
+			logEl.textContent = `${time}  ${message}\n${logEl.textContent}`.split('\n').slice(0, 60).join('\n');
+		}
+
+		initTheme();
+
+		// 1. An editor with the sample project, made current BEFORE the strip is defined,
+		//    so the strip's connectedCallback self-check finds it.
+		function makeEditor(label, mutate) {
+			const editor = new ProjectEditor();
+			editor.project = importGlyphrProjectFromText(sample);
+			if (mutate) mutate(editor.project);
+			editor.nav.page = 'Characters';
+			editor.selectedGlyphID = 'glyph-0x41';
+			editor.subscribe({
+				topic: 'previewOptions',
+				subscriberID: 'testPage.previewOptions',
+				callback: (o) => log(`[${label}] previewOptions ${JSON.stringify(o)}`),
+			});
+			editor.subscribe({
+				topic: 'whichGlyphIsSelected',
+				subscriberID: 'testPage.whichGlyphIsSelected',
+				callback: (id) => log(`[${label}] whichGlyphIsSelected ${id}`),
+			});
+			return editor;
+		}
+		const first = makeEditor('editor 1');
+		setCurrentProjectEditor(first);
+		let second = null;
+
+		// 2. Define the elements the strip builds, then the strip itself (upgrades the tag above).
+		customElements.define('display-canvas', DisplayCanvas);
+		customElements.define('font-preview', FontPreview);
+		customElements.define('preview-strip', PreviewStrip);
+		const strip = document.querySelector('preview-strip');
+
+		// 3. Buttons that poke the editor the way the app would.
+		document.querySelector('#text').onclick = () => strip.setText('AC BC CA B');
+
+		document.querySelector('#nudge').onclick = () => {
+			const editor = getCurrentProjectEditor();
+			const glyph = editor.project.getItem('glyph-0x41');
+			glyph.updateGlyphPosition(0, 40);
+			editor.publish('currentItem', glyph);
+			log('moved glyph A up 40 units and published currentItem');
+		};
+
+		document.querySelector('#metrics').onclick = () => {
+			const editor = getCurrentProjectEditor();
+			const font = editor.project.settings.font;
+			font.xHeight = Number(font.xHeight) + 20;
+			editor.publish('fontMetrics', { xHeight: font.xHeight });
+			log(`xHeight is now ${font.xHeight}; published fontMetrics`);
+		};
+
+		document.querySelector('#kern').onclick = () => {
+			const editor = getCurrentProjectEditor();
+			const group = editor.project.kerning['kern-0'];
+			group.value -= 40;
+			editor.publish('kernPairs', { id: 'kern-0', value: group.value });
+			log(`kern-0 (A B C -> C) is now ${group.value}; published kernPairs`);
+		};
+
+		document.querySelector('#theme').onclick = () => {
+			toggleCanvasTheme();
+			log(`canvas theme: ${getCanvasTheme()}`);
+		};
+
+		document.querySelector('#hide').onclick = () => {
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'app-level', appLevel: true } }));
+			log('dispatched anyink-page-change appLevel: true');
+		};
+
+		document.querySelector('#show').onclick = () => {
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'Characters', appLevel: false } }));
+			log('dispatched anyink-page-change appLevel: false');
+		};
+
+		document.querySelector('#switch').onclick = () => {
+			if (!second) {
+				second = makeEditor('editor 2', (project) => {
+					// tell the two apart: the second project has no B and a wider A
+					delete project.glyphs['glyph-0x42'];
+					project.getItem('glyph-0x41').advanceWidth += 300;
+				});
+			}
+			const next = getCurrentProjectEditor() === first ? second : first;
+			setCurrentProjectEditor(next);
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'Characters', appLevel: false } }));
+			log(`selected ${next === first ? 'editor 1' : 'editor 2'} and dispatched anyink-page-change`);
+		};
+
+		// 4. Show what the strip is doing.
+		function showState() {
+			const editor = getCurrentProjectEditor();
+			const which = editor === first ? 'editor 1' : 'editor 2';
+			const height = getComputedStyle(document.documentElement).getPropertyValue(STRIP_HEIGHT_VAR).trim();
+			const o = strip.getOptions();
+			stateEl.textContent =
+				`current: ${which} · selected glyph: ${editor.selectedGlyphID} · strip visible: ${strip.visible} (${STRIP_HEIGHT_VAR}: ${height}) · ` +
+				`text: "${o.text}" · ${o.pt} pt = ${o.px.toFixed(2)} px · real font: ${o.realFont} · metrics: ${o.metrics}`;
+			requestAnimationFrame(showState);
+		}
+		showState();
+		log('ready: strip mounted against editor 1 (simpleExampleProject)');
+	</script>
+</body>
+</html>

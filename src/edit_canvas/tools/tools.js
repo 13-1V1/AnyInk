@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from '../../anyink/metrics/hit_test.js';
 import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
@@ -610,7 +611,8 @@ export function isSideBearingHere(cx, cy, item) {
 	// log(`isSideBearingHere`, 'start');
 	let sx = cXsX(cx);
 	// let sy = cYsY(cy);
-	const target = 7;
+	// ANY-INK: the hit zone is HIT_ZONE_PX canvas pixels at any zoom (upstream used 7 Em)
+	const target = HIT_ZONE_PX / getCurrentProjectEditor().view.dz;
 	/** @type {String | false} */
 	let result = false;
 
@@ -622,6 +624,27 @@ export function isSideBearingHere(cx, cy, item) {
 	// log(`result: ${result}`);
 	// log(`isSideBearingHere`, 'end');
 	return result;
+}
+
+/**
+ * ANY-INK (D-008): one hit test for every draggable line on the guides layer: the
+ * horizontal metrics, the baseline, visible custom guides, and the two side bearings.
+ * Same visibility rules and the same HIT_ZONE_PX zone the layer itself uses.
+ * @param {Number} cx - canvas x in pixels
+ * @param {Number} cy - canvas y in pixels
+ * @param {Object} item - the item being edited (Glyph, Ligature, Component, or KernGroup)
+ * @returns {String | false} line id ('ascent', 'xHeight', 'baseline', 'lsb', 'guide:0', ...) or false
+ */
+export function isMetricLineHere(cx, cy, item) {
+	const editor = getCurrentProjectEditor();
+	const lines = collectGuideLines({
+		font: editor.project.settings.font,
+		systemGuides: editor.systemGuides,
+		guides: editor.project.settings.app.guides,
+		item,
+	});
+	const hit = hitTestLines(lines, cx, cy, editor.view, HIT_ZONE_PX);
+	return hit ? hit.id : false;
 }
 
 // --------------------------------------------------------------

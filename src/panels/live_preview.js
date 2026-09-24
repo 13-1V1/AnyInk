@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { makePointsSlider } from '../anyink/preview/points_slider.js';
+import { ptToPx, pxToPt } from '../anyink/preview/units.js';
 import { getCurrentProjectEditor } from '../app/main';
 import { addAsChildren, makeElement } from '../common/dom';
 import { redrawLivePreviewPageDisplayCanvas } from '../pages/live_preview';
@@ -231,24 +233,23 @@ function makeTextBlockOptions_basicOptions(textBlockOptions, onFlavorChange) {
 		redrawAllLivePreviews();
 	});
 
-	// Font size
-	let fontSizeLabel = makeSingleLabel('Font size:');
-	let fontSizeInput = makeElement({
-		tag: 'input-number',
+	// Font size: a points slider (ANY-INK, audit D1). The file keeps px:
+	// TextBlockOptions.fontSize = pt * 96 / 72, so upstream projects open unchanged.
+	let fontSizeLabel = makeSingleLabel('Size:', false, 'fontSizeInput');
+	const fontSizeSlider = makePointsSlider({
+		value: pxToPt(textBlockOptions.fontSize),
 		id: 'fontSizeInput',
-		attributes: { value: textBlockOptions.fontSize },
+		onInput: (pt) => {
+			// Per tick: update the options and restyle the page renderer in place
+			textBlockOptions.fontSize = ptToPx(pt);
+			applyFontSizeLive(textBlockOptions);
+		},
+		onChange: () => {
+			// On release: the full rebuild (page and pop-out)
+			redrawAllLivePreviews();
+		},
 	});
-	fontSizeInput.addEventListener('change', (event) => {
-		// @ts-expect-error 'property does exist'
-		if (event.target.value <= 0) {
-			// @ts-expect-error 'property does exist'
-			event.target.value = 1;
-			document.getElementById('fontSizeInput').setAttribute('value', '1');
-		}
-		// @ts-expect-error 'property does exist'
-		textBlockOptions.fontSize = event.target.value;
-		redrawAllLivePreviews();
-	});
+	const fontSizeInput = fontSizeSlider.element;
 
 	// Line gap
 	let lineGapLabel = makeSingleLabel('Line gap:');
@@ -359,6 +360,27 @@ function makeTextBlockOptions_pageOptions(textBlockOptions) {
 		pageOutlineLabel,
 		pageOutlineToggle,
 	];
+}
+
+/**
+ * Cheap per-tick size update while the points slider drags: when these options
+ * drive the Live preview page, restyle or relayout its renderer in place instead
+ * of rebuilding it (the OTF / TTF renderer would regenerate a font per tick).
+ * @param {Object} textBlockOptions - the options being edited
+ */
+function applyFontSizeLive(textBlockOptions) {
+	const editor = getCurrentProjectEditor();
+	if (editor.nav.page !== 'Live preview') return;
+	if (textBlockOptions !== editor.livePreviewPageOptions) return;
+	/** @type {any} both renderers keep their own TextBlockOptions copy */
+	const renderer = document.querySelector('.live-preview-page__canvas-wrapper')?.firstElementChild;
+	if (!renderer?.textBlockOptions) return;
+	renderer.textBlockOptions.fontSize = textBlockOptions.fontSize;
+	if (renderer.tagName === 'DISPLAY-CANVAS' && typeof renderer.resizeAndRedraw === 'function') {
+		renderer.resizeAndRedraw(); // relayout the text block at the new size
+	} else if (typeof renderer.redraw === 'function') {
+		renderer.redraw(); // font-preview: restyle only, no font rebuild
+	}
 }
 
 function redrawAllLivePreviews() {

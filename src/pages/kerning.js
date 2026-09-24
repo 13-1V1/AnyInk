@@ -1,9 +1,11 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
+import { makeMemberChips, makeTilePicker } from '../anyink/kerning/tile_picker.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
-import { charToHex, charsToHexArray, hexesToChars } from '../common/character_ids.js';
+import { hexesToChars, validateAsHex } from '../common/character_ids.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
-import { countItems } from '../common/functions.js';
+import { countItems, getFirstID } from '../common/functions.js';
 import {
 	closeAllInfoBubbles,
 	closeEveryTypeOfDialog,
@@ -263,38 +265,39 @@ export function makeKernGroupID(kernGroups = getCurrentProject().kerning) {
 /**
  * Shows an edit dialog for a given Kern Group - or, if
  * one is not provided, used as a 'create new' Kern Group dialog.
+ * ANY-INK (audit B1 / B2): members are picked by clicking glyph tiles into chips, and the
+ * value is a readout; it is set by dragging the right letter on the canvas.
  * @param {KernGroup | false =} kernGroup
  */
 export function showAddEditKernGroupDialog(kernGroup) {
 	// log(`showAddEditKernGroupDialog`, 'start');
 	// log(`kernGroup`);
 	// log(kernGroup);
+	const project = getCurrentProject();
+	const value = kernGroup ? kernGroup.value : 0;
 
 	const content = makeElement({
 		innerHTML: `
 		<h2>${kernGroup ? 'Edit this' : 'Create a new'} kern group</h2>
-		Specify which characters should be in the left-side group,
-		the right-side group, then what distance in <code>Em</code>
-		units should be used for the kern value.
+		Click glyph tiles to put characters in the left-side group and the right-side group.
+		Click a chip to take it back out. Every left character is kerned against every right character.
 		<br><br>
-
-		<h3>Left group</h3>
-		<input id="kerning__add-new-kern-group__left-group" type="text"
-		value="${kernGroup ? kernGroup.leftGroupAsString : ''}"
-		autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-		/>
-		<br><br>
-		<h3>Right group</h3>
-		<input id="kerning__add-new-kern-group__right-group" type="text"
-		value="${kernGroup ? kernGroup.rightGroupAsString : ''}"
-		autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-		/>
-		<br><br>
+		<div class="anyink-kern-dialog__columns">
+			<div>
+				<h3>Left group</h3>
+				<div id="kerning__add-new-kern-group__left-group" class="anyink-kern-chips"></div>
+				<div class="anyink-kern-dialog__left-picker"></div>
+			</div>
+			<div>
+				<h3>Right group</h3>
+				<div id="kerning__add-new-kern-group__right-group" class="anyink-kern-chips"></div>
+				<div class="anyink-kern-dialog__right-picker"></div>
+			</div>
+		</div>
+		<br>
 		<h3>Value</h3>
-		<input id="kerning__add-new-kern-group__value" type="text"
-			value="${kernGroup ? kernGroup.value : '0'}"
-			autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-		/>
+		<span id="kerning__add-new-kern-group__value" class="anyink-kern-readout">${value}</span>
+		<span class="anyink-kern-readout__hint">drag the right letter on the canvas to change it</span>
 		<br><br>
 		<fancy-button disabled id="kerning__add-new-kern-group__submit-button">
 			${kernGroup ? 'Save changes' : 'Create kern group'}
@@ -303,104 +306,201 @@ export function showAddEditKernGroupDialog(kernGroup) {
 	});
 
 	const submitButton = content.querySelector('#kerning__add-new-kern-group__submit-button');
-	/** @type {HTMLInputElement} */
-	const leftGroupInput = content.querySelector('#kerning__add-new-kern-group__left-group');
-	/** @type {HTMLInputElement} */
-	const rightGroupInput = content.querySelector('#kerning__add-new-kern-group__right-group');
-	/** @type {HTMLInputElement} */
-	const valueInput = content.querySelector('#kerning__add-new-kern-group__value');
+	const leftChipsArea = content.querySelector('#kerning__add-new-kern-group__left-group');
+	const rightChipsArea = content.querySelector('#kerning__add-new-kern-group__right-group');
 
-	leftGroupInput.addEventListener('change', inputChange);
-	rightGroupInput.addEventListener('change', inputChange);
-	valueInput.addEventListener('change', inputChange);
-	leftGroupInput.addEventListener('keyup', inputChange);
-	rightGroupInput.addEventListener('keyup', inputChange);
-	valueInput.addEventListener('keyup', inputChange);
+	const leftPicker = makeTilePicker({
+		project,
+		selected: kernGroup ? kernGroup.leftGroup : [],
+		onChange: refreshChips,
+	});
+	const rightPicker = makeTilePicker({
+		project,
+		selected: kernGroup ? kernGroup.rightGroup : [],
+		onChange: refreshChips,
+	});
+	content.querySelector('.anyink-kern-dialog__left-picker').appendChild(leftPicker.element);
+	content.querySelector('.anyink-kern-dialog__right-picker').appendChild(rightPicker.element);
 
-	if (kernGroup) {
-		submitButton.removeAttribute('disabled');
-		submitButton.addEventListener('click', addEditDialogSubmit);
+	let submitBound = false;
+	refreshChips();
+
+	function refreshChips() {
+		leftChipsArea.innerHTML = '';
+		leftChipsArea.appendChild(
+			makeMemberChips(leftPicker.getSelected(), {
+				project,
+				onRemove: (hex) => {
+					leftPicker.toggle(hex);
+				},
+			})
+		);
+		rightChipsArea.innerHTML = '';
+		rightChipsArea.appendChild(
+			makeMemberChips(rightPicker.getSelected(), {
+				project,
+				onRemove: (hex) => {
+					rightPicker.toggle(hex);
+				},
+			})
+		);
+		updateSubmitButton();
 	}
 
-	function inputChange() {
-		if (leftGroupInput.value !== '' && rightGroupInput.value !== '' && valueInput.value) {
+	function updateSubmitButton() {
+		const ready = leftPicker.getSelected().length > 0 && rightPicker.getSelected().length > 0;
+		if (ready) {
 			submitButton.removeAttribute('disabled');
-			submitButton.addEventListener('click', addEditDialogSubmit);
+			if (!submitBound) {
+				submitButton.addEventListener('click', addEditDialogSubmit);
+				submitBound = true;
+			}
 		} else {
 			submitButton.setAttribute('disabled', '');
-			submitButton.removeEventListener('click', addEditDialogSubmit);
+			if (submitBound) {
+				submitButton.removeEventListener('click', addEditDialogSubmit);
+				submitBound = false;
+			}
 		}
 	}
 
 	function addEditDialogSubmit() {
 		// log(`showAddEditKernGroupDialog button click handler`, 'start');
 		const editor = getCurrentProjectEditor();
-		let leftNew = charsToHexArray(leftGroupInput.value);
-		// log(`leftNew: ${leftNew}`);
-		let rightNew = charsToHexArray(rightGroupInput.value);
-		// log(`rightNew: ${rightNew}`);
-		let valueNew = parseInt(valueInput.value);
-		// log(`valueNew: ${valueNew}`);
+		const leftNew = leftPicker.getSelected();
+		const rightNew = rightPicker.getSelected();
+		if (!leftNew.length || !rightNew.length) return;
 
 		if (kernGroup) {
 			// log(kernGroup.print());
 			kernGroup.leftGroup = leftNew;
 			kernGroup.rightGroup = rightNew;
-			kernGroup.value = valueNew;
 			// log(kernGroup.print());
 			editor.history.addState('Edited kern group: ' + editor.selectedKernGroupID);
+			notifyKernPairsChanged(editor, { groupID: kernGroup.id, value: kernGroup.value });
 			editor.publish('currentKernGroup', editor.selectedKernGroup);
 			editor.navigate();
 			closeEveryTypeOfDialog();
 		} else {
-			const result = addKernGroup(leftNew, rightNew, valueNew);
+			editor.history.addWholeProjectChangePreState('Created a new kern group');
+			const result = addKernGroup(leftNew, rightNew, value);
 			// log(`result: ${result}`);
 
 			if (typeof result === 'string') {
+				editor.history.discardLatestState();
 				showError(result);
 			} else {
+				editor.history.addWholeProjectChangePostState();
+				notifyKernPairsChanged(editor, { groupID: result.id, value: result.value, created: true });
 				editor.selectedItemID = result.id;
 				editor.navigate();
-				editor.history.addWholeProjectChangePostState();
 				closeEveryTypeOfDialog();
 			}
 		}
 		// log(`showAddEditKernGroupDialog button click handler`, 'end');
 	}
 
-	showModalDialog(content, 500);
+	showModalDialog(content, 900);
 	// log(`showAddEditKernGroupDialog`, 'end');
 }
 
 /**
+ * Two single-pick tile pickers for a letter pair (find / delete dialogs).
+ * The picked hex ids are mirrored into hidden inputs that keep upstream's ids.
+ * @param {Element} content - dialog content
+ * @param {Function} onChange - called after either pick changes
+ */
+function mountPairPickers(content, onChange) {
+	const project = getCurrentProject();
+	/** @type {HTMLInputElement} */
+	const leftInput = content.querySelector('#kerning__letter-pair__left-group');
+	/** @type {HTMLInputElement} */
+	const rightInput = content.querySelector('#kerning__letter-pair__right-group');
+	const leftChips = content.querySelector('.anyink-kern-pair-pick__left-chip');
+	const rightChips = content.querySelector('.anyink-kern-pair-pick__right-chip');
+
+	const leftPicker = makeTilePicker({
+		project,
+		multi: false,
+		onChange: (list) => {
+			leftInput.value = list[0] || '';
+			paint();
+		},
+	});
+	const rightPicker = makeTilePicker({
+		project,
+		multi: false,
+		onChange: (list) => {
+			rightInput.value = list[0] || '';
+			paint();
+		},
+	});
+	content.querySelector('.anyink-kern-pair-pick__left-picker').appendChild(leftPicker.element);
+	content.querySelector('.anyink-kern-pair-pick__right-picker').appendChild(rightPicker.element);
+
+	function paint() {
+		leftChips.innerHTML = '';
+		leftChips.appendChild(
+			makeMemberChips(leftInput.value ? [leftInput.value] : [], {
+				project,
+				emptyText: 'pick a left letter',
+				onRemove: () => {
+					leftPicker.setSelected([]);
+					leftInput.value = '';
+					paint();
+				},
+			})
+		);
+		rightChips.innerHTML = '';
+		rightChips.appendChild(
+			makeMemberChips(rightInput.value ? [rightInput.value] : [], {
+				project,
+				emptyText: 'pick a right letter',
+				onRemove: () => {
+					rightPicker.setSelected([]);
+					rightInput.value = '';
+					paint();
+				},
+			})
+		);
+		onChange();
+	}
+	paint();
+}
+
+const pairPickMarkup = `
+	<div class="anyink-kern-pair-pick">
+		<div>
+			<div class="list__column-header">Left group letter</div>
+			<div class="anyink-kern-pair-pick__left-chip"></div>
+			<div class="anyink-kern-pair-pick__left-picker"></div>
+		</div>
+		<div>
+			<div class="list__column-header">Right group letter</div>
+			<div class="anyink-kern-pair-pick__right-chip"></div>
+			<div class="anyink-kern-pair-pick__right-picker"></div>
+		</div>
+	</div>
+	<input id="kerning__letter-pair__left-group" type="hidden" value="" />
+	<input id="kerning__letter-pair__right-group" type="hidden" value="" />
+`;
+
+/**
  * Makes the content for the Find Single Letter Pair dialog, and shows it.
+ * ANY-INK (audit B4): the pair is picked from two glyph tiles.
  */
 export function showFindSingleLetterPairDialog() {
 	const content = makeElement({
 		innerHTML: `
 		<h2>Find a letter pair</h2>
-		Specify a pair of letters below, and search will return all the Kern Groups
+		Pick a left letter and a right letter below, and search will return all the Kern Groups
 		that contain that pair. Clicking on a search result will select that Kern Group
 		behind the dialog box.
 		<br><br>
 		It is good to not have duplicate values for a letter pair - the value that actually
 		gets used may not be the expected one.
 		<br><br>
-
-		<div class="list__two-column" style="max-width: 100px;">
-			<div class="list__column-header">Left group letter</div>
-			<div class="list__column-header">Right group letter</div>
-			<input
-				id="kerning__letter-pair__left-group" type="text" value=""
-				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="1"
-				onclick="this.select();"
-			/>
-			<input
-				id="kerning__letter-pair__right-group" type="text" value=""
-				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="1"
-				onclick="this.select();"
-			/>
-		</div>
+		${pairPickMarkup}
 		<br>
 
 		<fancy-button disabled id="kerning__letter-pair__search-button">
@@ -415,26 +515,21 @@ export function showFindSingleLetterPairDialog() {
 		`,
 	});
 
-	const leftSearch = content.querySelector('#kerning__letter-pair__left-group');
-	leftSearch.addEventListener('change', updateSearchButton);
-	leftSearch.addEventListener('keyup', updateSearchButton);
-	const rightSearch = content.querySelector('#kerning__letter-pair__right-group');
-	rightSearch.addEventListener('change', updateSearchButton);
-	rightSearch.addEventListener('keyup', updateSearchButton);
-
+	mountPairPickers(content, () => updateSearchButton(content));
 	const searchButton = content.querySelector('#kerning__letter-pair__search-button');
 	searchButton.addEventListener('click', searchForLetterPairs);
-	showModalDialog(content, 800);
+	showModalDialog(content, 900);
 }
 
 /**
  * Makes the content for the Delete Single Letter Pair dialog, and shows it.
+ * ANY-INK (audit B4): the pair is picked from two glyph tiles.
  */
 export function showDeleteSingleLetterPairDialog() {
 	const content = makeElement({
 		innerHTML: `
 		<h2>Delete letter pairs</h2>
-		Specify a pair of letters below, and search will find and attempt to delete all
+		Pick a left letter and a right letter below, and search will find and attempt to delete all
 		the letter pairs from the applicable Kern Groups.
 		<br><br>
 		<b>Note</b>: This will only affect Kern Groups where either the left group or the right group has only one member. Kern Groups affect all possible permutations of left group / right group.
@@ -442,21 +537,7 @@ export function showDeleteSingleLetterPairDialog() {
 		the specified letter pair, removing the letters from the letter pair would remove more
 		than just the kern value for those two letters.
 		<br><br>
-
-		<div class="list__two-column" style="max-width: 100px;">
-			<div class="list__column-header">Left group letter</div>
-			<div class="list__column-header">Right group letter</div>
-			<input
-				id="kerning__letter-pair__left-group" type="text" value=""
-				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="1"
-				onclick="this.select();"
-			/>
-			<input
-				id="kerning__letter-pair__right-group" type="text" value=""
-				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="1"
-				onclick="this.select();"
-			/>
-		</div>
+		${pairPickMarkup}
 		<br>
 
 		<fancy-button disabled danger id="kerning__letter-pair__search-button">
@@ -466,29 +547,37 @@ export function showDeleteSingleLetterPairDialog() {
 		`,
 	});
 
-	const leftSearch = content.querySelector('#kerning__letter-pair__left-group');
-	leftSearch.addEventListener('change', updateSearchButton);
-	leftSearch.addEventListener('keyup', updateSearchButton);
-	const rightSearch = content.querySelector('#kerning__letter-pair__right-group');
-	rightSearch.addEventListener('change', updateSearchButton);
-	rightSearch.addEventListener('keyup', updateSearchButton);
-
+	mountPairPickers(content, () => updateSearchButton(content));
 	const searchButton = content.querySelector('#kerning__letter-pair__search-button');
 	searchButton.addEventListener('click', deleteLetterPairs);
-	showModalDialog(content, 800);
+	showModalDialog(content, 900);
 }
 
 /**
- * Enables or disables the search button based on input fields.
+ * Reads the picked pair (hex ids) out of the dialog.
+ * @param {Element | Document} root
+ * @returns {{leftHex: String, rightHex: String}}
  */
-function updateSearchButton() {
+function getPickedPair(root = document) {
 	/** @type {HTMLInputElement} */
-	const leftSearch = document.querySelector('#kerning__letter-pair__left-group');
+	const leftInput = root.querySelector('#kerning__letter-pair__left-group');
 	/** @type {HTMLInputElement} */
-	const rightSearch = document.querySelector('#kerning__letter-pair__right-group');
-	const searchButton = document.querySelector('#kerning__letter-pair__search-button');
+	const rightInput = root.querySelector('#kerning__letter-pair__right-group');
+	return {
+		leftHex: validateAsHex(leftInput?.value || '') || '',
+		rightHex: validateAsHex(rightInput?.value || '') || '',
+	};
+}
 
-	if (leftSearch.value.length && rightSearch.value.length) {
+/**
+ * Enables or disables the search button based on the picked pair.
+ * @param {Element | Document} root
+ */
+function updateSearchButton(root = document) {
+	const { leftHex, rightHex } = getPickedPair(root);
+	const searchButton = root.querySelector('#kerning__letter-pair__search-button');
+	if (!searchButton) return;
+	if (leftHex && rightHex) {
 		searchButton.removeAttribute('disabled');
 	} else {
 		searchButton.setAttribute('disabled', '');
@@ -496,32 +585,26 @@ function updateSearchButton() {
 }
 
 /**
+ * Kern group ids whose left group has leftHex and right group has rightHex.
+ * @param {String} leftHex
+ * @param {String} rightHex
+ * @param {Object} groups - project.kerning
+ * @returns {Array<String>}
+ */
+export function findGroupsWithPair(leftHex, rightHex, groups = getCurrentProject().kerning) {
+	return Object.keys(groups).filter(
+		(id) => groups[id].leftGroup.includes(leftHex) && groups[id].rightGroup.includes(rightHex)
+	);
+}
+
+/**
  * Does the search for letter pairs
  */
 function searchForLetterPairs() {
 	// log(`searchForLetterPairs`, 'start');
-	/** @type {HTMLInputElement} */
-	const leftGroup = document.querySelector('#kerning__letter-pair__left-group');
-	const leftLetter = leftGroup.value.charAt(0);
-	// log(`leftLetter: ${leftLetter} : ${charToHex(leftLetter)}`);
-	/** @type {HTMLInputElement} */
-	const rightGroup = document.querySelector('#kerning__letter-pair__right-group');
-	const rightLetter = rightGroup.value.charAt(0);
-	// log(`rightLetter: ${rightLetter} : ${charToHex(rightLetter)}`);
-
-	const groups = getCurrentProject().kerning;
-	const results = [];
-
-	Object.keys(groups).forEach((id) => {
-		// log(`checking ${groups[id].leftGroup}`);
-		// log(`checking ${groups[id].rightGroup}`);
-		if (
-			groups[id].leftGroup.includes(charToHex(leftLetter)) &&
-			groups[id].rightGroup.includes(charToHex(rightLetter))
-		) {
-			results.push(id);
-		}
-	});
+	const { leftHex, rightHex } = getPickedPair();
+	// log(`leftHex: ${leftHex} rightHex: ${rightHex}`);
+	const results = findGroupsWithPair(leftHex, rightHex);
 
 	// log(`\n⮟results⮟`);
 	// log(results);
@@ -550,38 +633,64 @@ function searchForLetterPairs() {
 }
 
 /**
+ * Classifies how a pair can be removed from a group.
+ * @param {KernGroup} group
+ * @param {String} leftHex
+ * @param {String} rightHex
+ * @returns {'delete' | 'right' | 'left' | false} delete the group, splice a side, or impossible
+ */
+export function classifyPairRemoval(group, leftHex, rightHex) {
+	if (!group.leftGroup.includes(leftHex) || !group.rightGroup.includes(rightHex)) return false;
+	if (group.leftGroup.length === 1 && group.rightGroup.length === 1) return 'delete';
+	if (group.leftGroup.length === 1) return 'right';
+	if (group.rightGroup.length === 1) return 'left';
+	return false;
+}
+
+/**
  * Deletes letter pairs
+ * ANY-INK: one whole-project history entry for the whole operation, the lookup is
+ * invalidated, and a deleted selected group falls back to the first remaining one.
  */
 function deleteLetterPairs() {
 	// log(`deleteLetterPairs`, 'start');
-	/** @type {HTMLInputElement} */
-	const leftGroup = document.querySelector('#kerning__letter-pair__left-group');
-	const leftLetter = leftGroup.value.charAt(0);
-	// log(`leftLetter: ${leftLetter} : ${charToHex(leftLetter)}`);
-	/** @type {HTMLInputElement} */
-	const rightGroup = document.querySelector('#kerning__letter-pair__right-group');
-	const rightLetter = rightGroup.value.charAt(0);
-	// log(`rightLetter: ${rightLetter} : ${charToHex(rightLetter)}`);
+	const { leftHex, rightHex } = getPickedPair();
+	const leftLetter = hexesToChars(leftHex) || leftHex;
+	const rightLetter = hexesToChars(rightHex) || rightHex;
+	const editor = getCurrentProjectEditor();
+	const project = editor.project;
 
 	const resultMessage = document.querySelector('#kerning__result-message');
 	resultMessage.innerHTML = '';
 
-	const groups = getCurrentProject().kerning;
-	let result;
-	let errors = [];
-	let success = [];
+	const groups = project.kerning;
+	const errors = [];
+	const success = [];
+	const plan = [];
 
 	Object.keys(groups).forEach((id) => {
-		// log(`checking ${groups[id].leftGroup} | ${groups[id].rightGroup}`);
-		if (
-			groups[id].leftGroup.includes(charToHex(leftLetter)) &&
-			groups[id].rightGroup.includes(charToHex(rightLetter))
-		) {
-			result = deleteLetterPair(leftLetter, rightLetter, id);
-			if (result) success.push(id);
-			else errors.push(id);
-		}
+		if (!groups[id].leftGroup.includes(leftHex) || !groups[id].rightGroup.includes(rightHex)) return;
+		const how = classifyPairRemoval(groups[id], leftHex, rightHex);
+		if (how) plan.push({ id, how });
+		else errors.push(id);
 	});
+
+	if (plan.length) {
+		editor.history.addWholeProjectChangePreState(
+			`Deleted letter pair ${leftLetter}${rightLetter} from ${plan.length} kern group${
+				plan.length > 1 ? 's' : ''
+			}`
+		);
+		plan.forEach(({ id, how }) => {
+			if (deleteLetterPair(leftHex, rightHex, id, how)) success.push(id);
+			else errors.push(id);
+		});
+		if (!project.kerning[editor.selectedKernGroupID]) {
+			editor.selectedKernGroupID = getFirstID(project.kerning) || false;
+		}
+		editor.history.addWholeProjectChangePostState();
+		notifyKernPairsChanged(editor, { deleted: success });
+	}
 
 	// log(`After search`);
 	// log(`success.toString(): ${success.toString()}`);
@@ -608,7 +717,7 @@ function deleteLetterPairs() {
 			<br><br>
 			${success.join(', ')}
 		`;
-		getCurrentProjectEditor().navigate();
+		editor.navigate();
 	} else {
 		if (!errors.length) {
 			resultMessage.innerHTML += `
@@ -622,69 +731,57 @@ function deleteLetterPairs() {
 }
 
 /**
- * Given a Kern ID, removes a letter pair from it.
- * @param {String} leftLetter - left letter
- * @param {String} rightLetter - right letter
+ * Given a Kern ID, removes a letter pair from it. History is the caller's job.
+ * @param {String} leftHex - left member id
+ * @param {String} rightHex - right member id
  * @param {String} kernID - which Kern Group to use
+ * @param {String =} how - from classifyPairRemoval; computed when omitted
  * @returns {Boolean} - successful or not
  */
-function deleteLetterPair(leftLetter = '', rightLetter = '', kernID = '') {
+function deleteLetterPair(leftHex = '', rightHex = '', kernID = '', how = '') {
 	// log(`deleteLetterPair`, 'start');
-	let list = {};
-	let leftHex = charToHex(leftLetter);
-	let rightHex = charToHex(rightLetter);
-	const editor = getCurrentProjectEditor();
-	let success = false;
+	const project = getCurrentProject();
+	const group = project.getItem(kernID);
+	if (!group) return false;
+	const action = how || classifyPairRemoval(group, leftHex, rightHex);
+	if (!action) return false;
 
-	if (kernID) {
-		let selected = editor.project.getItem(kernID);
-		if (selected) list[kernID] = selected;
-	} else {
-		list = editor.project.kerning;
+	if (action === 'delete') {
+		// log(`Removing the Kern Group ${kernID}`);
+		delete project.kerning[kernID];
+	} else if (action === 'right') {
+		// log(`Removing ${rightHex} from the right group`);
+		group.rightGroup = group.rightGroup.filter((hex) => hex !== rightHex);
+	} else if (action === 'left') {
+		// log(`Removing ${leftHex} from the left group`);
+		group.leftGroup = group.leftGroup.filter((hex) => hex !== leftHex);
 	}
-	// log(`\n⮟list⮟`);
-	// log(list);
 
-	Object.keys(list).forEach((id) => {
-		// log(`id: ${id}`);
-		let leftGroup = list[id].leftGroup;
-		let rightGroup = list[id].rightGroup;
-		if (leftGroup.includes(leftHex) && rightGroup.includes(rightHex)) {
-			if (leftGroup.length === 1 && rightGroup.length === 1) {
-				// log(`Removing the Kern Group ${id}`);
-				editor.deleteItem(id, editor.project.kerning);
-				success = true;
-			} else if (leftGroup.length === 1) {
-				// log(`Removing ${rightHex} from the right group`);
-				rightGroup.splice(rightGroup.indexOf(rightHex), 1);
-				success = true;
-			} else if (rightGroup.length === 1) {
-				// log(`Removing ${leftHex} from the left group`);
-				leftGroup.splice(leftGroup.indexOf(leftHex), 1);
-				success = true;
-			}
-		}
-	});
-
-	// log(`success: ${success}`);
 	// log(`deleteLetterPair`, 'end');
-	return success;
+	return true;
 }
 
 /**
  * Makes a small collection of character 'chips' for half
  * of a kern group's membership (left or right).
+ * ANY-INK: an optional click handler and representative marker let the kern group
+ * card use the chips to pick which glyph the pair view shows.
  * @param {Array} group - list of character IDs
+ * @param {Object =} options
+ * @param {Function =} options.onClick - called with the chip's hex id
+ * @param {String =} options.representative - hex id to mark as the shown glyph
+ * @param {String =} options.title - extra tooltip line
  * @returns {Element}
  */
-export function makeKernGroupCharChips(group) {
+export function makeKernGroupCharChips(group, options = {}) {
 	// log(`makeKernGroupCharChips`, 'start');
 	// log(`group: ${group}`);
 
 	const wrapper = makeElement();
+	if (options.onClick) wrapper.classList.add('anyink-kern-card-chips');
 	group.forEach((charID) => {
 		// log(`charID: ${charID}`);
-		wrapper.appendChild(makeCharChip(charID));
+		wrapper.appendChild(makeCharChip(charID, options));
 	});
 	// log(`makeKernGroupCharChips`, 'end');
 	return wrapper;
@@ -693,9 +790,10 @@ export function makeKernGroupCharChips(group) {
 /**
  * Makes a small element that represents a single character.
  * @param {String} charID - char to make a chip for
+ * @param {Object =} options - see makeKernGroupCharChips
  * @returns {Element}
  */
-export function makeCharChip(charID) {
+export function makeCharChip(charID, options = {}) {
 	// log(`makeCharChip`, 'start');
 	// log(`charID: ${charID}`);
 
@@ -704,6 +802,7 @@ export function makeCharChip(charID) {
 	let title = charID;
 	const exists = !!getCurrentProject().getItem(`glyph-${charID}`, false);
 	if (name) title = `${name}\n${charID}`;
+	if (options.title) title += `\n${options.title}`;
 	// log(`char: ${char}`);
 	// log(`name: ${name}`);
 	// log(`title: ${title}`);
@@ -713,10 +812,18 @@ export function makeCharChip(charID) {
 		innerHTML: char,
 		attributes: { title: title },
 	});
+	chip.dataset.hex = charID;
 
-	if(!exists) {
+	if (!exists) {
 		chip.classList.add('warning');
 		chip.setAttribute('title', `${title}\nWarning: This character does not exist in the project.`);
+	}
+
+	if (options.representative && options.representative === charID) {
+		chip.dataset.representative = '';
+	}
+	if (options.onClick) {
+		chip.addEventListener('click', () => options.onClick(charID, chip));
 	}
 
 	// log(`makeCharChip`, 'end');

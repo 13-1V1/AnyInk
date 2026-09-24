@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { metricLineYs } from '../anyink/preview/metric_lines.js';
 import { onThemeChange, token } from '../anyink/theme/theme.js';
 import { getCurrentProject, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
@@ -46,7 +47,12 @@ export class DisplayCanvas extends HTMLElement {
 			'show-character-extras',
 			'show-placeholder-message',
 			'width-adjustment',
+			'show-metric-lines',
 		];
+
+		// ANY-INK: purple metric lines (ascender, cap height, x-height, baseline,
+		// descender) across the canvas; the preview strip toggles this.
+		this.showMetricLines = false;
 
 		// log(`DisplayCanvas.constructor`, 'end');
 	}
@@ -100,7 +106,9 @@ export class DisplayCanvas extends HTMLElement {
 					value = parseFloat(value);
 				}
 
-				this.textBlockOptions[caseKebabToCamel(key)] = value;
+				// show-metric-lines belongs to this element, not to TextBlockOptions
+				if (key === 'show-metric-lines') this.showMetricLines = !!value;
+				else this.textBlockOptions[caseKebabToCamel(key)] = value;
 				// log(`this.textBlockOptions[${caseKebabToCamel(key)}] = ${value}`);
 			}
 		});
@@ -169,7 +177,8 @@ export class DisplayCanvas extends HTMLElement {
 		// log(this.textBlockOptions);
 		// log(`this.parentElement`);
 		// log(this.parentElement);
-		const clientRect = this?.parentElement?.getClientRects()[0];
+		// A parent with no layout box yet (display: none) yields no rect; size to 0 rather than throw.
+		const clientRect = this?.parentElement?.getClientRects()[0] || { width: 0, height: 0 };
 		// log(clientRect);
 		const pageHeight = this.textBlockOptions.pageHeight;
 		const pageWidth = this.textBlockOptions.pageWidth;
@@ -205,10 +214,22 @@ export class DisplayCanvas extends HTMLElement {
 		// log(`newWidth: ${newWidth}`);
 		this.height = newHeight;
 		this.width = newWidth;
+
+		// ANY-INK: with the hi-dpi attribute the backing store follows the device
+		// pixel ratio while layout, text block math, and hit testing stay in CSS px.
+		const dpr = this.hasAttribute('hi-dpi') ? window.devicePixelRatio || 1 : 1;
 		// @ts-expect-error 'property does exist'
-		this.canvas.height = newHeight;
+		this.canvas.height = Math.round(newHeight * dpr);
 		// @ts-expect-error 'property does exist'
-		this.canvas.width = newWidth;
+		this.canvas.width = Math.round(newWidth * dpr);
+		if (dpr !== 1) {
+			// @ts-expect-error 'property does exist'
+			this.canvas.style.width = `${newWidth}px`;
+			// @ts-expect-error 'property does exist'
+			this.canvas.style.height = `${newHeight}px`;
+		}
+		// Resizing resets the context, so the scale goes on afterwards.
+		if (this.ctx?.setTransform) this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 		// log(this);
 		// log(`updateCanvasSize`, 'end');
@@ -249,7 +270,7 @@ export class DisplayCanvas extends HTMLElement {
 	 */
 	calculatePageMaxes() {
 		// log(`DisplayCanvas.calculatePageMaxes`, 'start');
-		const clientRect = this?.parentElement?.getClientRects()[0];
+		const clientRect = this?.parentElement?.getClientRects()[0] || { width: 0, height: 0 };
 		const pagePadding = this.textBlockOptions.pagePadding;
 		const pageHeight = this.textBlockOptions.pageHeight;
 		const pageWidth = this.textBlockOptions.pageWidth;
@@ -349,6 +370,11 @@ export class DisplayCanvas extends HTMLElement {
 			this.resizeAndRedraw();
 		}
 
+		if (attributeName === 'show-metric-lines') {
+			this.showMetricLines = newValue === 'true' || newValue === '';
+			this.redraw();
+		}
+
 		// log(`DisplayCanvas.attributeChangeCallback`, 'end');
 	}
 
@@ -375,6 +401,7 @@ export class DisplayCanvas extends HTMLElement {
 				showCharacterExtras: this.textBlockOptions.showCharacterExtras,
 				showCharacter: true,
 			});
+			if (this.showMetricLines) this.drawDisplayMetricLines();
 		} else {
 			if (this.textBlockOptions.showPlaceholderMessage) {
 				this.ctx.fillStyle = token('--canvas-ink-faint');
@@ -450,6 +477,34 @@ export class DisplayCanvas extends HTMLElement {
 		ctx.closePath();
 		ctx.stroke();
 		// log(`displayCanvas.drawDisplayLineExtras`, 'end');
+	}
+
+	/**
+	 * ANY-INK: draws the font's vertical metrics (ascender, cap height, x-height,
+	 * baseline, descender) as muted purple hairlines across the canvas, once per
+	 * line of text. Positions come from metric_lines.js; the font settings come
+	 * from the project the text block was laid out with.
+	 */
+	drawDisplayMetricLines() {
+		const ctx = this.ctx;
+		const textBlock = this.textBlock;
+		const font = textBlock?.project?.settings?.font;
+		if (!ctx || !textBlock || !font) return;
+		const right = this.width;
+		ctx.strokeStyle = token('--canvas-guide-muted');
+		ctx.lineWidth = 1;
+		let currentLine = -1;
+		textBlock.iterator((charData) => {
+			if (!charData.isVisible || !charData.view || charData.lineNumber === currentLine) return;
+			currentLine = charData.lineNumber;
+			metricLineYs(charData.view, font).forEach(({ y }) => {
+				const cy = makeCrisp(y);
+				ctx.beginPath();
+				ctx.moveTo(0, cy);
+				ctx.lineTo(right, cy);
+				ctx.stroke();
+			});
+		});
 	}
 
 	/**

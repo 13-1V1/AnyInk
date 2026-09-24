@@ -1,0 +1,134 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	ANY-INK kerning UI (Milestone 5): tile pickers and member chips in the kern group
+	dialogs, the representative marker on the kern group card. Colors are tokens only.
+*/
+
+/* Two pickers side by side in the add / edit dialog */
+.anyink-kern-dialog__columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	column-gap: var(--space-4);
+	align-items: start;
+}
+
+.anyink-kern-dialog__columns h3 {
+	margin-top: 0;
+}
+
+/* Scrollable grid of glyph tiles */
+.anyink-tile-picker {
+	max-height: 260px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: var(--space-2);
+	background-color: var(--chrome-bg-sunken);
+	border-radius: var(--radius);
+	scrollbar-color: var(--chrome-scrollbar) transparent;
+}
+
+.anyink-tile-picker__range {
+	margin-bottom: var(--space-3);
+}
+
+.anyink-tile-picker__range:last-child {
+	margin-bottom: 0;
+}
+
+.anyink-tile-picker__eyebrow {
+	font-size: var(--text-xs);
+	letter-spacing: var(--eyebrow-spacing);
+	text-transform: uppercase;
+	color: var(--chrome-text-faint);
+	margin: 0 0 var(--space-1) var(--space-1);
+}
+
+.anyink-tile-picker__grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.anyink-tile-picker__more {
+	font: inherit;
+	font-size: var(--text-xs);
+	color: var(--structure);
+	background: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	padding: var(--space-1) var(--space-3);
+	margin-top: var(--space-2);
+	cursor: pointer;
+}
+
+.anyink-tile-picker__more:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-tile-picker__more:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* Chips showing the current members; click removes */
+.anyink-kern-chips {
+	min-height: 32px;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 2px;
+	margin-bottom: var(--space-2);
+}
+
+.anyink-kern-chips__empty {
+	font-size: var(--text-xs);
+	color: var(--chrome-text-faint);
+	font-style: italic;
+}
+
+.anyink-kern-chips code[data-removable] {
+	cursor: pointer;
+}
+
+.anyink-kern-chips code[data-removable]:hover {
+	color: var(--danger);
+	border-color: var(--danger);
+	background-color: var(--danger-soft);
+}
+
+/* A single picked tile for the find / delete pair dialogs */
+.anyink-kern-pair-pick {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	column-gap: var(--space-4);
+}
+
+/* Value readout in the dialog: a number beside a hint, never a field */
+.anyink-kern-readout {
+	font-family: var(--font-mono);
+	font-size: var(--text-lg);
+	color: var(--structure);
+	margin-right: var(--space-3);
+}
+
+.anyink-kern-readout__hint {
+	font-size: var(--text-xs);
+	color: var(--chrome-text-faint);
+}
+
+/* Kern group card: chips pick the representative shown in the pair view */
+.anyink-kern-card-chips code {
+	cursor: pointer;
+}
+
+.anyink-kern-card-chips code:hover {
+	background-color: var(--chrome-bg-hover);
+	border-color: var(--chrome-border-strong);
+}
+
+.anyink-kern-card-chips code[data-representative] {
+	color: var(--touch);
+	border-color: var(--touch);
+	background-color: var(--touch-soft);
+}

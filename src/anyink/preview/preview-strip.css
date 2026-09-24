@@ -1,0 +1,132 @@
+/* Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	<preview-strip>: a 150 px band fixed to the bottom of the window, outside
+	#app__wrapper so page navigation never rebuilds it. Light DOM: upstream's
+	resets and input-focus checks apply to its controls. Tokens only.
+*/
+preview-strip {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 150px;
+	box-sizing: border-box;
+	display: grid;
+	grid-template-columns: 320px 1fr;
+	column-gap: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	background-color: var(--chrome-bg-sunken);
+	border-top: var(--hairline);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	z-index: 1500;
+}
+
+preview-strip[hidden] {
+	display: none;
+}
+
+preview-strip * {
+	box-sizing: border-box;
+}
+
+.preview-strip__controls {
+	display: grid;
+	grid-template-rows: 14px 28px 28px 28px;
+	row-gap: var(--space-1);
+	align-content: start;
+	min-width: 0;
+}
+
+.preview-strip__eyebrow {
+	font-size: var(--text-xs);
+	letter-spacing: var(--eyebrow-spacing);
+	text-transform: uppercase;
+	color: var(--chrome-text-faint);
+	line-height: 14px;
+	user-select: none;
+}
+
+.preview-strip__text {
+	width: 100%;
+	height: 28px;
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	padding: 0 var(--space-2);
+}
+
+.preview-strip__row {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	column-gap: var(--space-2);
+	align-items: center;
+	min-width: 0;
+}
+
+.preview-strip__presets {
+	height: 28px;
+	margin: 0;
+	padding: 0 var(--space-2);
+	font-size: var(--text-sm);
+	white-space: nowrap;
+}
+
+.preview-strip__toggles {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+
+.preview-strip__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	cursor: pointer;
+	user-select: none;
+}
+
+.preview-strip__toggle:hover {
+	color: var(--chrome-text);
+}
+
+.preview-strip__toggle input[type='checkbox'] {
+	margin: 0;
+	width: 14px;
+	height: 14px;
+	accent-color: var(--touch);
+	cursor: pointer;
+}
+
+/* The sheet: paper (or slate) floating on the chrome, like the edit canvas wrapper. */
+.preview-strip__canvas-wrapper {
+	position: relative;
+	height: 100%;
+	min-width: 80px;
+	overflow: hidden;
+	border-radius: var(--radius);
+	background-color: var(--canvas-bg);
+	color: var(--canvas-ink);
+	box-shadow: 0 0 0 1px var(--chrome-border), 0 8px 24px var(--canvas-paper-edge);
+	user-select: none;
+}
+
+.preview-strip__canvas-wrapper.is-over-glyph {
+	cursor: pointer;
+}
+
+.preview-strip__canvas-wrapper display-canvas,
+.preview-strip__canvas-wrapper font-preview {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.preview-strip__metrics-overlay {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}

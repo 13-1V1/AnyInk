@@ -262,6 +262,28 @@ export function addComponent(newComponent) {
 }
 
 /**
+ * ANY-INK: Creates a named component and records it as one undoable step
+ * (whole-project pre state before, post state after), then selects it.
+ * @param {String} name - name for the new component
+ * @returns {Glyph | String} the new component, or an error message
+ */
+export function createComponent(name = '') {
+	const editor = getCurrentProjectEditor();
+	const title = name ? `Created component ${name}` : 'Created a component';
+	editor.history.addWholeProjectChangePreState(title);
+	const result = addComponent(new Glyph({ name: name }));
+	if (typeof result === 'string') {
+		editor.history.discardLatestState();
+		return result;
+	}
+	editor.selectedComponentID = result.id;
+	result.hasChangedThisSession = false;
+	result.wasCreatedThisSession = true;
+	editor.history.addWholeProjectChangePostState();
+	return result;
+}
+
+/**
  * Makes a new Component ID that doesn't collide with old ones.
  * @returns {String}
  */
@@ -305,16 +327,11 @@ export function showAddComponentDialog() {
 	});
 
 	submitButton.addEventListener('click', () => {
-		const result = addComponent(new Glyph({ name: newComponentInput.value }));
+		const result = createComponent(newComponentInput.value);
 		if (typeof result === 'string') {
 			showError(result);
 		} else {
-			const editor = getCurrentProjectEditor();
-			editor.selectedComponentID = result.id;
-			editor.navigate();
-			editor.history.addWholeProjectChangePostState();
-			result.hasChangedThisSession = false;
-			result.wasCreatedThisSession = true;
+			getCurrentProjectEditor().navigate();
 			closeEveryTypeOfDialog();
 		}
 	});

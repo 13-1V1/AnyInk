@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { notifyKernPairsChanged } from '../../anyink/kerning/kern_lookup.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { makeKernGroupCharChips } from '../../pages/kerning.js';
@@ -259,6 +260,7 @@ function addKernGroups() {
 	});
 
 	destinationEditor.history.addWholeProjectChangePostState();
+	notifyKernPairsChanged(destinationEditor, { created: true });
 	showToast(`Added ${selectedItemIDs.length} kern groups`);
 	updateContent_addKernGroups(document.querySelector('#cross-project-actions__page-content'));
 	clearAllSelections();
