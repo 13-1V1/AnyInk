@@ -1,0 +1,129 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+// B1 fix pass: an app notice (Install, ready offline) first sat 80 px up from the bottom of the
+// window, over the canvas zoom bar and the preview strip; moved above the strip, it then covered
+// letter tiles on Overview and buttons on Settings. Until B6 decides where notices live, a notice
+// is one line in the top bar's empty middle, just left of the save status, where it covers
+// nothing on any page (the start page has no top bar, and its top is empty). Toasts still show
+// over it while they last. tests/notices.verify.mjs checks the same thing with real boxes in
+// Chrome on every page.
+import { readFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { NOTICE_GAP, placeNotices } from '../notice_place.js';
+
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const strip = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+const PWA_CSS = strip(read('../pwa.css'));
+const APP_CSS = strip(read('../../../app/app.css'));
+const DIALOGS_CSS = strip(read('../../../controls/dialogs/dialogs.css'));
+
+const rule = (css, selector) => {
+	const escaped = selector.replace(/[#.]/g, '\\$&');
+	const match = css.match(new RegExp(`(?:^|[}\\s,])${escaped}\\s*\\{([^}]*)\\}`));
+	if (!match) throw new Error(`no rule for ${selector}`);
+	return match[1];
+};
+const value = (body, property) =>
+	body.match(new RegExp(`(?:^|[\\s;])${property}:\\s*([^;]+);`))?.[1].trim();
+const px = (text) => Number(String(text).match(/(-?[\d.]+)px/)?.[1]);
+
+describe('where app notices sit (CSS)', () => {
+	const box = rule(PWA_CSS, '#anyink-pwa-notices');
+	const panel = rule(PWA_CSS, '.anyink-pwa-notice');
+	const topBar = rule(APP_CSS, '#app__top-bar');
+	const rows = value(rule(APP_CSS, '#app__wrapper'), 'grid-template-rows');
+
+	it('stays fixed at the top, inside the top bar', () => {
+		expect(value(box, 'position')).toBe('fixed');
+		const barHeight = px(rows); // the first grid row: the top bar
+		expect(barHeight).toBe(40);
+		const top = px(value(box, 'top'));
+		const height = px(value(panel, 'height'));
+		expect(top).toBeGreaterThanOrEqual(0);
+		expect(top + height).toBeLessThanOrEqual(barHeight);
+	});
+
+	it('is one line: the sentence shortens, the buttons never wrap', () => {
+		const text = rule(PWA_CSS, '.anyink-pwa-notice p');
+		expect(value(text, 'white-space')).toBe('nowrap');
+		expect(value(text, 'text-overflow')).toBe('ellipsis');
+		expect(value(rule(PWA_CSS, '.anyink-pwa-notice button'), 'white-space')).toBe('nowrap');
+	});
+
+	it('is drawn over the top bar but under toasts, which still show while they last', () => {
+		const z = Number(value(box, 'z-index'));
+		expect(z).toBeGreaterThan(Number(value(topBar, 'z-index').replace('!important', '')));
+		const toast = DIALOGS_CSS.match(/#toast,\s*#error\s*\{([^}]*)\}/)[1];
+		expect(z).toBeLessThan(Number(value(toast, 'z-index')));
+	});
+
+	it('takes its right edge and its room from placeNotices, with safe fallbacks', () => {
+		expect(value(box, 'right')).toMatch(/^var\(--anyink-notice-right,\s*\d+px\)$/);
+		expect(value(box, 'max-width')).toMatch(/^var\(--anyink-notice-room,/);
+	});
+});
+
+describe('placeNotices', () => {
+	let container;
+	const rect = (left, right, top = 8, bottom = 32) => () => ({
+		left,
+		right,
+		top,
+		bottom,
+		width: right - left,
+		height: bottom - top,
+	});
+
+	beforeEach(() => {
+		document.body.innerHTML = '';
+		container = document.createElement('aside');
+		document.body.append(container);
+	});
+	afterEach(() => {
+		document.body.innerHTML = '';
+	});
+
+	/** A top bar like menu.js makeAppTopBar's, with boxes as Chrome lays it out at this width. */
+	function topBar({ menusRight = 311, statusLeft = 1350 } = {}) {
+		const bar = document.createElement('div');
+		bar.id = 'app__top-bar';
+		const menus = document.createElement('div');
+		menus.className = 'top-bar__menus';
+		menus.getBoundingClientRect = rect(161, menusRight);
+		const status = document.createElement('anyink-save-status');
+		status.getBoundingClientRect = rect(statusLeft, 1589);
+		bar.append(menus, status);
+		document.body.prepend(bar);
+	}
+
+	const vars = () => ({
+		right: container.style.getPropertyValue('--anyink-notice-right'),
+		room: container.style.getPropertyValue('--anyink-notice-room'),
+	});
+
+	it('sits just left of the save status, with room back to the menus', () => {
+		topBar();
+		placeNotices(container, document, { innerWidth: 1600 });
+		expect(vars()).toEqual({
+			right: `${1600 - 1350 + NOTICE_GAP}px`,
+			room: `${1350 - NOTICE_GAP - (311 + NOTICE_GAP)}px`,
+		});
+	});
+
+	it('follows a longer save status ("Recovery copy saved · File changes pending")', () => {
+		topBar({ statusLeft: 1100 });
+		placeNotices(container, document, { innerWidth: 1600 });
+		expect(vars().right).toBe(`${1600 - 1100 + NOTICE_GAP}px`);
+	});
+
+	it('on the start page (no top bar) it takes the empty top right corner', () => {
+		placeNotices(container, document, { innerWidth: 1600 });
+		expect(vars()).toEqual({ right: '', room: '' });
+	});
+
+	it('never gets less room than one short line', () => {
+		topBar({ menusRight: 311, statusLeft: 400 });
+		placeNotices(container, document, { innerWidth: 1024 });
+		expect(parseInt(vars().room, 10)).toBeGreaterThanOrEqual(160);
+	});
+});

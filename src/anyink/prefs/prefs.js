@@ -7,6 +7,9 @@
 	settings inside each project; this module is deliberately separate (D-007).
 	Storage: one JSON object under localStorage key 'anyink-prefs'. Every read and
 	write is guarded, so a blocked or full localStorage degrades to in-memory prefs.
+	B1 fix: two ANY-INK windows share that one key. A write re-reads it first and changes
+	only its own pref (never writes back a stale copy over what the other window set),
+	and a 'storage' event from the other window drops this window's cached copy.
 */
 
 const STORAGE_KEY = 'anyink-prefs';
@@ -23,6 +26,29 @@ function load() {
 	}
 	return memory;
 }
+
+/**
+ * The prefs as storage holds them now (another window may have written since this one
+ * loaded); the in-memory copy when storage can't be read.
+ * @returns {Object}
+ */
+function loadFresh() {
+	try {
+		const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
+		if (raw) {
+			const stored = JSON.parse(raw);
+			if (stored && typeof stored === 'object') memory = stored;
+		}
+	} catch {
+		// storage blocked or unreadable: keep the in-memory copy
+	}
+	return load();
+}
+
+// Another window changed the prefs: read them again on the next getPref.
+globalThis.addEventListener?.('storage', (event) => {
+	if (event.key === STORAGE_KEY || event.key === null) memory = null;
+});
 
 function persist() {
 	try {
@@ -47,14 +73,14 @@ export function getPref(name, fallback = undefined) {
  * @param {*} value - must be JSON-serializable
  */
 export function setPref(name, value) {
-	const prefs = load();
+	const prefs = loadFresh();
 	prefs[name] = value;
 	persist();
 }
 
 /** @param {String} name */
 export function deletePref(name) {
-	const prefs = load();
+	const prefs = loadFresh();
 	delete prefs[name];
 	persist();
 }

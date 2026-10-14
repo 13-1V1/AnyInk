@@ -11,8 +11,15 @@
 	  rebuilt with a 400 ms trailing debounce, and only on the topics that change the font.
 	- Follows the current editor: on every 'anyink-page-change' it re-subscribes when
 	  getCurrentProjectEditor() changed, hides on app-level pages, shows otherwise.
-	- Double-click a glyph in the strip to edit it.
+	- Double-click a glyph in the strip to edit it (opened like Show me, show_item.js).
 	- Text, size and toggles live in app prefs (D-007) and go out as 'previewOptions'.
+	- B1: one line on the sheet with the font check's first problem ('fontCheck' topic), how
+	  many more letters need fixing, [Show me] and, when it has a safe fix, [Fix it] (fix_it.js;
+	  the check runs again at once, so the line moves on without the 2 s wait). While it shows,
+	  the corner of the sheet under it is cut out of the letters' page (clip-path), so it never
+	  sits on a letter, and the letters never move when it comes or goes. It steps aside while
+	  the real-font sheet already says the font can't be shown (<font-preview>'s
+	  'font-status' event), so only one line ever speaks.
 	Light DOM on purpose: upstream's keyboard handler already ignores keys typed in
 	an <input>, and the app's resets style the controls.
 */
@@ -22,16 +29,22 @@ import { makeCrisp } from '../../common/functions.js';
 import { closeAllContextMenus, makeContextMenu } from '../../controls/dialogs/dialogs.js';
 import { FontPreview } from '../../controls/font-preview/font_preview.js';
 import { DisplayCanvas } from '../../display_canvas/display_canvas.js';
+import { getLastFontCheck, runFontCheckNow } from '../fontcheck/font_check.js';
 import { getPref, setPref } from '../prefs/prefs.js';
 import { onThemeChange, token } from '../theme/theme.js';
+import { canFixProblem, fixProblem } from './fix_it.js';
+import { firstCheckProblem, hintFor, isGapId, moreText } from './font_status.js';
 import { findCharAtPoint, navigationTargetForChar } from './hit_test.js';
 import { injectStyleOnce } from './inject_style.js';
 import { centeringLineGap, nativeFirstLineView } from './layout.js';
 import { metricLineYs } from './metric_lines.js';
 import { makePointsSlider } from './points_slider.js';
 import style from './preview-strip.css?inline';
+import { makeNoticeLine } from './notice_line.js';
+import noticeStyle from './preview-notice.css?inline';
 import { DEFAULT_SAMPLE_TEXT, makePresetRows } from './sample_presets.js';
 import { makeFrameCoalescer, makeTrailingDebounce } from './scheduling.js';
+import { isItemOpen, showItem } from './show_item.js';
 import { makeEditorTracker } from './subscriptions.js';
 import { DEFAULT_PT, clampPt, ptToPx } from './units.js';
 
@@ -39,8 +52,11 @@ export const STRIP_HEIGHT = 150;
 export const STRIP_HEIGHT_VAR = '--anyink-strip-height';
 export const PAGE_CHANGE_EVENT = 'anyink-page-change';
 export const FONT_REBUILD_MS = 400;
+/** B1: px of clear sheet kept around the font check line's corner (preview-strip.css). */
+export const CHECK_GAP = 4;
 const PAGE_PADDING = 10;
 const STYLE_ID = 'anyink-preview-strip-style';
+const NOTICE_STYLE_ID = 'anyink-preview-notice-style';
 
 export const PREF_KEYS = {
 	text: 'previewText',
@@ -86,6 +102,13 @@ export class PreviewStrip extends HTMLElement {
 		this.fontDirty = true;
 		this.editor = null;
 		this.unsubscribeThemeChange = null;
+		/** @type {{itemId: String|null, problem: String|null, text: String, more: Number}|null}
+		 * the font check's first problem */
+		this.checkProblem = null;
+		/** true while the real-font sheet shows its own "Can't show your font yet" notice */
+		this.sheetSaysCantShow = false;
+		/** true while the corner under the check line is cut out of the letters' page */
+		this.hasCheckCorner = false;
 
 		this.tracker = makeEditorTracker({
 			onRedraw: () => this.scheduleRedraw(),
@@ -93,6 +116,7 @@ export class PreviewStrip extends HTMLElement {
 				this.fontDirty = true;
 				if (this.options.realFont) this.scheduleFontRebuild();
 			},
+			onFontCheck: (payload) => this.setCheckProblem(firstCheckProblem(payload)),
 		});
 		this.scheduleRedraw = makeFrameCoalescer(() => this.redrawNow());
 		this.scheduleFontRebuild = makeTrailingDebounce(() => this.rebuildFontNow(), FONT_REBUILD_MS);
@@ -100,6 +124,7 @@ export class PreviewStrip extends HTMLElement {
 		this.handlePageChange = (event) => this.onPageChange(event?.detail || {});
 		this.handleWindowResize = () => {
 			this.needsResize = true;
+			this.measureCheckCorner();
 			this.scheduleRedraw();
 		};
 		this.handleKeyDown = (event) => this.onKeyDown(event);
@@ -111,6 +136,7 @@ export class PreviewStrip extends HTMLElement {
 
 	connectedCallback() {
 		injectStyleOnce(STYLE_ID, style, this.ownerDocument);
+		injectStyleOnce(NOTICE_STYLE_ID, noticeStyle, this.ownerDocument);
 		if (!this.isBuilt) this.build();
 		this.hidden = true;
 		this.visible = false;
@@ -200,6 +226,22 @@ export class PreviewStrip extends HTMLElement {
 		this.canvasWrapper.addEventListener('mouseleave', () =>
 			this.canvasWrapper.classList.remove('is-over-glyph')
 		);
+		this.canvasWrapper.addEventListener('font-status', (event) =>
+			// @ts-expect-error CustomEvent detail
+			this.onFontStatus(event.detail || {})
+		);
+		// The page the letters are laid out in; it stops short of the check line's band.
+		this.page = makeElement({ className: 'preview-strip__page' });
+		this.canvasWrapper.appendChild(this.page);
+
+		// B1: the font check's first problem, one line on the sheet.
+		this.checkLine = makeNoticeLine({
+			doc: this.ownerDocument,
+			onShowMe: (itemId) => showItem(this.editor, itemId),
+			onFixIt: (problem) => this.fixCheckProblem(problem),
+		});
+		this.checkLine.element.classList.add('preview-strip__check');
+		this.canvasWrapper.appendChild(this.checkLine.element);
 		this.appendChild(this.canvasWrapper);
 	}
 
@@ -283,9 +325,83 @@ export class PreviewStrip extends HTMLElement {
 		this.editor = this.tracker.current();
 		if (changed) {
 			this.fontDirty = true;
+			// The old font's problems are not this font's: show this font's last check, if any.
+			this.setCheckProblem(firstCheckProblem(getLastFontCheck(this.editor)));
 			this.scheduleRedraw();
 		}
 		return changed;
+	}
+
+	// --------------------------------------------------------------
+	// Font check line (B1)
+	// --------------------------------------------------------------
+
+	/**
+	 * @param {{itemId: String|null, problem: String|null, text: String, more: Number,
+	 *   moreGaps: Number}|null} problem - from font_status.js firstCheckProblem
+	 */
+	setCheckProblem(problem) {
+		this.checkProblem = problem || null;
+		this.updateCheckLine();
+	}
+
+	/** @param {{ok?: Boolean}} detail - from <font-preview>'s 'font-status' event */
+	onFontStatus(detail) {
+		this.sheetSaysCantShow = detail.ok === false;
+		this.updateCheckLine();
+	}
+
+	updateCheckLine() {
+		if (!this.checkLine) return;
+		const problem = this.sheetSaysCantShow ? null : this.checkProblem;
+		if (problem) {
+			const fixable = canFixProblem(this.editor?.project, problem);
+			this.checkLine.show({
+				text: problem.text,
+				itemId: problem.itemId,
+				problem: problem.problem,
+				more: moreText(problem.more, problem.moreGaps, isGapId(problem.itemId)),
+				hint: hintFor(problem.problem, fixable),
+				fixable,
+			});
+		} else {
+			this.checkLine.hide();
+		}
+		this.setCheckCorner(!!problem);
+	}
+
+	/**
+	 * Cuts the corner under the line out of the letters' page (preview-strip.css has-check), or
+	 * gives it back. The letters keep the whole sheet and are never laid out again for it.
+	 * @param {Boolean} on
+	 */
+	setCheckCorner(on) {
+		if (!this.canvasWrapper) return;
+		this.hasCheckCorner = on;
+		this.canvasWrapper.classList.toggle('has-check', on);
+		this.measureCheckCorner();
+	}
+
+	/** Sizes the cut-out corner to the line as it is drawn now, plus CHECK_GAP. */
+	measureCheckCorner() {
+		if (!this.hasCheckCorner || !this.page || !this.checkLine?.visible) return;
+		const page = this.page.getBoundingClientRect();
+		const line = this.checkLine.element.getBoundingClientRect();
+		const px = (value) => `${Math.max(0, Math.ceil(value))}px`;
+		this.canvasWrapper.style.setProperty('--preview-check-cut-w', px(page.right - line.left + CHECK_GAP));
+		this.canvasWrapper.style.setProperty('--preview-check-cut-h', px(page.bottom - line.top + CHECK_GAP));
+	}
+
+	/**
+	 * [Fix it]: fixes the letter (one Undo step), then checks the font again at once, so the line
+	 * moves on; also when there was nothing left to fix (the line was up to 2 s old).
+	 * @param {{itemId: String, problem: String}} problem
+	 */
+	fixCheckProblem(problem) {
+		const editor = this.editor;
+		if (!editor) return;
+		fixProblem(editor, problem);
+		runFontCheckNow(editor);
 	}
 
 	// --------------------------------------------------------------
@@ -375,7 +491,7 @@ export class PreviewStrip extends HTMLElement {
 	 * @returns {Number}
 	 */
 	lineGapFor(px) {
-		const area = this.canvasWrapper?.clientHeight || STRIP_HEIGHT - 2 * 8;
+		const area = this.page?.clientHeight || STRIP_HEIGHT - 2 * 8;
 		return centeringLineGap(area, PAGE_PADDING, px);
 	}
 
@@ -387,7 +503,7 @@ export class PreviewStrip extends HTMLElement {
 		this.removeRenderer();
 		const renderer = wantFont ? this.makeFontRenderer() : this.makeCanvasRenderer();
 		this.renderer = renderer;
-		this.canvasWrapper.appendChild(renderer); // connectedCallback draws it
+		this.page.appendChild(renderer); // connectedCallback draws it
 		this.needsResize = false;
 		this.fontDirty = false;
 		if (wantFont) this.ensureOverlay();
@@ -403,6 +519,9 @@ export class PreviewStrip extends HTMLElement {
 		if (face && this.ownerDocument.fonts) this.ownerDocument.fonts.delete(face);
 		old.remove();
 		this.renderer = null;
+		// Its "Can't show your font yet" notice left with it.
+		this.sheetSaysCantShow = false;
+		this.updateCheckLine();
 	}
 
 	makeCanvasRenderer() {
@@ -442,6 +561,7 @@ export class PreviewStrip extends HTMLElement {
 	/** One redraw per frame; scheduled through this.scheduleRedraw. */
 	redrawNow() {
 		if (!this.visible || !this.isConnected) return;
+		this.measureCheckCorner(); // the sheet may have changed size since the line came
 		const renderer = this.ensureRenderer();
 		const options = renderer.textBlockOptions;
 		if (!options) return;
@@ -488,7 +608,7 @@ export class PreviewStrip extends HTMLElement {
 				makeElement({ tag: 'canvas', className: 'preview-strip__metrics-overlay' })
 			);
 		}
-		if (!this.overlay.isConnected) this.canvasWrapper.appendChild(this.overlay);
+		if (!this.overlay.isConnected) this.page.appendChild(this.overlay);
 	}
 
 	removeOverlay() {
@@ -499,8 +619,8 @@ export class PreviewStrip extends HTMLElement {
 	drawMetricsOverlay() {
 		const canvas = this.overlay;
 		if (!canvas || !canvas.isConnected) return;
-		const width = this.canvasWrapper.clientWidth;
-		const height = this.canvasWrapper.clientHeight;
+		const width = this.page.clientWidth;
+		const height = this.page.clientHeight;
 		const dpr = window.devicePixelRatio || 1;
 		canvas.width = Math.round(width * dpr);
 		canvas.height = Math.round(height * dpr);
@@ -578,7 +698,8 @@ export class PreviewStrip extends HTMLElement {
 	 */
 	hitTest(event) {
 		const renderer = this.renderer;
-		if (!(renderer instanceof DisplayCanvas) || !renderer.textBlock || !renderer.canvas) return false;
+		if (!(renderer instanceof DisplayCanvas) || !renderer.textBlock || !renderer.canvas)
+			return false;
 		// @ts-expect-error canvas is an HTMLCanvasElement
 		const rect = renderer.canvas.getBoundingClientRect();
 		const font = renderer.textBlock.project?.settings?.font;
@@ -596,14 +717,16 @@ export class PreviewStrip extends HTMLElement {
 		this.canvasWrapper.classList.toggle('is-over-glyph', over);
 	}
 
-	/** Double-click a glyph in the strip to go edit it. @param {MouseEvent} event */
+	/**
+	 * Double-click a glyph in the strip to go edit it. B1: opened the way Show me opens one
+	 * (show_item.js), so upstream's undo keeps its "Navigated to" step.
+	 * @param {MouseEvent} event
+	 */
 	onDoubleClick(event) {
 		const target = navigationTargetForChar(this.hitTest(event));
-		const editor = this.editor;
-		if (!target || !editor) return;
-		editor.nav.page = target.page;
-		editor.selectedItemID = target.id;
-		editor.navigate();
+		// The letter already open stays as it is (its view too)
+		if (!target || !this.editor || isItemOpen(this.editor, target.id)) return;
+		showItem(this.editor, target.id);
 	}
 
 	/**

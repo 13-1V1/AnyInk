@@ -1557,7 +1557,7 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B | Name | Main modules | Days | Unlocks |
 |---|---|---|---|---|
 | B0 | Housekeeping | (docs, fixtures) | 0.5 | A clean start |
-| B1 | Fix what's broken | `fontcheck/`, fixes in existing files | 2.5 | Correct results in both modes |
+| B1 | Fix what's broken (**done 10/14/2026**) | `fontcheck/`, fixes in existing files | 2.5 | Correct results in both modes |
 | B2 | Undo that never surprises | `history/` | 2.5 | One press = one change, anywhere |
 | B3 | Spacing and placement engine | `spacing/`, `placement/` | 3.5 | Traced and drawn letters type correctly |
 | B4 | House words and one toast voice | `words/`, `toast/` | 2.5 | No jargon on the main path |
@@ -1592,6 +1592,12 @@ About **46 working days** before M9. The first complete photo-to-Word loop in Si
 - **Done when:** the working tree holds only these changes; the suite is green; the counts are recorded.
 
 ### B1. Fix what's broken (no new screens; both modes)
+
+**DONE 10/14/2026** (four tracks, integration, a critic pass and a fix pass; choices in D-032; numbers
+in TEST_LOG). Beyond the plan below, the fix pass added an interim [Fix it] on the strip line (a width,
+a space with no width, a letter's own stray shapes; one Undo step each, B3 and B11 replace it), one
+sentence saying what to do when there is no Fix it, guide lines that hold 3:1 on displays scaled to
+125 % and 150 %, and app notices as one line in the top bar (B6 decides their final place).
 
 - **Panel ids.** `navigator.js` `makePanelChooserContent` passes each panel's **id** (the key of
   `listOfPanels()`: `Attributes`, `Layers`, `Trace`, `ContextCharacters`, `Transforms`, `History`,
@@ -1631,6 +1637,8 @@ About **46 working days** before M9. The first complete photo-to-Word loop in Si
   `font_export.js`, `app.js`, `pub_sub.js`, the menu CSS / `tokens.css`. **ANY-INK files:**
   `pwa/register.js`, `preview_strip.js`.
 - **Stubs:** none. [Fix it] comes with B3's refit and B11; until then the strip offers [Show me] only.
+  (Fix pass: an interim [Fix it] (`preview/fix_it.js`) covers widths, the space and stray shapes;
+  B3's refit replaces its `fittedWidth`.)
 - **Test page:** `tests/fontcheck.html` loads a sample, breaks one letter three ways (a fractional
   width, ink with width 0, a 2-point shape) and shows the strip line and the export toast. The unload
   check reuses `tests/recovery.html`.
@@ -1754,6 +1762,15 @@ About **46 working days** before M9. The first complete photo-to-Word loop in Si
 - **Stubs:** the scan runs on what exists (canvas labels, menus, toasts, `words.js`); each later B adds
   its screens to it.
 - **Test page:** `tests/words.html` lists every key with its text, hint, pro word and feature.
+- **Carried from B1** (strings B1 put on screen that B4 moves into `words.js`): the font check messages
+  (`fontcheck/validate.js`, `validate_kerning.js`), "Show me", "Fix it", "N more letters and N gaps
+  need fixing too.", the three what-to-do sentences (`preview/font_status.js` hintFor), "Can't show your
+  font yet: ...", "the gap between X and Y", the export toast's ", but ... needs fixing.", the notices
+  in `pwa/register.js`, the Presets hints ("this letter", "26 letters", "capitals", "small letters") and
+  "Open another font first". `history_text.js` maps the new Undo titles ("gave small b a width",
+  "fixed the width of small b", "removed 2 stray shapes from small b", "gave the space a width") and
+  upstream's "Navigated to Latin Small Letter B" (B1's Show me records it). Still on screen from
+  upstream: "advance width" and "bearings" in the Attributes panel, and the install offer's wording.
 - **Done when:** zero banned-word hits on what exists; every listed toast maps to a key; the full suite
   is green.
 

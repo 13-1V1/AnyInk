@@ -2,6 +2,7 @@
 // brennanmmeyer@gmail.com
 import { makeMetricSettingsInput } from '../anyink/metrics/readouts.js';
 import { isFontMetricKey } from '../anyink/metrics/metrics_math.js';
+import { markDirty } from '../anyink/recovery/recovery.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement, textToNode } from '../common/dom.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
@@ -62,6 +63,19 @@ export function makePage_Settings() {
 // --------------------------------------------------------------
 // Individual settings
 // --------------------------------------------------------------
+
+/**
+ * ANY-INK (B1): a Settings-page write is a change to the font. These writes skip History, so
+ * without this a saved work file kept "Saved" after a new font name or copyright: no autosave,
+ * no backup copy and no "Leave site?" prompt. Still not an Undo step (UX-BEGINNER 7.3 plans
+ * Settings steps for the font name and copyright).
+ */
+export function markSettingsChanged() {
+	const editor = getCurrentProjectEditor();
+	markDirty(editor.history);
+	editor.setProjectAsUnsaved?.();
+}
+
 /**
  * Makes the label and info-bubble for one settings row. Shared by
  * makeOneSettingsRow and by rows that need a custom input (like PANOSE).
@@ -125,6 +139,13 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 
 	const [label, info] = makeSettingsLabelAndInfo(groupName, propertyName, inputFirst);
 
+	// ANY-INK (B1): every write below goes through here, so a real change marks the font changed.
+	const write = (newValue) => {
+		if (settings[groupName][propertyName] === newValue) return;
+		settings[groupName][propertyName] = newValue;
+		markSettingsChanged();
+	};
+
 	let type = textToNode('<span></span>');
 	let input;
 
@@ -146,7 +167,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 			if (isNaN(newValue)) {
 				showToast(`Could not save value - needs to be a number.`);
 			} else {
-				settings[groupName][propertyName] = newValue;
+				write(newValue);
 			}
 			if (callback) callback();
 		});
@@ -168,7 +189,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 			if (isNaN(newValue)) {
 				showToast(`Could not save value - needs to be a number.`);
 			} else {
-				settings[groupName][propertyName] = newValue;
+				write(newValue);
 			}
 			if (callback) callback();
 		});
@@ -195,7 +216,7 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 		// option-chooser dispatches 'change' whenever selected-id is set
 		input.addEventListener('change', () => {
 			const newValue = input.getAttribute('selected-id');
-			if (newValue) settings[groupName][propertyName] = newValue;
+			if (newValue) write(newValue);
 			if (callback) callback();
 		});
 	}
@@ -209,13 +230,16 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 		input.addEventListener('change', (event) => {
 			// @ts-expect-error 'property does exist'
 			let newValue = sanitizeValueWithJSON(event.target.value);
-			settings[groupName][propertyName] = newValue;
+			write(newValue);
 			if (callback) callback();
 		});
 	}
 
 	if (settingType === 'Boolean') {
-		input = makeDirectCheckbox(settings[groupName], propertyName, callback);
+		input = makeDirectCheckbox(settings[groupName], propertyName, (checked) => {
+			markSettingsChanged();
+			if (callback) callback(checked);
+		});
 		if (propertyName === 'showNonCharPoints') {
 			input.addEventListener('change', () => {
 				const project = getCurrentProject();

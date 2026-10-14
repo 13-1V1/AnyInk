@@ -130,3 +130,36 @@ preview-strip * {
 	inset: 0;
 	pointer-events: none;
 }
+
+/* The page the letters are laid out in (the renderer and the metric lines). DisplayCanvas
+   sizes itself to its parent's box, so the room the letters get is this element's: always the
+   whole sheet. The real-font text box grows with its text, so the page clips it to the sheet. */
+.preview-strip__page {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	transition: none;
+}
+
+/* B1: the font check's one line (preview-notice.css), on the sheet's bottom-right corner. Only
+   there while the font check has a problem (has-check); then just the corner under it is cut
+   out of the page, sized by preview_strip.js measureCheckCorner, so the line never sits on a
+   letter, at any size, and the letters never move when it comes or goes. */
+.preview-strip__canvas-wrapper.has-check .preview-strip__page {
+	clip-path: polygon(
+		0 0,
+		100% 0,
+		100% calc(100% - var(--preview-check-cut-h, 0px)),
+		calc(100% - var(--preview-check-cut-w, 0px)) calc(100% - var(--preview-check-cut-h, 0px)),
+		calc(100% - var(--preview-check-cut-w, 0px)) 100%,
+		0 100%
+	);
+}
+
+.preview-strip__check {
+	position: absolute;
+	right: var(--space-2);
+	bottom: var(--space-1);
+	max-width: calc(100% - 2 * var(--space-2));
+	z-index: 1;
+}

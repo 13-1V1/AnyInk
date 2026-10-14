@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { getSaveStatus } from '../anyink/files/save_status.js';
+import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { peekProject } from '../anyink/recovery/snapshot.js';
 import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
 import { closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
@@ -14,7 +17,6 @@ import * as config from './app_config.json';
 import { _DEV } from './dev_mode_includes.js';
 import {
 	addProjectEditorAndSetAsImportTarget,
-	getCurrentProject,
 	getGlyphrStudioApp,
 	getProjectEditorImportTarget,
 	setCurrentProjectEditor,
@@ -36,7 +38,7 @@ export class GlyphrStudioApp {
 				twoSampleProjects: false, // {bool} Load two sample projects
 				currentPage: false, // {Sentence case page name} navigate straight to a page
 				currentGlyphID: false, // {glyph id} select a glyph
-				currentPanel: false, // {Sentence case panel name} navigate straight to a panel
+				currentPanel: false, // {panel id, e.g. 'QualityChecks'; old names still work} open a panel
 				currentTool: false, // {Tool name} select a tool
 				stopPageNavigation: false, // {bool} overwrite project-level setting
 				autoSave: false, // {bool} trigger auto saves
@@ -303,22 +305,126 @@ export class GlyphrStudioApp {
 
 /**
  * Sets the appropriate window unload event
+ * ANY-INK (B1, UX-BEGINNER 7.5): the handler decides when the page is actually closing, so a
+ * save, an autosave or an edit after this call is always taken into account. Callers that
+ * still call this after a setting change or a project load just re-install the same handler.
  */
 export function updateWindowUnloadEvent() {
-	const project = getCurrentProject();
-	const app = getGlyphrStudioApp();
+	window.onbeforeunload = warnIfWorkWouldBeLost;
+}
 
-	if (app.settings.dev.mode) {
-		if (app.settings.dev.stopPageNavigation) {
-			window.onbeforeunload = showBeforeUnloadConfirmation;
-		} else {
-			window.onbeforeunload = () => {};
-		}
-	} else if (project.settings.app.stopPageNavigation) {
-		window.onbeforeunload = showBeforeUnloadConfirmation;
-	} else {
-		window.onbeforeunload = () => {};
+/**
+ * onbeforeunload handler: asks Chrome for its "Leave site?" prompt only when work would be lost.
+ * @param {Event} event - original event
+ * @returns {String | undefined} - a message when warning, nothing otherwise
+ */
+function warnIfWorkWouldBeLost(event) {
+	let warn;
+	try {
+		warn = shouldWarnBeforeLeaving();
+	} catch (error) {
+		console.warn('ANY-INK leave check failed; warning to be safe', error);
+		warn = true;
 	}
+	if (!warn) return undefined;
+	return showBeforeUnloadConfirmation(event);
+}
+
+/**
+ * ANY-INK (B1): warn only when an open font has ink that isn't in its work file: its save status
+ * (src/anyink/files/save_status.js) isn't 'saved' and some letter, ligature or component has
+ * shapes. A font with no work file (an example, an imported font file, a font just made) warns
+ * only when the font differs from what it was loaded as: ink, widths, gaps, settings, anything
+ * its work file would hold. Looking around, opening letters included, loses nothing (upstream
+ * records "Navigated to" undo entries, so the save status alone can't tell, and opening a
+ * letter makes an empty record for it). The font's own "Warn about unsaved changes" setting,
+ * when turned off, still turns the warning off. Dev mode keeps upstream's override: its own
+ * stopPageNavigation switch decides alone.
+ * @param {GlyphrStudioApp} app
+ * @returns {Boolean}
+ */
+function shouldWarnBeforeLeaving(app = getGlyphrStudioApp()) {
+	const dev = app.settings.dev;
+	if (dev.mode) return !!dev.stopPageNavigation;
+	return app.projectEditors.some(hasInkNotInItsFile);
+}
+
+/**
+ * @param {ProjectEditor} editor
+ * @returns {Boolean}
+ */
+function hasInkNotInItsFile(editor) {
+	// peekProject never builds an empty project for an editor that has none yet.
+	const project = peekProject(editor);
+	if (!project) return false;
+	if (project.settings?.app?.stopPageNavigation === false) return false;
+	if (getSaveStatus(editor).file === 'saved') return false;
+	if (!projectHasInk(project)) return false;
+	if (!isProjectFileHandle(editor.loadedFileHandle)) return changedSinceLoaded(editor, project);
+	return true;
+}
+
+const INK_COLLECTIONS = ['glyphs', 'ligatures', 'components'];
+
+/**
+ * @param {Object} project - GlyphrStudioProject
+ * @returns {Boolean} true when any glyph, ligature or component has at least one shape
+ */
+function projectHasInk(project) {
+	return INK_COLLECTIONS.some((name) =>
+		Object.values(project[name] || {}).some((item) => item?.shapes?.length > 0)
+	);
+}
+
+/**
+ * Compares the font with the copy History made when it was loaded (History.initialize:
+ * initialProject; a restored backup copy brings its own), as its work file would hold it.
+ * @param {ProjectEditor} editor
+ * @param {Object} project - GlyphrStudioProject
+ * @returns {Boolean} true when anything differs (ink, a width, a gap, a setting, a photo), or
+ *   the loaded copy is missing (then it may have changed, so it counts as changed)
+ */
+function changedSinceLoaded(editor, project) {
+	const loaded = editor.history?.initialProject;
+	if (typeof loaded?.save !== 'function') return true;
+	const before = loaded.save();
+	const now = project.save();
+	// History made that copy by loading the font's data into a new project, which keeps only
+	// the settings a project knows (an imported font file brings extra ones, like a font name
+	// field), so only the settings that copy has are compared.
+	now.settings = sameKeys(now.settings, before.settings);
+	return workPrint(now) !== workPrint(before);
+}
+
+/**
+ * @param {*} value - from the font now
+ * @param {*} like - the same place in the copy made when it was loaded
+ * @returns {*} value, with every plain object cut down to the keys `like` has there
+ */
+function sameKeys(value, like) {
+	const plain = (v) => v && typeof v === 'object' && !Array.isArray(v);
+	if (!plain(value) || !plain(like)) return value;
+	return Object.fromEntries(
+		Object.keys(like)
+			.filter((key) => key in value)
+			.map((key) => [key, sameKeys(value[key], like[key])])
+	);
+}
+
+/**
+ * @param {Object} saved - a GlyphrStudioProject's save() data
+ * @returns {String} that data, keys in order, without the empty letter records opening a
+ *   letter makes (a record with nothing but its id)
+ */
+function workPrint(saved) {
+	for (const [id, glyph] of Object.entries(saved.glyphs || {})) {
+		if (Object.keys(glyph).every((key) => key === 'id')) delete saved.glyphs[id];
+	}
+	return JSON.stringify(saved, (key, value) =>
+		value && typeof value === 'object' && !Array.isArray(value)
+			? Object.fromEntries(Object.keys(value).sort().map((k) => [k, value[k]]))
+			: value
+	);
 }
 
 /**

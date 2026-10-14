@@ -4,7 +4,7 @@ import { getCurrentProject } from '../app/main';
 import { addAsChildren, makeElement, textToNode } from '../common/dom';
 import { closeEveryTypeOfDialog, showModalDialog } from '../controls/dialogs/dialogs';
 import { panoseData } from '../lib/panose';
-import { makeOneSettingsRow, makeSettingsLabelAndInfo } from './settings';
+import { makeOneSettingsRow, makeSettingsLabelAndInfo, markSettingsChanged } from './settings';
 
 let workingPanoseValue;
 /**
@@ -167,7 +167,11 @@ function showPanoseBuilderDialog() {
 		// log(`panose builder Save button`, 'start');
 		let result = workingPanoseValue.join(' ');
 		// log(`result: ${result}`);
-		getCurrentProject().settings.font.panose = result;
+		const font = getCurrentProject().settings.font;
+		if (font.panose !== result) {
+			font.panose = result;
+			markSettingsChanged(); // ANY-INK (B1)
+		}
 		const readout = document.querySelector('#settings-page-input__font-panose');
 		if (readout) readout.textContent = result;
 		closeEveryTypeOfDialog();

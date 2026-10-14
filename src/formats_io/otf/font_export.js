@@ -2,13 +2,21 @@
 // brennanmmeyer@gmail.com
 import { FontFlux, initWoff2 } from 'font-flux-js';
 import { getCurrentProject } from '../../app/main.js';
-import { decToHex, parseCharsInputAsHex } from '../../common/character_ids.js';
+import { parseCharsInputAsHex } from '../../common/character_ids.js';
 import { isUIUpdateDue, pause, resetUIUpdateThrottle, round } from '../../common/functions.js';
 import { closeAllToasts, showError, showToast } from '../../controls/dialogs/dialogs.js';
 import { Glyph } from '../../project_data/glyph.js';
-import { sortLigatures } from '../../project_data/glyphr_studio_project.js';
 import { Path } from '../../project_data/path.js';
-import { prepareExportDestination, writeExport } from '../../anyink/files/export_folder.js';
+import {
+	getLastExportMessage,
+	prepareExportDestination,
+	writeExport,
+} from '../../anyink/files/export_folder.js';
+import { getExportKerning } from '../../anyink/fontcheck/export_kerning.js';
+import {
+	getExportList,
+	shouldExportItem as shouldExportItemInProject,
+} from '../../anyink/fontcheck/export_list.js';
 import { makeGlyphWithResolvedLinks } from '../../project_editor/cross_item_actions.js';
 import { writeGposKernDataToFont } from './tables/gpos.js';
 
@@ -84,13 +92,31 @@ export async function ioFont_exportDefaultFormat() {
  * Its first step settles where the file goes (export folder permission prompt, or
  * the folder picker) while that gesture's transient activation is still live; only
  * then is the font built, which can take longer than the activation lasts.
+ * ANY-INK (B1): exportOptions change this one font file only. They never touch the
+ * project's settings or its undo history, and with all of them off (the default)
+ * the file is byte-for-byte what it was before they existed.
  * @param {String} suffix - file extension suffix (e.g. 'otf' or 'ttf')
  * @param {Boolean} testing - if true, returns ArrayBuffer instead of saving to file
+ * @param {Object} [exportOptions]
+ * @param {Boolean} [exportOptions.omitEmptyLetters] - leave out letters with no shapes
+ *   (the space, and letters a ligature is made of, stay)
+ * @param {Boolean} [exportOptions.addSpaceIfMissing] - add a space a quarter of the
+ *   letter box wide when the font has none (or only a blank, 0-wide one)
+ * @param {String} [exportOptions.familyName] - family name for this file instead of
+ *   settings.font.family
+ * @param {String} [exportOptions.fileName] - file name instead of the PostScript name
+ *   (the extension is added when missing)
  * @returns {Promise<ArrayBuffer | String | false>} - ArrayBuffer if testing, otherwise
  *   'folder' | 'download' | 'cancelled' | 'prompt' (export_folder.js writeExport),
  *   or false when the build failed (an error box was shown)
  */
-export async function ioFont_exportFont(suffix = 'otf', testing = false) {
+export async function ioFont_exportFont(suffix = 'otf', testing = false, exportOptions = {}) {
+	const {
+		omitEmptyLetters = false,
+		addSpaceIfMissing = false,
+		familyName = '',
+		fileName = '',
+	} = exportOptions || {};
 	// log('ioFont_exportFont', 'start');
 	let destination = null;
 	if (!testing) {
@@ -101,8 +127,12 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 		}
 		showToast(`Exporting ${suffix.toUpperCase()} font file...`);
 	}
-	const options = createOptionsObject();
-	const exportLists = populateExportList();
+	const options = createOptionsObject(undefined, { familyName });
+	const exportLists = getExportList(getCurrentProject(), {
+		forExport: true,
+		omitEmptyLetters,
+		addSpaceIfMissing,
+	});
 	const project = getCurrentProject();
 	ligatureSubstitutions = [];
 	codePointGlyphIndexTable = {};
@@ -245,7 +275,10 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 	// Write kern pair data first, before setting GSUB features
 	// This ensures the font's GPOS table is properly initialized
 	if (project.settings.app.exportKerning) {
-		writeGposKernDataToFont(font, project);
+		// ANY-INK (B1): kern values as the font file holds them (whole numbers in range,
+		// src/anyink/fontcheck/export_kerning.js), so one typed decimal can't stop the export.
+		// Whole-number values in range are written exactly as before.
+		writeGposKernDataToFont(font, { kerning: getExportKerning(project) });
 	}
 
 	if (exportLigatures && ligatureSubstitutions.length > 0) {
@@ -282,12 +315,27 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 		}
 	}
 
-	const result = await saveFontFile(font, suffix, destination, project?.settings?.project?.id);
+	const recordBefore = getLastExportMessage();
+	const result = await saveFontFile(
+		font,
+		suffix,
+		destination,
+		project?.settings?.project?.id,
+		fileName
+	);
 	// await pause();
 	if (typeof result === 'string') {
+		// ANY-INK (B1): keep writeExport's own words about where the file went, so a
+		// message shown after this one (the font check's) can carry them on. They come
+		// from the writer's record; the toast is read only for words it keeps no record of
+		// (cancelled, one more click needed).
+		const record = getLastExportMessage();
+		const words = record && record !== recordBefore ? record.message : currentToastHTML();
+		lastDestination = { result, message: words };
 		// The destination toast came from writeExport; leave it up briefly (without
-		// holding the caller: the export itself is done).
-		window.setTimeout(closeAllToasts, 2500);
+		// holding the caller: the export itself is done). ANY-INK (B1): a message
+		// shown after it (the font check's) keeps its own time.
+		closeToastLater(2500);
 		// log('ioFont_exportFont', 'end');
 		return result;
 	}
@@ -301,15 +349,77 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false) {
 }
 
 /**
+ * ANY-INK (B1): what the newest export that made a file said about where it went, as the
+ * toast showed it ('Exported BrennanHand-Regular.otf to Fonts', 'Downloading ...', or the
+ * download fallback's reason). A new object for every export, so a caller can tell this
+ * export's words from an older one's by comparing what it read before and after.
+ * export_folder.js writeExport decides the final name ("Keep both" renames the file) and
+ * records it with these words (getLastExportMessage).
+ * @type {{result: String, message: String} | null}
+ */
+let lastDestination = null;
+
+/**
+ * @returns {{result: String, message: String} | null} the newest export's destination words
+ *   (an HTML string, as the toast holds them), or null before any export made a file
+ */
+export function getLastExportDestination() {
+	return lastDestination;
+}
+
+/** @returns {String} the HTML of the toast showing now, or '' */
+function currentToastHTML() {
+	return document.querySelector('#toast:not([data-leaving])')?.innerHTML || '';
+}
+
+/**
+ * Closes the toast showing now after ms, unless another message has replaced it.
+ * @param {Number} ms
+ */
+function closeToastLater(ms) {
+	const toast = document.querySelector('#toast:not([data-leaving])');
+	const shown = toast?.innerHTML;
+	window.setTimeout(() => {
+		if (!toast || toast.hasAttribute('data-leaving') || toast.innerHTML === shown) {
+			closeAllToasts();
+		}
+	}, ms);
+}
+
+/**
+ * A file name for this export: the one asked for (with the extension added when
+ * missing, and characters Windows refuses removed), else '' for the usual name.
+ * @param {String} fileName
+ * @param {String} suffix
+ * @returns {String}
+ */
+function exportFileName(fileName, suffix) {
+	const clean = [...String(fileName || '')]
+		.filter((char) => char.charCodeAt(0) >= 32 && !'\\/:*?"<>|'.includes(char))
+		.join('')
+		.trim();
+	if (!clean) return '';
+	const extension = `.${suffix.toLowerCase()}`;
+	return clean.toLowerCase().endsWith(extension) ? clean : `${clean}${extension}`;
+}
+
+/**
  * Builds the font file and hands it to the destination settled before the build.
  * @param {Object} font - FontFlux font
  * @param {String} suffix - 'otf' | 'ttf' | 'woff' | 'woff2'
  * @param {Object} destination - from prepareExportDestination (export_folder.js)
  * @param {String} [projectId] - the exporting project: a same-named export from
  *   another project is never replaced without asking
+ * @param {String} [requestedFileName] - ANY-INK (B1): exportOptions.fileName
  * @returns {Promise<String | Error>} writeExport's result, or the error that stopped the build
  */
-async function saveFontFile(font, suffix = 'otf', destination, projectId = null) {
+async function saveFontFile(
+	font,
+	suffix = 'otf',
+	destination,
+	projectId = null,
+	requestedFileName = ''
+) {
 	let result;
 	try {
 		// log(`\n⮟font⮟`);
@@ -324,7 +434,8 @@ async function saveFontFile(font, suffix = 'otf', destination, projectId = null)
 		// Use the machine-safe PostScript name (ASCII, no spaces) for the file
 		// name so styles like "Bold Italic" don't leave a space in the file name.
 		const baseName = font.info.postScriptName || `${familyName.replace(/\s/g, '')}-${styleName}`;
-		const fileName = `${baseName}.${suffix.toLowerCase()}`;
+		const fileName =
+			exportFileName(requestedFileName, suffix) || `${baseName}.${suffix.toLowerCase()}`;
 		const arrayBuffer = font.export({ format: suffix });
 		const dataView = new DataView(arrayBuffer);
 		const blob = new Blob([dataView], { type: 'font/opentype' });
@@ -408,7 +519,17 @@ function makePostScriptName(family, style) {
 	return `${f}-${s}`.substring(0, 63);
 }
 
-function sanitizeInt(value, min, max, fallback = 0) {
+/**
+ * The exporter's rounding for widths and side bearings: a whole number clamped to
+ * [min, max], or fallback when the value isn't a number. ANY-INK (B1): exported so the
+ * preview font (font_preview.js) rounds exactly like the font file.
+ * @param {*} value
+ * @param {Number} min
+ * @param {Number} max
+ * @param {Number} [fallback]
+ * @returns {Number}
+ */
+export function sanitizeInt(value, min, max, fallback = 0) {
 	const num = Number(value);
 	if (!Number.isFinite(num)) return fallback;
 	return Math.max(min, Math.min(max, Math.round(num)));
@@ -499,15 +620,22 @@ function deriveFontNaming(fontSettings) {
 
 /**
  * Creates the options object
+ * @param {Object} [project] - defaults to the current project
+ * @param {Object} [overrides] - ANY-INK (B1): values for this export only
+ * @param {String} [overrides.familyName] - used instead of settings.font.family
  * @returns {Object}
  */
-export function createOptionsObject(project) {
+export function createOptionsObject(project, { familyName = '' } = {}) {
 	// log('createOptionsObject', 'start');
 
 	// Add settings
 	const options = {};
 	const sourceProject = project || getCurrentProject();
-	const fontSettings = sourceProject.settings.font;
+	let fontSettings = sourceProject.settings.font;
+	if (typeof familyName === 'string' && familyName.trim()) {
+		// A copy: the project's own settings never change for one export.
+		fontSettings = { ...fontSettings, family: familyName.trim() };
+	}
 
 	options.unitsPerEm = sanitizeInt(fontSettings.upm || 1000, 16, 16384, 1000);
 	// Calculate proportional defaults based on UPM if metrics are missing
@@ -589,101 +717,13 @@ export function createOptionsObject(project) {
  * Using a combination of a provided item's Session State,
  * and the project setting for exporting empty items,
  * figures out if this item should be exported or not.
+ * ANY-INK (B1): the rule lives in src/anyink/fontcheck/export_list.js, shared with
+ * the font check; this keeps the upstream signature (current project).
  * @param {Glyph | Object} item - item to check
  * @returns {Boolean}
  */
 export function shouldExportItem(item) {
-	// null char is always exported and handled separately
-	if (item.name === '.null') return false;
-
-	if (item.sessionState === 'new') {
-		return !!getCurrentProject().settings.app.exportUneditedItems;
-	}
-	if (item) return true;
-	return false;
-}
-
-/**
- * Looks through the project and creates a list
- * of items that should be exported.
- * @returns {Object}
- */
-function populateExportList() {
-	// log('populateExportList', 'start');
-	const project = getCurrentProject();
-
-	// Add Glyphs
-	let checklist = [];
-	let exportGlyphs = [];
-
-	project.settings.project.characterRanges.forEach((range) => {
-		if (range.enabled) {
-			range.getMemberIDs().forEach((hexID) => {
-				if (checklist.indexOf(hexID) === -1) {
-					const thisGlyph = project.getItem(`glyph-${hexID}`);
-					if (shouldExportItem(thisGlyph)) {
-						exportGlyphs.push({ xg: thisGlyph, xc: hexID });
-						checklist.push(hexID);
-					}
-				}
-			});
-		}
-	});
-
-	exportGlyphs.sort((a, b) => a.xc - b.xc);
-
-	// log(`\n⮟exportGlyphs⮟`);
-	// log(exportGlyphs);
-
-	// Add Ligatures
-	const exportLigatures = [];
-	// const ligWithCodePoint;
-	if (project.settings.app.exportLigatures) {
-		for (const key of Object.keys(project.ligatures)) {
-			// log(project.ligatures[key]);
-			if (project.ligatures[key].gsub.length > 1) {
-				const thisLigature = project.ligatures[key];
-				// log(`\t adding ligature "${thisLigature.name}"`);
-
-				if (shouldExportItem(thisLigature)) {
-					exportLigatures.push({ xg: thisLigature, xc: key, chars: thisLigature.chars });
-
-					/*
-					When exporting to OTF, if a ligature depends on certain
-					characters, and one or more of those characters do not
-					exist in the font, it causes an error.
-					This will check to see if Glyph objects exist for all
-					Ligature source characters, and if some are missing, it
-					will create blank Glyphs for them.
-				 */
-					project.ligatures[key].gsub.forEach((charID) => {
-						const hexID = '' + decToHex(charID);
-						const id = `glyph-${hexID}`;
-						if (!project.glyphs[id]) {
-							// log(`No glyph found for charID ${charID} id ${id}`);
-							const newGlyph = project.addItemByType(new Glyph({ id: id }), 'Glyph', id);
-							if (!checklist.includes(hexID)) {
-								exportGlyphs.push({ xg: newGlyph, xc: hexID });
-								checklist.push(hexID);
-							}
-						}
-					});
-				}
-			} else {
-				console.warn(`
-				Skipped exporting ligature ${project.ligatures[key].name}.
-				Source chars length: ${project.ligatures[key].gsub.length}
-			`);
-			}
-		}
-		exportLigatures.sort(sortLigatures);
-		// log('exportLigatures');
-		// log(exportLigatures);
-	}
-
-	// log('populateExportList', 'end');
-	const result = { glyphs: exportGlyphs, ligatures: exportLigatures };
-	return result;
+	return shouldExportItemInProject(item, getCurrentProject());
 }
 
 /**

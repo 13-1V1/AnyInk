@@ -6,6 +6,7 @@
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
 import { SaveStatusElement } from '../anyink/files/save_status_element.js';
 import { initRecovery } from '../anyink/recovery/recovery.js';
+import { initFontCheck } from '../anyink/fontcheck/font_check.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -23,7 +24,7 @@ import { closeAllInfoBubbles, closeAllOptionChoosers } from '../controls/dialogs
 import { GlyphrStudioProject } from '../project_data/glyphr_studio_project.js';
 import { closeAllNavMenus } from '../project_editor/navigator.js';
 import { ProjectEditor } from '../project_editor/project_editor.js';
-import { GlyphrStudioApp, showAppErrorPage } from './app.js';
+import { GlyphrStudioApp, showAppErrorPage, updateWindowUnloadEvent } from './app.js';
 
 /**
  * First function to run when the browser starts
@@ -50,6 +51,11 @@ export function glyphrStudioOnLoad() {
 			app.setUp();
 			// ANY-INK (M6): crash recovery follows the current project from here on
 			initRecovery();
+			// ANY-INK (B1): the font check follows the current project from here on
+			initFontCheck();
+			// ANY-INK (B1): the leave-site check decides when the page closes, so it is set once,
+			// here, for every way a font gets opened (the open page, a dropped font file, an SVG)
+			updateWindowUnloadEvent();
 			// log(app);
 		} else {
 			// log('did NOT pass pre-checks');

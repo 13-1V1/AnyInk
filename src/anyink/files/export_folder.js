@@ -23,6 +23,8 @@
 	                                                             ('Click Export again...' toast)
 	  2. writeExport(destination, blob, fileName, { projectId })   after the build.
 	                                  Resolves 'folder' | 'download' | 'cancelled' | 'prompt'.
+	                                  getLastExportMessage() then says where the file went
+	                                  (B1): { result, fileName, folder, message }.
 	     - permission lapsed back to 'prompt': toast 'Click Export again to write to
 	       <folder>.', no download.
 	     - the exact file ANY-INK left there is replaced silently: the normal edit /
@@ -216,6 +218,30 @@ export async function writeExport(destination, blob, fileName, { projectId = nul
 }
 
 /**
+ * ANY-INK (B1): where the newest export's file went, in the words its toast showed. A new
+ * object each time, so a caller can tell this export's record from an older one.
+ * @type {{result: 'folder' | 'download', fileName: String, folder: String | null,
+ *   message: String} | null}
+ */
+let lastExportMessage = null;
+
+/**
+ * @returns {{result: 'folder' | 'download', fileName: String, folder: String | null,
+ *   message: String} | null} fileName: the name the file really got ("Keep both" adds
+ *   " (2)"); folder: the folder it is in, null for a download; message: the toast's words
+ *   (HTML, as shown)
+ */
+export function getLastExportMessage() {
+	return lastExportMessage;
+}
+
+/** Shows where the file went and records it (getLastExportMessage). */
+function sayWhere(result, fileName, folder, message) {
+	lastExportMessage = { result, fileName, folder, message };
+	showToast(message);
+}
+
+/**
  * Both steps at once: settle the destination, then write.
  * @param {Blob} blob - the built font
  * @param {String} fileName - e.g. 'MyFont.otf'
@@ -280,7 +306,7 @@ async function writeIntoFolder(dir, blob, fileName, projectId) {
 		return writeFailed(dir, blob, fileName, error, target);
 	}
 	await rememberExport(file, projectId);
-	showToast(`Exported ${target} to ${dir.name}`);
+	sayWhere('folder', target, dir.name, `Exported ${target} to ${dir.name}`);
 	return 'folder';
 }
 
@@ -428,5 +454,5 @@ export async function forgetExportFolder() {
 function download(blob, fileName, message) {
 	const fallback = getFileApi().download || saveFile;
 	fallback(blob, fileName);
-	showToast(message);
+	sayWhere('download', fileName, null, message);
 }

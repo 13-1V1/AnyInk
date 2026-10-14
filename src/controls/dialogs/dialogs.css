@@ -127,7 +127,9 @@ dialog {
 	padding: 10px;
 	position: absolute;
 	z-index: 2030;
-	background-color: var(--chrome-bg-raised);
+	/* ANY-INK (B1): a <dialog> gets black text from the browser, so the menu sets its own. */
+	background-color: var(--menu-bg);
+	color: var(--menu-text);
 	border: var(--hairline);
 	border-radius: 0px var(--radius) var(--radius) var(--radius);
 	box-shadow: var(--shadow-menu);
@@ -154,8 +156,8 @@ dialog {
 .context-menu-row:hover > .row-notes,
 .context-menu-row:hover > .row-notes span,
 .context-menu-row:hover > .row-notes code {
-	background-color: var(--chrome-bg-hover);
-	color: var(--chrome-text);
+	background-color: var(--menu-row-hover-bg);
+	color: var(--menu-text-hover);
 	cursor: pointer;
 }
 
@@ -167,8 +169,8 @@ dialog {
 .context-menu-row[selected] > .row-name,
 .context-menu-row[selected] > .row-notes span,
 .context-menu-row[selected] > .row-notes code {
-	background-color: var(--touch-soft);
-	color: var(--chrome-text);
+	background-color: var(--menu-row-selected-bg);
+	color: var(--menu-text);
 }
 
 /* The row is display: contents, so the ring goes on its name cell. */
@@ -181,27 +183,32 @@ dialog {
 	border-radius: var(--radius-sm);
 }
 
+/* ANY-INK (B1): a greyed-out row is dimmer but still readable (4.6:1), and its note says why.
+   No opacity: the row is display: contents, so Chrome would ignore it anyway. */
 .context-menu-row[disabled] {
-	opacity: 0.5;
-	color: var(--chrome-text-faint);
+	color: var(--menu-disabled);
+}
+
+.context-menu-row[disabled] > .row-notes span {
+	color: var(--menu-disabled);
 }
 
 .context-menu-row[disabled]:hover > span,
 .context-menu-row[disabled]:hover > .row-notes,
 .context-menu-row[disabled]:hover > .row-notes span,
 .context-menu-row[disabled]:hover > .row-notes code {
-	color: var(--chrome-text-faint);
+	color: var(--menu-disabled);
 	cursor: default;
 	background-color: transparent;
 }
 
 .context-menu-row[disabled] svg g {
-	fill: var(--chrome-text-faint) !important;
+	fill: var(--menu-disabled) !important;
 }
 
 #context-menu .spanAll h2 {
 	font-size: 0.8em;
-	color: var(--chrome-text-faint);
+	color: var(--menu-heading);
 	font-family: var(--font-mono);
 	padding: 0px 20px 0px 0px;
 }
@@ -237,16 +244,18 @@ dialog {
 	margin-right: 10px;
 }
 
+/* ANY-INK (B1): no opacity here; the hint and key colors are set at full strength by tokens. */
 .context-menu-row .row-notes {
 	background-color: transparent;
 	width: max-content;
 	height: 24px;
-	opacity: 0.8;
 	display: contents;
 	margin-left: 20px;
 }
 
 .context-menu-row .row-notes code {
+	color: var(--menu-key-text);
+	background-color: var(--menu-key-bg);
 	line-height: 18px;
 	margin: 0px 2px;
 	font-size: 0.8em !important;
@@ -254,7 +263,10 @@ dialog {
 	min-width: 24px;
 }
 
+/* ANY-INK (B1): one line, so a reason beside a greyed-out row never spills over the next row. */
 .context-menu-row .row-notes span {
+	color: var(--menu-hint);
+	white-space: nowrap;
 	grid-column: span 2;
 	font-size: 0.8em;
 	line-height: 24px;

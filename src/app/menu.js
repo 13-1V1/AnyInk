@@ -9,6 +9,7 @@ import {
 } from '../anyink/files/export_folder.js';
 import { hasFileSystemAccess } from '../anyink/files/file_api.js';
 import { runFileCommand } from '../anyink/files/run_command.js';
+import { exportWithFontCheck } from '../anyink/fontcheck/export_toast.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
 import logoHorizontal from '../common/graphics/anyink-wordmark-horizontal-small.svg?raw';
 import {
@@ -88,6 +89,8 @@ function makeMenu(menuName) {
 			// @ts-expect-error 'property does exist'
 			let rect = event.target.getBoundingClientRect();
 			closeEveryTypeOfDialog();
+			// ANY-INK (B1, principle 6): a greyed-out row says why, beside it.
+			const onlyOneOpen = getGlyphrStudioApp().projectEditors.length === 1;
 			let menuRows = makeContextMenu(
 				[
 					{
@@ -104,7 +107,8 @@ function makeMenu(menuName) {
 						onClick: () => {
 							getGlyphrStudioApp().appPageNavigate(makePage_CrossProjectActions);
 						},
-						disabled: getGlyphrStudioApp().projectEditors.length === 1,
+						disabled: onlyOneOpen,
+						note: onlyOneOpen ? 'Open another font first' : false,
 					},
 					{
 						name: 'hr',
@@ -245,25 +249,25 @@ function makeFileMenuData(editor) {
 			name: 'Export OTF file',
 			icon: 'command_export',
 			note: preferredExportFormat === 'otf' ? ['Ctrl', 'e'] : false,
-			onClick: () => runFileCommand(ioFont_exportOTF),
+			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportOTF),
 		},
 		{
 			name: 'Export TTF file',
 			icon: 'command_export',
 			note: preferredExportFormat === 'ttf' ? ['Ctrl', 'e'] : false,
-			onClick: () => runFileCommand(ioFont_exportTTF),
+			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportTTF),
 		},
 		{
 			name: 'Export WOFF file',
 			icon: 'command_export',
 			note: preferredExportFormat === 'woff' ? ['Ctrl', 'e'] : false,
-			onClick: () => runFileCommand(ioFont_exportWOFF),
+			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportWOFF),
 		},
 		{
 			name: 'Export WOFF2 file',
 			icon: 'command_export',
 			note: preferredExportFormat === 'woff2' ? ['Ctrl', 'e'] : false,
-			onClick: () => runFileCommand(ioFont_exportWOFF2),
+			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportWOFF2),
 		},
 	]);
 	if (fileSystemAccess) {
@@ -344,7 +348,7 @@ function makeProjectPreviewRow(projectID = 0) {
 			},
 		});
 	} else {
-		title.innerHTML = 'Open another project';
+		title.innerHTML = 'Open another font'; // ANY-INK (B1): house words
 		rowWrapper.classList.add('project-preview__no-project');
 		rowWrapper.addEventListener('click', () => {
 			showModalDialog(makePage_OpenProject(true), 500, true);

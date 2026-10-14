@@ -34,6 +34,10 @@ import { glyphChanged } from './cross_item_actions.js';
 		*                  opacity / visible / locked / invert, removed (Milestone 7)
 		* - 'autoTrace' - the auto-trace preview session changed: started, options, tracing,
 		*                 result ready, error, applied, canceled (Milestone 8)
+		* - 'fontCheck' - the font check ran: { problems: [{ itemId, problem, message }] },
+		*                 2 s after the last change (B1, src/anyink/fontcheck/font_check.js).
+		*                 itemId is a letter ('glyph-0x61'), joined letters ('liga-...') or a
+		*                 kern pair ('kern-0'); letters come first, kern pairs last
 */
 const allTopics = [
 	'editCanvasView',
@@ -69,6 +73,8 @@ const allTopics = [
 	'traceLayer', // trace image changed (per drag tick, slider tick, add / replace / remove)
 	// ANY-INK topics (Milestone 8)
 	'autoTrace', // auto-trace preview session changed (src/anyink/autotrace/autotrace_session.js)
+	// ANY-INK topics (B1)
+	'fontCheck', // font check result { problems } (src/anyink/fontcheck/font_check.js)
 ];
 
 /**

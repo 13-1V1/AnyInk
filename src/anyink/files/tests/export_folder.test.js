@@ -10,6 +10,7 @@ import {
 	exportFolderName,
 	exportFontToFolder,
 	forgetExportFolder,
+	getLastExportMessage,
 	noteImportedFontFile,
 	pickExportFolder,
 	preloadExportFolder,
@@ -155,6 +156,59 @@ describe('export_folder: exportFontToFolder', () => {
 		setFileApi(api);
 		expect(await exportFontToFolder(blob, 'G.otf')).toBe('download');
 		expect(api.calls.download).toHaveLength(1);
+	});
+});
+
+// B1 fix pass: the export's own words about where the file went ("Exported X (2).otf to Fonts")
+// were only in a toast, so the font check's export toast read them back out of the page. The
+// writer now records them, with the final file name and folder.
+describe('export_folder: what the newest export said', () => {
+	it('records the folder write: final name, folder and words', async () => {
+		const dir = fakeDirectoryHandle('Fonts');
+		await rememberHandle(EXPORT_FOLDER_KEY, dir);
+		setFileApi(withPickers(undefined));
+		await exportFontToFolder(blob, 'MyFont-Regular.otf');
+		expect(getLastExportMessage()).toEqual({
+			result: 'folder',
+			fileName: 'MyFont-Regular.otf',
+			folder: 'Fonts',
+			message: 'Exported MyFont-Regular.otf to Fonts',
+		});
+	});
+
+	it('records the "Keep both" name, not the asked-for one', async () => {
+		const dir = fakeDirectoryHandle('Fonts');
+		dir.addFile('Roboto-Regular.otf', { initial: 'ORIGINAL' });
+		await rememberHandle(EXPORT_FOLDER_KEY, dir);
+		setFileApi(withPickers(undefined));
+		const run = exportFontToFolder(blob, 'Roboto-Regular.otf');
+		await answerExistingFileDialog('keepBoth');
+		await run;
+		expect(getLastExportMessage()).toMatchObject({
+			result: 'folder',
+			fileName: 'Roboto-Regular (2).otf',
+			message: 'Exported Roboto-Regular (2).otf to Fonts',
+		});
+	});
+
+	it('records a download, and a download after a failed write, with their reasons', async () => {
+		setFileApi(fakeApi({}));
+		await exportFontToFolder(blob, 'MyFont.otf');
+		expect(getLastExportMessage()).toEqual({
+			result: 'download',
+			fileName: 'MyFont.otf',
+			folder: null,
+			message: 'Downloading MyFont.otf',
+		});
+
+		const dir = fakeDirectoryHandle('ReadOnly', { getFileError: new Error('read only') });
+		await rememberHandle(EXPORT_FOLDER_KEY, dir);
+		setFileApi(withPickers(undefined));
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await exportFontToFolder(blob, 'F.otf');
+		warn.mockRestore();
+		expect(getLastExportMessage()).toMatchObject({ result: 'download', fileName: 'F.otf' });
+		expect(getLastExportMessage().message).toContain('Could not write F.otf to ReadOnly');
 	});
 });
 

@@ -1,48 +1,98 @@
 // Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getGlyphrStudioApp } from '../../app/main.js';
+import { getPref, setPref } from '../prefs/prefs.js';
 import { getRecoveryStatus, snapshotNow } from '../recovery/recovery.js';
 import { peekProject } from '../recovery/snapshot.js';
 import { isPersistent } from '../storage/kv.js';
 import { checkpoint, makeSafeReload } from './checkpoint.js';
+import { closeNotice, showNotice } from './notices.js';
 import './pwa.css';
 
-function notice(message, label, action) {
-	const panel = document.createElement('section');
-	panel.className = 'anyink-pwa-notice';
-	panel.setAttribute('aria-label', 'ANY-INK app');
-	const text = document.createElement('p');
-	text.setAttribute('role', 'status');
-	text.textContent = message;
-	panel.append(text);
-	if (action) {
-		const button = document.createElement('button');
-		button.textContent = label;
-		button.onclick = async () => {
-			button.disabled = true;
-			try {
-				await action();
-				panel.remove();
-			} catch (error) {
-				text.textContent = error.message;
-			} finally {
-				button.disabled = false;
-			}
-		};
-		panel.append(button);
-	}
-	const later = document.createElement('button');
-	later.textContent = action ? 'Later' : 'OK';
-	later.onclick = () => panel.remove();
-	panel.append(later);
-	let notices = document.querySelector('#anyink-pwa-notices');
-	if (!notices) {
-		notices = document.createElement('aside');
-		notices.id = 'anyink-pwa-notices';
-		document.body.append(notices);
-	}
-	notices.append(panel);
-	return panel;
+// B1 (UX-BEGINNER 7.1): app prefs that keep notices from coming back every launch.
+export const OFFLINE_READY_PREF = 'pwaOfflineReadyShown';
+export const INSTALL_NOT_NOW_PREF = 'pwaInstallNotNow';
+// Set when the worker first reports the offline copy ready, so a later launch can say so when
+// the launch it happened in was taken by the install offer.
+export const OFFLINE_COPY_READY_PREF = 'pwaOfflineCopyReady';
+
+// B1 fix pass: one app notice per launch. On a fresh profile the install offer showed and, the
+// moment Not now was pressed, "ready to open offline" took its place. Whichever notice shows
+// first takes this launch: the install offer and "ready offline" then wait for a later one.
+// Updates and problems always show, because they protect work, and they take the launch too,
+// so neither of the other two follows them.
+let launchNotice = null; // key of the first app notice shown this launch, or null
+
+/**
+ * Shows an app notice and counts it against this launch (updates, problems).
+ * @param {Object} spec - notices.js showNotice spec
+ * @returns {String | null} the notice key, or null when it wasn't shown
+ */
+export function showAppNotice(spec) {
+	const key = showNotice(spec);
+	if (key && !launchNotice) launchNotice = key;
+	return key;
+}
+
+/**
+ * "Ready to open offline": once ever, however many times the worker reports it, and never right
+ * after the install offer in the same launch (it is then said on a later launch).
+ * @returns {String | null} the notice key, or null when not shown this launch
+ */
+export function announceOfflineReady() {
+	if (getPref(OFFLINE_READY_PREF)) return null;
+	setPref(OFFLINE_COPY_READY_PREF, true);
+	if (launchNotice && launchNotice !== 'offline-ready') return null;
+	return showAppNotice({
+		key: 'offline-ready',
+		kind: 'info',
+		message: 'ANY-INK is ready to open offline.',
+		once: OFFLINE_READY_PREF,
+		waits: false, // never right after another notice; a later launch says it instead
+	});
+}
+
+/**
+ * On a later launch: says "ready to open offline" if an earlier launch got the offline copy
+ * ready but had no room to say so.
+ * @param {Boolean} workerActive - this launch is served by an active service worker
+ * @returns {String | null} the notice key, or null when there is nothing to say
+ */
+export function announceOfflineReadyFromEarlierLaunch(workerActive) {
+	if (!workerActive || !getPref(OFFLINE_COPY_READY_PREF)) return null;
+	return announceOfflineReady();
+}
+
+/** Tests only: forget which notice this launch showed (a fresh launch). */
+export function resetLaunch() {
+	launchNotice = null;
+}
+
+/**
+ * The install offer, unless Not now was already chosen (here or in Chrome's own install box),
+ * or "ready to open offline" already took this launch (Chrome offers again next launch).
+ * @param {Event} event - Chrome's beforeinstallprompt event
+ * @returns {String | null} the notice key, or null when not offered
+ */
+export function offerInstall(event) {
+	if (getPref(INSTALL_NOT_NOW_PREF)) return null;
+	// Another notice took this launch; Chrome offers again next launch
+	if (launchNotice && launchNotice !== 'install') return null;
+	return showAppNotice({
+		key: 'install',
+		kind: 'offer',
+		message: 'Install ANY-INK to open it from your desktop.',
+		actionLabel: 'Install ANY-INK',
+		action: async () => {
+			await event.prompt();
+			const choice = await event.userChoice;
+			if (choice?.outcome === 'dismissed') setPref(INSTALL_NOT_NOW_PREF, Date.now());
+		},
+		dismissLabel: 'Not now',
+		onDismiss: () => setPref(INSTALL_NOT_NOW_PREF, Date.now()),
+	});
 }
 
 export function activateWaiting(worker) {
@@ -75,7 +125,6 @@ export function activateWaiting(worker) {
 
 async function start() {
 	if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
-	let updatePanel;
 	const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
 		scope: import.meta.env.BASE_URL,
 		updateViaCache: 'none',
@@ -96,12 +145,14 @@ async function start() {
 		activate: () => activateWaiting(registration.waiting),
 		reload: () => location.reload(),
 	});
-	const offerUpdate = () => {
-		if (updatePanel?.isConnected) return;
-		updatePanel = notice(
-			'Update ready. Reload after protecting open projects in recovery.',
-			'Update and reload',
-			async () => {
+	// One update notice at most: asking again while it shows or waits adds nothing.
+	const offerUpdate = () =>
+		showAppNotice({
+			key: 'update',
+			kind: 'update',
+			message: 'Update ready. Reload after protecting open projects in recovery.',
+			actionLabel: 'Update and reload',
+			action: async () => {
 				const busy = document.createElement('dialog');
 				busy.className = 'anyink-pwa-busy';
 				busy.textContent = 'Protecting your work and preparing the update…';
@@ -123,15 +174,15 @@ async function start() {
 					busy.close();
 					busy.remove();
 				}
-			}
-		);
-	};
+			},
+		});
 	if (registration.waiting) offerUpdate();
+	announceOfflineReadyFromEarlierLaunch(!!registration.active);
 	const observe = (worker) =>
 		worker?.addEventListener('statechange', () => {
 			if (worker.state === 'installed') {
 				if (registration.active) offerUpdate();
-				else notice('ANY-INK is ready to open offline.');
+				else announceOfflineReady();
 			}
 		});
 	observe(registration.installing);
@@ -146,26 +197,20 @@ async function start() {
 	});
 }
 
-let installPanel;
 window.addEventListener('beforeinstallprompt', (event) => {
 	event.preventDefault();
-	installPanel?.remove();
-	installPanel = notice(
-		'Install ANY-INK to open it from your desktop.',
-		'Install ANY-INK',
-		async () => {
-			await event.prompt();
-			await event.userChoice;
-		}
-	);
+	offerInstall(event);
 });
-window.addEventListener('appinstalled', () => installPanel?.remove());
+window.addEventListener('appinstalled', () => closeNotice('install'));
 
 const boot = () =>
 	start().catch(() =>
-		notice(
-			'Offline setup could not finish. Connect to the internet and reopen ANY-INK to try again.'
-		)
+		showAppNotice({
+			key: 'offline-failed',
+			kind: 'problem',
+			message:
+				'Offline setup could not finish. Connect to the internet and reopen ANY-INK to try again.',
+		})
 	);
 if (document.readyState === 'loading')
 	document.addEventListener('DOMContentLoaded', boot, { once: true });

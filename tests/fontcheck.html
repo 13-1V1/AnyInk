@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK font check</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); overflow: auto; }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); color: var(--chrome-text-muted); margin: var(--space-5) 0 var(--space-2); font-weight: 600; }
+		p.hint { color: var(--chrome-text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-3); max-width: 900px; }
+		.controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.break { border-color: var(--warning); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		#letter, #status { font-size: var(--text-sm); margin: 0 0 var(--space-2); }
+		#status.waiting { color: var(--chrome-text-muted); }
+		#problems { list-style: none; margin: 0; padding: 0; display: grid; row-gap: var(--space-2); max-width: 900px; }
+		#problems li { background: var(--warning-soft); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
+		#problems li.none { background: var(--touch-soft); border-left-color: var(--touch); }
+		#problems code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--structure); margin-left: var(--space-2); }
+		.preview { padding: var(--space-2); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--chrome-border); display: inline-block; background: var(--canvas-bg); }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 140px; overflow-y: auto; white-space: pre-wrap; max-width: 900px; }
+	</style>
+</head>
+<body>
+	<h1>Font check</h1>
+	<p class="hint">
+		Loads the Oblegg sample, then breaks one thing at a time: <b>small a</b>, the space, or a
+		kern pair. The font check runs 2 seconds after the last change and lists everything the
+		font file can't hold, by name. Export keeps the "where it went" words and adds the names,
+		with an amber edge and a Show me button (here Show me only logs where it would go). Each
+		break starts from a fresh copy of the sample. The preview line uses each letter's true
+		width, so a letter with no width piles up, and a space with no width runs words together.
+	</p>
+
+	<div class="controls">
+		<button id="reset">Reset (fresh sample)</button>
+		<button id="fraction" class="break">Fractional width (0.338)</button>
+		<button id="zero" class="break">Ink with width 0</button>
+		<button id="twopoint" class="break">Add a 2-point shape</button>
+		<button id="farjump" class="break">A shape from -20,000 to 20,000 (one 40,000 step)</button>
+		<button id="space" class="break">Space opened, width 0</button>
+		<button id="kernbig" class="break">Kern value 40,000 (A then W)</button>
+		<button id="control">Control: width 654.338 (rounds fine)</button>
+		<button id="kerndecimal">Control: kern value 12.5 (rounds to 13, export works)</button>
+		<button id="now">Check now</button>
+		<button id="theme">Toggle canvas (paper / slate)</button>
+	</div>
+
+	<p id="letter"></p>
+	<p id="status" class="waiting"></p>
+
+	<h2>Font check results</h2>
+	<ul id="problems"></ul>
+
+	<h2>Export</h2>
+	<div class="controls">
+		<button id="export-dry">Export: make the font, show the toast, save nothing (no "where it went" words)</button>
+		<button id="export-real">File menu: Export OTF file (saves a real file)</button>
+	</div>
+
+	<h2>Preview (true widths)</h2>
+	<div class="preview"><display-canvas id="strip" text="aaa banana AWA" font-size="72" width="900" height="120"></display-canvas></div>
+
+	<h2>Events</h2>
+	<div id="log"></div>
+
+	<script type="module">
+		// Upstream modules call a bare log(); the app sets it in index.html. Test pages must too.
+		window.log = () => {};
+		import { initTheme, toggleCanvasTheme } from '../src/anyink/theme/theme.js';
+		import { setCurrentProjectEditor, getCurrentProjectEditor } from '../src/app/main.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
+		import { runFileCommand } from '../src/anyink/files/run_command.js';
+		import { ioFont_exportFont, ioFont_exportOTF } from '../src/formats_io/otf/font_export.js';
+		import { FONT_CHECK_DELAY_MS, FONT_CHECK_TOPIC, initFontCheck, runFontCheckNow } from '../src/anyink/fontcheck/font_check.js';
+		import { exportWithFontCheck } from '../src/anyink/fontcheck/export_toast.js';
+		import { notifyKernPairsChanged } from '../src/anyink/kerning/kern_lookup.js';
+		import { checkedItems } from '../src/anyink/fontcheck/validate.js';
+		import obleggText from '../src/samples/oblegg.gs2?raw';
+
+		initTheme();
+		if (!customElements.get('display-canvas')) customElements.define('display-canvas', DisplayCanvas);
+
+		const LETTER = 'glyph-0x61';
+		const PAGE_ID = 'anyink.testFontCheckPage';
+		const logEl = document.getElementById('log');
+		const say = (msg) => { logEl.textContent = `${new Date().toLocaleTimeString()}  ${msg}\n` + logEl.textContent; };
+		window.addEventListener('error', (event) => say(`ERROR ${event.message}\n${event.error?.stack || ''}`));
+
+		let waitTimer = null;
+		function showWaiting(text) {
+			const status = document.getElementById('status');
+			status.className = 'waiting';
+			status.textContent = text;
+		}
+
+		function renderResult({ problems }) {
+			window.clearInterval(waitTimer);
+			const status = document.getElementById('status');
+			status.className = '';
+			status.textContent = `Checked at ${new Date().toLocaleTimeString()}: ${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}.`;
+			const list = document.getElementById('problems');
+			list.innerHTML = '';
+			if (!problems.length) {
+				const li = document.createElement('li');
+				li.className = 'none';
+				li.textContent = 'Every letter fits in the font file.';
+				list.appendChild(li);
+			}
+			problems.forEach((problem) => {
+				const li = document.createElement('li');
+				li.textContent = problem.message;
+				const code = document.createElement('code');
+				code.textContent = `${problem.itemId} ${problem.problem}`;
+				li.appendChild(code);
+				list.appendChild(li);
+			});
+			say(`fontCheck published: ${problems.length} problems`);
+		}
+
+		function renderLetter() {
+			const editor = getCurrentProjectEditor();
+			const a = editor.project.getItem(LETTER);
+			const inList = checkedItems(editor.project).includes(a);
+			const points = a.shapes.map((shape) => shape.pathPoints?.length ?? 'linked');
+			document.getElementById('letter').textContent =
+				`small a: width ${a.advanceWidth}, ${a.shapes.length} shapes (points: ${points.join(', ')}). ` +
+				`In the font file: ${inList ? 'yes' : 'no'}. Letters the check looks at: ${checkedItems(editor.project).length}.`;
+			const strip = document.getElementById('strip');
+			if (strip?.resizeAndRedraw) strip.resizeAndRedraw();
+		}
+
+		/** A fresh sample in a fresh editor; the font check follows it like a page change. */
+		function reset() {
+			const project = importGlyphrProjectFromText(obleggText);
+			const editor = new ProjectEditor({ project });
+			editor.selectedGlyphID = LETTER;
+			// No app pages here: Show me (strip line or export toast) only says where it would go.
+			editor.navigate = () => say(`Show me: would open ${editor.selectedItemID} on the ${editor.nav.page} page`);
+			setCurrentProjectEditor(editor);
+			editor.subscribe({ topic: FONT_CHECK_TOPIC, subscriberID: `${PAGE_ID}.results`, callback: renderResult });
+			editor.subscribe({ topic: 'currentItem', subscriberID: `${PAGE_ID}.change`, callback: () => {
+				let left = FONT_CHECK_DELAY_MS / 1000;
+				window.clearInterval(waitTimer);
+				showWaiting(`Changed. The check runs in ${left.toFixed(1)} s...`);
+				waitTimer = window.setInterval(() => {
+					left = Math.max(0, left - 0.1);
+					showWaiting(`Changed. The check runs in ${left.toFixed(1)} s...`);
+				}, 100);
+			} });
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'Characters' } }));
+			showWaiting('Sample loaded. The check runs in 2 s...');
+			renderLetter();
+			say('reset: fresh Oblegg sample');
+			return editor;
+		}
+
+		/** Starts from a fresh sample, changes small a, and tells the editor (as an edit does). */
+		function breakLetter(label, change) {
+			const editor = reset();
+			const a = editor.project.getItem(LETTER);
+			change(a);
+			renderLetter();
+			editor.publish('currentItem', a);
+			say(`break: ${label}`);
+		}
+
+		initFontCheck({ getEditor: getCurrentProjectEditor });
+		reset();
+
+		document.getElementById('reset').onclick = () => reset();
+		document.getElementById('fraction').onclick = () =>
+			breakLetter('fractional width 0.338 (the font file stores 0)', (a) => { a.advanceWidth = 0.338; });
+		document.getElementById('zero').onclick = () =>
+			breakLetter('ink with width 0', (a) => { a.advanceWidth = 0; });
+		document.getElementById('twopoint').onclick = () =>
+			breakLetter('a 2-point shape', (a) => {
+				a.addOneShape({
+					name: 'Stray line',
+					pathPoints: [{ p: { coord: { x: 100, y: 200 } } }, { p: { coord: { x: 600, y: 900 } } }],
+				});
+			});
+		document.getElementById('farjump').onclick = () =>
+			breakLetter('a shape from -20,000 to 20,000 (every point fits; the 40,000 step does not)', (a) => {
+				a.addOneShape({
+					name: 'Far rectangle',
+					pathPoints: [
+						{ p: { coord: { x: -20000, y: 0 } } },
+						{ p: { coord: { x: 20000, y: 0 } } },
+						{ p: { coord: { x: 20000, y: 400 } } },
+						{ p: { coord: { x: -20000, y: 400 } } },
+					],
+				});
+			});
+		document.getElementById('space').onclick = () => {
+			const editor = reset();
+			const space = editor.project.getItem('glyph-0x20');
+			space.advanceWidth = 0; // what one click on the Space tile makes in a new font
+			editor.publish('currentItem', space);
+			say('break: the space has no width (words run together)');
+		};
+		/** Kern pair kern-2 (backslash and A, then W, V, w, v, backslash), as the value field sets it. */
+		function setKern(label, value) {
+			const editor = reset();
+			const group = editor.project.kerning['kern-2'];
+			group.value = value;
+			notifyKernPairsChanged(editor, { groupID: 'kern-2', value });
+			say(`${label}: kern-2 value ${value}`);
+		}
+		document.getElementById('kernbig').onclick = () => setKern('break', 40000);
+		document.getElementById('kerndecimal').onclick = () => setKern('control', 12.5);
+		document.getElementById('control').onclick = () =>
+			breakLetter('control: width 654.338 (stored as 654, fine)', (a) => { a.advanceWidth = 654.338; });
+		document.getElementById('now').onclick = () => runFontCheckNow(getCurrentProjectEditor());
+		document.getElementById('theme').onclick = () => toggleCanvasTheme();
+
+		// Builds the real font file (testing flag returns its bytes), saves nothing, then the
+		// File menu's check and toast run exactly as they do after a real export.
+		document.getElementById('export-dry').onclick = () =>
+			runFileCommand(exportWithFontCheck, async () => {
+				const bytes = await ioFont_exportFont('otf', true);
+				say(`export (nothing saved): built ${bytes.byteLength} bytes`);
+				return 'download';
+			});
+		document.getElementById('export-real').onclick = () =>
+			runFileCommand(exportWithFontCheck, ioFont_exportOTF).then((result) => say(`export: ${result}`));
+	</script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <!-- Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
-     brennanmmeyer@gmail.com -->
+     brennanmmeyer@gmail.com
+     B1 (10/14/2026): honest real-font preview and the font check line; its count, Fix it and the
+     corner cut out under it. -->
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
@@ -51,6 +53,40 @@
 		<button id="switch" class="secondary">Switch to a second editor (re-subscribe)</button>
 	</div>
 
+	<h2>B1: honest preview (turn Real font on first, type "AAA BCA")</h2>
+	<p>
+		A with a fractional width used to make Real font quietly fall back to a system font; it now
+		builds at the rounded width. A with width 0 piles up in Real font exactly as in the font
+		file. A gap of 12.5 between A and C is a real font that can't be built: the sheet must say
+		"Can't show your font yet: the gap between Capital A and Capital C needs fixing." and show no
+		text, and Show me must go to that gap on the Kerning page (logged here).
+	</p>
+	<div class="controls">
+		<button id="fraction">A width 654.338 (rounds to 654)</button>
+		<button id="zero">A width 0 (piles up)</button>
+		<button id="restoreWidth" class="secondary">A width back to 530</button>
+		<button id="brokenGap">Gap A to C = 12.5 (can't be built)</button>
+		<button id="wholeGap" class="secondary">Gap A to C back to -100</button>
+		<button id="rebuild" class="secondary">Rebuild the real font</button>
+	</div>
+
+	<h2>B1: font check line (the real check, src/anyink/fontcheck)</h2>
+	<p>
+		The line names the first letter, says how many more letters and gaps need fixing, and offers
+		Fix it for a width, a space with no width or the letter's own stray shapes (one Undo step
+		each; the line moves on at once); otherwise it says what to do. While it shows, the corner of
+		the sheet under it is cut out of the letters, so at 200 pt no letter runs under the line,
+		and the letters never move when it comes or goes.
+	</p>
+	<div class="controls">
+		<button id="checkABC">A, B and C: ink but no width</button>
+		<button id="checkStray">B: add a stray 2-point shape</button>
+		<button id="checkRun" class="secondary">Run the font check now</button>
+		<button id="checkClear" class="secondary">Font check: all clear</button>
+		<button id="big" class="secondary">Size 200 pt</button>
+		<button id="undo" class="secondary">Undo</button>
+	</div>
+
 	<h2>State</h2>
 	<div id="state"></div>
 
@@ -69,6 +105,7 @@
 		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
 		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
 		import { FontPreview } from '../src/controls/font-preview/font_preview.js';
+		import { runFontCheckNow } from '../src/anyink/fontcheck/font_check.js';
 		import { PreviewStrip, STRIP_HEIGHT_VAR } from '../src/anyink/preview/preview_strip.js';
 
 		const logEl = document.querySelector('#log');
@@ -98,6 +135,8 @@
 				subscriberID: 'testPage.whichGlyphIsSelected',
 				callback: (id) => log(`[${label}] whichGlyphIsSelected ${id}`),
 			});
+			// Show me and Fix it call navigate(); there is no app here, so log where it would go.
+			editor.navigate = () => log(`[${label}] navigate to ${editor.nav.page} / ${editor.selectedItemID}`);
 			return editor;
 		}
 		const first = makeEditor('editor 1');
@@ -164,6 +203,69 @@
 			setCurrentProjectEditor(next);
 			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'Characters', appLevel: false } }));
 			log(`selected ${next === first ? 'editor 1' : 'editor 2'} and dispatched anyink-page-change`);
+		};
+
+		// 3b. B1: widths, a failing build, and the font check line.
+		function setWidthA(width) {
+			const editor = getCurrentProjectEditor();
+			const glyph = editor.project.getItem('glyph-0x41');
+			glyph.advanceWidth = width;
+			editor.publish('currentItem', glyph);
+			log(`A width is now ${width}; published currentItem`);
+		}
+		document.querySelector('#fraction').onclick = () => setWidthA(654.338);
+		document.querySelector('#zero').onclick = () => setWidthA(0);
+		document.querySelector('#restoreWidth').onclick = () => setWidthA(530);
+
+		function setGap(value) {
+			const editor = getCurrentProjectEditor();
+			editor.project.kerning['kern-0'].value = value;
+			editor.publish('kernPairs', { id: 'kern-0', value });
+			strip.setText('AC BC CA B');
+			strip.setRealFont(true);
+			log(`gap kern-0 (A B C -> C) is now ${value}; published kernPairs`);
+		}
+		document.querySelector('#brokenGap').onclick = () => setGap(12.5);
+		document.querySelector('#wholeGap').onclick = () => setGap(-100);
+		document.querySelector('#rebuild').onclick = () => {
+			strip.rebuildFontNow();
+			log('rebuilt the real font');
+		};
+
+		function runCheck() {
+			const result = runFontCheckNow(getCurrentProjectEditor());
+			log(`font check: ${result ? result.problems.map((p) => `${p.itemId} ${p.problem}`).join(', ') || 'all clear' : 'could not run'}`);
+		}
+		document.querySelector('#checkABC').onclick = () => {
+			// One Undo step per letter, A last, so Undo after Fix it on A puts A back to width 0.
+			const editor = getCurrentProjectEditor();
+			['glyph-0x42', 'glyph-0x43', 'glyph-0x41'].forEach((id) => {
+				editor.selectedItemID = id;
+				editor.selectedItem.advanceWidth = 0;
+				editor.history.addState(`test page: ${id} width 0`);
+			});
+			editor.publish('currentItem', editor.selectedItem);
+			strip.setText('AAA BBB CCC');
+			runCheck();
+		};
+		document.querySelector('#checkStray').onclick = () => {
+			const editor = getCurrentProjectEditor();
+			const at = (x, y) => ({ p: { coord: { x, y } } });
+			editor.project.getItem('glyph-0x42').addOneShape({ pathPoints: [at(100, 100), at(300, 400)] });
+			editor.publish('currentItem', editor.selectedItem);
+			runCheck();
+		};
+		document.querySelector('#checkRun').onclick = runCheck;
+		document.querySelector('#checkClear').onclick = () => {
+			getCurrentProjectEditor().publish('fontCheck', { problems: [] });
+			log('published fontCheck with no problems');
+		};
+		document.querySelector('#big').onclick = () => strip.setPoints(200);
+		document.querySelector('#undo').onclick = () => {
+			const editor = getCurrentProjectEditor();
+			editor.history.restoreState();
+			log(`undo; ${editor.history.queue.length} step(s) left`);
+			runCheck();
 		};
 
 		// 4. Show what the strip is doing.

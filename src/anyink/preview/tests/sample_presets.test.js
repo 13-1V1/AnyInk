@@ -65,6 +65,16 @@ describe('makePresetRows', () => {
 		expect(rows.filter((row) => row.group === 'sets')).toHaveLength(3);
 	});
 
+	// B1 fix pass: the Presets hints said "glyph" and "26 glyphs" (UX-BEGINNER 2.3 bans the word)
+	it('hints use house words: letters, capitals, small letters', () => {
+		const notes = makePresetRows({ currentChar: 'g' }).map((row) => row.note);
+		notes.forEach((note) => expect(note).not.toMatch(/\bglyphs?\b|\bcaps\b|\blowercase\b/i));
+		expect(notes).toContain('this letter');
+		expect(notes).toContain('26 letters');
+		expect(notes).toContain('capitals');
+		expect(notes).toContain('small letters');
+	});
+
 	it('skips the context row when no glyph is being edited', () => {
 		const rows = makePresetRows();
 		expect(rows[0].group).toBe('pangrams');

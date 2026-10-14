@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { FontFlux } from 'font-flux-js';
 import {
 	getGlyphrStudioApp,
@@ -149,6 +151,9 @@ export async function ioFont_importFont(importedFont, testing = false, importedF
 		setCurrentProjectEditor(editor);
 		editor.project.resetSessionStateForAllItems();
 		sortCharacterRanges();
+		// ANY-INK (B1): the imported font is where this editor starts (undo, the leave-site
+		// check), not the empty project the import filled
+		editor.initializeHistory(editor.project);
 		editor.nav.page = 'Overview';
 		const app = getGlyphrStudioApp();
 		app.selectedProjectEditor = editor;

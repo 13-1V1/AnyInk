@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
 import { insertAfter, makeElement } from '../../common/dom.js';
 import { Path } from '../../project_data/path.js';
@@ -183,8 +185,10 @@ export class Tool_NewPath {
  * the path creation ends, but not because of this button.
  */
 export function removeStopCreatingNewPathButton() {
-	checkForFirstShapeAutoRSB();
+	// ANY-INK (B1): only finishing a path gives the letter its first width. The pages also run
+	// this each time a letter is opened, and opening a letter must never change it (no Undo step).
 	if (document.querySelector('#done-creating-path-button')) {
+		checkForFirstShapeAutoRSB();
 		stopCreatingNewPath();
 		selectTool('pathEdit');
 	}

@@ -189,6 +189,11 @@ html {
 	border: 1px solid var(--touch);
 }
 
+/* ANY-INK (B1): the faint eyebrow was 3.76:1 on this card's green tint */
+.project-preview__primary .project-preview__super-title {
+	color: var(--chrome-text-on-tint);
+}
+
 .project-preview__primary h3,
 .project-preview__secondary h3 {
 	color: var(--chrome-text);

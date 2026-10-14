@@ -3,6 +3,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { publish, subscribe, unsubscribe } from '../../../project_editor/pub_sub.js';
 import {
+	FONT_CHECK_ID,
+	FONT_CHECK_TOPIC,
 	FONT_ID,
 	FONT_REBUILD_TOPICS,
 	REDRAW_ID,
@@ -33,6 +35,13 @@ describe('subscriber ids', () => {
 		expect(FONT_ID.startsWith('anyink.previewStrip.')).toBe(true);
 		expect(REDRAW_ID.includes(FONT_ID)).toBe(false);
 		expect(FONT_ID.includes(REDRAW_ID)).toBe(false);
+	});
+
+	it('the font check line listens as anyink.preview.fontCheck, no substring of the others', () => {
+		expect(FONT_CHECK_ID).toBe('anyink.preview.fontCheck');
+		expect(FONT_CHECK_TOPIC).toBe('fontCheck');
+		const ids = [REDRAW_ID, FONT_ID, FONT_CHECK_ID];
+		ids.forEach((a) => ids.forEach((b) => a !== b && expect(a.includes(b)).toBe(false)));
 	});
 
 	it('font rebuild topics are a subset of the redraw topics', () => {
@@ -76,7 +85,11 @@ describe('subscribeStrip with upstream pub/sub', () => {
 	it('unsubscribes both ids and nothing else', () => {
 		const editor = fakeEditor();
 		const other = vi.fn();
-		editor.subscribe({ topic: 'fontMetrics', subscriberID: 'anyink.metrics.readout', callback: other });
+		editor.subscribe({
+			topic: 'fontMetrics',
+			subscriberID: 'anyink.metrics.readout',
+			callback: other,
+		});
 		const onRedraw = vi.fn();
 		const unsubscribeAll = subscribeStrip(editor, { onRedraw, onFontChange: vi.fn() });
 
@@ -88,8 +101,27 @@ describe('subscribeStrip with upstream pub/sub', () => {
 		expect(editor.subscribers.fontMetrics[FONT_ID]).toBeUndefined();
 	});
 
+	it('hands the fontCheck payload to onFontCheck and stops on unsubscribe', () => {
+		const editor = fakeEditor();
+		const onFontCheck = vi.fn();
+		const onRedraw = vi.fn();
+		const unsubscribeAll = subscribeStrip(editor, { onRedraw, onFontChange: vi.fn(), onFontCheck });
+		const payload = { problems: [{ itemId: 'glyph-0x61', problem: 'width', message: 'm' }] };
+
+		editor.publish('fontCheck', payload);
+		expect(onFontCheck).toHaveBeenCalledWith(payload);
+		expect(onRedraw).not.toHaveBeenCalled();
+
+		unsubscribeAll();
+		editor.publish('fontCheck', { problems: [] });
+		expect(onFontCheck).toHaveBeenCalledTimes(1);
+		expect(editor.subscribers.fontCheck[FONT_CHECK_ID]).toBeUndefined();
+	});
+
 	it('is a no-op without an editor', () => {
-		expect(() => subscribeStrip(null, { onRedraw: vi.fn(), onFontChange: vi.fn() })()).not.toThrow();
+		expect(() =>
+			subscribeStrip(null, { onRedraw: vi.fn(), onFontChange: vi.fn() })()
+		).not.toThrow();
 	});
 });
 

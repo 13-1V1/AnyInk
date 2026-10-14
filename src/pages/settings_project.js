@@ -18,7 +18,7 @@ import { getUnicodeName } from '../lib/unicode/unicode_names.js';
 import { makeDirectCheckbox } from '../panels/cards';
 import { CharacterRange } from '../project_data/character_range.js';
 import { resolveItemLinks } from '../project_editor/cross_item_actions';
-import { makeOneSettingsRow } from './settings.js';
+import { makeOneSettingsRow, markSettingsChanged } from './settings.js';
 
 /**
  * Makes the content for the Settings > Project tab
@@ -321,6 +321,7 @@ function removeCharacterRange(range, manageDialogs = true) {
 	if (index > -1) {
 		let name = range.name;
 		projectRanges.splice(index, 1);
+		markSettingsChanged(); // ANY-INK (B1)
 		if (fallback) {
 			editor.selectedCharacterRange = false;
 			editor.chooserPage.characters = 0;
@@ -664,6 +665,8 @@ function validateAndSaveCharacterRange(range) {
 		);
 	}
 
+	markSettingsChanged(); // ANY-INK (B1)
+
 	// If there are orphaned glyphs, we need to create hidden ranges for them
 	let newRanges = 0;
 	if (checkForOrphans) {
@@ -722,6 +725,7 @@ function hideCharacterRange(range) {
 	}
 
 	range.enabled = false;
+	markSettingsChanged(); // ANY-INK (B1)
 
 	const glyphID = editor.selectedGlyphID;
 	if (glyphID !== false) {
@@ -741,6 +745,7 @@ function hideCharacterRange(range) {
 
 function enableCharacterRange(range) {
 	range.enabled = true;
+	markSettingsChanged(); // ANY-INK (B1)
 	updateRangesTables();
 	closeEveryTypeOfDialog();
 	showToast(`Enabled character range:<br>${range.name}`);
@@ -865,6 +870,7 @@ export function addCharacterRangeToCurrentProject(range, successCallback, showNo
 		let ranges = project.settings.project.characterRanges;
 		const newRange = new CharacterRange(range);
 		ranges.push(newRange);
+		markSettingsChanged(); // ANY-INK (B1)
 
 		if (newRange.name.includes('Controls')) {
 			project.settings.app.showNonCharPoints = true;
@@ -877,6 +883,7 @@ export function addCharacterRangeToCurrentProject(range, successCallback, showNo
 		updateRangesTables();
 		if (successCallback) successCallback();
 	} else {
+		if (!searchResult.enabled) markSettingsChanged(); // ANY-INK (B1)
 		searchResult.enabled = true;
 		if (showNotification) showToast(`Glyph range is already enabled for your project.`);
 	}

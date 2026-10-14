@@ -2,6 +2,9 @@
 // brennanmmeyer@gmail.com
 import { drawAutoTracePreview } from '../anyink/autotrace/preview_draw.js';
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
+import { onDisplayScaleChange } from '../anyink/metrics/display_scale.js';
+import { guideLineLength, hasNoWidthYet } from '../anyink/metrics/guide_span.js';
+import { systemGuideStroke } from '../anyink/metrics/guide_strength.js';
 import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guides_layer.js';
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
 import { onBitmapReady } from '../anyink/trace/bitmap_cache.js';
@@ -121,6 +124,7 @@ export class EditCanvas extends HTMLElement {
 		initEventHandlers(this.canvas);
 		if (editor.editCanvas?.unsubscribeThemeChange) editor.editCanvas.unsubscribeThemeChange();
 		if (editor.editCanvas?.unsubscribeTraceBitmap) editor.editCanvas.unsubscribeTraceBitmap();
+		if (editor.editCanvas?.unsubscribeDisplayScale) editor.editCanvas.unsubscribeDisplayScale();
 		editor.editCanvas = this;
 
 		// Redraw when the canvas flips between paper and slate
@@ -128,6 +132,9 @@ export class EditCanvas extends HTMLElement {
 
 		// ANY-INK (M7): redraw when a trace image finishes decoding (bitmap_cache.js)
 		this.unsubscribeTraceBitmap = onBitmapReady(() => this.redraw('traceBitmapReady'));
+
+		// ANY-INK (B1): guide lines are drawn for the display scale; redraw when it changes
+		this.unsubscribeDisplayScale = onDisplayScaleChange(() => this.redraw('displayScale'));
 
 		// Set up Subscriptions
 		// ANY-INK (M7): '*' expands to pub_sub.js allTopics, which includes 'traceLayer',
@@ -369,8 +376,17 @@ export class EditCanvas extends HTMLElement {
 
 		function drawSystemGuidelines(drawVerticals = true) {
 			// log(`drawSystemGuidelines`, 'start');
-			const alpha = transparencyToAlpha(project.settings.app.guides.systemTransparency);
+			// ANY-INK (B1): strong enough that the writing line reaches 3:1 at the default setting,
+			// on the screen itself when the display is scaled above 100% (thickness 1 or 2 px)
+			const { alpha, thickness } = systemGuideStroke(
+				project.settings.app.guides.systemTransparency,
+				guideColorDark(),
+				token('--canvas-bg'),
+				globalThis.devicePixelRatio || 1
+			);
 			const showLabels = project.settings.app.guides.systemShowLabels;
+			// ANY-INK (B1): a letter with no width yet gets lines at least the default letter width
+			const lineLength = guideLineLength(currentItem, itemXMax, project.defaultAdvanceWidth);
 			// Horizontals
 			let deltaY = 0;
 
@@ -379,7 +395,7 @@ export class EditCanvas extends HTMLElement {
 				// log(`drawing capHeight...`);
 				deltaY = project.settings.font.capHeight;
 				setSystemGuideColor('light', alpha);
-				drawEmHorizontalLine(ctx, deltaY, itemXMax, view);
+				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
 				if (showLabels) drawGuideLabel('Cap height', deltaY, true, alpha);
 			}
 			// ascent
@@ -387,7 +403,7 @@ export class EditCanvas extends HTMLElement {
 				// log(`drawing ascent...`);
 				deltaY = project.settings.font.ascent;
 				setSystemGuideColor('medium', alpha);
-				drawEmHorizontalLine(ctx, deltaY, itemXMax, view);
+				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
 				if (showLabels) drawGuideLabel('Ascent', deltaY, true, alpha);
 			}
 			// xHeight
@@ -395,7 +411,7 @@ export class EditCanvas extends HTMLElement {
 				// log(`drawing xHeight...`);
 				deltaY = project.settings.font.xHeight;
 				setSystemGuideColor('light', alpha);
-				drawEmHorizontalLine(ctx, deltaY, itemXMax, view);
+				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
 				if (showLabels) drawGuideLabel('X height', deltaY, true, alpha);
 			}
 			// descent
@@ -403,7 +419,7 @@ export class EditCanvas extends HTMLElement {
 				// log(`drawing descent...`);
 				deltaY = project.settings.font.descent;
 				setSystemGuideColor('medium', alpha);
-				drawEmHorizontalLine(ctx, deltaY, itemXMax, view);
+				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
 				if (showLabels) drawGuideLabel('Descent', deltaY, true, alpha);
 			}
 
@@ -412,7 +428,7 @@ export class EditCanvas extends HTMLElement {
 				// log(`drawing baseline...`);
 				deltaY = 0;
 				setSystemGuideColor('dark', alpha);
-				drawEmHorizontalLine(ctx, deltaY, itemXMax, view);
+				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
 				if (showLabels) drawGuideLabel('Baseline', 0, true, alpha);
 			}
 
@@ -432,7 +448,7 @@ export class EditCanvas extends HTMLElement {
 					} else {
 						setSystemGuideColor('dark', alpha);
 					}
-					drawEmVerticalLine(ctx, 0, view, sbHover === 'lsb');
+					drawEmVerticalLine(ctx, 0, view, sbHover === 'lsb', thickness);
 					if (showLabels) drawGuideLabel('Left side', 0, false, alpha);
 				}
 
@@ -444,8 +460,17 @@ export class EditCanvas extends HTMLElement {
 					} else {
 						setSystemGuideColor('dark', alpha);
 					}
-					drawEmVerticalLine(ctx, advanceWidth, view, sbHover === 'rsb');
+					drawEmVerticalLine(ctx, advanceWidth, view, sbHover === 'rsb', thickness);
 					if (showLabels) drawGuideLabel('Right side', advanceWidth, false, alpha);
+				} else if (
+					editor.systemGuides.rightSide &&
+					hasNoWidthYet(currentItem) &&
+					currentItem.objType !== 'Component'
+				) {
+					// ANY-INK (B1): a letter with no width yet gets a faint right edge at the default
+					// width, so it is clear where the letter goes. A hint only: it can't be dragged.
+					setSystemGuideColor('light', alpha);
+					drawEmVerticalLine(ctx, project.defaultAdvanceWidth, view, false, thickness);
 				}
 			}
 
@@ -464,13 +489,15 @@ export class EditCanvas extends HTMLElement {
 
 			if (guides.custom) {
 				let alpha = transparencyToAlpha(guides.customTransparency);
+				// ANY-INK (B1): custom lines span as far as the system lines do
+				const lineLength = guideLineLength(currentItem, itemXMax, project.defaultAdvanceWidth);
 				guides.custom.forEach((guide) => {
 					if (guide.visible) {
 						// Guide.color is ignored on purpose (audit C6): every guide follows the canvas theme.
 						let fill = withAlpha(token('--canvas-guide'), alpha);
 						ctx.fillStyle = fill;
 						if (guide.angle === 90) {
-							drawEmHorizontalLine(ctx, guide.location, itemXMax, view);
+							drawEmHorizontalLine(ctx, guide.location, lineLength, view);
 							if (guides.customShowLabels) {
 								drawGuideLabel(guide.name, guide.location, true, alpha);
 							}
@@ -540,8 +567,9 @@ export class EditCanvas extends HTMLElement {
  * @param {Number} emY - y value, in Em space units (not pixels)
  * @param {Number} emLineWidth - width, in Em space units (not pixels)
  * @param {Object} view - view object (dx, dy, dz)
+ * @param {Number} thickness - line thickness in canvas pixels (ANY-INK, B1)
  */
-function drawEmHorizontalLine(ctx, emY = 0, emLineWidth, view) {
+function drawEmHorizontalLine(ctx, emY = 0, emLineWidth, view, thickness = 1) {
 	// log(`drawEmHorizontalLine`, 'start');
 	let pad = 50 * view.dz;
 	// if (shouldDrawContextCharacters()) pad = 0;
@@ -554,7 +582,8 @@ function drawEmHorizontalLine(ctx, emY = 0, emLineWidth, view) {
 	// log(`lineX: ${lineX}`);
 	// log(`lineY: ${lineY}`);
 	// log(`lineWidth: ${lineWidth}`);
-	ctx.fillRect(lineX, lineY, lineWidth, 1);
+	// ANY-INK (B1): `thickness` canvas px (2 on some scaled displays, guide_strength.js)
+	ctx.fillRect(lineX, lineY, lineWidth, thickness);
 	// log(`drawEmHorizontalLine`, 'end');
 }
 
@@ -563,8 +592,10 @@ function drawEmHorizontalLine(ctx, emY = 0, emLineWidth, view) {
  * @param {CanvasRenderingContext2D} ctx - canvas context
  * @param {Number} emX - x value, in Em space units (not pixels)
  * @param {Object} view - view object (dx, dy, dz)
+ * @param {Boolean} tall - extend further past the top and tail lines
+ * @param {Number} thickness - line thickness in canvas pixels (ANY-INK, B1)
  */
-export function drawEmVerticalLine(ctx, emX = 0, view, tall = false) {
+export function drawEmVerticalLine(ctx, emX = 0, view, tall = false, thickness = 1) {
 	// log(`drawEmVerticalLine`, 'start');
 	const project = getCurrentProject();
 	let pad = (tall ? 200 : 50) * view.dz;
@@ -577,7 +608,7 @@ export function drawEmVerticalLine(ctx, emX = 0, view, tall = false) {
 	// log(`lineTopY: ${lineTopY}`);
 	// log(`lineHeight: ${lineHeight}`);
 
-	ctx.fillRect(lineX, lineTopY, 1, lineHeight);
+	ctx.fillRect(lineX, lineTopY, thickness, lineHeight);
 
 	// log(`drawEmVerticalLine`, 'end');
 }

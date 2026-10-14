@@ -18,7 +18,14 @@
 		"pwa:icons": "node src/anyink/pwa/generate-icons.js",
 		"test:pwa": "vitest run tests/pwa.test.js",
 		"verify:pwa": "npm run build && node tests/pwa.verify.mjs",
-		"verify:pwa-storage": "node tests/pwa-storage.verify.mjs"
+		"verify:pwa-storage": "node tests/pwa-storage.verify.mjs",
+		"verify:menus": "node tests/menus.verify.mjs",
+		"verify:leave": "node tests/leave-warning.verify.mjs",
+		"verify:notices": "npm run build && node tests/notices.verify.mjs",
+		"verify:b1": "node tests/b1.verify.mjs",
+		"verify:guides": "node tests/guides.verify.mjs",
+		"verify:fontcheck": "node tests/fontcheck.verify.mjs",
+		"verify:check-line": "node tests/check-line.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

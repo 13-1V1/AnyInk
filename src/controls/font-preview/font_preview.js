@@ -1,17 +1,34 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /* global Buffer */
 import { FontFlux } from 'font-flux-js';
-import { getCurrentProject } from '../../app/main.js';
+import { getExportKerning } from '../../anyink/fontcheck/export_kerning.js';
+import { failingItemId } from '../../anyink/preview/build_culprit.js';
+import { buildFailureText } from '../../anyink/preview/font_status.js';
+import { itemLabel } from '../../anyink/preview/item_label.js';
+import { makeNoticeLine, makeNoticeStyle } from '../../anyink/preview/notice_line.js';
+import noticeStyle from '../../anyink/preview/preview-notice.css?inline';
+import { showItem } from '../../anyink/preview/show_item.js';
+import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
 import { charToHex } from '../../common/character_ids.js';
 import { makeElement } from '../../common/dom.js';
-import { caseCamelToKebab, caseKebabToCamel, round } from '../../common/functions.js';
+import { caseCamelToKebab, caseKebabToCamel } from '../../common/functions.js';
 import { findAndMergeLigatures } from '../../display_canvas/text_block.js';
 import { TextBlockOptions } from '../../display_canvas/text_block_options.js';
 import {
 	createOptionsObject,
 	getUniqueGlyphName,
 	glyphToContours,
+	sanitizeInt,
 } from '../../formats_io/otf/font_export.js';
 import { writeGposKernDataToFont } from '../../formats_io/otf/tables/gpos.js';
+import { Glyph } from '../../project_data/glyph.js';
+
+// ANY-INK B1 (UX-BEGINNER.md 7.2): widths and side bearings go through the exporter's own
+// sanitizeInt, so the preview font holds exactly what the font file will. Points already come
+// from the exporter's glyphToContours.
+const toWidth = (value) => sanitizeInt(value, 0, 65535, 0);
+const toSideBearing = (value) => sanitizeInt(value, -32768, 32767, 0);
 
 const DEFAULT_FLAVOR = 'otf';
 const FLAVOR_TO_FONTFLUX_FORMAT = {
@@ -72,11 +89,20 @@ export class FontPreviewBuilder {
 		font.info.licenseURL = options.licenseURL;
 		font.info.trademark = options.trademark;
 
-		const previewGlyphs = buildPreviewGlyphObjects(project, glyphMap, ligatures);
+		// Glyph name in the font -> project item id, so a failed build can name the letter.
+		this.itemIdsByGlyphName = new Map();
+		const previewGlyphs = buildPreviewGlyphObjects(
+			project,
+			glyphMap,
+			ligatures,
+			this.itemIdsByGlyphName
+		);
 		previewGlyphs.forEach((glyph) => font.addGlyph(glyph));
 
 		if (this.includeKerning && project.settings.app.exportKerning) {
-			writeGposKernDataToFont(font, project);
+			// ANY-INK (B1): gaps as the font file holds them (rounded, pulled into range), the
+			// same copy the export writes, so a gap of 12.5 never stops the preview
+			writeGposKernDataToFont(font, { kerning: getExportKerning(project) });
 		}
 
 		if (this.includeLigatures && ligatures.length > 0) {
@@ -95,11 +121,27 @@ export class FontPreviewBuilder {
 		return font;
 	}
 
+	/**
+	 * @param {String} text
+	 * @returns {ArrayBuffer}
+	 * @throws {Error} when the font can't be built; error.itemId names the letter (or the gap
+	 *   between two letters) that broke it, or is null when nothing can be named
+	 */
 	buildFontBuffer(text = '') {
 		const font = this.buildFontFlux(text);
 		const format =
 			FLAVOR_TO_FONTFLUX_FORMAT[this.flavor] || FLAVOR_TO_FONTFLUX_FORMAT[DEFAULT_FLAVOR];
-		return font.export({ format });
+		try {
+			return font.export({ format });
+		} catch (error) {
+			const failure = error instanceof Error ? error : new Error(String(error));
+			// @ts-expect-error ANY-INK: which letter (or gap between letters) broke the build
+			failure.itemId = failingItemId(font, this.itemIdsByGlyphName, failure, {
+				kerning: this.project.kerning,
+				glyphNameFor: getUniqueGlyphName,
+			});
+			throw failure;
+		}
 	}
 
 	makeFontFaceCSS(
@@ -168,6 +210,10 @@ const FONT_PREVIEW_STYLE = `
 	.font-preview__text:focus {
 		outline: none;
 	}
+
+	.font-preview__notice {
+		width: fit-content;
+	}
 `;
 
 let fontPreviewInstanceCounter = 0;
@@ -191,6 +237,11 @@ export class FontPreview extends HTMLElement {
 		this.initialAttributes = attributes;
 		this.project = attributes.project || false;
 		this.observedAttrs = FONT_PREVIEW_OBSERVED_ATTRIBUTES;
+		// ANY-INK B1: { itemId } while the font can't be built (itemId null when no letter can
+		// be named), null while his font is showing. buildSerial: only the newest build counts.
+		this.buildProblem = null;
+		this.buildSerial = 0;
+		this.lastStatusKey = undefined;
 
 		// log(`FontPreview.constructor`, 'end');
 	}
@@ -250,6 +301,17 @@ export class FontPreview extends HTMLElement {
 		const shadow = this.attachShadow({ mode: 'open' });
 		const styles = makeElement({ tag: 'style', innerHTML: FONT_PREVIEW_STYLE });
 		shadow.appendChild(styles);
+		// ANY-INK B1: notice styles go in as text, never parsed as markup.
+		shadow.appendChild(makeNoticeStyle(this.ownerDocument || document, noticeStyle));
+
+		// ANY-INK B1: said in place of the text when the font can't be built, so a system font
+		// never sits on screen pretending to be his.
+		this.notice = makeNoticeLine({
+			doc: this.ownerDocument || document,
+			onShowMe: (itemId) => showItem(getCurrentProjectEditor(), itemId),
+		});
+		this.notice.element.classList.add('font-preview__notice');
+		shadow.appendChild(this.notice.element);
 
 		this.textElement = makeElement({
 			tag: 'textarea',
@@ -299,6 +361,8 @@ export class FontPreview extends HTMLElement {
 			return;
 		}
 
+		// ANY-INK B1: only the newest build decides what is on screen.
+		const serial = ++this.buildSerial;
 		try {
 			const builder = new FontPreviewBuilder(project, {
 				flavor: resolvePreviewFlavor(this.textBlockOptions.previewFlavor),
@@ -334,12 +398,19 @@ export class FontPreview extends HTMLElement {
 			fontFace.load().then(
 				() => {
 					cleanup();
+					// ANY-INK B1: an older build that loads late must not replace (or delete)
+					// the newest one, or the text would fall back to a system font.
+					if (serial !== this.buildSerial) {
+						targetDocument.fonts.delete(fontFace);
+						return;
+					}
 					// Drop the previous preview font and re-apply styling so the
 					// freshly-loaded font metrics are reflected.
 					if (this.currentFontFace && this.currentFontFace !== fontFace) {
 						targetDocument.fonts.delete(this.currentFontFace);
 					}
 					this.currentFontFace = fontFace;
+					this.setBuildProblem(null, project);
 					this.applyStyles();
 					this.autoGrow();
 				},
@@ -347,12 +418,51 @@ export class FontPreview extends HTMLElement {
 					cleanup();
 					targetDocument.fonts.delete(fontFace);
 					console.warn(`${this.constructor.name}: preview font load failed`, error);
+					// ANY-INK B1: the browser refused the font; say so instead of a system font.
+					if (serial === this.buildSerial) this.setBuildProblem({ itemId: null }, project);
 				}
 			);
 		} catch (error) {
 			console.warn(`${this.constructor.name}: preview font generation failed`, error);
+			// ANY-INK B1: name the letter that broke the build instead of a silent fallback.
+			this.setBuildProblem({ itemId: error?.itemId ?? null }, project);
 		}
 		// log(`FontPreview.rebuildFont`, 'end');
+	}
+
+	/**
+	 * ANY-INK B1: show or clear the "Can't show your font yet" notice. While the font can't be
+	 * built the text is hidden, so nothing typed sits on screen in a system font. Fires a
+	 * 'font-status' event ({ ok, itemId }) whenever the status changes.
+	 * @param {{itemId: String|null}|null} problem - null when his font is showing
+	 * @param {Object} [project] - names joined letters
+	 */
+	setBuildProblem(problem, project = this.project || getCurrentProject()) {
+		const next = problem ? { itemId: problem.itemId ?? null } : null;
+		this.buildProblem = next;
+		if (this.textElement) this.textElement.style.display = next ? 'none' : '';
+		if (this.notice) {
+			if (next) {
+				this.notice.show({
+					text: buildFailureText(itemLabel(project, next.itemId)),
+					itemId: next.itemId,
+				});
+			} else {
+				this.notice.hide();
+			}
+		}
+		if (!next) this.autoGrow();
+
+		const key = next ? `failed:${next.itemId}` : 'ok';
+		if (key === this.lastStatusKey) return;
+		this.lastStatusKey = key;
+		this.dispatchEvent(
+			new CustomEvent('font-status', {
+				bubbles: true,
+				composed: true,
+				detail: { ok: !next, itemId: next ? next.itemId : null },
+			})
+		);
 	}
 
 	/**
@@ -405,6 +515,8 @@ export class FontPreview extends HTMLElement {
 		this.textElement.style.fontSize = `${fontSize}px`;
 		this.textElement.style.lineHeight = `${fontSize + lineGap}px`;
 		this.textElement.style.padding = `${pagePadding}px`;
+		// ANY-INK B1: the notice sits where the text would start.
+		if (this.notice) this.notice.element.style.margin = `${pagePadding}px`;
 	}
 
 	/**
@@ -505,34 +617,47 @@ function addGlyphKey(hex, project, glyphMap) {
 	glyphMap.set(hex, item);
 }
 
-function buildPreviewGlyphObjects(project, glyphMap, ligatures) {
+/**
+ * @param {Object} project
+ * @param {Map<String, Object|null>} glyphMap - hex -> project glyph (null when it doesn't exist)
+ * @param {Array<Object>} ligatures
+ * @param {Map<String, String>} [idsByName] - filled with glyph name -> project item id
+ * @returns {Array<Object>} FontFlux glyph objects
+ */
+function buildPreviewGlyphObjects(project, glyphMap, ligatures, idsByName = new Map()) {
 	const glyphObjects = [];
 	const notdefGlyph = buildNotdefGlyph(project);
 	glyphObjects.push(notdefGlyph);
+	if (project.getItem('glyph-0x0')) idsByName.set(notdefGlyph.name, 'glyph-0x0');
 
 	const sortedHexes = Array.from(glyphMap.keys()).sort((a, b) => parseInt(a, 16) - parseInt(b, 16));
 	for (const hex of sortedHexes) {
 		const unicode = parseInt(hex, 16);
 		if (!Number.isFinite(unicode) || unicode === 0) continue;
 		const sourceGlyph = glyphMap.get(hex);
+		// ANY-INK B1: a letter that exists keeps its own width, even 0 (as in the font file);
+		// only a letter that doesn't exist gets the default width.
 		const glyphObject = {
 			name: getUniqueGlyphName(unicode),
 			unicode,
-			advanceWidth: sourceGlyph?.advanceWidth || project.defaultAdvanceWidth,
-			leftSideBearing: round(sourceGlyph?.leftSideBearing || 0),
+			advanceWidth: toWidth(sourceGlyph ? sourceGlyph.advanceWidth : project.defaultAdvanceWidth),
+			leftSideBearing: toSideBearing(sourceGlyph?.leftSideBearing),
 			contours: sourceGlyph ? glyphToContours(sourceGlyph) : [],
 		};
 		glyphObjects.push(glyphObject);
+		if (sourceGlyph?.id) idsByName.set(glyphObject.name, sourceGlyph.id);
 	}
 
 	ligatures.forEach((ligature) => {
 		if (!ligature) return;
+		const name = generateLigatureExportName(ligature);
 		glyphObjects.push({
-			name: generateLigatureExportName(ligature),
-			advanceWidth: ligature.advanceWidth,
-			leftSideBearing: round(ligature.leftSideBearing || 0),
+			name,
+			advanceWidth: toWidth(ligature.advanceWidth),
+			leftSideBearing: toSideBearing(ligature.leftSideBearing),
 			contours: glyphToContours(ligature),
 		});
+		if (ligature.id) idsByName.set(name, ligature.id);
 	});
 
 	return glyphObjects;
@@ -544,12 +669,15 @@ function buildNotdefGlyph(project) {
 		return {
 			name: '.notdef',
 			unicode: 0,
-			advanceWidth: notdef.advanceWidth,
-			leftSideBearing: round(notdef.leftSideBearing || 0),
+			advanceWidth: toWidth(notdef.advanceWidth),
+			leftSideBearing: toSideBearing(notdef.leftSideBearing),
 			contours: glyphToContours(notdef),
 		};
 	}
 
+	// ANY-INK B1: the same box the exporter's addNotdefToExport draws (a real Glyph, so the
+	// shapes become outlines), so the preview matches the font file and is never a font
+	// with no outlines at all, which Chrome refuses to load.
 	const capHeight = project.settings.font.capHeight;
 	const notDefGlyphPaths = [
 		{
@@ -571,26 +699,22 @@ function buildNotdefGlyph(project) {
 			],
 		},
 	];
-	const glyph = {
+	const glyph = new Glyph({
 		advanceWidth: 432,
-		leftSideBearing: 0,
 		shapes: notDefGlyphPaths,
-	};
+	});
 
 	if (capHeight !== 700) {
 		const delta = capHeight - 700;
-		glyph.shapes = notDefGlyphPaths.map((shape) => ({
-			name: shape.name,
-			translateY: delta,
-			pathPoints: shape.pathPoints,
-		}));
+		glyph.updateGlyphSize({ height: delta, ratioLock: true });
+		glyph.advanceWidth = glyph.maxes.xMax;
 	}
 
 	return {
 		name: '.notdef',
 		unicode: 0,
-		advanceWidth: glyph.advanceWidth,
-		leftSideBearing: round(glyph.leftSideBearing || 0),
+		advanceWidth: toWidth(glyph.advanceWidth),
+		leftSideBearing: toSideBearing(glyph.leftSideBearing),
 		contours: glyphToContours(glyph),
 	};
 }

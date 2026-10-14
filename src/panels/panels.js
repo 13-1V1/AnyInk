@@ -25,6 +25,8 @@ export function makePanel() {
 	const editor = getCurrentProjectEditor();
 	// log(editor.nav);
 	let content = makeElement();
+	// ANY-INK (B1): nav.panel holds the panel id (a listOfPanels() key in navigator.js),
+	// so the comparisons below use ids, never labels like 'Context characters'
 	let panel = editor.nav.panel;
 	// log(`panel: ${panel}`);
 
@@ -57,7 +59,7 @@ export function makePanel() {
 		addAsChildren(content, makePanel_Layers());
 		document.addEventListener('keydown', handlePanelsKeyPress, false);
 		document.addEventListener('keyup', handlePanelsKeyUp, false);
-	} else if (panel === 'Context characters') {
+	} else if (panel === 'ContextCharacters') {
 		unsubscribeExcept('contextCharactersPanel');
 		addAsChildren(content, makePanel_ContextCharacters());
 	} else if (panel === 'History') {
@@ -66,10 +68,10 @@ export function makePanel() {
 	} else if (panel === 'Guides') {
 		unsubscribeExcept('guidesPanel');
 		addAsChildren(content, makePanel_Guides());
-	} else if (panel === 'Character info') {
+	} else if (panel === 'CharacterInfo') {
 		unsubscribeExcept('characterInfoPanel');
 		addAsChildren(content, makePanel_CharacterInfo());
-	} else if (panel === 'Quality checks') {
+	} else if (panel === 'QualityChecks') {
 		unsubscribeExcept('qualityChecksPanel');
 		addAsChildren(content, makePanel_QualityChecks());
 	} else if (panel === 'Trace') {
@@ -82,18 +84,34 @@ export function makePanel() {
 	return content;
 }
 
+/**
+ * ANY-INK (B1): the subscriber ids each panel listens with. Opening one panel removes every
+ * other panel's ids, so a closed panel never refreshes the open one. Upstream listed the
+ * panels by hand and missed Quality checks, whose currentItem / currentPath subscriber then
+ * rebuilt whatever panel was open on every edit tick. A new panel adds its row here.
+ * Removal matches by substring (pub_sub.js unsubscribe), so each id also removes every id that
+ * contains it: 'attributesPanel' removes the card inputs 'attributesPanel.currentItem.x', and
+ * 'guidesPanel' removes 'anyink.metrics.guidesPanel.system.ascent'.
+ */
+const panelSubscriberIDs = {
+	attributesPanel: ['attributesPanel'],
+	transformsPanel: ['anyink.transforms.sliders'],
+	layersPanel: ['layersPanel'],
+	contextCharactersPanel: ['contextCharactersPanel'],
+	historyPanel: ['historyPanel'],
+	guidesPanel: ['guidesPanel'],
+	characterInfoPanel: ['characterInfoPanel'],
+	qualityChecksPanel: ['qualityChecksPanel'],
+	// ANY-INK (M7, M8): the Trace panel and the Auto-trace card inside it
+	tracePanel: ['anyink.trace.panel', 'anyink.autotrace.panel'],
+};
+
 function unsubscribeExcept(panelName = '') {
 	const editor = getCurrentProjectEditor();
-	if (panelName !== 'attributesPanel') editor.unsubscribe({ idToRemove: 'attributesPanel' });
-	if (panelName !== 'layersPanel') editor.unsubscribe({ idToRemove: 'layersPanel' });
-	if (panelName !== 'contextCharactersPanel')
-		editor.unsubscribe({ idToRemove: 'contextCharactersPanel' });
-	if (panelName !== 'historyPanel') editor.unsubscribe({ idToRemove: 'historyPanel' });
-	if (panelName !== 'guidesPanel') editor.unsubscribe({ idToRemove: 'guidesPanel' });
-	// ANY-INK (M7): every Trace panel subscriber id starts with 'anyink.trace.panel'
-	if (panelName !== 'tracePanel') editor.unsubscribe({ idToRemove: 'anyink.trace.panel' });
-	// ANY-INK (M8): the Auto-trace card inside the Trace panel: ids start 'anyink.autotrace.panel'
-	if (panelName !== 'tracePanel') editor.unsubscribe({ idToRemove: 'anyink.autotrace.panel' });
+	Object.entries(panelSubscriberIDs).forEach(([name, ids]) => {
+		if (name === panelName) return;
+		ids.forEach((id) => editor.unsubscribe({ idToRemove: id }));
+	});
 }
 
 /**

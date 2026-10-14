@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getProjectEditorImportTarget, setCurrentProjectEditor } from '../../app/main.js';
 import {
 	charToHex,
@@ -265,6 +267,9 @@ export async function ioSVG_importSVGfont(font, testing = false) {
 		setCurrentProjectEditor(editor);
 		editor.project.resetSessionStateForAllItems();
 		sortCharacterRanges();
+		// ANY-INK (B1): the imported font is where this editor starts (undo, the leave-site
+		// check), not the empty project the import filled
+		editor.initializeHistory(editor.project);
 		editor.nav.page = 'Overview';
 		editor.navigate();
 	}

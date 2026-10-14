@@ -41,9 +41,21 @@ export function findCharAtPoint(data, x, y, font) {
  * @returns {{id: String, page: String}|false}
  */
 export function navigationTargetForChar(charData) {
-	const id = charData?.item?.id;
+	const target = navigationTargetForId(charData?.item?.id);
+	// A letter on the sheet opens that letter, never a gap
+	return target && target.page !== 'Kerning' ? target : false;
+}
+
+/**
+ * Which page edits this item: letters, joined letters, and (B1) the gap between two letters,
+ * which a font notice can name.
+ * @param {String} id - project item id
+ * @returns {{id: String, page: String}|false}
+ */
+export function navigationTargetForId(id) {
 	if (typeof id !== 'string') return false;
 	if (id.startsWith('glyph-')) return { id, page: 'Characters' };
 	if (id.startsWith('liga-')) return { id, page: 'Ligatures' };
+	if (id.startsWith('kern-')) return { id, page: 'Kerning' };
 	return false;
 }

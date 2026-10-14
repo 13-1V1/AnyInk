@@ -20,6 +20,7 @@
 	--chrome-text: #e8e9ec;
 	--chrome-text-muted: #9a9da6;
 	--chrome-text-faint: #83868f;    /* eyebrows, hints (4.5:1 on chrome-bg) */
+	--chrome-text-on-tint: var(--chrome-text-muted); /* eyebrows on a touch-soft card (5:1) */
 	--chrome-text-inverse: #141519;  /* text on green buttons */
 	--chrome-scrollbar: #33353f;
 
@@ -36,6 +37,22 @@
 	--structure-strong: #c4b5fd;
 	--structure-deep: #7c3aed;
 	--structure-soft: rgba(167, 139, 250, 0.18);
+
+	/* ---- menus: File menu, Presets, dropdowns (B1, 10/14/2026) ----
+	   A menu is a <dialog>, which the browser gives black text, so menus set every text color
+	   here. Contrast on --menu-bg: text 13.9:1, hint 6.2:1, heading 4.6:1, greyed-out row 4.6:1,
+	   keys 7.0:1 on their chip; a hovered row is 1.3:1 against a resting one. Menu text is never
+	   faded with opacity: these colors are what shows. theme/tests/menu_contrast.test.js checks. */
+	--menu-bg: var(--chrome-bg-raised);
+	--menu-text: var(--chrome-text);
+	--menu-text-hover: #ffffff;
+	--menu-hint: var(--chrome-text-muted);
+	--menu-heading: var(--chrome-text-faint);
+	--menu-key-text: var(--structure);
+	--menu-key-bg: var(--chrome-bg-sunken);
+	--menu-row-hover-bg: #30323d;
+	--menu-row-selected-bg: var(--touch-soft);
+	--menu-disabled: var(--chrome-text-faint);
 
 	/* ---- status ---- */
 	--danger: #ef4444;

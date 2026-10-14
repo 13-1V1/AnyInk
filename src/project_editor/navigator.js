@@ -33,6 +33,23 @@ export class Navigator {
 	}
 
 	/**
+	 * The open panel's id: a key of listOfPanels() ('ContextCharacters'), never its label.
+	 * @returns {String}
+	 */
+	get panel() {
+		return this._panel;
+	}
+
+	/**
+	 * ANY-INK (B1): an old display name ('Context characters', from the dev currentPanel
+	 * setting or older code) is mapped to its id here, so every write passes one map.
+	 * @param {String} value - panel id, or an old display name
+	 */
+	set panel(value) {
+		this._panel = panelIdFor(value);
+	}
+
+	/**
 	 * List of pages the editor supports
 	 */
 	get tableOfContents() {
@@ -202,6 +219,8 @@ export class Navigator {
 
 export function makeNavButton(properties = {}) {
 	let title = properties.title || 't i t l e';
+	// ANY-INK (B1): nav.panel holds the id; the PANEL button shows its label
+	if (properties.superTitle === 'PANEL') title = panelLabel(title);
 	let superTitle = properties.superTitle || 's u p e r t i t l e';
 	let level = properties.level || '';
 
@@ -372,9 +391,7 @@ function makeNavButton_Page(pageName, iconName) {
 
 		// Ensure the selected Panel is availabe for the new page, otherwise default to Attributes
 		editor.nav.page = pageName;
-		if (panelsPerPage?.[pageName]) {
-			if (!panelsPerPage[pageName].includes(editor.nav.panel)) editor.nav.panel = 'Attributes';
-		}
+		editor.nav.panel = panelForPage(pageName, editor.nav.panel);
 
 		editor.navigate();
 		if (editor.selectedItemID) {
@@ -418,13 +435,36 @@ const panelsPerPage = {
  * The panel to show on a page: the requested one when the page offers it, else Attributes.
  * Pages without a panel list (Overview, Settings, ...) keep whatever was requested.
  * @param {String} page
- * @param {String} panel
- * @returns {String}
+ * @param {String} panel - panel id (an old display name is mapped to its id first)
+ * @returns {String} panel id
  */
 export function panelForPage(page, panel) {
+	const id = panelIdFor(panel);
 	const offered = panelsPerPage[page];
-	if (!offered || offered.includes(panel)) return panel;
+	if (!offered || offered.includes(id)) return id;
 	return 'Attributes';
+}
+
+/**
+ * ANY-INK (B1): the id for a panel value. Ids pass through; an old display name
+ * ('Quality checks') becomes its id ('QualityChecks'); anything else is kept as given.
+ * @param {String} value
+ * @returns {String}
+ */
+export function panelIdFor(value) {
+	const panels = listOfPanels();
+	if (typeof value !== 'string' || panels[value]) return value;
+	const match = Object.keys(panels).find((id) => panels[id].name === value);
+	return match || value;
+}
+
+/**
+ * ANY-INK (B1): the label a person sees for a panel id. Unknown values show as given.
+ * @param {String} id
+ * @returns {String}
+ */
+export function panelLabel(id) {
+	return listOfPanels()[panelIdFor(id)]?.name || id;
 }
 
 function makePanelChooserContent() {
@@ -433,8 +473,9 @@ function makePanelChooserContent() {
 	let pageButton;
 	let panels = listOfPanels();
 	let page = getCurrentProjectEditor().nav.page;
-	panelsPerPage[page].forEach((panelName) => {
-		pageButton = makeNavButton_Panel(panels[panelName].name, panels[panelName].iconName);
+	// ANY-INK (B1): each row stores the panel's id and shows its label
+	panelsPerPage[page].forEach((panelID) => {
+		pageButton = makeNavButton_Panel(panelID, panels[panelID].name, panels[panelID].iconName);
 		content.appendChild(pageButton);
 	});
 
@@ -442,20 +483,27 @@ function makePanelChooserContent() {
 	return content;
 }
 
-function makeNavButton_Panel(panelName, iconName) {
+/**
+ * One row of the PANEL chooser.
+ * @param {String} panelID - key of listOfPanels(), stored in editor.nav.panel
+ * @param {String} label - what the row shows
+ * @param {String} iconName
+ * @returns {HTMLElement}
+ */
+function makeNavButton_Panel(panelID, label, iconName) {
+	const isCurrent = getCurrentProjectEditor().nav.panel === panelID;
 	let button = makeElement({
 		tag: 'button',
 		className: 'nav-dropdown__button',
-		attributes: { tabindex: '0' },
+		attributes: { tabindex: '0', 'data-panel-id': panelID, 'aria-current': String(isCurrent) },
 	});
-	const isCurrent = getCurrentProjectEditor().nav.panel === panelName;
 	button.innerHTML += makeIcon({ name: iconName, color: navIconColor(isCurrent) });
-	button.appendChild(makeElement({ content: panelName }));
+	button.appendChild(makeElement({ content: label }));
 	button.addEventListener('click', () => {
 		// log(`navButton.click`, 'start');
-		// log(`panelName: ${panelName}`);
+		// log(`panelID: ${panelID}`);
 		const editor = getCurrentProjectEditor();
-		editor.nav.panel = panelName;
+		editor.nav.panel = panelID;
 		editor.showPageTransitions = false;
 		editor.navigate();
 		editor.showPageTransitions = true;
@@ -465,7 +513,8 @@ function makeNavButton_Panel(panelName, iconName) {
 }
 
 /**
- * List of panels the editor supports
+ * List of panels the editor supports. The key is the panel's id (what editor.nav.panel
+ * holds); name is the label people see.
  */
 function listOfPanels() {
 	return {

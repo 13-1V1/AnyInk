@@ -18,8 +18,8 @@ export const PANGRAMS = [
 
 /** Classic straight / round / diagonal spacing strings. */
 export const CONTROL_STRINGS = [
-	{ name: 'HHAV', note: 'caps', text: 'HHAVHHOOAVOO' },
-	{ name: 'nnav', note: 'lowercase', text: 'nnavnnooavoo' },
+	{ name: 'HHAV', note: 'capitals', text: 'HHAVHHOOAVOO' },
+	{ name: 'nnav', note: 'small letters', text: 'nnavnnooavoo' },
 ];
 
 export const GLYPH_SETS = [
@@ -57,7 +57,7 @@ export function makePresetRows({ currentChar = '', storedContext = '' } = {}) {
 		rows.push({
 			group: 'context',
 			name: `Context for ${currentChar}`,
-			note: 'glyph',
+			note: 'this letter',
 			text: context,
 		});
 	}
@@ -66,7 +66,7 @@ export function makePresetRows({ currentChar = '', storedContext = '' } = {}) {
 		rows.push({ group: 'control', name: row.name, note: row.note, text: row.text })
 	);
 	GLYPH_SETS.forEach((row) =>
-		rows.push({ group: 'sets', name: row.name, note: `${row.text.length} glyphs`, text: row.text })
+		rows.push({ group: 'sets', name: row.name, note: `${row.text.length} letters`, text: row.text })
 	);
 	return rows;
 }

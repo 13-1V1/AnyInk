@@ -654,3 +654,75 @@ real handwriting needs regular manual fixes (move to measured spacing from his n
 handwriting's proportions keep tripping the size check (fit the guide lines to his first photo
 automatically); or the acceptance run in UX-BEGINNER.md section 9 fails twice on the same task
 (redesign that screen, not the words).
+
+## D-032: B1 build choices (font check, letter names, notices)
+**Decided:** 10/14/2026, during B1 (UX-BEGINNER.md section 10) and its critic fix pass. Small choices
+the build made where the spec text left room; each is easy to reverse, and Gate 2 can overrule any of
+them.
+**Chose:**
+- Letter names follow UX-BEGINNER 2.2: "Capital A", "small a", "number 1", "the question mark",
+  "joined letters fi" (`src/anyink/words/letter_name.js`).
+- A 1- or 2-point shape that curves is not a font-check problem; a straight one is. Oblegg's ff, ffi
+  and ffl joins are curved 2-point shapes the font file holds fine, and the literal "at least 3
+  points" rule raised 3 false alarms on that sample.
+- `addSpaceIfMissing` also replaces a space that has no shapes and width 0 (clicking the space tile
+  makes exactly that, and today's export writes it 0 wide). The check flags a space (and a no-break
+  space) whose width rounds to 0: "The space has no width, so your words would run together." (fix
+  pass; it first left an empty space alone).
+- The font library already adds a space a quarter of the letter box wide (named "space") to a font
+  without one, so today's exports already carry a 512-wide space at 2,048; the option makes it ours
+  (`uni0020`).
+- Each font-check message names the actual problem ("small b has ink but no width, so the next
+  letter would sit on top of it.") instead of the generic "has a problem the font file can't hold".
+  The strip shows it as is. The export toast keeps the export's own words and carries on: "Exported
+  BrennanHand-Regular.otf to Fonts, but small b needs fixing. [Show me]", amber edge, 12 s; the
+  words come from the export writer's record (`export_folder.js` getLastExportMessage), so a "Keep
+  both" name or a download fallback is said as it happened.
+- Panels are stored by id (`ContextCharacters`, `CharacterInfo`, `QualityChecks`); old names in saved
+  state or the dev `currentPanel` setting still open the right panel.
+- Custom guide lines span as far as the system guide lines. A letter whose width is still 0 (a new
+  letter, and one being drawn, until B3 spaces it) gets lines at least the default letter width and a
+  faint right edge there; a letter with a width keeps its own box (fix pass: the span was first keyed
+  on "no shapes", so the first Pen click shrank the lines to stubs).
+- Guide line strength is worked out from the tokens so the writing line and the side edges reach 3:1.
+  On a display scaled above 100 % the browser stretches the canvas and smooths each 1 px line, so the
+  alpha is raised by what the stretch can lose (1 - 1 / (2 x scale)); when even a solid 1 px line
+  can't hold 3:1 (125 %), the line is drawn 2 canvas px thick (`guide_strength.js`
+  systemGuideStroke). Chosen over a canvas buffer at the display's own scale, which would sharpen
+  everything on the canvas (not a B1 change) and draw 2.25 times the pixels on every redraw.
+- App notices (install, ready offline, update, offline problem) are one line in the top bar's empty
+  middle, just left of the save status (`pwa/notice_place.js`), where they cover nothing on any page;
+  toasts still show over them. Fix pass: bottom right, 80 px up, covered the zoom bar; above the
+  strip, letter tiles and Settings buttons. B6 decides where notices finally live.
+- One app notice per launch: the first one shown takes the launch, update and problem notices
+  included, so the install offer and "ready to open offline" never follow another notice; "ready
+  offline" never waits in line (`waits: false`) and is said on a later launch instead.
+- The strip line gets [Fix it] only where it really changes something (`fix_it.js` canFixProblem):
+  a width, a space with no width, and stray shapes in the letter itself (not in a letter it is made
+  from). It acts only if the problem is still there (the line can be 2 s old). Otherwise one sentence
+  says what to do ("Show me, then drag the far point back near the letter."). The count names gaps as
+  gaps ("2 more letters and 1 gap need fixing too.").
+- While the line shows, only the corner of the sheet under it is cut out of the letters (clip-path),
+  in canvas and Real font mode; the letters never move when it comes or goes (fix pass: a 40 px band
+  across the whole sheet made them jump 20 px).
+- The Real font preview writes gaps as the font file holds them (`export_kerning.js`, rounded and
+  pulled into range), like the export, so a gap of 12.5 no longer stops it. Its "Can't show your
+  font yet" naming of a gap is now a safety net, named the font check's way (`kernSubject`).
+- Opening a letter never changes it: `new_path.js` gives a one-shape letter its first width only from
+  the path's Done button, not on every selection.
+- Leave-site check: a font with no work file warns when anything its work file would hold differs
+  from what it was loaded as (ink, widths, gaps, settings), comparing only the settings the loaded
+  copy has, and not counting the empty records opening a letter makes. The check is installed once at
+  start, so imported font files have it too, and an import makes the imported font History's starting
+  point. View toggles that mirror the canvas's own view buttons (Trace panel "Draw glyph as outline")
+  are not font changes, like the canvas button; guide visibility already goes through History.
+- Menus and the Presets hints use house words where B1 touched them ("Open another font first",
+  "26 letters", "capitals", "small letters"); the "Editing" label on the open font's tinted card
+  uses its own token (`--chrome-text-on-tint`, 5:1).
+**Because:** each keeps a first-timer from a false alarm or a dead end without adding a screen.
+**Strongest objection:** the per-problem messages and the curve exception make the check less
+literal than the spec; a straight 2-point shape and a curved one now behave differently.
+**Revisit if:** a curved 2-point shape ever breaks a font file or the preview, or B4's vocabulary
+test wants every message from one sentence pattern; the 2 px guide lines on 125 % displays read as
+too heavy (then give the edit canvas a buffer at the display's own scale); or a .ttf export ever
+fails on a component moved more than 32,767 units (the check doesn't look at composite offsets).
