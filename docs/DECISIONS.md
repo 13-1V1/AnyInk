@@ -605,3 +605,52 @@ for its boxes (it calls `autoTraceImageData` on its own crops today and would re
 **User feedback:** persistent top-bar status distinguishes saved file, pending edits, recovery copy and failure. Conflicts direct the user to Save As; text is assigned through textContent.
 **Sources:** Chrome File System Access guide, https://developer.chrome.com/docs/capabilities/web-apis/file-system-access ; existing project reader/writer/recovery modules inspected before extending them.
 **Revisit:** if real large-image project saves starve other files, use per-file identity locks without weakening conflict detection.
+
+## D-031: Beginner-proof design: Simple mode with the letter board as home
+**Decided:** 10/13/2026, after Brennan's 10/13 test ("overwhelming ... made me feel lost ... make this
+program have cool features but stupid proof"); revised 10/14/2026 after a design review. Numbered
+D-031 because D-030 is file autosave.
+**Options considered:** (1) Guided: a job-first front door with wizards, a separate Letter desk editor,
+and the full editor as a "Workbench"; (2) Simple workspace: one dense screen with the board, canvas,
+letter card, coach and strip together; (3) Letter board: the board is home, one cut-down editing
+screen, everything else behind an expert switch. Two judges scored them: a beginner advocate (Guided 8,
+Letter board 7.5, Simple workspace 6) and a feasibility review (Letter board 8, Simple workspace 7,
+Guided 5.5).
+**Chose:** the Letter board as the base, with Guided's three-step rail (Letters, Try it, Use in Word),
+photo card and install card, and Simple workspace's ordered coach rules, gap handle and never-greyed
+photo button. A ready letter shows two buttons; everything else sits in one closed "Fine-tune this
+letter" section. One photo makes many letters through a photo dialog that boxes each part in turn.
+Simple mode becomes the default only in B16, once every Simple screen exists; until then it sits
+behind ?ui=simple and per-feature flags, so the live app never shows a half-built mode. "More tools"
+shows every Glyphr Studio tool under a purple band with a one-click way back. One vocabulary file
+(src/anyink/words/words.js) supplies every word on the Simple path; internal ids never change
+(D-001). Results are made correct by construction:
+- one scale per photo (the median over its named letters, earlier untouched letters follow) and one
+  writing line per row, so letters from one photo share their ink weight, the same rule D-017 sets
+  for the sheet;
+- automatic spacing with a per-letter owner flag; the refit runs only in Simple, and any spacing
+  change made in More tools marks the letter "set by you";
+- the photo moves with the shapes whenever spacing moves them;
+- whole-number widths, a font check that runs on the exporter's own list of letters, and an export
+  that leaves out letters with no shapes;
+- per-letter checks with one-click fixes, each with "Looks fine to me"; soft notes never block Ready;
+- brush strokes stay separate shapes tagged with stroke ids, inked by D-015's nib path
+  (perfect-freehand only for the live preview), so M10 can re-ink them without touching traced shapes.
+Built as B0 to B16 before M9; M9 to M13 then plug into the board, the letter card or Try it.
+**Because:** the walkthrough showed two kinds of failure: results that look done but are broken (a
+traced letter with width 0, a preview that silently shows a system font), and a pro workspace that
+gives a first-timer no next step. The board gives a visible finish line and one obvious next action.
+One editing surface means each later milestone is built once, not twice. Filtering only where screens
+are drawn keeps upstream merges simple; the existing tests run pinned to All tools, apart from the
+label tests B4 rewrites and the files each B lists, and about 20 upstream files gain small,
+headed edits. This onboarding is for Brennan himself, so it fits the brief's "no onboarding for
+strangers".
+**Strongest objection:** about 46 working days before the handwriting sheet, the feature that makes a
+full font fastest. Two layers of words and modes also add places for drift. Mitigation: the first
+photo-to-Word loop runs behind ?ui=simple after B14; the banned-word test (including toasts and canvas
+text) and the vocabulary file stop drift; More tools keeps every upstream capability one click away.
+**Revisit if:** Brennan turns on More tools every session (make it remember); automatic spacing on
+real handwriting needs regular manual fixes (move to measured spacing from his n and o); his
+handwriting's proportions keep tripping the size check (fit the guide lines to his first photo
+automatically); or the acceptance run in UX-BEGINNER.md section 9 fails twice on the same task
+(redesign that screen, not the words).

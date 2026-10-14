@@ -67,6 +67,11 @@
 	- binarizeFollowingPreview(imageData, previewImageData, options, { factor }) -> as
 	  binarize: the full-size pass, where the preview decides what is ink and the full size
 	  places the edges (followPreviewMask; see there). The facade's apply uses it.
+	- potracePaths(mask, width, height, turdsize = 0) -> { shown, paths }: potrace's own
+	  split of a mask into outlines (a port of its decompose.c, turn policy 'minority'),
+	  each { area, ink }, and `shown`, the mask as potrace draws it at that turdsize.
+	  potraceShown(mask, width, height, turdsize) -> just `shown`. followPreviewMask uses
+	  it for the preview as potrace shows it (fix, 10/13/2026; see potraceShown).
 
 	Full size matched to the preview (first fix, 09/24/2026; the facade now uses
 	binarizeFollowingPreview instead, and binarize's previewPixel stays for callers that
@@ -788,7 +793,9 @@ export const FOLLOW_FRAGMENT_PREVIEW_PIXELS = 2;
 
 /**
  * The mask rule of binarizeFollowingPreview. It works on the preview as potrace shows it
- * (ink pieces and holes up to speckArea taken out), with 4-connected pieces:
+ * (potraceShown: potrace's own outlines of area up to speckArea taken out, so a speck or
+ * pinhole of two corner-touching pixels, which potrace joins, stays), with 4-connected
+ * pieces:
  * - A preview pixel whose 3 x 3 neighborhood is all ink is ink at full size; all paper,
  *   paper.
  * - On an edge between a large piece of ink and a large piece of paper (a large piece has
@@ -823,7 +830,7 @@ export function followPreviewMask(
 	factor,
 	{ speckArea = 0 } = {}
 ) {
-	const shown = dropSmallPieces(previewMask, pw, ph, speckArea);
+	const shown = potraceShown(previewMask, pw, ph, speckArea);
 	const n = pw * ph;
 
 	// 0 = paper all around, 1 = ink all around, 2 = on an edge
@@ -975,22 +982,132 @@ export function labelPieces(mask, width, height, value) {
 }
 
 /**
- * The preview as potrace shows it: ink pieces of up to `area` pixels taken out, then holes
- * (paper pieces not touching the image's edge) of up to `area` pixels filled.
+ * A mask as potrace draws it at this turdsize (fix, 10/13/2026): every path of
+ * potracePaths whose area is no more than turdsize taken out.
+ *
+ * This replaced dropping 4-connected pieces, which disagreed with potrace in two ways, so a
+ * speck the preview showed could vanish from the applied result:
+ * - potrace (turnpolicy 'minority', what the worker asks for) joins two pixels that touch
+ *   only at a corner when their color is the rarer one around that corner. Two corner-
+ *   touching ink pixels on paper are one path of area 2, kept at turdsize 1; as 4-connected
+ *   pieces they were two pieces of 1, both dropped. The same for a pinhole of two corner-
+ *   touching paper pixels in ink.
+ * - A path's area is everything inside its outline, holes included: a ring of 8 pixels
+ *   around a 1-pixel hole has area 9.
+ * @param {Uint8Array} mask - 1 = ink
+ * @param {Number} width
+ * @param {Number} height
+ * @param {Number} turdsize - potrace drops paths of this area or less (below 1: none)
+ * @returns {Uint8Array} a new mask, 1 = ink
  */
-function dropSmallPieces(mask, width, height, area) {
-	const out = mask.slice(0, width * height);
-	if (!(area >= 1)) return out;
-	const ink = labelPieces(out, width, height, 1);
-	for (let i = 0; i < out.length; i++) {
-		if (out[i] && ink.sizes[ink.labels[i]] <= area) out[i] = 0;
+export function potraceShown(mask, width, height, turdsize) {
+	if (!(turdsize >= 1)) {
+		const n = width * height;
+		const copy = new Uint8Array(n);
+		for (let i = 0; i < n; i++) copy[i] = mask[i] ? 1 : 0;
+		return copy;
 	}
-	const paper = labelPieces(out, width, height, 0);
-	for (let i = 0; i < out.length; i++) {
-		const id = paper.labels[i];
-		if (id && !paper.border[id] && paper.sizes[id] <= area) out[i] = 1;
+	return potracePaths(mask, width, height, turdsize).shown;
+}
+
+/**
+ * potrace's own split of a bitmap into paths: a port of potrace 1.16's decompose.c
+ * (bm_to_pathlist, findpath, xor_path, majority), the version esm-potrace-wasm builds, with
+ * the 'minority' turn policy. Each path is an outline potrace traces: an ink piece's outer
+ * edge, or a hole's edge inside one. esm-potrace-wasm puts image row 0 at the top of
+ * potrace's y-up bitmap, so potrace's scan order is this mask's row order. Checked against
+ * the WASM itself on random masks (the same path areas at every turdsize).
+ * @param {Uint8Array} mask - 1 = ink
+ * @param {Number} width
+ * @param {Number} height
+ * @param {Number} [turdsize] - paths of this area or less are left out of `shown`
+ * @returns {{shown: Uint8Array, paths: Array<{area: Number, ink: Boolean}>}} shown = what
+ *   potrace draws; paths in potrace's order, area = pixels inside the outline (holes
+ *   included), ink = an ink piece's outline (false: a hole's)
+ */
+export function potracePaths(mask, width, height, turdsize = 0) {
+	const n = width * height;
+	const shown = new Uint8Array(n);
+	for (let i = 0; i < n; i++) shown[i] = mask[i] ? 1 : 0;
+	const paths = [];
+	if (!n) return { shown, paths };
+	// What is left to trace: each traced path's inside is inverted, as potrace does
+	const left = shown.slice();
+	// potrace's BM_GET at (x, y), y up from the bottom row; outside the image is paper
+	const get = (x, y) =>
+		x >= 0 && x < width && y >= 0 && y < height ? left[(height - 1 - y) * width + x] : 0;
+	// potrace's majority(): 1 when ink is the more common color around corner (x, y)
+	const majority = (x, y) => {
+		for (let i = 2; i < 5; i++) {
+			let ct = 0;
+			for (let a = -i + 1; a <= i - 1; a++) {
+				ct += get(x + a, y + i - 1) ? 1 : -1;
+				ct += get(x + i - 1, y + a - 1) ? 1 : -1;
+				ct += get(x + a - 1, y - i) ? 1 : -1;
+				ct += get(x - i, y + a) ? 1 : -1;
+			}
+			if (ct > 0) return 1;
+			if (ct < 0) return 0;
+		}
+		return 0;
+	};
+	// The path's vertical edges: x, then the image row of the pixel row the edge runs along
+	let edges = new Int32Array(1024);
+	for (let seed = 0; seed < n; seed++) {
+		if (!left[seed]) continue;
+		// findpath from the top-left corner of the first pixel left, heading down
+		const x0 = seed % width;
+		const y0 = height - (seed - x0) / width;
+		let x = x0;
+		let y = y0;
+		let dirx = 0;
+		let diry = -1;
+		let area = 0;
+		let count = 0;
+		for (;;) {
+			x += dirx;
+			y += diry;
+			area += x * diry;
+			if (diry) {
+				if (count + 2 > edges.length) {
+					const grown = new Int32Array(edges.length * 2);
+					grown.set(edges);
+					edges = grown;
+				}
+				edges[count++] = x;
+				edges[count++] = height - 1 - (diry < 0 ? y : y - 1);
+			}
+			if (x === x0 && y === y0) break;
+			const c = get(x + ((dirx + diry - 1) >> 1), y + ((diry - dirx - 1) >> 1));
+			const d = get(x + ((dirx - diry - 1) >> 1), y + ((diry + dirx - 1) >> 1));
+			let turn = 0; // 1 right, -1 left
+			if (c && !d) turn = majority(x, y) ? -1 : 1; // ambiguous: join the rarer color
+			else if (c) turn = 1;
+			else if (!d) turn = -1;
+			if (turn > 0) {
+				const t = dirx;
+				dirx = diry;
+				diry = -t;
+			} else if (turn < 0) {
+				const t = dirx;
+				dirx = -diry;
+				diry = t;
+			}
+		}
+		paths.push({ area, ink: !!mask[seed] });
+		// xor_path: invert the path's inside (the pixels between each vertical edge and x0,
+		// an even number of times outside it); a dropped path leaves the drawing as well
+		const drop = area <= turdsize;
+		for (let k = 0; k < count; k += 2) {
+			const ex = edges[k];
+			const row = edges[k + 1] * width;
+			const from = row + (ex < x0 ? ex : x0);
+			const to = row + (ex < x0 ? x0 : ex);
+			for (let i = from; i < to; i++) left[i] ^= 1;
+			if (drop) for (let i = from; i < to; i++) shown[i] ^= 1;
+		}
 	}
-	return out;
+	return { shown, paths };
 }
 
 /**

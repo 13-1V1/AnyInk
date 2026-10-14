@@ -13,14 +13,20 @@
 // pixel that keeps noise specks at the preview's count, and a given Otsu split.
 // Finalize: the full-size pass that follows the preview (binarizeFollowingPreview): the
 // same pieces as the preview at any shrink, thin lines and slits shown exactly when the
-// preview shows them, and the paper evenness figure (paperSpread).
+// preview shows them, and the paper evenness figure (paperSpread). Fix, 10/13/2026: the
+// preview's specks and holes are counted as potrace counts them (potracePaths: corner-
+// touching pixels of the rarer color join, an outline's area includes its holes), so a
+// corner-touching speck or pinhole the preview shows, or one at the image edge, survives.
 import { describe, expect, it } from 'vitest';
 import {
 	ADAPTIVE_T,
 	autoSplit,
 	binarize,
 	binarizeFollowingPreview,
+	followPreviewMask,
 	labelPieces,
+	potracePaths,
+	potraceShown,
 	despeckleSizeFor,
 	clampRect,
 	cropImageData,
@@ -729,12 +735,16 @@ describe('binarizeFollowingPreview (finalize)', () => {
 			return state / 2 ** 32;
 		};
 	}
-	/** Ink pieces bigger than `area` pixels (what potrace keeps at turdsize `area`). */
+	/** 4-connected ink pieces bigger than `area` pixels. */
 	function pieces(mask, width, height, area) {
 		const ink = labelPieces(mask, width, height, 1);
 		let n = 0;
 		for (let id = 1; id <= ink.count; id++) if (ink.sizes[id] > area) n++;
 		return n;
+	}
+	/** Ink outlines potrace draws at turdsize `area` (its own paths, corner joins included). */
+	function outlines(mask, width, height, area) {
+		return potracePaths(mask, width, height).paths.filter((p) => p.ink && p.area > area).length;
 	}
 
 	it("a noisy photo shrunk by 1.3 keeps exactly the preview's specks (the old rule kept several times more)", () => {
@@ -750,13 +760,16 @@ describe('binarizeFollowingPreview (finalize)', () => {
 		const options = { mode: 'photo', detail: 1, despeckle: false };
 		const { imageData: small, factor } = downscaleImageData(photo, 1000);
 		const preview = binarize(small, options);
-		const shown = pieces(preview.mask, small.width, small.height, 1);
+		const shown = outlines(preview.mask, small.width, small.height, 1);
 		expect(shown).toBeGreaterThan(3);
+		// Some specks are corner-touching pixel pairs: potrace joins them (area 2, kept at
+		// turdsize 1), where counting 4-connected pieces dropped them (fix, 10/13/2026)
+		expect(shown).toBeGreaterThan(pieces(preview.mask, small.width, small.height, 1));
 		const full = binarizeFollowingPreview(photo, small, options, { factor, speckArea: 1 });
-		expect(pieces(full.mask, W, H, 0)).toBe(shown);
+		expect(outlines(full.mask, W, H, 0)).toBe(shown);
 		// The first fix (blur to one preview pixel) kept far more at this shrink
 		const old = binarize(photo, options, { previewPixel: 1 / factor, split: preview.split });
-		expect(pieces(old.mask, W, H, 1)).toBeGreaterThan(shown);
+		expect(outlines(old.mask, W, H, 1)).toBeGreaterThan(shown);
 		// Threshold and the Auto value are the preview's
 		expect(full.autoThreshold).toBe(preview.autoThreshold);
 	});
@@ -824,6 +837,116 @@ describe('binarizeFollowingPreview (finalize)', () => {
 			}
 		}
 		expect(Math.abs(inner - 200)).toBeLessThanOrEqual(1);
+	});
+
+	it('a speck the preview shows as two corner-touching pixels, or right beside a stroke, stays', () => {
+		// Built on the preview mask directly: a bar, a diagonal pair (potrace joins it, area 2),
+		// and a 2-pixel speck one preview pixel off the bar's edge
+		const pw = 100;
+		const ph = 60;
+		const previewMask = new Uint8Array(pw * ph);
+		const set = (x, y) => (previewMask[y * pw + x] = 1);
+		for (let y = 10; y < 50; y++) for (let x = 20; x < 40; x++) set(x, y);
+		set(70, 30);
+		set(71, 31);
+		set(41, 25);
+		set(41, 26);
+		// Full size, twice as big: the full-size pass sees nothing but the bar
+		const factor = 0.5;
+		const fw = 200;
+		const fh = 120;
+		const fullMask = new Uint8Array(fw * fh);
+		for (let y = 20; y < 100; y++) for (let x = 40; x < 80; x++) fullMask[y * fw + x] = 1;
+		const out = followPreviewMask(previewMask, pw, ph, fullMask, fw, fh, factor, {
+			speckArea: 1,
+		});
+		// The diagonal pair (preview pixels 70,30 and 71,31) is there at full size
+		expect(out[60 * fw + 141]).toBe(1);
+		expect(out[62 * fw + 143]).toBe(1);
+		// The speck beside the bar (preview 41, 25..26) is there too, not left to the full size
+		expect(out[51 * fw + 83]).toBe(1);
+		// A single preview pixel (area 1) is not: turdsize 1 drops it in the preview
+		const lone = previewMask.slice();
+		lone[31 * pw + 71] = 0;
+		const out2 = followPreviewMask(lone, pw, ph, fullMask, fw, fh, factor, { speckArea: 1 });
+		expect(out2[60 * fw + 141]).toBe(0);
+	});
+
+	it('a pinhole the preview shows as two corner-touching paper pixels stays open, and so does a corner-touching speck at the image edge', () => {
+		// The mirror case (paper joined inside ink) and the edge case (outside counts as paper)
+		const pw = 100;
+		const ph = 60;
+		const previewMask = new Uint8Array(pw * ph);
+		for (let y = 10; y < 50; y++) for (let x = 20; x < 60; x++) previewMask[y * pw + x] = 1;
+		previewMask[30 * pw + 40] = 0;
+		previewMask[31 * pw + 41] = 0;
+		previewMask[58 * pw + 0] = 1;
+		previewMask[59 * pw + 1] = 1;
+		// Full size, twice as big: a solid bar, no pinhole, nothing at the edge
+		const factor = 0.5;
+		const fw = 200;
+		const fh = 120;
+		const fullMask = new Uint8Array(fw * fh);
+		for (let y = 20; y < 100; y++) for (let x = 40; x < 120; x++) fullMask[y * fw + x] = 1;
+		const follow = (mask) =>
+			followPreviewMask(mask, pw, ph, fullMask, fw, fh, factor, { speckArea: 1 });
+		const out = follow(previewMask);
+		// The pinhole (preview 40,30 and 41,31: one hole of area 2) is paper at full size
+		expect(out[60 * fw + 80]).toBe(0);
+		expect(out[63 * fw + 83]).toBe(0);
+		expect(out[59 * fw + 80]).toBe(1);
+		// The speck in the image's corner (preview 0,58 and 1,59: area 2) is ink
+		expect(out[116 * fw + 0]).toBe(1);
+		expect(out[119 * fw + 3]).toBe(1);
+		// Each alone is area 1, which turdsize 1 drops: the pinhole fills, the speck goes
+		const alone = previewMask.slice();
+		alone[31 * pw + 41] = 1;
+		alone[59 * pw + 1] = 0;
+		const out2 = follow(alone);
+		expect(out2[60 * fw + 80]).toBe(1);
+		expect(out2[116 * fw + 0]).toBe(0);
+	});
+
+	it("potracePaths: potrace's own outlines (rarer color joins at a corner; an area counts its holes)", () => {
+		const { mask, width, height } = maskFrom([
+			'............',
+			'.#..........',
+			'..#.........',
+			'............',
+			'.....###....',
+			'.....#.#....',
+			'.....###....',
+			'............',
+			'.######.....',
+			'.##.###.....',
+			'.###.##.....',
+			'.######.....',
+			'#...........',
+		]);
+		// The areas the potrace WASM itself gives this mask (its kept-path count at every
+		// turdsize, checked 10/13/2026): the corner pair is one outline of 2; the ring is 9
+		// with its 1-pixel hole; the block joins the corner pixel below it (6 x 4 + 1 = 25),
+		// and its two corner-touching pinholes are one hole of 2
+		expect(potracePaths(mask, width, height).paths).toEqual([
+			{ area: 2, ink: true },
+			{ area: 9, ink: true },
+			{ area: 1, ink: false },
+			{ area: 25, ink: true },
+			{ area: 2, ink: false },
+		]);
+		const at = (shown, x, y) => shown[y * width + x];
+		const t1 = potraceShown(mask, width, height, 1);
+		expect([at(t1, 1, 1), at(t1, 2, 2)]).toEqual([1, 1]); // the corner pair stays
+		expect(at(t1, 6, 5)).toBe(1); // the ring's 1-pixel hole fills
+		expect([at(t1, 3, 9), at(t1, 4, 10)]).toEqual([0, 0]); // the pinhole pair stays open
+		const t8 = potraceShown(mask, width, height, 8);
+		expect(at(t8, 1, 1)).toBe(0);
+		expect(at(t8, 5, 4)).toBe(1); // 8 ink pixels, but area 9: kept at turdsize 8
+		expect(at(t8, 4, 10)).toBe(1);
+		expect(at(potraceShown(mask, width, height, 9), 5, 4)).toBe(0);
+		// Below turdsize 1 nothing is dropped, and the input is not changed
+		expect([...potraceShown(mask, width, height, 0)]).toEqual([...mask]);
+		expect(count(mask)).toBe(2 + 8 + 22 + 1);
 	});
 
 	it('paperSpread: near 0 for a clean scan, large for a photo lit from one side', () => {

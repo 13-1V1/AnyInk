@@ -78,11 +78,14 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — DONE 09/24/2026 (src/anyink/autotrace: params, binarize, potrace worker + client, svg_to_shapes, trace_region, facade autotrace.js for M9, session, preview, apply, Auto-trace card in the Trace panel; D-029)
-9. Handwriting sheet — pending
+B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 to B16 next, then M9.
+   Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
+   Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
+9. Handwriting sheet — pending (after B16; plugs into the letter board)
 10. Nib brush — pending
 11. Alternates — pending
 12. Weight slider — pending
 13. Roughen / ink bleed — pending
-14. PWA — pending
-15. Deploy (GitHub Pages) — pending
+14. PWA — DONE 09/24/2026 by Codex (vite-plugin-pwa injectManifest, prompt-only updates, offline; automated Chrome/Edge checks in docs/PWA-VERIFICATION.md; a real desktop install by Brennan is still owed)
+15. Deploy — DONE 09/24/2026 (https://13-1v1.github.io/AnyInk/, repo 13-1V1/AnyInk, .github/workflows/pages.yml: tests then build then Pages on every push to main; docs/DEPLOYMENT-2026-09-24.md)
 16. End-to-end check — pending
