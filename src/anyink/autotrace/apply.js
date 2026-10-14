@@ -1,14 +1,22 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK auto-trace: putting traced shapes into the glyph (Milestone 8).
 	Owner: TRACK B (svg_to_shapes, trace_region, apply, preview_draw).
 
 	Contract:
-	- applyAutoTrace({ editor, item, shapes, mode: 'replace' | 'add' }) -> Boolean.
+	- applyAutoTrace({ editor, item, shapes, mode: 'replace' | 'add' }, options?) -> Boolean.
 	  'replace' removes the item's existing shapes first. One history entry:
 	  'Auto-traced N shapes (P points)'. Publishes 'currentItem'. Never touches
-	  item.anyink.trace.
+	  item.anyink.trace itself (in Simple, the spacing refit inside that same history
+	  entry moves the photo with the shapes: src/anyink/spacing/history_hook.js).
+	- options (B3, UX-BEGINNER 4.4 "Use it"; none given = More tools' auto-trace as before):
+	    round: true   every point and handle of the shapes it adds lands on a whole font unit
+	                  (the shapes already in the letter are left as they are)
+	    title         the history entry's title instead of the counting one ("traced r")
+	  Placement never runs in here: Simple's photo flow places the photo before tracing.
 	- autoTraceHistoryTitle(shapeCount, pointCount) -> that title, with '1 shape' and
 	  '1 point' in the singular and thousands separated ('1,204 points').
 
@@ -28,6 +36,7 @@
 	  live usedIn array, so the pre-state snapshot shares it, and an in-place splice (what
 	  removeLinkFromUsedIn does) would change the snapshot too and undo could not restore it.
 */
+import { roundItemPoints } from '../spacing/round.js';
 import { countPoints } from './svg_to_shapes.js';
 
 /**
@@ -41,9 +50,10 @@ export function autoTraceHistoryTitle(shapeCount, pointCount) {
 
 /**
  * @param {{editor: Object, item: Object, shapes: Array, mode: 'replace' | 'add'}} args
+ * @param {{round?: Boolean, title?: String}} [options] - B3: whole-unit points; the step title
  * @returns {Boolean} true when shapes went in
  */
-export function applyAutoTrace({ editor, item, shapes, mode } = {}) {
+export function applyAutoTrace({ editor, item, shapes, mode } = {}, { round = false, title } = {}) {
 	if (mode !== 'replace' && mode !== 'add') return false;
 	if (!editor?.project || !editor.history || !item || !Array.isArray(item.shapes)) return false;
 	if (editor.selectedItem !== item) return false;
@@ -57,7 +67,10 @@ export function applyAutoTrace({ editor, item, shapes, mode } = {}) {
 	);
 	if (!paths.length) return false;
 
-	const title = autoTraceHistoryTitle(paths.length, countPoints(paths));
+	const stepTitle =
+		typeof title === 'string' && title.trim()
+			? title.trim()
+			: autoTraceHistoryTitle(paths.length, countPoints(paths));
 	const instances =
 		mode === 'replace' ? item.shapes.filter((shape) => shape?.objType === 'ComponentInstance') : [];
 	const wholeProject = instances.length > 0;
@@ -65,7 +78,7 @@ export function applyAutoTrace({ editor, item, shapes, mode } = {}) {
 	editor.multiSelect?.points?.clear?.();
 	editor.multiSelect?.shapes?.clear?.();
 
-	if (wholeProject) editor.history.addWholeProjectChangePreState(title);
+	if (wholeProject) editor.history.addWholeProjectChangePreState(stepTitle);
 
 	if (mode === 'replace') {
 		for (const instance of instances) {
@@ -76,10 +89,12 @@ export function applyAutoTrace({ editor, item, shapes, mode } = {}) {
 		}
 		item.shapes = [];
 	}
-	for (const path of paths) item.addOneShape(path.save());
+	const added = paths.map((path) => item.addOneShape(path.save())).filter(Boolean);
+	// B3: only the shapes it adds; the ones already in the letter stay exactly as they were
+	if (round) roundItemPoints({ shapes: added });
 
 	if (wholeProject) editor.history.addWholeProjectChangePostState();
-	else editor.history.addState(title);
+	else editor.history.addState(stepTitle);
 
 	editor.publish('currentItem', item);
 	return true;

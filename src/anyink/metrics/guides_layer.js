@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK guides layer (Milestone 5, D-008 / D-009).
 	An always-active layer that gets first look at pointer events on the edit canvas,
@@ -18,6 +20,11 @@
 	Pointer priority: with the pen or add-point tool active, a point or handle under the
 	pointer wins over a line that happens to run through it. With the Trace panel open, a
 	trace image's corner handle wins the same way (Milestone 7, D-028).
+	B3 (UX-BEGINNER 7.2): a side edge drag or an arrow-key side nudge is spacing set by hand.
+	An automatic letter is marked 'manual' before the step is recorded, so the refit hook at the
+	top of History.addState (src/anyink/spacing/history_hook.js) leaves it where it was put. In
+	Simple the photo moves with the shapes while the left edge moves them; All tools leaves the
+	photo where it is, as before.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor } from '../../edit_canvas/cursors.js';
@@ -32,6 +39,9 @@ import {
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from './hit_test.js';
 import { clampBaselineDelta, METRIC_LABELS, metricValue, snapToTen } from './metrics_math.js';
 import { guidesLayerState, resetGuidesLayerState } from './state.js';
+import { isSimpleMode } from '../mode/mode.js';
+import { markManual } from '../spacing/owner.js';
+import { followShapes } from '../spacing/trace_follow.js';
 import { traceHandleHasPriority } from '../trace/trace_layer.js';
 
 export { drawGuidesLayerOverlay } from './overlay.js';
@@ -214,6 +224,7 @@ function sideBearingTick(editor, line, pos, shift) {
 		if (target === current) return;
 		item.leftSideBearing = target;
 		const applied = item.leftSideBearing;
+		followShapesInSimple(item, applied - current);
 		editor.view = { dx: view.dx + (current - applied) * view.dz };
 	} else {
 		const current = item.rightSideBearing;
@@ -259,6 +270,8 @@ function finishDrag(editor) {
 		case 'sideBearing':
 			if (changed) {
 				const side = line.side === 'lsb' ? 'left' : 'right';
+				// B3: set by hand, before the step, so the refit hook never snaps it back
+				markManual(editor.selectedItem);
 				editor.history.addState(`Updated ${side} side bearing.`);
 				editor.publish('currentItem', editor.selectedItem);
 			}
@@ -295,6 +308,7 @@ function onKeyDown(event) {
 
 /**
  * Moves the hovered line by step Em units with the same history entry a drag makes.
+ * B3 fix: in Simple, quick presses on one line are one Undo step (History BURST_MS).
  * @param {Object} editor - ProjectEditor
  * @param {Object} line - descriptor
  * @param {Number} step - Em units (sign follows the arrow direction on screen)
@@ -306,28 +320,33 @@ export function nudgeLine(editor, line, step, isRepeat = false) {
 	switch (line.kind) {
 		case 'metric': {
 			const next = metricValue(font, line.key) + step;
-			const applied = setFontMetric(line.key, next, { verb: 'Moved' });
+			const applied = setFontMetric(line.key, next, { verb: 'Moved', burst: `metric ${line.key}` });
 			line.value = applied;
 			break;
 		}
 		case 'guide': {
 			const guide = editor.project.settings.app.guides?.custom?.[line.index];
 			if (!guide) return;
-			const applied = setCustomGuideLocation(line.index, Number(guide.location) + step);
+			const applied = setCustomGuideLocation(line.index, Number(guide.location) + step, {
+				burst: `guide ${line.index}`,
+			});
 			if (applied !== false) line.value = applied;
 			break;
 		}
 		case 'baseline':
-			if (!isRepeat) moveBaseline(step);
+			if (!isRepeat) moveBaseline(step, { burst: 'baseline' });
 			break;
 		case 'sideBearing': {
 			const item = editor.selectedItem;
 			if (!item || item.objType === 'KernGroup') return;
+			// B3: set by hand, before the step, so the refit hook never snaps it back
+			markManual(item);
 			if (line.side === 'lsb') {
 				// Moving the left line right makes the LSB smaller; the view shifts so the glyph stays put
 				const view = editor.view;
 				const current = item.leftSideBearing;
 				item.leftSideBearing = Math.round(current - step);
+				followShapesInSimple(item, item.leftSideBearing - current);
 				editor.view = { dx: view.dx + (current - item.leftSideBearing) * view.dz };
 				editor.history.addState('Updated left side bearing.');
 			} else {
@@ -394,6 +413,15 @@ function penHasPriority(editor, pos) {
 // --------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------
+
+/**
+ * B3: in Simple the faint photo moves with the shapes when the left edge moves them (7.2).
+ * @param {Object} item - Glyph
+ * @param {Number} moved - font units the shapes moved
+ */
+function followShapesInSimple(item, moved) {
+	if (isSimpleMode()) followShapes(item, moved);
+}
 
 function cursorFor(line) {
 	return line.orientation === 'h' ? 'ns-resize' : 'ew-resize';

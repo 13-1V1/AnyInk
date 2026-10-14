@@ -141,7 +141,8 @@ describe('leave-site warning', () => {
 		const editor = editorWith({ ink: true });
 		open(editor);
 		lookAt(editor);
-		expect(getSaveStatus(editor).file).toBe('pending'); // upstream counts the look as a change
+		// B2: a look changes nothing, so the save status stays as it was (it used to go 'pending')
+		expect(getSaveStatus(editor).file).toBe('none');
 		expect(leaving()).toBe(false);
 	});
 

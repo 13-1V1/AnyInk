@@ -1,0 +1,109 @@
+{
+	"about": "Answer key for the synthetic handwriting photo of the same name (tests/placement-fixture.mjs). Image pixels, y down.",
+	"width": 1500,
+	"height": 520,
+	"unitPx": 1.7,
+	"penPx": 11,
+	"capitalPx": 170,
+	"smallPx": 102,
+	"letters": [
+		{
+			"char": "B",
+			"x0": 120,
+			"base": 330,
+			"size": 1.03,
+			"angle": -1,
+			"lineAtMiddle": 329.16215688344556,
+			"box": [
+				112,
+				149,
+				225,
+				335
+			]
+		},
+		{
+			"char": "r",
+			"x0": 329,
+			"base": 332,
+			"size": 0.97,
+			"angle": 0.8,
+			"lineAtMiddle": 332.4398515556492,
+			"box": [
+				324,
+				228,
+				398,
+				337
+			]
+		},
+		{
+			"char": "e",
+			"x0": 496,
+			"base": 329,
+			"size": 1.02,
+			"angle": 0.5,
+			"lineAtMiddle": 329.34907471163035,
+			"box": [
+				491,
+				216,
+				582,
+				335
+			]
+		},
+		{
+			"char": "n",
+			"x0": 684,
+			"base": 333,
+			"size": 0.98,
+			"angle": -0.6,
+			"lineAtMiddle": 332.61775892123615,
+			"box": [
+				678,
+				224,
+				764,
+				338
+			]
+		},
+		{
+			"char": "a",
+			"x0": 860,
+			"base": 328,
+			"size": 1.04,
+			"angle": 1.2,
+			"lineAtMiddle": 328.8378805563864,
+			"box": [
+				856,
+				214,
+				945,
+				335
+			]
+		},
+		{
+			"char": "H",
+			"x0": 1055,
+			"base": 331,
+			"size": 0.99,
+			"angle": -0.4,
+			"lineAtMiddle": 330.6788542001972,
+			"box": [
+				1048,
+				157,
+				1155,
+				336
+			]
+		},
+		{
+			"char": "d",
+			"x0": 1255,
+			"base": 327,
+			"size": 1.01,
+			"angle": 0.9,
+			"lineAtMiddle": 327.61266095762295,
+			"box": [
+				1250,
+				141,
+				1339,
+				334
+			]
+		}
+	]
+}

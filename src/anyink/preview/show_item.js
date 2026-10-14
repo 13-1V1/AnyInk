@@ -14,7 +14,8 @@
 	A move to another item records upstream's "Navigated to ..." step, as the Overview, the
 	letter chooser and Ctrl+Period do: upstream's undo reads the step under the newest one to
 	find the item's earlier state, and without it the first Undo after an edit there only moves
-	back and drops that edit ("Navigated without undo-ing"). B2 replaces this in Simple mode.
+	back and drops that edit ("Navigated without undo-ing"). B2: History.addState keeps no such
+	step in Simple (its undo needs none), and in All tools the step never makes the font unsaved.
 */
 import { navigationTargetForId } from './hit_test.js';
 

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK undo (B2)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 80ch; margin: 0 0 var(--space-3); }
+		a { color: var(--touch); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: var(--touch); font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		button[disabled] { opacity: 0.5; cursor: default; }
+		.mode { font-weight: 600; color: var(--structure); }
+		.letters { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+		.letter { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); width: 180px; box-shadow: 0 0 0 1px var(--chrome-border); }
+		.letter.open { box-shadow: 0 0 0 2px var(--touch); }
+		.letter.board { box-shadow: 0 0 0 1px var(--chrome-border); }
+		.letter h3 { margin: 0 0 var(--space-2); font-size: var(--text-sm); font-weight: 600; }
+		.letter svg { width: 100%; height: 150px; background: var(--canvas-bg); border-radius: var(--radius-sm); }
+		.letter svg path { fill: var(--canvas-ink, var(--chrome-text)); }
+		.letter .meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); margin-top: var(--space-1); }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-3); }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); }
+		.readout { font-family: var(--font-mono); font-size: var(--text-sm); display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); }
+		.readout span:nth-child(odd) { color: var(--chrome-text-muted); }
+		ol { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); }
+		li { padding: 2px 0; }
+		li .kind { color: var(--structure); font-family: var(--font-mono); font-size: var(--text-xs); margin-left: var(--space-2); }
+		#showme { margin-left: var(--space-2); }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 140px; overflow-y: auto; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<h1>Undo that never surprises (B2)</h1>
+	<p>
+		A bare editor on a font with two empty letters, Capital B and small r. Open a letter, trace a
+		square into it (the real auto-trace apply, one Undo step like Use it), then press Undo. In
+		<b>Simple</b> one press undoes the newest change wherever it is: on a letter the view moves
+		to the changed letter in the same press; on the board it stays and offers Show me. Opening a
+		letter is never a step. In <b>All tools</b> upstream's undo is unchanged, with its "Navigated
+		to" steps, but looking at a letter never makes a saved font unsaved and never counts toward
+		the 200-step limit; past 30 "Navigated to" entries the ones that only pass the view along
+		leave. Ctrl+Z / Ctrl+Y work too (the real keyboard handler).
+	</p>
+	<div class="row">
+		Mode: <span class="mode" id="mode"></span>
+		<a href="./undo.html?ui=simple">Simple (?ui=simple)</a>
+		<a href="./undo.html">All tools (no flag)</a>
+	</div>
+
+	<h2>Look around</h2>
+	<div class="row">
+		<button id="open-b">Open Capital B</button>
+		<button id="open-r">Open small r</button>
+		<button id="open-a">Open small a (empty, made on demand)</button>
+		<button id="board">Go to the board</button>
+		<button id="browse">Open B and r 250 times (looking around)</button>
+	</div>
+	<h2>Change things</h2>
+	<div class="row">
+		<button id="trace">Trace a square into the open letter</button>
+		<button id="closer">Move all letters closer (whole-font step)</button>
+		<button id="letterset">Numbers &amp; symbols on / off (settings step)</button>
+		<button id="rename">Rename the font (settings step)</button>
+		<button id="many">Make 205 small changes to B (the 200-step limit)</button>
+		<button id="save">Pretend the work file was saved</button>
+	</div>
+	<h2>Undo / redo</h2>
+	<div class="row">
+		<button id="undo" class="primary">Undo</button>
+		<button id="redo">Redo</button>
+		<span id="last"></span><button id="showme" hidden>Show me</button>
+	</div>
+
+	<h2>The font</h2>
+	<div class="letters" id="letters"></div>
+
+	<div class="grid">
+		<div class="card">
+			<h2>State</h2>
+			<div class="readout" id="state"></div>
+		</div>
+		<div class="card">
+			<h2>Undo list (newest first)</h2>
+			<ol id="queue"></ol>
+			<h2>Redo list</h2>
+			<ol id="redoList"></ol>
+		</div>
+	</div>
+	<h2>Log</h2>
+	<div id="log"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { handleKeyPress, handleKeyUp } from '../src/edit_canvas/events_keyboard.js';
+		import { getSaveStatus, setSaveStatus } from '../src/anyink/files/save_status.js';
+		import { getMode } from '../src/anyink/mode/mode.js';
+		import { showItem } from '../src/anyink/preview/show_item.js';
+		import { countSteps } from '../src/anyink/history/undo_cap.js';
+		import { B, R, traceInto, twoLetterEditor } from '../src/anyink/history/tests/two_letters.js';
+
+		const editor = twoLetterEditor({ fileHandle: { kind: 'file', name: 'Two Letters.gs2' } });
+		editor.editCanvas = { redraw() {} };
+		editor.selectedGlyphID = B;
+		window.anyinkUndoPage = { editor, jumps: 0, results: [] };
+		const page = window.anyinkUndoPage;
+		// Count view jumps: a press may move the view at most once
+		const navigate = editor.navigate.bind(editor);
+		editor.navigate = (...args) => {
+			page.jumps++;
+			try {
+				return navigate(...args);
+			} catch (error) {
+				logLine(`navigate: ${error.message}`);
+			}
+		};
+		document.addEventListener('keydown', handleKeyPress);
+		document.addEventListener('keyup', handleKeyUp);
+
+		const $ = (selector) => document.querySelector(selector);
+		const letters = [
+			{ id: B, name: 'Capital B' },
+			{ id: R, name: 'small r' },
+			{ id: 'glyph-0x61', name: 'small a' },
+		];
+		const logEl = $('#log');
+		function logLine(text) {
+			logEl.textContent += `${text}\n`;
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		function press(kind) {
+			const before = page.jumps;
+			const result = kind === 'undo' ? editor.history.restoreState() : editor.history.redoState();
+			const jumps = page.jumps - before;
+			page.results.push({ kind, jumps, result: result || null });
+			showResult(kind, result, jumps);
+			render();
+		}
+		function showResult(kind, result, jumps) {
+			const button = $('#showme');
+			button.hidden = !result?.showMe;
+			button.onclick = () => {
+				showItem(editor, result.showMe.itemID);
+				button.hidden = true;
+				render();
+			};
+			if (!result) {
+				$('#last').textContent = `${kind}: (All tools: see the toast)`;
+				logLine(`${kind}: All tools, ${jumps} view jump(s)`);
+				return;
+			}
+			const word = kind === 'undo' ? 'Undid' : 'Redid';
+			$('#last').textContent = result.done ? `${word}: ${result.title}` : `Nothing to ${kind}`;
+			logLine(`${kind}: ${JSON.stringify(result)}, ${jumps} view jump(s)`);
+		}
+
+		$('#undo').onclick = () => press('undo');
+		$('#redo').onclick = () => press('redo');
+		// Ctrl+Z / Ctrl+Y go through the real keyboard handler straight to History
+		document.addEventListener('keyup', () => setTimeout(render, 0));
+
+		$('#open-b').onclick = () => look(B);
+		$('#open-r').onclick = () => look(R);
+		$('#open-a').onclick = () => {
+			editor.nav.page = 'Characters';
+			editor._selectedGlyphID = 'glyph-0x61';
+			void editor.selectedGlyph; // the getter makes the letter on demand
+			logLine('opened small a through the selectedGlyph getter');
+			render();
+		};
+		$('#board').onclick = () => {
+			editor.nav.page = 'Overview';
+			logLine('on the board (Overview)');
+			render();
+		};
+		$('#browse').onclick = () => {
+			for (let i = 0; i < 250; i++) showItem(editor, i % 2 ? B : R);
+			logLine('opened B and r 250 times');
+			render();
+		};
+		function look(id) {
+			showItem(editor, id);
+			logLine(`opened ${id}`);
+			render();
+		}
+		let nextX = 80;
+		$('#trace').onclick = () => {
+			if (editor.nav.page !== 'Characters') return logLine('open a letter first');
+			const ok = traceInto(editor, nextX);
+			nextX = nextX === 80 ? 200 : 80;
+			logLine(`traced ${editor.selectedGlyphID}: ${ok}`);
+			render();
+		};
+		$('#closer').onclick = () => {
+			editor.history.addWholeProjectChangePreState('moved all letters closer');
+			Object.values(editor.project.glyphs).forEach((glyph) => {
+				glyph.advanceWidth = Math.max(0, (glyph.advanceWidth || 500) - 40);
+			});
+			editor.history.addWholeProjectChangePostState();
+			render();
+		};
+		$('#letterset').onclick = () => {
+			const anyink = editor.project.settings.anyink;
+			const on = anyink.letterSet === 'quick+numbers';
+			anyink.letterSet = on ? 'quick' : 'quick+numbers';
+			editor.history.addSettingsState(on ? 'hid numbers & symbols' : 'added numbers & symbols');
+			render();
+		};
+		let renames = 0;
+		$('#rename').onclick = () => {
+			const name = `Brennan Hand ${++renames}`;
+			editor.project.settings.project.name = name;
+			editor.project.settings.font.family = name;
+			editor.history.addSettingsState(`named the font ${name}`);
+			render();
+		};
+		$('#many').onclick = () => {
+			const glyph = editor.project.glyphs[B];
+			const open = editor.selectedGlyphID;
+			const pageBefore = editor.nav.page;
+			editor.nav.page = 'Characters';
+			editor.selectedGlyphID = B;
+			for (let i = 1; i <= 205; i++) {
+				glyph.advanceWidth = 600 + i;
+				editor.history.addState(`B width ${600 + i}`);
+			}
+			editor.nav.page = pageBefore;
+			editor.selectedGlyphID = open;
+			render();
+		};
+		$('#save').onclick = () => {
+			editor.setProjectAsSaved();
+			setSaveStatus(editor, { file: 'saved', error: '' });
+			logLine('saved');
+			render();
+		};
+
+		function render() {
+			$('#mode').textContent = getMode() === 'simple' ? 'Simple' : 'All tools';
+			const open = editor.nav.page === 'Characters' ? editor.selectedGlyphID : null;
+			$('#letters').innerHTML = '';
+			letters.forEach(({ id, name }) => {
+				const glyph = editor.project.glyphs[id];
+				const card = document.createElement('div');
+				card.className = `letter${open === id ? ' open' : ''}`;
+				card.dataset.id = id;
+				const d = glyph ? glyph.makeSVGPathData() : 'M0,0Z';
+				card.innerHTML = `<h3>${name}${open === id ? ' (open)' : ''}</h3>
+					<svg viewBox="-50 -900 1000 1150"><path transform="scale(1,-1)" d="${d}"></path></svg>
+					<div class="meta">${glyph ? `${glyph.shapes.length} shape(s), width ${glyph.advanceWidth}` : 'no record'}</div>`;
+				$('#letters').appendChild(card);
+			});
+			const counts = countSteps(editor.history.queue);
+			const status = getSaveStatus(editor);
+			const rows = [
+				['page', editor.nav.page],
+				['open letter', open || '(none: the board)'],
+				['undo steps', `${counts.steps} (${counts.wholeProject} whole-font), ${editor.history.queue.length} entries`],
+				['looking around', `${editor.history.queue.filter((entry) => entry.navigation).length} "Navigated to" entries (not steps)`],
+				['redo presses', editor.history.redoQueue.length],
+				['work file', status.file],
+				['title dot', document.title.includes('•') ? 'shown (unsaved)' : 'none (saved)'],
+				['font name', editor.project.settings.project.name],
+				['letter set', editor.project.settings.anyink.letterSet || '(default)'],
+				['view jumps', page.jumps],
+			];
+			$('#state').innerHTML = rows.map(([k, v]) => `<span>${k}</span><span data-key="${k}">${v}</span>`).join('');
+			const kind = (entry) =>
+				entry.settingsSave ? 'settings' : entry.wholeProjectSave ? 'whole font' : entry.itemID;
+			// A whole-font step is named on its oldest entry (the post carries an internal marker)
+			const named = (entries) => entries[entries.length - 1];
+			$('#queue').innerHTML = editor.history.queue
+				.slice(0, 40)
+				.map((entry) => `<li>${entry.title}<span class="kind">${kind(entry)}</span></li>`)
+				.join('');
+			$('#redoList').innerHTML = editor.history.redoQueue
+				.map((entries) => `<li>${named(entries).title}<span class="kind">${kind(entries[0])}</span></li>`)
+				.join('');
+		}
+		document.title = 'ANY-INK undo';
+		render();
+		logLine(`mode: ${getMode()}`);
+	</script>
+</body>
+</html>

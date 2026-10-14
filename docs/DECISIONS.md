@@ -726,3 +726,220 @@ literal than the spec; a straight 2-point shape and a curved one now behave diff
 test wants every message from one sentence pattern; the 2 px guide lines on 125 % displays read as
 too heavy (then give the edit canvas a buffer at the display's own scale); or a .ttf export ever
 fails on a component moved more than 32,767 units (the check doesn't look at composite offsets).
+
+## D-033: B2 build choices (undo that never surprises)
+**Decided:** 10/14/2026, during B2 (UX-BEGINNER.md section 10, 7.3), the B2 + B3 integration, and
+the critic, fix and finalize passes that followed. Small choices the build made where the spec
+text left room; each is easy to reverse, and Gate 2 can overrule any of them.
+**Chose:**
+- "Navigated to" steps are found by upstream's own title (every navigator passes "Navigated to
+  ..." to `addState`) and then marked `navigation: true` on the entry, which crash recovery keeps.
+  Simple records none. All tools keeps them, because upstream's undo reads the step under the
+  newest one, but they never change the saved state: no title dot, no "pending" work file, no
+  backup write; on a saved font the saved marker moves onto them (the B1 leftover).
+- Simple undoes an item step from that letter's own newest older state (an older step of it, a
+  whole-font copy that holds it, or the undo floor), so no navigation step is needed. Navigation
+  and creation-only steps left over from All tools are passed over in the same press, never
+  named, and leave the list; the empty letter records they made stay.
+- Simple names every press by the step's own title: a whole-font step by its "before" entry's
+  title ("Undid: moved all letters closer"), never the internal marker.
+- Simple records no "Automatically navigated to" step when a letter is deleted (the Delete
+  buttons), so one Undo brings the letter back; one left from All tools is passed over.
+- The size limit keeps the newest 200 steps and at most 30 whole-font steps, in both modes. A
+  pre / post pair counts once and always leaves together; a step with parts (B3) counts once and
+  leaves whole. It is checked once a step is complete, so an action that fails between pre and
+  post costs nothing. Dropped steps are written into `history.undoFloor`, which Undo falls back
+  to; `initialProject` stays the font as loaded, because the leave-site check compares against
+  it. The saved marker moves or clears when its step drops off.
+- Looking around is never a step, so it never counts toward 200 or 30: "Navigated to" entries
+  and the creation-only pairs All tools records when a letter is opened are left out of the
+  count, and browsing can never push a real change out of Undo. Past 30 "Navigated to" entries
+  (`MAX_NAVIGATION_ENTRIES`), the oldest ones that only pass the view along leave: an entry
+  right under another "Navigated to" entry, taken out alone when the letter under it differs
+  from the one above, else together with the one above (so "Navigated to B" never lands right on
+  B's own step, a press that would do nothing). An entry right under a real step always stays
+  (All tools' undo reads it). A saved marker on one that leaves moves to the entry above (the
+  same font). Each "Navigated to" entry holds a copy of one letter, so 30, not 200: 600 looks
+  around at 200 grew the backup to 4.3 MB and its write to 85-170 ms.
+- A whole-font step takes the id of the letter that was open, or one passed in `{ itemID }`.
+  `{ itemID: null }` names no letter, so Undo from another letter stays where it is: the
+  letter-spacing slider, gap fixes, the guide lines, and (Simple) moving the writing line pass
+  it. All tools keeps upstream's naming of the open letter for the writing line, as before.
+  With no letter open, All tools keeps upstream's top-step id and Simple names none.
+- All tools takes the step on top for upstream's "navigated without undoing" only when it is a
+  real "Navigated to" step or upstream's "Automatically navigated to" step. Any other step whose
+  letter's earlier state isn't right under it is undone from that letter's own newest older
+  state, never dropped: a list made in Simple (which records no navigation steps) used after a
+  crash restore or a mode switch, a real step right over a deletion (the deletion waits for the
+  next press), and a letter opened with no "Navigated to" step (the item links on a letter's
+  card, a double-click on a context character). That last one changes All tools: upstream's
+  first press moved the view and dropped the change, so a trace on such a letter could never be
+  undone; it is now undone and stays redo-able (`history_deletion.test.js` pins it).
+- Simple: quick presses of an arrow key on one guide line (each within `BURST_MS`, 1 second, of
+  the last, nothing else in between) are one step, so a held key can never fill the 30
+  whole-font limit (31 presses had pushed every earlier step out). All tools keeps one step per
+  press.
+- Settings steps also save `settings.anyink` and the project name. Undo and redo change those two
+  only where that one step changed them, so an older settings step never wipes later data (photo
+  records, the letter-spacing extra).
+- In Simple an Undo press with nothing to undo shows no toast; `restoreState` / `redoState` return
+  `{ done, title, itemID, page, moved, showMe }` for B6's toast.
+- Opening a letter with no record in Simple makes the empty record with no step; All tools still
+  records that step, marked creation-only (it counts toward neither limit; at most one per
+  letter).
+**Because:** one press must change one thing he can see, and looking around must never look like
+work to save.
+**Strongest objection:** finding navigation steps by a title string ties B2 to upstream's wording;
+if upstream renames it, those steps become ordinary steps again (navigation_steps.test.js fails
+first). And the All tools change for letters opened without a navigation step breaks "All tools
+exactly as today" in one place, on purpose: the old behavior silently lost a change.
+**Revisit if:** upstream changes the navigation title; or B10 / B12 measure the backup write over
+D-026's 100 ms with the list at its fullest (200 steps, 30 whole-font copies and 30 "Navigated
+to" entries), then lower the limits; or Gate 2 wants All tools' old undo back for letters opened
+without a navigation step.
+
+## D-034: B3 build choices (spacing, placement and the refit hook)
+**Decided:** 10/14/2026, during B3 (UX-BEGINNER.md section 10, 4.4, 4.6, 7.2): three tracks
+(spacing, placement, hooks), their integration, and the critic, fix and finalize passes that
+followed (a first-timer lens built fonts from handwriting photos in real Chrome and measured them).
+Where a choice goes past the spec's literal words it says so.
+**Chose (spacing, `src/anyink/spacing`):**
+- Open sides get 0.4 G, not the spec's 0.2 G: at 0.2 G two open sides meeting at the same height
+  ("ty", t's bar and y's arm) sat 0.4 G apart, 35 units at 2,048, touching at text sizes. Now
+  0.8 G, near a round pair's 1.2 G once the white under the arms is counted.
+- A side is measured on the letter's body, not its ink box (`sides.js`). A mark above the body
+  (an i or j dot wherever it drifted, an accent) and ink below the writing line (the tails of g
+  j p q y, Q, J) don't set a side; a small piece (no more than a quarter of the small-letter
+  height either way) is a mark even when it dips just under the stem's top. Before, a drifted
+  dot or a hooked tail widened the box and opened holes ("mi n i mum").
+- Marks and tails may hang into the space the gap rule gives that side, but stop 0.1 G short of
+  the letter's own width; ink further out moves the side out just enough. Unbounded, tails ran
+  into each other (gj, jj, yj, gg overlapped in the exported fonts) and a drifted dot sat on the
+  l beside it. The limit holds for all of the ink in the font's slant, the frame every letter
+  shares, so no two automatic letters can ever touch, even when each leans its own way (an
+  upright l beside a slanted i's dot overlapped by 36 units before). The price: a letter leaning
+  5 degrees or more off the rest gets a little more room on the side its top leans toward (in a
+  messy hand "in" 236 -> 323 units against a median of 195); and a tail that hooks far left (a
+  long j hook) opens a wide gap before its letter again ("aj" 497 against a median of 179 in the
+  neat lens hand; 512 before B3, 164 with the tails unbounded but then gj, jj and yj overlapped).
+  Spacing one letter at a time can't do better: only the letter before knows whether there is
+  room under it. A later automatic pair fix (kerning only the pairs whose tails would meet, B12
+  or after) could let tails hang freely. The space counts the letter-spacing extra, so at the
+  slider's far left end hangs touch at most.
+- A slanted hand is measured as if it stood upright: the font's slant is read from the stems
+  (only letters with a straight side in the side table vote; stems leaning up to 50 degrees
+  count), and each automatic letter keeps the slant it was fitted with in
+  `anyink.spacingSlant` (whole degrees), so it rides along in Undo steps and the work file. The
+  slant moves only when the stems disagree with it by more than 1.5 degrees, and a slant change
+  refits every automatic letter inside the same Undo step. A letter whose own stems lean more
+  than 2 degrees off the font's is measured by its own lean (one slant for every letter pushed
+  a tall l that leaned 5 degrees more than the rest 158 units from its neighbors). An upright
+  letter with nothing hanging measures exactly like its ink box, so upright fonts space as
+  before.
+- Punctuation gets 0.6 G on both sides, whatever its table kind; every Unicode punctuation mark
+  counts, & included. Accented letters are spaced as their base letter (é as e).
+- Each letter keeps `anyink.spacingExtra = { left, right }`, the share of the letter-spacing extra
+  its sides hold now, so moving the slider back gives the exact spacing back after a side stopped
+  at touching. A letter with no record is taken to hold the whole extra.
+- The slider leaves letters with no ink, and the space, alone. It moves "set by you" letters by
+  whole steps without rounding their points. A "set by you" letter may keep a width of 0 (the
+  font check names it); a fitted letter always gets at least 1.
+- The settings template gains `settings.anyink.spacing = { extra: 0 }`, and keys of
+  `settings.anyink` the template doesn't know yet (B9's `photos`) are kept as loaded: `merge()`
+  dropped them on load and in every whole-font Undo copy.
+- A component of a letter with no ink adds no ink (it used to count as ink at x = 0, so an
+  automatic letter made from an empty one walked right by G on every step).
+- The engine imports only its own folder and the trace model (`imports.test.js`). The font check
+  sits in an import loop (validate -> ... -> preview/font_status -> validate) that stops a page
+  that loads it first, so `outline.js` restates the stray-shape rule and a test keeps the two
+  rules equal.
+- The Real font strip gives a missing space a quarter of the letter box, as the exporter does (it
+  showed the default letter width, 1,024 at 2,048, against the file's 512).
+**Chose (placement, `src/anyink/placement`):**
+- Every letter's body bottom sits on the writing line, wherever on the page it was written (the
+  spec kept each letter's height above or below the row line as written; on a neat page that put
+  a third of the letters past B11's 2 % "Sit on the line" limit, and the wobble repeated in every
+  word). The row's line serves where a shape can't show its body (j, y, a tail with no bowl), for
+  the tail guess and for sizing.
+- Each row's writing line slopes with the photo: one slope for the whole photo (a phone held a
+  little off square turns every row alike), from the letters' bottoms only (marks under 40 % of
+  the typical letter height don't vote), level with fewer than 4 bottoms, a rough slope that one
+  letter in four written high or low can't move, then a fine one through the rest; cut back to 6
+  degrees. A letter's bottom is measured as the photo would have it held square, but never more
+  than 1 % of the letter box from its lowest ink (the traced letter keeps the photo's turn, so at
+  5 degrees an A whose feet ended up level floated 56 units).
+- Rows written at another size get their own (the spec said one size per photo; a page that
+  starts big and runs out of room made letters alternate big and small in every word). Rows are
+  compared only through kinds of letter they share, and only through letters whose whole height
+  is their body (a tail letter's bowl or an i's dot varies too much: high-closing p and g bowls
+  made a row look written smaller and grew it 5 %), so capital rows and small-letter rows of a
+  whole-alphabet page are never compared directly; the capitals take the size of the small-letter
+  row next to them. A row's own size counts in full from 15 % off the page's usual size, not
+  at all within 7 % (a messy hand's rows wobble that much), faded in between, believed in part
+  until its row has 5 letters or every part in it is named; so naming letters one by one never
+  swings earlier letters bigger then smaller (before: x1.21, x0.83, x1.18 ...). Ink weight then
+  differs by row where the size does (B11's stroke note).
+- The body bottom of a letter with a tail, in order: the bottom of its bowl hole plus one stroke
+  (exact for g p q Q), unless the row has a writing line and the bowl ends more than 4 % of the
+  body and more than 2.5 times the photo's usual scatter off it (a handwritten bowl often closes
+  above the line: p's top had landed at 820 against n's 1,068), then the row line; else the row
+  or partner line; the literal "lowest row at half the width" rule only when it agrees within
+  15 % with the size the other letters give; else that size; alone in a photo, the split its
+  guide lines give.
+- A Q, J or f whose tail the guess left off (less than 15 % of the body) but whose ink still
+  hangs under its body sits on its body: a Q on its bowl, a J or f on its row or partner line
+  when the dip is more than the photo's usual scatter. His [No tail] puts it back on its ink.
+- A letter with a tail is sized by its body, not top to tail (tails vary far more). The row line
+  leaves out g j p q y, Q J f until [No tail] is known, the apostrophe, the hyphen and brackets.
+- Follow rule: each earlier letter is compared with its own current size, so small changes can't
+  add up; a letter also re-seats when the row line moved more than 0.5 % of the letter box; a
+  follower keeps its left ink edge where spacing put it.
+- Parts of a photo (the 4.4 rule, B9's reference in `tests/ink_parts_lite.js`): two ink pieces
+  are one letter only when they overlap left to right by half the narrower one and also share
+  their height (a crossbar, a pen lift), or one is a dot close above or below the other, its
+  middle at most 0.3 of a letter's height to the side (i j ! ? : ;); a dot joins only the
+  nearest piece. The spec's left-to-right rule alone joined every column of a whole-alphabet page
+  into one part (9 parts for 25 letters); now every lens photo gives one part per letter.
+- Classes the spec doesn't name: numbers sit on the capitals line; brackets, colon and semicolon
+  get classes; any other symbol is a capitals-line symbol; a hyphen-only photo is sized by the
+  hyphen's width.
+- Known limits: the traced letters keep the photo's turn (nothing straightens them; B9 could turn
+  the photo by the fitted slope before tracing); a g or p written clearly high or low in an
+  otherwise tight row keeps its wobble, as j and y do; a dropping f alone in its photo has no tail
+  until he presses [It has a tail]. Spacing: a crossbar written with a gap above its stem counts as
+  a mark (it may hang, bounded, rather than set the side).
+**Chose (the hook, `spacing/history_hook.js`, and integration):**
+- A letter with no owner becomes "auto" in the hook when a Simple step gives it its first ink
+  (measured ink, so a part made from an empty letter is not ink), so every way of inking a letter
+  (trace, shapes, paste, later the brush) is covered in one place.
+- The refit moves the view by what it moved, so the ink and photo stay still on screen and the
+  edges come to the ink.
+- All tools never writes a flag on a letter without one and flips only letters already "auto".
+  A letter left exactly where the fitter puts it stays "auto" ([Fix it] fits an automatic letter
+  instead of guessing a width). A letter's earlier state is measured with the font's letters, so
+  ink that comes only from another letter (a component) is not read as "moved".
+- The photo follows a left-edge drag in Simple only; in All tools it stays put, as before B3
+  (the "All tools as today" rule; UX-BEGINNER 7.2 names no mode). The fitter's own moves (a
+  refit, the slider) always move the photo.
+- Automatic letters made from the changed letter (components) are refit in the same step, as
+  "parts" of it: one item entry per refit letter under the open letter's, all with one step key,
+  no whole-font copy. One press undoes or redoes the whole step in both modes, a crash restore
+  keeps it, and the 200-step limit counts it once (a whole-font copy per step had let 31 nudges
+  push every older step out, with an 18 MB backup).
+- In Simple every whole-font step ends with every automatic letter at its fit (Use it on a
+  letter holding a part made from another letter left it off its fit), and moving the
+  small-letter line or the grid with automatic letters on the page is one whole-font step about
+  no letter, refit inside it.
+- A dropped or pasted SVG is placed (upstream's side bearings) before its step is recorded:
+  upstream recorded first, so Redo lost the placing and Simple's refit was undone by it. This also
+  changes Redo in All tools (it now gives back the placed shapes); Gate 2 to confirm.
+**Because:** letters he makes must type correctly with no tuning (principle 5), and nothing he set
+himself may move behind his back.
+**Strongest objection:** placement and spacing now go well past the spec's literal rules, with
+thresholds tuned on generated handwriting pages (seven hands, tilts to 6 degrees, rows shrinking
+to 60 %), so real photos may find cases they miss; and every spacing rule now reads the slant and
+the body, so a letter's sides are no longer its plain ink box.
+**Revisit if:** real handwriting photos land letters more than 2 % of the letter box off the line
+(B11's limit) or rows off size by more than 10 %; a dropping f alone keeps landing off; Brennan
+fixes automatic spacing by hand on most letters (D-031's measured-spacing fallback); or a hand
+whose letters lean very differently still opens holes.

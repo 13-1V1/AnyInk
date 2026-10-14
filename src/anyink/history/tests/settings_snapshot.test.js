@@ -166,3 +166,82 @@ describe('findPreviousSettingsSnapshot', () => {
 		expect(findPreviousSettingsSnapshot([], 1, {})).toBe(false);
 	});
 });
+
+// --------------------------------------------------------------
+// B2: settings steps also cover settings.anyink and the project name
+// --------------------------------------------------------------
+
+function makeFullSettings() {
+	const settings = makeSettings();
+	settings.project = { name: 'Brennan Hand', id: 'g2_TEST' };
+	settings.anyink = { formatVersion: 1, letterSet: 'quick', sheet: { pages: [] } };
+	return settings;
+}
+
+describe('B2: settings.anyink and the project name', () => {
+	it('a snapshot copies settings.anyink and the project name', () => {
+		const settings = makeFullSettings();
+		const snap = makeSettingsSnapshot(settings);
+		expect(snap.anyink).toEqual(settings.anyink);
+		expect(snap.anyink).not.toBe(settings.anyink);
+		expect(snap.anyink.sheet).not.toBe(settings.anyink.sheet);
+		expect(snap.projectName).toBe('Brennan Hand');
+		expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
+	});
+
+	it('applying puts them back in place (the settings.anyink object survives)', () => {
+		const settings = makeFullSettings();
+		const anyinkRef = settings.anyink;
+		const snap = makeSettingsSnapshot(settings);
+		settings.anyink.letterSet = 'quick+numbers';
+		settings.anyink.photos = { img1: { scale: 2 } };
+		settings.project.name = 'Other Hand';
+		applySettingsSnapshot(settings, snap);
+		expect(settings.anyink).toBe(anyinkRef);
+		expect(settings.anyink.letterSet).toBe('quick');
+		expect('photos' in settings.anyink).toBe(false);
+		expect(settings.project.name).toBe('Brennan Hand');
+	});
+
+	it('with changedFrom, only what that step changed goes back', () => {
+		const settings = makeFullSettings();
+		const before = makeSettingsSnapshot(settings);
+		settings.anyink.letterSet = 'quick+numbers';
+		const after = makeSettingsSnapshot(settings);
+		// written later by a step that does not capture settings (no settings snapshot of its own)
+		settings.anyink.photos = { img1: { scale: 2 } };
+		settings.project.name = 'Renamed Elsewhere';
+		applySettingsSnapshot(settings, before, { changedFrom: after });
+		expect(settings.anyink.letterSet).toBe('quick');
+		expect(settings.anyink.photos).toEqual({ img1: { scale: 2 } });
+		expect(settings.project.name).toBe('Renamed Elsewhere');
+	});
+
+	it('a key the older state did not have is removed again', () => {
+		const settings = makeFullSettings();
+		delete settings.anyink.letterSet;
+		const before = makeSettingsSnapshot(settings);
+		settings.anyink.letterSet = 'quick+numbers';
+		const after = makeSettingsSnapshot(settings);
+		applySettingsSnapshot(settings, before, { changedFrom: after });
+		expect('letterSet' in settings.anyink).toBe(false);
+	});
+
+	it('an older snapshot without them (before B2) leaves them alone', () => {
+		const settings = makeFullSettings();
+		const old = makeSettingsSnapshot(settings);
+		delete old.anyink;
+		delete old.projectName;
+		settings.anyink.letterSet = 'quick+numbers';
+		settings.project.name = 'New Name';
+		applySettingsSnapshot(settings, old);
+		expect(settings.anyink.letterSet).toBe('quick+numbers');
+		expect(settings.project.name).toBe('New Name');
+	});
+
+	it('settings without an anyink block or a project still snapshot', () => {
+		const snap = makeSettingsSnapshot(makeSettings());
+		expect(snap.anyink).toBeUndefined();
+		expect(snap.projectName).toBeUndefined();
+	});
+});

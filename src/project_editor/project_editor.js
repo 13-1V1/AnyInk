@@ -1,9 +1,12 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { AssetStore } from '../anyink/assets/asset_store.js';
 import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
 import { saveProject, saveProjectAs } from '../anyink/files/project_files.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
 import { ASSET_PRUNING_READY, collectReferencedAssetIds } from '../anyink/trace/trace_model.js';
 import { decToHex } from '../common/character_ids.js';
 import { clone, getFirstID, round } from '../common/functions.js';
@@ -272,10 +275,15 @@ export class ProjectEditor {
 		if (!this.project.glyphs[selectedID]) {
 			// ANY-INK: record the creation as a pre / post pair so undo removes
 			// the new glyph. Skipped while an undo / redo is applying state.
-			const recordHistory = !this.history.isRestoring;
+			// B2: and in Simple, where opening a letter is never an Undo step: the empty
+			// letter is made with no history entry (the font file leaves empty letters out).
+			const recordHistory = !this.history.isRestoring && !isSimpleMode();
 			if (recordHistory) {
 				const name = this.project.getItemName(selectedID, true);
-				this.history.addWholeProjectChangePreState(`Created ${name}`);
+				this.history.addWholeProjectChangePreState(`Created ${name}`, {
+					itemID: selectedID,
+					creationOnly: true,
+				});
 			}
 			this.project.addItemByType(new Glyph(), 'Glyph', selectedID);
 			if (recordHistory) this.history.addWholeProjectChangePostState();

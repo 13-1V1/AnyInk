@@ -83,7 +83,9 @@ settings.anyink = {
   previewText, previewPt,
   nibDefaults: { shape, width, thickness, angle, pressure },
   roughenDefaults: { size, detail, spread, seed },
-  sheet: { templateVersion, pages: [{ id, homography, threshold, speck, overrides }] }
+  sheet: { templateVersion, pages: [{ id, homography, threshold, speck, overrides }] },
+  spacing: { extra }                  // B3: letter-spacing slider, whole font units, -G..+G
+  // keys the template doesn't know yet (B9's photos[assetId]) are kept as loaded
 }
 glyphs[id].anyink = {                 // only emitted when non-empty (Glyph.save allow-list extended)
   nib:     { strokes: [{ points: [{x, y, pressure}], cap }], settings: {...} }
@@ -92,6 +94,9 @@ glyphs[id].anyink = {                 // only emitted when non-empty (Glyph.save
            // M7 (D-028): px size of the stored image; x, y = top-left corner in font units
            // (y-up); scale = font units per image pixel; opacity 0.05 to 1
   altOf:   'glyph-0x61'  (on alternates)   /  alternates: ['alt-0x61-1', ...] (on bases)
+  spacing: 'auto' | 'manual'          // B3: who owns the spacing; absent means 'manual'
+  spacingExtra: { left, right }       // B3: the share of the letter-spacing extra each side holds
+  spacingSlant: 20                    // B3: the font's slant (whole degrees) it was fitted with; absent when 0
 }
 alternates = { 'alt-0x61-1': GlyphSave, ... }   // new top-level collection, mirrors 'ligatures' code paths
 assets   = { 'img-…': { type: 'image/png', data: base64 } }   // written on save only (D-011)

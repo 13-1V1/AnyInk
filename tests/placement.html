@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	ANY-INK placement test page (B3, src/anyink/placement). Loads a synthetic handwriting photo
+	(src/anyink/placement/tests/fixtures, drawn by tests/placement-fixture.mjs with one pen width),
+	finds its letters, names them in reading order, places each with placePart (one scale per
+	photo, one writing line per row, tails kept), traces each with the real auto-trace (potrace
+	worker), and draws the traced letters on the five guide lines with the faint photo under
+	each. The table reads back each letter's stroke weight and where its body bottom landed, in
+	font units. tests/placement.verify.mjs drives it in Chrome.
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK placement (B3)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-5) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button.primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: var(--touch); font-weight: 600; }
+		button.primary:hover { background: var(--touch-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		label { display: inline-flex; gap: var(--space-1); align-items: center; }
+		canvas { display: block; max-width: 100%; border-radius: var(--radius); box-shadow: 0 0 0 1px var(--chrome-border); background: var(--canvas-bg); }
+		table { border-collapse: collapse; font-size: var(--text-sm); margin-top: var(--space-2); }
+		th, td { padding: var(--space-1) var(--space-3); text-align: right; border-bottom: 1px solid var(--chrome-border); }
+		th { color: var(--chrome-text-muted); font-weight: 600; }
+		td:first-child, th:first-child { text-align: left; }
+		td { font-family: var(--font-mono); }
+		#status { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--chrome-text-muted); }
+		.summary { font-size: var(--text-sm); margin-top: var(--space-2); }
+	</style>
+</head>
+<body>
+	<h1>Placement on the guide lines (B3)</h1>
+	<p>
+		One photo, one size: every letter named from a photo gets the photo's scale (the median of
+		what each letter alone would need), so their ink weight matches; only a row written clearly
+		bigger or smaller gets its own. Every letter sits its body on the writing line, wherever on
+		the page it was written; tails (g, Q, a dropping f) hang below. Each row's writing line
+		(dashed) slopes with the photo; a g or p whose bowl closes above a tight row line sits on
+		the line. Each letter is then traced with the real auto-trace at that placement.
+	</p>
+	<div class="row">
+		<button class="primary" id="run-brennan">Place "B r e n a H d"</button>
+		<button id="run-tails">Place "a g B Q f ."</button>
+		<label><input type="checkbox" id="alone" /> Each letter as its own photo</label>
+		<span id="status">loading...</span>
+	</div>
+
+	<h2>The photo, its letters and the row's writing line</h2>
+	<canvas id="photo" width="1400" height="480"></canvas>
+
+	<h2>Traced and placed on the five guide lines</h2>
+	<canvas id="placed" width="1400" height="440"></canvas>
+	<div class="summary" id="summary"></div>
+	<table id="table"></table>
+
+	<script type="module">
+		import { autoTraceImageData } from '../src/anyink/autotrace/autotrace.js';
+		import { cropImageData, otsuThreshold, thresholdGlobal, toGray } from '../src/anyink/autotrace/binarize.js';
+		import { guideLines } from '../src/anyink/placement/classes.js';
+		import { placePart } from '../src/anyink/placement/fit_lines.js';
+		import { photoScale } from '../src/anyink/placement/photo_scale.js';
+		import { groupRows, partGeometry } from '../src/anyink/placement/seat.js';
+		import { findParts } from '../src/anyink/placement/tests/ink_parts_lite.js';
+		import { token, withAlpha } from '../src/anyink/theme/theme.js';
+
+		const FONT = { upm: 2048, ascent: 1550, capHeight: 1480, xHeight: 1100, descent: -440 };
+		const FIXTURES = '../src/anyink/placement/tests/fixtures/';
+		const $ = (id) => document.getElementById(id);
+		const status = (text) => ($('status').textContent = text);
+
+		/** Decodes a fixture with the browser's own image decoder. */
+		async function loadPhoto(name) {
+			const [blob, key] = await Promise.all([
+				fetch(`${FIXTURES}${name}.png`).then((r) => r.blob()),
+				fetch(`${FIXTURES}${name}.json`).then((r) => r.json()),
+			]);
+			const bitmap = await createImageBitmap(blob);
+			const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+			const ctx = canvas.getContext('2d', { willReadFrequently: true });
+			ctx.drawImage(bitmap, 0, 0);
+			const image = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+			const gray = toGray(image);
+			const mask = thresholdGlobal(gray, image.width, image.height, otsuThreshold(gray));
+			return { name, image, key, bitmap, parts: findParts(mask, image.width, image.height) };
+		}
+
+		/** Every point of a traced shape, sampled along its outline (font units, y up). */
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.style.position = 'absolute';
+		svg.style.width = svg.style.height = '0';
+		document.body.append(svg);
+		function outline(shape) {
+			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			path.setAttribute('d', shape.svgPathData);
+			svg.append(path);
+			const length = path.getTotalLength();
+			const steps = Math.max(64, Math.ceil(length / 4));
+			const points = [];
+			for (let i = 0; i < steps; i++) {
+				const p = path.getPointAtLength((length * i) / steps);
+				points.push([p.x, p.y]);
+			}
+			path.remove();
+			let area = 0;
+			for (let i = 0; i < points.length; i++) {
+				const [x1, y1] = points[i];
+				const [x2, y2] = points[(i + 1) % points.length];
+				area += x1 * y2 - x2 * y1;
+			}
+			const xs = points.map((p) => p[0]);
+			const ys = points.map((p) => p[1]);
+			return {
+				length,
+				area: Math.abs(area) / 2,
+				box: { xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Math.min(...ys), yMax: Math.max(...ys) },
+				d: shape.svgPathData,
+			};
+		}
+
+		/**
+		 * Stroke weight of traced shapes: 2 x ink area / outline length (B3 measure.js's estimate).
+		 * A shape inside another one's box is a hole.
+		 */
+		function measure(shapes) {
+			const outlines = shapes.map(outline);
+			const inside = (a, b) => a !== b && a.box.xMin >= b.box.xMin && a.box.xMax <= b.box.xMax && a.box.yMin >= b.box.yMin && a.box.yMax <= b.box.yMax;
+			let area = 0;
+			let length = 0;
+			for (const o of outlines) {
+				const hole = outlines.some((other) => inside(o, other));
+				area += hole ? -o.area : o.area;
+				length += o.length;
+			}
+			return {
+				stroke: length ? (2 * area) / length : 0,
+				inkBottom: Math.min(...outlines.map((o) => o.box.yMin)),
+				inkTop: Math.max(...outlines.map((o) => o.box.yMax)),
+				inkLeft: Math.min(...outlines.map((o) => o.box.xMin)),
+				inkRight: Math.max(...outlines.map((o) => o.box.xMax)),
+				outlines,
+			};
+		}
+
+		/** Names every part in reading order from the answer key. */
+		function namedPhoto(photo) {
+			const uses = {};
+			photo.parts.forEach((part, i) => (uses[part.id] = { char: photo.key.letters[i].char }));
+			return { asset: `img-${photo.name}`, parts: photo.parts, uses };
+		}
+
+		/**
+		 * Places and traces every letter of a photo, in the row or each as its own photo.
+		 * @returns {Promise<Object>} what the verify script reads
+		 */
+		async function run(name, { alone = false } = {}) {
+			status(`placing ${name}...`);
+			const photo = await loadPhoto(name);
+			const whole = namedPhoto(photo);
+			const info = photoScale(whole, FONT);
+			const letters = [];
+			for (const [i, part] of photo.parts.entries()) {
+				const char = whole.uses[part.id].char;
+				const own = alone ? { parts: [part], uses: { [part.id]: whole.uses[part.id] } } : whole;
+				const ownInfo = alone ? photoScale(own, FONT) : info;
+				const placed = placePart(own, part.id, FONT);
+				const g = partGeometry(part);
+				const margin = 6;
+				const rect = { x: g.left - margin, y: g.top - margin, width: g.width + 2 * margin, height: g.height + 2 * margin };
+				const crop = cropImageData(photo.image, rect);
+				status(`tracing ${char}...`);
+				const traced = await autoTraceImageData(crop, { mode: 'scan' }, {
+					x: placed.x,
+					y: placed.y,
+					scale: placed.scale,
+					offsetX: rect.x,
+					offsetY: rect.y,
+					upm: FONT.upm,
+				});
+				const m = measure(traced.shapes);
+				const truth = photo.key.letters[i].lineAtMiddle + photo.key.penPx / 2;
+				letters.push({
+					char,
+					id: part.id,
+					seat: placed.seat,
+					tail: placed.tail,
+					bodyFrom: placed.bodyFrom,
+					x: placed.x,
+					y: placed.y,
+					scale: placed.scale,
+					ownRatio: ownInfo.ratios[part.id],
+					shapes: traced.shapes.length,
+					stroke: m.stroke,
+					inkBottom: m.inkBottom,
+					inkTop: m.inkTop,
+					inkLeft: m.inkLeft,
+					inkRight: m.inkRight,
+					// Where the pen's writing line under this letter landed, font units
+					penLine: placed.y - truth * placed.scale,
+					wholeUnits: [placed.x, placed.y].every(Number.isInteger),
+					outlines: m.outlines.map((o) => o.d),
+					crop: rect,
+				});
+			}
+			const result = { name, alone, scale: info.scale, slope: info.slope, lines: info.lines, letters };
+			draw(photo, result);
+			status(`done: ${letters.length} letters`);
+			window.anyinkPlacementPage.last = result;
+			return result;
+		}
+
+		// ------------------------------------------------------------ drawing (tokens only)
+		function draw(photo, result) {
+			const pc = $('photo').getContext('2d');
+			const zoom = Math.min($('photo').width / photo.image.width, $('photo').height / photo.image.height);
+			pc.fillStyle = token('--canvas-bg');
+			pc.fillRect(0, 0, $('photo').width, $('photo').height);
+			pc.drawImage(photo.bitmap, 0, 0, photo.image.width * zoom, photo.image.height * zoom);
+			pc.strokeStyle = token('--structure');
+			pc.fillStyle = token('--structure');
+			pc.lineWidth = 1;
+			pc.font = `13px ${token('--font-ui') || 'sans-serif'}`;
+			photo.parts.forEach((part, i) => {
+				const g = partGeometry(part);
+				pc.strokeRect(g.left * zoom, g.top * zoom, g.width * zoom, g.height * zoom);
+				pc.fillText(result.letters[i].char, g.left * zoom, g.top * zoom - 4);
+			});
+			if (!result.alone) {
+				// Each row's writing line, sloped as the photo is: through the line under each
+				// part's middle, run on to both edges of the photo
+				pc.setLineDash([6, 4]);
+				for (const row of groupRows(photo.parts)) {
+					const points = row
+						.filter((part) => Number.isFinite(result.lines[part.id]))
+						.map((part) => {
+							const g = partGeometry(part);
+							return [(g.left + g.right) / 2, result.lines[part.id]];
+						});
+					if (!points.length) continue;
+					const [x0, y0] = points[0];
+					const [x1, y1] = points[points.length - 1];
+					pc.beginPath();
+					pc.moveTo(0, (y0 - result.slope * x0) * zoom);
+					pc.lineTo(photo.image.width * zoom, (y1 + result.slope * (photo.image.width - x1)) * zoom);
+					pc.stroke();
+				}
+				pc.setLineDash([]);
+			}
+
+			// The traced letters on the five guide lines, side by side, the faint photo under each
+			const canvas = $('placed');
+			const ctx = canvas.getContext('2d');
+			const lines = guideLines(FONT);
+			const z = canvas.height / 2900;
+			const baseY = 2000 * z;
+			ctx.fillStyle = token('--canvas-bg');
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			const named = [
+				['top line', lines.top],
+				['capitals line', lines.capitals],
+				['small-letter line', lines.small],
+				['writing line', 0],
+				['tail line', lines.tail],
+			];
+			ctx.font = `12px ${token('--font-ui') || 'sans-serif'}`;
+			for (const [label, v] of named) {
+				ctx.strokeStyle = token(v === 0 ? '--canvas-guide' : '--canvas-guide-muted');
+				ctx.lineWidth = v === 0 ? 2 : 1;
+				ctx.beginPath();
+				ctx.moveTo(0, baseY - v * z);
+				ctx.lineTo(canvas.width, baseY - v * z);
+				ctx.stroke();
+				ctx.fillStyle = token('--canvas-guide-label');
+				ctx.fillText(label, 6, baseY - v * z - 4);
+			}
+			let pen = 130;
+			for (const letter of result.letters) {
+				const dx = pen - letter.inkLeft * z;
+				// The photo, faint, exactly where the trace placed it
+				ctx.save();
+				ctx.globalAlpha = 0.25;
+				const r = letter.crop;
+				ctx.drawImage(
+					photo.bitmap,
+					r.x, r.y, r.width, r.height,
+					dx + (letter.x + r.x * letter.scale) * z,
+					baseY - (letter.y - r.y * letter.scale) * z,
+					r.width * letter.scale * z,
+					r.height * letter.scale * z
+				);
+				ctx.restore();
+				ctx.save();
+				ctx.translate(dx, baseY);
+				ctx.scale(z, -z);
+				ctx.fillStyle = withAlpha(token('--canvas-ink'), 0.9);
+				const path = new Path2D();
+				letter.outlines.forEach((d) => path.addPath(new Path2D(d)));
+				ctx.fill(path, 'evenodd');
+				ctx.restore();
+				pen += (letter.inkRight - letter.inkLeft) * z + 60;
+			}
+
+			const strokes = result.letters.filter((l) => /[A-Za-z]/.test(l.char)).map((l) => l.stroke);
+			const spread = Math.max(...strokes) / Math.min(...strokes) - 1;
+			$('summary').textContent =
+				`${result.alone ? 'Each letter as its own photo, so each gets its own size' : `One photo, one scale: ${result.scale.toFixed(3)} units per pixel`}. ` +
+				`Stroke weights of the letters differ by ${(spread * 100).toFixed(1)} %.`;
+			$('table').innerHTML =
+				'<tr><th>Letter</th><th>Placed by</th><th>Tail</th><th>Body found by</th><th>Units per pixel</th><th>Stroke weight</th><th>Ink bottom</th><th>Ink top</th><th>Pen line lands at</th></tr>' +
+				result.letters
+					.map(
+						(l) =>
+							`<tr><td>${l.char}</td><td>${l.seat}</td><td>${l.tail ? 'yes' : 'no'}</td><td>${l.bodyFrom || '-'}</td>` +
+							`<td>${l.scale.toFixed(3)}</td><td>${l.stroke.toFixed(1)}</td><td>${Math.round(l.inkBottom)}</td>` +
+							`<td>${Math.round(l.inkTop)}</td><td>${Math.round(l.penLine)}</td></tr>`
+					)
+					.join('');
+		}
+
+		window.anyinkPlacementPage = { run, ready: true };
+		$('run-brennan').onclick = () => run('brennan-hand', { alone: $('alone').checked });
+		$('run-tails').onclick = () => run('tails-row', { alone: $('alone').checked });
+		status('ready');
+	</script>
+</body>
+</html>

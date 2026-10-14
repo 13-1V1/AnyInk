@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK font metrics writes (Milestone 5, D-008 / D-009).
 	The one place that writes project.settings.font vertical metrics and custom guide
@@ -8,6 +10,7 @@
 	drag, the keyboard nudge, and the Settings and Guides panel readouts all route here.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
+import { isSimpleMode } from '../mode/mode.js';
 import {
 	clampBaselineDelta,
 	clampFontMetric,
@@ -23,12 +26,15 @@ let warnedNoSettingsHistory = false;
  * Records a lightweight settings history entry (D-018). History.addSettingsState is
  * implemented by the history track; until it lands, this warns once and does nothing.
  * @param {String} title - what the History panel shows
+ * @param {Object} [options]
+ * @param {String | null} [options.burst] - B3 fix: the line a key press moved; in Simple, quick
+ *   presses on one line are one step (History BURST_MS)
  * @returns {Boolean} true when an entry was recorded
  */
-export function commitSettingsHistory(title) {
+export function commitSettingsHistory(title, { burst = null } = {}) {
 	const history = getCurrentProjectEditor()?.history;
 	if (history && typeof history.addSettingsState === 'function') {
-		history.addSettingsState(title);
+		history.addSettingsState(title, { burst });
 		return true;
 	}
 	if (!warnedNoSettingsHistory) {
@@ -47,9 +53,10 @@ export function commitSettingsHistory(title) {
  * @param {Object} [options]
  * @param {Boolean} [options.history=true] - record a settings history entry
  * @param {String} [options.verb='Set'] - first word of the history title ('Moved' for drags)
+ * @param {String | null} [options.burst] - B3 fix: a key press on this line (commitSettingsHistory)
  * @returns {Number | false} the stored value, or false for an unknown key
  */
-export function setFontMetric(key, value, { history = true, verb = 'Set' } = {}) {
+export function setFontMetric(key, value, { history = true, verb = 'Set', burst = null } = {}) {
 	if (!isFontMetricKey(key)) return false;
 	const editor = getCurrentProjectEditor();
 	const font = editor.project.settings.font;
@@ -59,7 +66,9 @@ export function setFontMetric(key, value, { history = true, verb = 'Set' } = {})
 
 	font[key] = applied;
 	editor.publish('fontMetrics', { key, value: applied, font });
-	if (history) commitSettingsHistory(`${verb} ${METRIC_LABELS[key] || key} to ${applied}`);
+	if (history) {
+		commitSettingsHistory(`${verb} ${METRIC_LABELS[key] || key} to ${applied}`, { burst });
+	}
 	return applied;
 }
 
@@ -70,9 +79,10 @@ export function setFontMetric(key, value, { history = true, verb = 'Set' } = {})
  * @param {Number} value - requested Em location
  * @param {Object} [options]
  * @param {Boolean} [options.history=true]
+ * @param {String | null} [options.burst] - B3 fix: a key press on this guide (commitSettingsHistory)
  * @returns {Number | false} the stored location, or false when the guide does not exist
  */
-export function setCustomGuideLocation(index, value, { history = true } = {}) {
+export function setCustomGuideLocation(index, value, { history = true, burst = null } = {}) {
 	const editor = getCurrentProjectEditor();
 	const guides = editor.project.settings.app.guides;
 	const guide = guides?.custom?.[index];
@@ -84,7 +94,7 @@ export function setCustomGuideLocation(index, value, { history = true } = {}) {
 
 	guide.location = v;
 	editor.publish('guides', { index, guide, guides });
-	if (history) commitSettingsHistory(`Moved ${guide.name} to ${v}`);
+	if (history) commitSettingsHistory(`Moved ${guide.name} to ${v}`, { burst });
 	return v;
 }
 
@@ -126,17 +136,25 @@ export function shiftItemPaths(item, dy) {
  * Baseline drag (D-009): moves every outline by -delta and every horizontal metric line
  * by -delta, so the drawing and its lines stay where they were and only y = 0 moves.
  * Recorded as one whole-project history change. Publishes 'fontMetrics' and 'currentItem'.
+ * B3 fix: in Simple the step is about no letter (a guide line is font-wide), so Undo from
+ * another letter never jumps to the one that was open; All tools names the open letter, as
+ * before.
  * @param {Number} deltaEm - how far the baseline was dragged (positive = up)
+ * @param {Object} [options]
+ * @param {String | null} [options.burst] - a key press (History BURST_MS)
  * @returns {Number} the delta that was applied (0 when nothing moved)
  */
-export function moveBaseline(deltaEm) {
+export function moveBaseline(deltaEm, { burst = null } = {}) {
 	const editor = getCurrentProjectEditor();
 	const project = editor.project;
 	const font = project.settings.font;
 	const delta = clampBaselineDelta(font, deltaEm);
 	if (!delta) return 0;
 
-	editor.history.addWholeProjectChangePreState('Moved baseline');
+	editor.history.addWholeProjectChangePreState('Moved baseline', {
+		...(isSimpleMode() ? { itemID: null } : {}),
+		burst,
+	});
 	forEachProjectItem(project, (item) => shiftItemPaths(item, -delta));
 	Object.assign(font, shiftedMetricsForBaseline(font, delta));
 	editor.history.addWholeProjectChangePostState();

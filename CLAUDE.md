@@ -49,6 +49,26 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   The strip shows its first problem with Show me / Fix it (`src/anyink/preview/fix_it.js`).
   `src/anyink/words/letter_name.js` names letters ("small b"). Test page `tests/fontcheck.html`;
   real-Chrome checks `tests/*.verify.mjs` (see tests/README.md).
+- `src/anyink/mode` (B2) — `mode.js` (`'all'` by default, `?ui=simple` for one load,
+  `setModeForTests`) and `features.js` (per-feature flags, empty until B5+). Simple-only
+  behavior checks `isSimpleMode()`; All tools must behave as before.
+- `src/anyink/history` — settings steps (`settings_snapshot.js`, also `settings.anyink` and the
+  name), B2's Simple undo (`simple_undo.js`: one press undoes the newest change wherever it is),
+  the 200 / 30 cap with `history.undoFloor` (`undo_cap.js`; looking around never counts, "Navigated
+  to" entries thinned past 30), `item_state.js`. Test page `tests/undo.html` (`?ui=simple` for Simple).
+- `src/anyink/spacing` (B3) — automatic spacing: side table and gap rule (`letter_classes.js`,
+  `gap_rule.js`), `measure.js`, `outline.js`, `sides.js` (sides from the body, slant taken out, marks
+  and tails hanging no closer than 0.1 G to the width), `slant.js` (the font's slant from the stems,
+  `anyink.spacingSlant`; a letter's own lean), `auto_space.js` (fitSpacing, fitAllAutomatic, fitDependents,
+  setExtra for the letter-spacing slider), `owner.js` (`anyink.spacing` 'auto' / 'manual'),
+  `round.js`, `trace_follow.js` (the photo moves with the shapes), and `history_hook.js`, which
+  History calls before every step (Simple refits automatic letters inside the step; All tools only
+  marks them "set by you"). The engine imports only its own folder and the trace model. Test page
+  `tests/spacing.html`.
+- `src/anyink/placement` (B3) — the photo's scale (a row written at another size gets its own),
+  each row's writing line sloped with the photo and every letter's body on it, the photo's
+  x / y / scale for a picked part (`fit_lines.js` placePart, followPlan). Pure; B9's photo flow
+  calls it; `tests/ink_parts_lite.js` is B9's reference parts finder. Test page `tests/placement.html`.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -84,7 +104,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — DONE 09/24/2026 (src/anyink/autotrace: params, binarize, potrace worker + client, svg_to_shapes, trace_region, facade autotrace.js for M9, session, preview, apply, Auto-trace card in the Trace panel; D-029)
-B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 to B16 next, then M9.
+B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 to B16 next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
 9. Handwriting sheet — pending (after B16; plugs into the letter board)

@@ -3,7 +3,8 @@
 // B1 item 6 (UX-BEGINNER.md 7.2): the real-font preview builds every width the way the font file
 // export does. An existing letter keeps its own width, rounded like the exporter's sanitizeInt,
 // even when it is 0 ("eee" piles up in the preview exactly as in the font). Only a letter that
-// doesn't exist falls back to the default width.
+// doesn't exist falls back to the default width; a missing space is a quarter of the letter box,
+// the space the font file gets (B2 + B3 finalize).
 import { FontFlux } from 'font-flux-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getCurrentProjectEditor, setCurrentProjectEditor } from '../../../app/main.js';
@@ -29,6 +30,11 @@ function sampleProject(mutate) {
 function buildAndOpen(project, text, options = {}) {
 	const builder = new FontPreviewBuilder(project, options);
 	return FontFlux.open(builder.buildFontBuffer(text));
+}
+
+/** @returns {String} the name the font gives the space (U+0020) */
+function spaceName(font) {
+	return font.listGlyphs().find((glyph) => glyph.unicode === 0x20)?.name;
 }
 
 function widthOf(font, name) {
@@ -94,6 +100,33 @@ describe('FontPreviewBuilder widths', () => {
 		} finally {
 			setCurrentProjectEditor(previous);
 		}
+	});
+
+	it('gives a missing space a quarter of the letter box, the same space the font file gets', async () => {
+		const project = sampleProject((p) => {
+			delete p.glyphs['glyph-0x20'];
+		});
+		expect(project.getItem('glyph-0x20')).toBeFalsy();
+		expect(project.defaultAdvanceWidth).not.toBe(project.settings.font.upm / 4);
+		const previous = getCurrentProjectEditor();
+		setCurrentProjectEditor(new ProjectEditor({ project }));
+		try {
+			const exported = FontFlux.open(await ioFont_exportFont('otf', true));
+			const preview = buildAndOpen(project, 'A B');
+			const spaceIn = (font) => font.getGlyph(spaceName(font));
+			expect(spaceIn(preview).advanceWidth).toBe(project.settings.font.upm / 4);
+			expect(spaceIn(preview).advanceWidth).toBe(spaceIn(exported).advanceWidth);
+		} finally {
+			setCurrentProjectEditor(previous);
+		}
+	});
+
+	it('keeps a blank space that exists at its own width, 0 (the font check names it)', () => {
+		const project = sampleProject((p) => {
+			p.getItem('glyph-0x20').advanceWidth = 0;
+		});
+		const font = buildAndOpen(project, 'A B');
+		expect(font.getGlyph(spaceName(font)).advanceWidth).toBe(0);
 	});
 
 	it('writes whole-number points', () => {

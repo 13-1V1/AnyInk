@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { isTextEntryElement } from '../anyink/history/undo_shortcut.js';
 import {
 	hasCopiedShapes,
@@ -51,7 +53,6 @@ export function importSVGtoCurrentItem(svgData, sourceText = 'SVG') {
 		// log(`updated item glyph`);
 		// log(editor.selectedItem);
 
-		editor.history.addState('Imported SVG to glyph ' + editor.selectedItem.name);
 		const msShapes = editor.multiSelect.shapes;
 		msShapes.clear();
 		newShapes.forEach((shape) => msShapes.add(shape));
@@ -64,6 +65,11 @@ export function importSVGtoCurrentItem(svgData, sourceText = 'SVG') {
 		} else if (getCurrentProject().settings.app.moveShapesOnSVGDragDrop) {
 			msShapes.setShapePosition(0, msShapes.maxes.height);
 		}
+		// ANY-INK (B3 integration): the step is recorded after the shapes are placed, so it holds
+		// what the letter ends as (Redo gave back the unplaced shapes), and the spacing hook sees
+		// the placed letter: Simple's refit is not undone by the placing, and All tools marks an
+		// automatic letter "set by you" in this step, not the next one.
+		editor.history.addState('Imported SVG to glyph ' + editor.selectedItem.name);
 
 		editor.publish('currentItem', editor.selectedItem);
 		showToast(`Imported ${tempGlyph.shapes.length} shapes from ${sourceText}`);

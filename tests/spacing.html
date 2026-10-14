@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ANY-INK spacing (B3)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-xs); letter-spacing: var(--eyebrow-spacing); text-transform: uppercase; color: var(--chrome-text-faint); margin: var(--space-5) 0 var(--space-2); font-weight: normal; }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible, input:focus-visible, select:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		button[aria-pressed='true'] { border-color: var(--touch); box-shadow: 0 0 0 1px var(--touch); }
+		select, input[type='text'] { font: inherit; background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); border-radius: var(--radius); padding: var(--space-1) var(--space-2); }
+		.letters { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+		.letter { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); width: 220px; box-shadow: 0 0 0 1px var(--chrome-border); }
+		.letter h3 { margin: 0 0 var(--space-1); font-size: var(--text-sm); font-weight: 600; display: flex; justify-content: space-between; gap: var(--space-2); }
+		.letter h3 .owner { font-weight: normal; color: var(--structure); }
+		.letter svg { width: 100%; height: 170px; background: var(--canvas-bg); border-radius: var(--radius-sm); display: block; }
+		.kinds { font-size: var(--text-xs); color: var(--chrome-text-muted); margin: var(--space-1) 0; }
+		.kinds b { color: var(--chrome-text); font-weight: 600; }
+		.nums { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); }
+		.letter .row { margin-top: var(--space-2); gap: var(--space-1); }
+		.letter button { font-size: var(--text-xs); padding: 2px var(--space-2); }
+		svg .ink { fill: var(--canvas-ink); fill-rule: nonzero; }
+		svg .space { fill: var(--structure-soft); }
+		svg .edge { stroke: var(--structure); stroke-width: 2; vector-effect: non-scaling-stroke; }
+		svg .side { stroke: var(--structure); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+		svg .guide { stroke: var(--canvas-guide); stroke-width: 1; vector-effect: non-scaling-stroke; }
+		svg .photo { fill: none; stroke: var(--canvas-trace-frame); stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+		svg .overlap { fill: var(--danger-soft); stroke: var(--danger); stroke-width: 1; vector-effect: non-scaling-stroke; }
+		svg .point { fill: var(--touch); }
+		.slider { display: flex; align-items: center; gap: var(--space-2); }
+		.slider input[type='range'] { width: 360px; accent-color: var(--touch); }
+		#extra-readout { font-family: var(--font-mono); font-size: var(--text-sm); min-width: 18ch; }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); box-shadow: 0 0 0 1px var(--chrome-border); }
+		#line { width: 100%; height: 200px; background: var(--canvas-bg); border-radius: var(--radius-sm); display: block; }
+		#line-readout { font-size: var(--text-sm); margin-top: var(--space-2); }
+		#line-readout.bad { color: var(--danger); }
+		#pad { width: 420px; height: 320px; background: var(--canvas-bg); border-radius: var(--radius-sm); display: block; cursor: crosshair; }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 120px; overflow-y: auto; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<h1>Spacing (B3)</h1>
+	<p>
+		The spacing engine on its own, with no editor. Each letter shows its left and right edges
+		(purple lines), the space between ink and edge (shaded), and what kind each side is: straight,
+		round or open, from the side table or, for letters the table doesn't know, measured from the
+		ink. The gap rule: G is 8% of the small-letter height; straight sides get G, round 0.6 G, open
+		0.4 G, punctuation 0.6 G. The dashed box is the letter's photo: it moves with the ink.
+	</p>
+	<p>
+		A side is measured on the letter's body (the dashed purple lines): the i's dot drifted right
+		and the g's tail hooking left don't set a side; they hang into the space beside the letter,
+		but stop 0.1 G short of its width, so they never run into the next letter ("gg", "il"). A
+		leaning hand is measured with its slant taken out (read from the stems; a letter that leans
+		its own way by more than 2 degrees, by its own lean), so it is spaced like the same hand
+		upright.
+	</p>
+	<div class="row">
+		Letter box:
+		<button id="grid-1000" data-grid="1000">1,000 units</button>
+		<button id="grid-2048" data-grid="2048">2,048 units</button>
+		<span id="gap-readout" class="nums"></span>
+	</div>
+	<div class="row" style="margin-top: var(--space-2)">
+		Handwriting:
+		<button id="lean-0" data-lean="0">Upright</button>
+		<button id="lean-20" data-lean="20">Leaning 20 degrees</button>
+		<span id="slant-readout" class="nums"></span>
+	</div>
+
+	<h2>Letters</h2>
+	<div class="row">
+		<button id="fit-all">Fit all automatic letters</button>
+		<button id="all-auto">Make every letter automatic</button>
+		<button id="mess">Mess up the spacing</button>
+	</div>
+	<div class="letters" id="letters" style="margin-top: var(--space-3)"></div>
+
+	<h2>Move all letters closer or further apart</h2>
+	<div class="slider">
+		closer
+		<input type="range" id="extra" step="1" value="0" aria-label="Move all letters closer or further apart" />
+		further apart
+		<span id="extra-readout"></span>
+		<button id="reset">Reset</button>
+	</div>
+
+	<h2>Set in a line</h2>
+	<div class="card">
+		<div class="row">
+			Type: <input type="text" id="text" value="Hon r av! ty Ay yo" size="24" aria-label="Text to set" />
+			<span class="nums">(letters on this page only)</span>
+		</div>
+		<svg id="line" aria-label="The text set with the letters' widths"></svg>
+		<div id="line-readout"></div>
+	</div>
+
+	<h2>Draw a letter</h2>
+	<p>Click to drop points; Done closes the shape and adds it as a letter, fitted automatically.</p>
+	<div class="row" style="align-items: flex-start; gap: var(--space-4)">
+		<svg id="pad" aria-label="Drawing pad"></svg>
+		<div>
+			<div class="row">
+				Which letter:
+				<select id="pad-char">
+					<option value="ß">ß (not in the table: measured)</option>
+					<option value="ŋ">ŋ (not in the table: measured)</option>
+					<option value="þ">þ (not in the table: measured)</option>
+					<option value="u">u (in the table: straight / straight)</option>
+					<option value="e">e (in the table: round / open)</option>
+				</select>
+			</div>
+			<div class="row" style="margin-top: var(--space-2)">
+				<button id="pad-done">Done</button>
+				<button id="pad-clear">Clear</button>
+				<span id="pad-count" class="nums"></span>
+			</div>
+		</div>
+	</div>
+
+	<h2>Log</h2>
+	<div id="log"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { fitAllAutomatic, fitSpacing, setExtra, sideKinds, spacingBounds } from '../src/anyink/spacing/auto_space.js';
+		import { extraRange, getExtra } from '../src/anyink/spacing/extra.js';
+		import { gapUnit, sideGap } from '../src/anyink/spacing/gap_rule.js';
+		import { inkBounds, measuredShares } from '../src/anyink/spacing/measure.js';
+		import { itemContours } from '../src/anyink/spacing/outline.js';
+		import { getSpacingOwner, markAuto, markManual } from '../src/anyink/spacing/owner.js';
+		import { referenceHeight, slope } from '../src/anyink/spacing/sides.js';
+		import { fontSlant } from '../src/anyink/spacing/slant.js';
+		import { followLeftEdge } from '../src/anyink/spacing/trace_follow.js';
+		import { getTrace, setTrace, traceBounds } from '../src/anyink/trace/trace_model.js';
+		import { GRIDS, closestGap, dottedI, glyphId, letter, letterShapes, photoUnder, polygon, shearShapes, spacingProject, tailedG } from '../src/anyink/spacing/tests/fixtures.js';
+
+		const CHARS = ['H', 'n', 'o', 'r', 'a', 'c', 'v', '.', '!', "'", 'f', 'Ħ', 'ø', 'ɔ', 'l', 'i', 'g', 't', 'y', 'A'];
+		const WITH_PHOTO = ['H', 'n', 'o'];
+		const KIND = { S: 'straight', R: 'round', O: 'open' };
+		const svgNS = 'http://www.w3.org/2000/svg';
+
+		const page = (window.anyinkSpacingPage = { grid: 2048, lean: 0, project: null, log: [] });
+		const $ = (id) => document.getElementById(id);
+
+		function log(message) {
+			page.log.push(message);
+			$('log').textContent = page.log.slice(-40).join('\n');
+			$('log').scrollTop = $('log').scrollHeight;
+		}
+
+		// ------------------------------------------------------------ the font
+		/** The fixture letters; the i's dot drifted a stroke right, the g's tail hooking left */
+		function shapesFor(char, font) {
+			const stroke = Math.round(font.xHeight * 0.12);
+			if (char === 'i') return dottedI(font, 100, stroke);
+			if (char === 'g') return tailedG(font, 100, { hook: Math.round(font.xHeight * 0.3) });
+			return letterShapes(char, font);
+		}
+
+		function build(grid, lean = page.lean) {
+			page.grid = grid;
+			page.lean = lean;
+			const font = GRIDS[grid];
+			const letters = {};
+			CHARS.forEach(
+				(char) => (letters[char] = { anyink: { spacing: 'auto' }, shapes: shearShapes(shapesFor(char, font), lean, 0) })
+			);
+			const project = spacingProject(grid, letters);
+			CHARS.forEach((char) => {
+				const item = letter(project, char);
+				if (WITH_PHOTO.includes(char)) setTrace(item, photoUnder(item, 30));
+			});
+			fitAllAutomatic(project);
+			page.project = project;
+			const range = extraRange(project);
+			$('extra').min = range.min;
+			$('extra').max = range.max;
+			$('extra').value = 0;
+			document.querySelectorAll('[data-grid]').forEach((button) =>
+				button.setAttribute('aria-pressed', String(Number(button.dataset.grid) === grid))
+			);
+			document.querySelectorAll('[data-lean]').forEach((button) =>
+				button.setAttribute('aria-pressed', String(Number(button.dataset.lean) === lean))
+			);
+			const g = gapUnit(font);
+			$('gap-readout').textContent =
+				`small-letter height ${font.xHeight}, G = ${g.toFixed(1)}: straight ${sideGap('S', font)}, ` +
+				`round ${sideGap('R', font)}, open ${sideGap('O', font)}, punctuation ${sideGap('S', font, { punctuation: true })}`;
+			$('slant-readout').textContent = `slant read from the stems: ${fontSlant(project)} degrees`;
+			log(`Font at ${grid} units, leaning ${lean} degrees: fitted ${CHARS.length} letters`);
+			render();
+			if (page.ready) drawPad();
+		}
+
+		const letters = () =>
+			Object.values(page.project.glyphs).filter((item) => item && item.shapes.length);
+
+		// ------------------------------------------------------------ drawing
+		function el(name, attrs = {}, parent) {
+			const node = document.createElementNS(svgNS, name);
+			Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+			if (parent) parent.appendChild(node);
+			return node;
+		}
+
+		/** Path data for the letter's ink, y flipped, moved right by `x` */
+		function inkPath(item, x = 0) {
+			return itemContours(item)
+				.map(({ points }) => 'M' + points.map(([px, py]) => `${px + x},${-py}`).join('L') + 'Z')
+				.join('');
+		}
+
+		function drawGuides(svg, font, x0, x1) {
+			[0, font.xHeight, font.capHeight].forEach((y) =>
+				el('line', { class: 'guide', x1: x0, x2: x1, y1: -y, y2: -y }, svg)
+			);
+		}
+
+		/** The measured side as a line on the canvas: slanted with the hand */
+		function sideAt(x, y) {
+			const font = page.project.settings.font;
+			return x + slope(fontSlant(page.project)) * (y - referenceHeight(font));
+		}
+
+		function letterCard(item) {
+			const font = page.project.settings.font;
+			const ink = inkBounds(item);
+			const sides = spacingBounds(item, page.project);
+			const width = item.advanceWidth;
+			const kinds = sideKinds(item, font, fontSlant(page.project));
+			const card = document.createElement('div');
+			card.className = 'letter';
+			card.dataset.char = item.chars;
+			const owner = getSpacingOwner(item) === 'auto' ? 'Automatic' : 'Set by you';
+			card.innerHTML = `<h3><span>${item.chars}</span><span class="owner">${owner}</span></h3>`;
+
+			const pad = font.upm * 0.15;
+			const photo = getTrace(item) ? traceBounds(getTrace(item)) : null;
+			const xMin = Math.min(0, ink.xMin, photo ? photo.xMin : 0) - pad;
+			const xMax = Math.max(width, ink.xMax, photo ? photo.xMax : 0) + pad;
+			const svg = el('svg', {
+				viewBox: `${xMin} ${-font.ascent - pad / 2} ${xMax - xMin} ${font.ascent - font.descent + pad}`,
+				preserveAspectRatio: 'xMidYMid meet',
+			});
+			const top = -font.ascent - pad;
+			const bottom = -font.descent + pad;
+			// The space each side gets: between the edge and the measured side (y is flipped)
+			const band = (x0, x1) =>
+				el('polygon', {
+					class: 'space',
+					points: [[x0(-top), top], [x0(-bottom), bottom], [x1(-bottom), bottom], [x1(-top), top]]
+						.map(([x, y]) => `${x},${y}`)
+						.join(' '),
+				}, svg);
+			band(() => 0, (y) => sideAt(sides.xMin, y));
+			band((y) => sideAt(sides.xMax, y), () => width);
+			drawGuides(svg, font, xMin, xMax);
+			if (photo) {
+				el('rect', { class: 'photo', x: photo.xMin, y: -photo.yMax, width: photo.xMax - photo.xMin, height: photo.yMax - photo.yMin }, svg);
+			}
+			el('path', { class: 'ink', d: inkPath(item) }, svg);
+			[0, width].forEach((x) => el('line', { class: 'edge', x1: x, x2: x, y1: top, y2: bottom }, svg));
+			[sides.xMin, sides.xMax].forEach((x) =>
+				el('line', { class: 'side', x1: sideAt(x, -top), x2: sideAt(x, -bottom), y1: top, y2: bottom }, svg)
+			);
+			card.appendChild(svg);
+
+			const kindsLine = document.createElement('div');
+			kindsLine.className = 'kinds';
+			if (kinds) {
+				const shares = kinds.source === 'measured' ? measuredShares(item, font, fontSlant(page.project)) : null;
+				const share = (side) => (shares ? ` ${Math.round(shares[side] * 100)}%` : '');
+				kindsLine.innerHTML =
+					`left <b>${KIND[kinds.left]}</b>${share('left')}, right <b>${KIND[kinds.right]}</b>${share('right')}` +
+					` <span>(${kinds.source === 'table' ? 'side table' : 'measured'}${kinds.punctuation ? ', punctuation' : ''})</span>`;
+			}
+			card.appendChild(kindsLine);
+			const nums = document.createElement('div');
+			nums.className = 'nums';
+			nums.textContent = `left space ${round1(sides.xMin)} · right space ${round1(width - sides.xMax)} · width ${width}`;
+			card.appendChild(nums);
+
+			const row = document.createElement('div');
+			row.className = 'row';
+			const button = (label, action) => {
+				const b = document.createElement('button');
+				b.textContent = label;
+				b.addEventListener('click', () => {
+					action();
+					render();
+				});
+				row.appendChild(b);
+			};
+			button('Drag left edge +40', () => {
+				// What an edge drag does: the upstream setter moves the shapes, the photo follows,
+				// and the letter becomes "set by you" so a refit never snaps it back
+				const before = inkBounds(item).xMin;
+				item.leftSideBearing = Math.round(before + 40);
+				followLeftEdge(item, before);
+				markManual(item);
+				log(`${item.chars}: left edge dragged 40, now set by you`);
+			});
+			if (getSpacingOwner(item) !== 'auto') {
+				button('Back to automatic', () => {
+					markAuto(item);
+					const { dx } = fitSpacing(item, page.project);
+					log(`${item.chars}: back to automatic (moved ${dx})`);
+				});
+			}
+			card.appendChild(row);
+			return card;
+		}
+
+		function round1(value) {
+			return Math.round(value * 10) / 10;
+		}
+
+		function drawLine() {
+			const svg = $('line');
+			svg.replaceChildren();
+			const font = page.project.settings.font;
+			const items = [...$('text').value]
+				.map((char) => (char === ' ' ? 'space' : page.project.glyphs[glyphId(char)]))
+				.filter((item) => item === 'space' || (item && item.shapes.length));
+			let pen = 0;
+			const placed = [];
+			items.forEach((item) => {
+				if (item === 'space') {
+					pen += Math.round(font.upm / 4);
+					placed.push(null);
+					return;
+				}
+				placed.push({ item, x: pen });
+				pen += item.advanceWidth;
+			});
+			const pad = font.upm * 0.1;
+			svg.setAttribute('viewBox', `${-pad} ${-font.ascent - pad / 2} ${Math.max(pen, 1) + 2 * pad} ${font.ascent - font.descent + pad}`);
+			drawGuides(svg, font, -pad, pen + pad);
+			const gaps = [];
+			placed.forEach((entry, index) => {
+				if (!entry) return;
+				el('path', { class: 'ink', d: inkPath(entry.item, entry.x) }, svg);
+				const next = placed[index + 1];
+				if (!next) return;
+				// How close the inks come on any row, the second letter at the first one's width
+				const gap = closestGap(entry.item, next.item) ?? Infinity;
+				gaps.push({ pair: entry.item.chars + next.item.chars, gap });
+				if (gap < 0) {
+					el('rect', { class: 'overlap', x: next.x + gap, y: -font.capHeight, width: -gap, height: font.capHeight }, svg);
+				}
+			});
+			page.lineGaps = gaps;
+			const closest = gaps.reduce((best, entry) => (!best || entry.gap < best.gap ? entry : best), null);
+			const readout = $('line-readout');
+			readout.classList.toggle('bad', !!closest && closest.gap < 0);
+			readout.textContent = closest
+				? closest.gap < 0
+					? `"${closest.pair}" overlap by ${round1(-closest.gap)} units`
+					: `Closest pair: "${closest.pair}", ${round1(closest.gap)} units apart. No letters overlap.`
+				: '';
+		}
+
+		function render() {
+			const list = $('letters');
+			list.replaceChildren(...letters().map(letterCard));
+			const extra = getExtra(page.project);
+			$('extra').value = extra;
+			$('extra-readout').textContent = `extra ${extra > 0 ? '+' : ''}${extra} per side`;
+			drawLine();
+		}
+
+		// ------------------------------------------------------------ actions
+		document.querySelectorAll('[data-grid]').forEach((button) =>
+			button.addEventListener('click', () => build(Number(button.dataset.grid)))
+		);
+		document.querySelectorAll('[data-lean]').forEach((button) =>
+			button.addEventListener('click', () => build(page.grid, Number(button.dataset.lean)))
+		);
+		$('fit-all').addEventListener('click', () => {
+			const moved = fitAllAutomatic(page.project);
+			log(`Fit all: ${moved.length} letters moved`);
+			render();
+		});
+		$('all-auto').addEventListener('click', () => {
+			letters().forEach((item) => markAuto(item));
+			const moved = fitAllAutomatic(page.project);
+			log(`Every letter automatic: ${moved.length} refitted`);
+			render();
+		});
+		$('mess').addEventListener('click', () => {
+			let seed = 7;
+			const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+			letters().forEach((item) => {
+				const before = inkBounds(item).xMin;
+				item.updateGlyphPosition(Math.round((random() - 0.5) * page.grid * 0.3), 0);
+				followLeftEdge(item, before);
+				item.advanceWidth = Math.round(inkBounds(item).xMax + (random() - 0.3) * page.grid * 0.2);
+			});
+			log('Spacing messed up (the photos moved with their letters); press Fit all');
+			render();
+		});
+		$('extra').addEventListener('input', () => {
+			const { extra, moved } = setExtra(page.project, Number($('extra').value));
+			page.lastSlide = { extra, moved: moved.length };
+			render();
+		});
+		$('extra').addEventListener('change', () => {
+			log(`Slider released at ${getExtra(page.project)}: one whole-font Undo step (wired by the hooks track)`);
+		});
+		$('reset').addEventListener('click', () => {
+			setExtra(page.project, 0);
+			log('Letter spacing reset');
+			render();
+		});
+		$('text').addEventListener('input', drawLine);
+
+		// ------------------------------------------------------------ draw pad
+		const padPoints = [];
+		function padFrame() {
+			const font = page.project.settings.font;
+			const w = font.upm * 1.2;
+			return { x: -font.upm * 0.1, y: -font.ascent, w, h: font.ascent - font.descent };
+		}
+		function drawPad() {
+			const svg = $('pad');
+			svg.replaceChildren();
+			const font = page.project.settings.font;
+			const f = padFrame();
+			svg.setAttribute('viewBox', `${f.x} ${f.y} ${f.w} ${f.h}`);
+			drawGuides(svg, font, f.x, f.x + f.w);
+			if (padPoints.length > 1) {
+				el('path', { class: 'ink', d: 'M' + padPoints.map(([x, y]) => `${x},${-y}`).join('L') + 'Z', opacity: 0.6 }, svg);
+			}
+			padPoints.forEach(([x, y]) => el('circle', { class: 'point', cx: x, cy: -y, r: font.upm * 0.012 }, svg));
+			$('pad-count').textContent = `${padPoints.length} points`;
+		}
+		$('pad').addEventListener('click', (event) => {
+			const svg = $('pad');
+			const point = svg.createSVGPoint();
+			point.x = event.clientX;
+			point.y = event.clientY;
+			const at = point.matrixTransform(svg.getScreenCTM().inverse());
+			padPoints.push([Math.round(at.x), Math.round(-at.y)]);
+			drawPad();
+		});
+		$('pad-clear').addEventListener('click', () => {
+			padPoints.length = 0;
+			drawPad();
+		});
+		$('pad-done').addEventListener('click', () => {
+			if (padPoints.length < 3) return log('A shape needs at least 3 points');
+			const char = $('pad-char').value;
+			const id = glyphId(char);
+			const fresh = spacingProject(page.grid, { [char]: { shapes: [polygon(padPoints)] } });
+			const item = fresh.glyphs[id];
+			item.parent = page.project;
+			page.project.glyphs[id] = item;
+			markAuto(item);
+			const result = fitSpacing(item, page.project);
+			log(`Drew ${char}: ${KIND[result.kinds.left]} / ${KIND[result.kinds.right]} (${result.kinds.source}), moved ${result.dx}`);
+			padPoints.length = 0;
+			drawPad();
+			render();
+		});
+
+		page.build = build;
+		page.render = render;
+		page.letter = (char) => letter(page.project, char);
+		page.closestGap = (a, b) => closestGap(letter(page.project, a), letter(page.project, b));
+		build(2048, 0);
+		drawPad();
+		page.ready = true;
+	</script>
+</body>
+</html>

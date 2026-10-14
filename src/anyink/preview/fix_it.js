@@ -5,7 +5,9 @@
 	the font check found, on the letter it names, as one Undo step there.
 	  - a width (ink with no width, or a width the font file can't hold): the letter gets a
 	    whole-number width that gives its right side the same space as its left
-	    (fittedWidth), so "bbb" no longer piles up
+	    (fittedWidth), so "bbb" no longer piles up. A letter whose spacing is automatic (B3)
+	    is fitted instead (spacing/auto_space.js fitSpacing: whole points, its gap rule, the
+	    photo moved with the shapes), and stays automatic
 	  - a space with no width: the default letter width, so typed words don't run together
 	  - stray shapes (fewer than 3 points and no curve): removed. They hold no ink, and the
 	    font file can't hold them. Which shapes are stray is the font check's own rule
@@ -19,6 +21,8 @@
 	(show_item.js); the person sees the letter that changed.
 */
 import { MAX_WIDTH, PROBLEM, isStrayShape, validateItem } from '../fontcheck/validate.js';
+import { fitSpacing } from '../spacing/auto_space.js';
+import { isAutomatic } from '../spacing/owner.js';
 import { letterPhrase } from '../words/letter_name.js';
 import { FIX_IT } from './font_status.js';
 import { isItemOpen, showItem } from './show_item.js';
@@ -126,8 +130,10 @@ export function fixProblem(editor, problem) {
 				? `removed a stray shape from ${name}`
 				: `removed ${removed} stray shapes from ${name}`;
 	} else {
-		item.advanceWidth = fittedWidth(item, editor.project.defaultAdvanceWidth);
-		if (Number(item.advanceWidth) === widthBefore) return false;
+		// B3: an automatic letter gets its fitted spacing, so the fix is one ANY-INK would make
+		const fitted = isAutomatic(item) && fitSpacing(item, editor.project).changed;
+		if (!fitted) item.advanceWidth = fittedWidth(item, editor.project.defaultAdvanceWidth);
+		if (!fitted && Number(item.advanceWidth) === widthBefore) return false;
 		const hadWidth = Number.isFinite(widthBefore) && Math.round(widthBefore) !== 0;
 		title = hadWidth ? `fixed the width of ${name}` : `gave ${name} a width`;
 	}

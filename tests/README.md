@@ -36,6 +36,33 @@ its own server on a free port.
   dev app: "Exported ... to Fonts, but small b needs fixing." with Show me, the space, a point too
   far out (with what to do), gaps of 12.5 (file made, Real font shows the letters) and 40,000 (B1).
   Optional argument: a screenshot folder.
+- `undo.verify.mjs` (`npm run verify:undo`): Simple undo on `tests/undo.html` and in the dev app:
+  one press undoes the newest change with at most one view jump, opening letters adds no step,
+  the 200-step cap; All tools keeps its navigation steps but a saved font stays saved; every
+  press named by its own step's title; 250 looks around keep a trace undoable, at most 30
+  "Navigated to" entries and no press that does nothing (B2).
+- `spacing.verify.mjs` (`npm run verify:spacing`): `tests/spacing.html`: the gap rule at 2,048 and
+  1,000 units, measured sides (a drifted dot and a hooked tail hang into the space, never closer
+  than 0.1 G to the width; "gg gy yg yy ig gi il li ti" row by row never touch), diagonal pairs, a
+  hand leaning 20 degrees spaced like upright, the letter-spacing slider dragged to both ends (no
+  overlaps, photos stay under the ink), Reset, an edge drag ("set by you"), Fit all, a letter drawn
+  on the pad (B3). Optional argument: a screenshot folder.
+- `placement.verify.mjs` (`npm run verify:placement`): `tests/placement.html`: the fixture photos
+  placed by the photo's scale and traced by the real auto-trace; every letter's body on the
+  writing line within 2 % of the letter box, stroke weights within 15 %, tails kept; the page
+  draws each row's sloped writing line (B3).
+- `b23.verify.mjs` (`npm run verify:b23`): B2 and B3 together in the dev app, in Simple and in All
+  tools: a photo of an a, and e and n from one photo, placed the way B9 will and traced with
+  Replace; widths, side spaces and writing-line offsets; "aen naan" in Real font with no
+  pile-ups (measured row by row); switching letters adds no step; Undo twice. Writes
+  `numbers.json` beside the screenshots. `B23_A_PHOTO=path` traces a real photo of an a.
+- `hooks.verify.mjs` (`npm run verify:hooks`): the Undo hooks in the dev app: in Simple a step on
+  a letter others are made from refits them as one step (Ctrl+Z / Ctrl+Y move all of them), 40
+  nudges keep every earlier step, Use it 'replace' on a letter made from another, dragging and
+  arrow-nudging the guide lines (one step about no letter; Undo from another letter stays put;
+  40 quick presses on one line are one step), Delete letter undone in one press; a Simple list
+  restored through the real Recover card under All tools undoes and redoes every step (B2, B3).
+  Optional argument: a screenshot folder.
 - `check-line.verify.mjs` (`npm run verify:check-line`): the strip's font check line at 48, 120
   and 200 pt, canvas and Real font: nothing is drawn under it, and the letters never move when it
   comes or goes (B1). Optional argument: a screenshot folder.

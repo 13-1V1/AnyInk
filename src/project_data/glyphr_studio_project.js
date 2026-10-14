@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { charsToHexArray, validateAsHex } from '../common/character_ids.js';
 import { clone, remove, round, trim } from '../common/functions.js';
@@ -138,6 +140,8 @@ export class GlyphrStudioProject {
 				nibDefaults: { shape: 'flat', width: 60, thickness: 0.35, angle: 30, pressure: 0.5 },
 				roughenDefaults: { size: 12, detail: 6, spread: 4, seed: 1 },
 				sheet: { templateVersion: 1, pages: [] },
+				// B3: the letter-spacing slider's extra, font units (src/anyink/spacing/extra.js)
+				spacing: { extra: 0 },
 			},
 		};
 
@@ -204,6 +208,18 @@ export class GlyphrStudioProject {
 		// ANY-INK: sheet pages are an array, and merge() leaves an empty template array alone
 		const newPages = newProject?.settings?.anyink?.sheet?.pages;
 		if (Array.isArray(newPages)) this.settings.anyink.sheet.pages = clone(newPages);
+
+		// ANY-INK (B3): merge() drops every key its template lacks, on load and in every
+		// whole-font Undo copy. settings.anyink is ours, so a key the template doesn't know yet
+		// (B9's photos: one record per image asset id) is kept as loaded, as a copy.
+		const newAnyink = newProject?.settings?.anyink;
+		if (isNonEmptyObject(newAnyink)) {
+			Object.keys(newAnyink).forEach((key) => {
+				if (!Object.hasOwn(this.settings.anyink, key) && newAnyink[key] !== undefined) {
+					this.settings.anyink[key] = clone(newAnyink[key]);
+				}
+			});
+		}
 
 		// ANY-INK: embedded binary assets (D-011 / D-012). The project holds no Blobs: the
 		// importer hands this object to the editor's AssetStore, and save() never emits it

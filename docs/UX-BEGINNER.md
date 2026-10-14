@@ -775,8 +775,8 @@ empty-letter overlay and step A, and from Help):
 +--------------------------------------------------------------------------+
 |  How to photograph your letters                                   [x]    |
 |  1. Use a black felt-tip pen (a Sharpie works) on plain white paper.     |
-|  2. Write each letter about 1 inch tall, with a finger's width between   |
-|     letters.                                                             |
+|  2. Write every letter about 1 inch tall, all the same size, with a      |
+|     finger's width between letters, a thumb's width between rows.        |
 |  3. For a first try, write the letters in "Brennan Hand" once each:      |
 |     B r e n a H d. Or write the whole alphabet on one page: capitals     |
 |     on one line, small letters on the next, then . , ' ? ! -             |
@@ -807,9 +807,15 @@ or by [Choose another photo...]):
 between them, and whenever the letter isn't known yet (4.5). Only a photo with exactly one part, opened
 from a letter, skips it and goes straight to step C.
 - **Parts.** Ink pieces are joined into one part when their left-to-right spans overlap by at least half
-  the narrower piece, so i, j, !, ?, :, ; and a dotted i each stay one part. Pieces too small to be
-  anything (a speck, B11's rule) are ignored. Parts are sorted into rows by vertical overlap: rows top
-  to bottom, parts left to right.
+  the narrower piece **and** they also share their height (up and down they overlap by half the
+  shorter piece: a crossbar, a pen lift), or one of them is a **dot** (no wider and no taller than 40 %
+  of a typical piece) sitting above or below the other within 60 % of a typical piece's height, its
+  middle at most 30 % of that height to the side (a drifted or slanted dot). A dot joins only the
+  nearest such piece. So i, j, !, ?, :, ; and a dotted i each stay one part, and letters written one
+  under the other on a whole-alphabet page never join (B3 finalize: the left-to-right rule alone made
+  every column one part). Pieces too small to be anything (a speck, B11's rule) are ignored. Parts are
+  sorted into rows by vertical overlap: rows top to bottom, parts left to right. The reference is
+  `src/anyink/placement/tests/ink_parts_lite.js`.
 - **The view.** The whole photo fills the dialog (about 1000 x 600 px). Each part has a thin purple
   outline. Parts already used carry their letter's name tag ("B"). One part has a **green dashed box**:
   the guess, which is the first unused part in reading order.
@@ -871,16 +877,23 @@ the sheet import instead.
 **Placement** (B3) happens before he sees the result, in `photo_flow.js`, by moving and scaling this
 letter's photo record (`trace.x/y/scale`) before tracing, so the traced shapes land in place. It never
 runs inside `applyAutoTrace`.
-- **One size for the whole photo.** The photo's scale is the median, over every letter named from it so
-  far, of (that letter's line height / its ink height); line heights by letter class are in B3. When a
-  new letter is named, the scale is recomputed. Earlier letters from the same photo that he hasn't
+- **One size for the whole photo, unless a row was written at another size.** The photo's scale is the
+  median, over every letter named from it so far, of (that letter's line height / its ink height); line
+  heights by letter class are in B3. When a new letter is named, the scale is recomputed. A row written
+  clearly bigger or smaller (15 % or more off the page's usual size, judged only against rows that
+  share kinds of letter with it) gets its own size, faded in from 7 % so a messy hand's wobble keeps one
+  size; capitals rows take the size of the small-letter row next to them (D-034). Earlier letters from the same photo that he hasn't
   changed since tracing (flag `anyink.photoFit`) are resized to the new scale in the same Undo step, and
   the toast names them ("Traced r. Also resized B to match the photo."), only when the change is more
   than 3%. Letters from one photo therefore always share one ink weight. The scale is stored with the
   photo in `settings.anyink.photos[assetId]`, together with its parts and which letter used which part.
-- **One writing line per row.** In a row with 3 or more parts, the row's writing line is the median
-  bottom of its parts, and every letter keeps its height above or below that line exactly as written.
-  Tails (g, p, y, a long f, the tail of Q or J) hang below on their own.
+- **One writing line per row, sloped with the photo.** In a row with 3 or more parts, the row's writing
+  line runs through the bottoms of its parts at the photo's one slope (a phone held a little off square
+  turns every row alike). **Every letter's body bottom sits on the writing line**, wherever on the page
+  it was written (D-034: keeping the wobble put a third of a neat page past B11's 2 % limit and repeated
+  it in every word). Tails (g, p, y, a long f, the tail of Q or J) hang below on their own. The row line
+  serves where a letter's shape can't show its body: j and y, a tail with no bowl, a bowl that closes
+  clearly above a tight row line.
 - **Rows with 1 or 2 parts:** the bottom of the letter's body sits on the writing line. For tail letters
   (g j p q y, and Q J f when [It has a tail] is on) the body bottom is the lowest row where the ink still
   spans at least half the letter's width. Fine-tune > Tail ([It has a tail] / [No tail]) re-seats the
@@ -1318,8 +1331,11 @@ gap fixes and a Bold copy.
 - Destructive actions use an Undo toast, not a confirm: Clear letter, delete a shape, remove photo,
   remove a gap fix, remove ink texture, - Numbers & symbols (which only hides).
 - **Size limit:** the Undo list keeps the newest 200 steps and at most 30 font-wide (whole-project)
-  steps; older steps drop off the old end. B10 and B12 measure the backup write time on a 58-letter
-  traced font against D-026's 100 ms point.
+  steps; older steps drop off the old end. Looking around never counts toward 200 or 30 (All tools'
+  "Navigated to" entries and the empty-letter records it makes when a letter is opened), so browsing
+  never pushes a real change out of Undo; past 30 "Navigated to" entries, only the ones that merely pass
+  the view along are thinned out (D-033). B10 and B12 measure the backup write time on a 58-letter
+  traced font with the list at its fullest against D-026's 100 ms point.
 
 | Action | Undo step |
 |---|---|
@@ -1558,8 +1574,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 |---|---|---|---|---|
 | B0 | Housekeeping | (docs, fixtures) | 0.5 | A clean start |
 | B1 | Fix what's broken (**done 10/14/2026**) | `fontcheck/`, fixes in existing files | 2.5 | Correct results in both modes |
-| B2 | Undo that never surprises | `history/` | 2.5 | One press = one change, anywhere |
-| B3 | Spacing and placement engine | `spacing/`, `placement/` | 3.5 | Traced and drawn letters type correctly |
+| B2 | Undo that never surprises (**done 10/14/2026**) | `history/` | 2.5 | One press = one change, anywhere |
+| B3 | Spacing and placement engine (**done 10/14/2026**) | `spacing/`, `placement/` | 3.5 | Traced and drawn letters type correctly |
 | B4 | House words and one toast voice | `words/`, `toast/` | 2.5 | No jargon on the main path |
 | B5 | Mode switch, gates and keys | `mode/` | 3 | Simple mode exists (behind `?ui=simple`) |
 | B6 | Top bar, Next line, tips, undo toasts, save status | `topbar/`, `coach/`, `history/undo_toast.js` | 3 | Always a next step |
@@ -1653,9 +1669,20 @@ sentence saying what to do when there is no Fix it, guide lines that hold 3:1 on
 
 ### B2. Undo that never surprises
 
+**DONE 10/14/2026** (one track, the B2 + B3 integration, then a critic pass, a fix pass and a finalize
+pass; choices in D-033; numbers in TEST_LOG). It also fixed B1's leftover: in All tools a "Navigated
+to" step no longer marks a saved work file pending. The later passes: every press is named by its
+own step's title; looking around never counts toward the size limit (past 30 "Navigated to" entries
+the ones that only pass the view along leave); Delete letter in Simple undoes in one press; a
+font-wide step names no letter, so Undo from another letter stays put; held arrow presses on one
+guide line are one step in Simple; All tools never drops a real step whose letter's earlier state
+isn't right under it.
+
 - `src/anyink/history/`: `simple_undo.js` (in Simple, one press undoes the newest change wherever it is:
   the view moves to that letter in the same press, or stays on the board and returns a [Show me]
-  target), `undo_cap.js` (newest 200 steps, at most 30 whole-project steps, dropped from the old end).
+  target), `undo_cap.js` (newest 200 steps, at most 30 whole-project steps, dropped from the old end;
+  looking around not counted; "Navigated to" entries thinned past 30), `history_helpers.js` (which
+  entries are looking around), `item_state.js` (a letter's state in a font copy).
 - `src/anyink/mode/`: the bare `mode.js` (get / set, launch default `'all'`, `?ui=simple`,
   `setModeForTests`) and an empty `features.js`, because this is the first B whose behavior differs in
   Simple. B5 builds the rest of the folder on them.
@@ -1673,6 +1700,18 @@ sentence saying what to do when there is no Fix it, guide lines that hold 3:1 on
 
 ### B3. Spacing and placement engine
 
+**DONE 10/14/2026** (spacing, placement and hooks tracks, the B2 + B3 integration, then a critic pass
+with a first-timer lens that built fonts from handwriting photos, a fix pass and a finalize pass;
+choices in D-034; numbers in TEST_LOG). Beyond the plan below: automatic letters made from the
+changed letter are refit in the same Undo step (as parts of it); unknown `settings.anyink` keys are
+kept on load (for B9's photo records); [Fix it] fits an automatic letter; a dropped SVG's step is
+recorded after its placing; sides come from the letter's body with the slant taken out, marks and
+tails hanging no further than 0.1 G inside the letter's width; open sides get 0.4 G; every letter's
+body sits on the writing line, rows slope with the photo and a row written at another size gets its
+own; the parts rule needs pieces to share their height or be a dot. Placement is a library until
+B9: `tests/b23.verify.mjs` stands in for B9's photo flow (placePart into the photo record, the picked
+part as the traced area).
+
 - `src/anyink/spacing/`:
   - `letter_classes.js`: the side table below, and width limits per letter type.
   - `measure.js`: ink bounds and a stroke estimate (2 x area / perimeter of the largest piece);
@@ -1684,12 +1723,19 @@ sentence saying what to do when there is no Fix it, guide lines that hold 3:1 on
   - `history_hook.js`: the hook at the top of `addState`. Simple: refit "auto" letters. All tools: flip
     a letter to "manual" when the step changed its left space or width. Never refits in All tools.
   - `trace_follow.js`: moves `item.anyink.trace.x` by the same amount whenever spacing moves the shapes.
-- `src/anyink/placement/`: `classes.js` (vertical class per letter, below), `photo_scale.js` (one scale
-  per photo: the median rule and the "earlier untouched letters follow" rule, 4.4), `seat.js` (row
-  writing line from 3 or more parts; body bottom for 1 or 2; the tail rule and its override),
-  `fit_lines.js` (computes the photo's x/y/scale so the picked part lands on its lines).
+  - `outline.js`, `sides.js`, `slant.js` (finalize): the ink as outlines; a letter's sides from its
+    body with the slant taken out and marks and tails bounded; the font's slant from the stems (and a
+    letter's own lean where it differs by more than 2 degrees).
+- `src/anyink/placement/`: `classes.js` (vertical class per letter, below), `photo_scale.js` (the photo's
+  scale: the median rule, a row written at another size, and the "earlier untouched letters follow"
+  rule, 4.4), `seat.js` (each row's writing line, sloped with the photo; every letter's body bottom on
+  it; the tail rule and its override), `fit_lines.js` (computes the photo's x/y/scale so the picked part
+  lands on its lines).
 - **Gap rule:** the straight-side gap G = 8% of the small-letter height (D-017; 88 units at the default
-  1,100). Round sides get 0.6 G, open or slanted sides 0.2 G, punctuation 0.6 G. The letter-spacing
+  1,100). Round sides get 0.6 G, open or slanted sides 0.4 G (D-034; the plan said 0.2 G), punctuation
+  0.6 G. A side is measured on the letter's body: dots, accents and tails don't set it but may hang
+  into its space, up to 0.1 G inside the letter's width (in the font's slant, so no two automatic
+  letters ever touch). The letter-spacing
   slider adds `extra` per side, from -G to +G, stored in `settings.anyink.spacing = { extra }`; a side
   never goes below zero space unless it already was.
 - **Width limits** (used by B11): letters that are naturally narrow (i j l ! . , ' : ; - |) have no lower
@@ -1864,8 +1910,10 @@ sentence saying what to do when there is no Fix it, guide lines that hold 3:1 on
 
 - `src/anyink/photo/`: `how_card.js`, `photo_card.js` (steps A and C), `photo_dialog.js` (step B: the
   parts view, click to pick, drag a box with a crosshair, the letter field with its guess, Skip this part,
-  Done with this photo), `ink_parts.js` (joining pieces into parts, rows, the speck filter),
-  `photo_registry.js` (`settings.anyink.photos`: parts, which letter used which part, the scale, done),
+  Done with this photo), `ink_parts.js` (joining pieces into parts, rows, the speck filter; B3's
+  `src/anyink/placement/tests/ink_parts_lite.js` is the reference rule, 4.4),
+  `photo_registry.js` (`settings.anyink.photos`: parts, which letter used which part, the scale, done;
+  one image id per photo: the B3 stand-in added the same photo twice and got two),
   `photo_flow.js` (import, then placement (B3), then the automatic trace of the part, then the result,
   then Use it via `applyAutoTrace` with `{ round: true, title: 'traced r' }`), `paper_kind.js` (the Flat
   scan / Phone photo detector), `smooth_detail.js` (the one-slider mapping table).

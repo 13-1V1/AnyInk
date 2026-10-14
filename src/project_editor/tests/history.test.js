@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	SNAPSHOT_DELAY_MS,
@@ -772,17 +774,37 @@ describe('History: the title dot follows the saved state', () => {
 		const editor = makeEditor();
 		editA(editor, 700);
 		editor.selectedGlyphID = 'glyph-0x42';
-		editor.project.glyphs['glyph-0x42'].advanceWidth = 720;
-		editor.history.addState('B to 720');
-		editor.setProjectAsSaved(); // the file has A 700, B 720
+		// ANY-INK (B3 fix): the step upstream's navigators record. A real step on B with none
+		// under it is undone like any step (history_mode_mix.test.js), never only navigated
+		editor.history.addState('Navigated to LATIN CAPITAL LETTER B');
+		editor.setProjectAsSaved(); // the file has A 700
 		editor.history.restoreState(); // navigates to A, changes nothing
 		expect(editor.selectedGlyphID).toBe('glyph-0x41');
 		expect(document.title).toBe('ANY-INK');
 		editor.history.restoreState(); // A back to 600
 		expect(widthA(editor)).toBe(600);
 		expect(document.title).toBe('ANY-INK •');
-		editor.history.redoState(); // A 700, B 720 = the file
+		editor.history.redoState(); // A 700 = the file
 		expect(widthA(editor)).toBe(700);
+		expect(document.title).toBe('ANY-INK');
+	});
+
+	it('a real step on another letter with no navigation step under it is undone, not passed over', () => {
+		const editor = makeEditor();
+		editA(editor, 700);
+		editor.selectedGlyphID = 'glyph-0x42';
+		editor.project.glyphs['glyph-0x42'].advanceWidth = 720;
+		editor.history.addState('B to 720');
+		editor.setProjectAsSaved(); // the file has A 700, B 720
+		editor.history.restoreState(); // B back to 620
+		expect(editor.project.glyphs['glyph-0x42'].advanceWidth).toBe(620);
+		expect(editor.selectedGlyphID).toBe('glyph-0x42');
+		expect(document.title).toBe('ANY-INK •');
+		editor.history.restoreState(); // A back to 600
+		expect(widthA(editor)).toBe(600);
+		editor.history.redoState();
+		editor.history.redoState(); // A 700, B 720 = the file
+		expect(editor.project.glyphs['glyph-0x42'].advanceWidth).toBe(720);
 		expect(document.title).toBe('ANY-INK');
 	});
 });

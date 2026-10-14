@@ -25,7 +25,12 @@
 		"verify:b1": "node tests/b1.verify.mjs",
 		"verify:guides": "node tests/guides.verify.mjs",
 		"verify:fontcheck": "node tests/fontcheck.verify.mjs",
-		"verify:check-line": "node tests/check-line.verify.mjs"
+		"verify:check-line": "node tests/check-line.verify.mjs",
+		"verify:undo": "node tests/undo.verify.mjs",
+		"verify:spacing": "node tests/spacing.verify.mjs",
+		"verify:placement": "node tests/placement.verify.mjs",
+		"verify:b23": "node tests/b23.verify.mjs",
+		"verify:hooks": "node tests/hooks.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

@@ -3,6 +3,7 @@
 /* global Buffer */
 import { FontFlux } from 'font-flux-js';
 import { getExportKerning } from '../../anyink/fontcheck/export_kerning.js';
+import { spaceWidth } from '../../anyink/fontcheck/export_list.js';
 import { failingItemId } from '../../anyink/preview/build_culprit.js';
 import { buildFailureText } from '../../anyink/preview/font_status.js';
 import { itemLabel } from '../../anyink/preview/item_label.js';
@@ -636,11 +637,13 @@ function buildPreviewGlyphObjects(project, glyphMap, ligatures, idsByName = new 
 		if (!Number.isFinite(unicode) || unicode === 0) continue;
 		const sourceGlyph = glyphMap.get(hex);
 		// ANY-INK B1: a letter that exists keeps its own width, even 0 (as in the font file);
-		// only a letter that doesn't exist gets the default width.
+		// only a letter that doesn't exist gets the default width. B3 fix: a missing space is
+		// the one the font file gets, a quarter of the letter box (export_list.js spaceWidth).
+		const missingWidth = unicode === 0x20 ? spaceWidth(project) : project.defaultAdvanceWidth;
 		const glyphObject = {
 			name: getUniqueGlyphName(unicode),
 			unicode,
-			advanceWidth: toWidth(sourceGlyph ? sourceGlyph.advanceWidth : project.defaultAdvanceWidth),
+			advanceWidth: toWidth(sourceGlyph ? sourceGlyph.advanceWidth : missingWidth),
 			leftSideBearing: toSideBearing(sourceGlyph?.leftSideBearing),
 			contours: sourceGlyph ? glyphToContours(sourceGlyph) : [],
 		};

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { describe, expect, it } from 'vitest';
 import { GlyphrStudioProject, isNonEmptyObject } from '../glyphr_studio_project.js';
 
@@ -12,6 +14,8 @@ const ANYINK_DEFAULTS = {
 	nibDefaults: { shape: 'flat', width: 60, thickness: 0.35, angle: 30, pressure: 0.5 },
 	roughenDefaults: { size: 12, detail: 6, spread: 4, seed: 1 },
 	sheet: { templateVersion: 1, pages: [] },
+	// B3: the letter-spacing slider's extra (src/anyink/spacing/extra.js)
+	spacing: { extra: 0 },
 };
 
 /** A minimal upstream-shaped file: no settings.anyink at all */
@@ -78,6 +82,28 @@ describe('settings.anyink template', () => {
 		expect(project.settings.anyink.sheet.pages[0].threshold).toBe(128);
 	});
 
+	it('B3: the letter-spacing extra survives a load (the slider is not reset)', () => {
+		const project = new GlyphrStudioProject(upstreamFile({ anyink: { spacing: { extra: -20 } } }));
+		expect(project.settings.anyink.spacing).toEqual({ extra: -20 });
+		const again = new GlyphrStudioProject(JSON.parse(JSON.stringify(project.save())));
+		expect(again.settings.anyink.spacing.extra).toBe(-20);
+	});
+
+	it('keys of settings.anyink the template does not know yet are kept, not aliased', () => {
+		// B9 keeps each photo's scale and parts in settings.anyink.photos[assetId]; merge() alone
+		// would drop every key the template lacks, on load and in every whole-font Undo copy
+		const photos = { 'img-1': { scale: 2.5, parts: [{ id: 'p1', left: 10 }], uses: {} } };
+		const project = new GlyphrStudioProject(upstreamFile({ anyink: { photos } }));
+		expect(project.settings.anyink.photos).toEqual(photos);
+		expect(project.settings.anyink.photos).not.toBe(photos);
+		photos['img-1'].scale = 9;
+		expect(project.settings.anyink.photos['img-1'].scale).toBe(2.5);
+		const copy = new GlyphrStudioProject(project.save());
+		expect(copy.settings.anyink.photos['img-1'].parts).toEqual([{ id: 'p1', left: 10 }]);
+		// a key the template knows still merges key by key
+		expect(copy.settings.anyink.nibDefaults).toEqual(ANYINK_DEFAULTS.nibDefaults);
+	});
+
 	it('upstream booleans that differ from the default survive construction', () => {
 		// formatSaveFile defaults to false; the sample project saves true
 		const project = new GlyphrStudioProject(
@@ -102,6 +128,7 @@ describe('settings.anyink save round trip', () => {
 			templateVersion: 1,
 			pages: [{ id: 'p1', homography: [1, 2, 3], threshold: 90, speck: 1, overrides: {} }],
 		},
+		spacing: { extra: -12 },
 	};
 
 	it('save() includes settings.anyink', () => {

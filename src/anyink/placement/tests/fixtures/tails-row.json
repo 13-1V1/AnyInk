@@ -1,0 +1,95 @@
+{
+	"about": "Answer key for the synthetic handwriting photo of the same name (tests/placement-fixture.mjs). Image pixels, y down.",
+	"width": 1400,
+	"height": 560,
+	"unitPx": 1.7,
+	"penPx": 11,
+	"capitalPx": 170,
+	"smallPx": 102,
+	"letters": [
+		{
+			"char": "a",
+			"x0": 120,
+			"base": 301,
+			"size": 1,
+			"angle": 0.6,
+			"lineAtMiddle": 301.3927134370862,
+			"box": [
+				115,
+				191,
+				201,
+				307
+			]
+		},
+		{
+			"char": "g",
+			"x0": 301,
+			"base": 298,
+			"size": 1.03,
+			"angle": -0.8,
+			"lineAtMiddle": 297.4693854249311,
+			"box": [
+				295,
+				183,
+				384,
+				383
+			]
+		},
+		{
+			"char": "B",
+			"x0": 488,
+			"base": 302,
+			"size": 0.98,
+			"angle": 0.4,
+			"lineAtMiddle": 302.33161794544856,
+			"box": [
+				483,
+				130,
+				589,
+				308
+			]
+		},
+		{
+			"char": "Q",
+			"x0": 685,
+			"base": 299,
+			"size": 1.02,
+			"angle": -0.5,
+			"lineAtMiddle": 298.45893419697296,
+			"box": [
+				679,
+				120,
+				816,
+				338
+			]
+		},
+		{
+			"char": "f",
+			"x0": 916,
+			"base": 302,
+			"size": 0.97,
+			"angle": 1,
+			"lineAtMiddle": 302.5847446750953,
+			"box": [
+				910,
+				125,
+				990,
+				376
+			]
+		},
+		{
+			"char": ".",
+			"x0": 1082,
+			"base": 300,
+			"size": 1,
+			"angle": 0,
+			"lineAtMiddle": 300,
+			"box": [
+				1077,
+				286,
+				1090,
+				299
+			]
+		}
+	]
+}
