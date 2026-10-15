@@ -11,11 +11,12 @@ import { GlyphrStudioProject } from '../../../project_data/glyphr_studio_project
 import { ProjectEditor } from '../../../project_editor/project_editor.js';
 import simpleExampleProject from '../../../samples/simpleExampleProject.json';
 import { resetFileApi, setFileApi } from '../../files/file_api.js';
-import { DECODE_MESSAGES, setDecoderForTests } from '../bitmap_cache.js';
+import { setDecoderForTests } from '../bitmap_cache.js';
 import { NOT_TRACEABLE_HINT } from '../paste_drop.js';
 import {
 	ADDED_MESSAGE,
 	BIG_IMAGE_BYTES,
+	DECODE_FAILED_MESSAGE,
 	HEIC_MESSAGE,
 	HISTORY_ADDED,
 	HISTORY_REMOVED,
@@ -314,10 +315,10 @@ describe('importTraceImage', () => {
 		expect(editor.history.queue.length).toBe(before);
 	});
 
-	it('shows the decoder’s plain message when a file cannot be decoded', async () => {
+	it('says in house words when a file cannot be decoded (B4: the decoder’s code picks the key)', async () => {
 		setDecoderForTests((decoder = fakeDecoder({ fail: true })));
 		expect(await importTraceImage(jpeg(), { editor })).toBe(false);
-		expect(toastText()).toBe(DECODE_MESSAGES.decodeFailed);
+		expect(toastText()).toBe(DECODE_FAILED_MESSAGE);
 		expect(editor.assets.ids()).toHaveLength(0);
 		expect(getTrace(glyphA())).toBeNull();
 	});

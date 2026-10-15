@@ -17,6 +17,8 @@ import { readFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, extname, sep } from 'node:path';
 import assert from 'node:assert/strict';
+// B4: the notices' words are keys of src/anyink/words (sets/screens.js has no imports)
+import SCREENS from '../src/anyink/words/sets/screens.js';
 
 const root = resolve(process.argv[3] || 'dist');
 const shots = resolve(process.argv[2] || resolve(tmpdir(), 'anyink-notices'));
@@ -59,8 +61,8 @@ const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 
-const OFFLINE = 'ANY-INK is ready to open offline.';
-const INSTALL = 'Install ANY-INK to open it from your desktop.';
+const OFFLINE = SCREENS['notice.offlineReady'].text;
+const INSTALL = SCREENS['notice.install'].text;
 let seen = new Set();
 let most = 0;
 /** Samples the notices for a while; records every text seen and the most on screen at once. */
@@ -83,7 +85,7 @@ async function dismissAll(label) {
 		if (!texts.length) return;
 		await page.screenshot({ path: resolve(shots, `${label}-${i + 1}.png`) });
 		const text = texts[0];
-		const name = text === INSTALL ? 'Not now' : 'OK';
+		const name = SCREENS[text === INSTALL ? 'notice.notNow' : 'notice.ok'].text;
 		await page.locator('.anyink-pwa-notice').getByRole('button', { name, exact: true }).click();
 	}
 }

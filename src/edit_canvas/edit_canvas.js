@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { drawAutoTracePreview } from '../anyink/autotrace/preview_draw.js';
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
 import { onDisplayScaleChange } from '../anyink/metrics/display_scale.js';
@@ -9,6 +11,8 @@ import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guid
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
 import { onBitmapReady } from '../anyink/trace/bitmap_cache.js';
 import { drawTraceAffordances, drawTraceImage } from '../anyink/trace/trace_draw.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { labelCase, word } from '../anyink/words/words.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { transparencyToAlpha } from '../common/colors.js';
 import { makeElement } from '../common/dom.js';
@@ -17,7 +21,11 @@ import { drawGlyph, drawGlyphOutlineMode } from '../display_canvas/draw_paths.js
 import { kernGroupSideMaxWidth } from '../project_editor/cross_item_actions.js';
 import { gridColor, guideColorDark, guideLevelOpacity } from '../project_editor/guide.js';
 import { runQualityChecksForItem } from '../project_editor/quality_checks.js';
-import { drawCharacterKernExtra, drawContextCharacters } from './context_characters.js';
+import {
+	clearCanvasHotspots,
+	drawCharacterKernExtra,
+	drawContextCharacters,
+} from './context_characters.js';
 import {
 	computeAndDrawBoundingBox,
 	computeAndDrawBoundingBoxHandles,
@@ -286,8 +294,15 @@ export class EditCanvas extends HTMLElement {
 
 			const contextCharacterSettings = editor.project.settings.app.contextCharacters;
 			// Context characters
-			if (contextCharacterSettings.showCharacters) {
+			// ANY-INK (B4 + B5 fix pass): never in Simple, even when More tools turned them on: their
+			// labels are Glyphr Studio's words ("kern: -40", item names) and their names are links
+			// into pages Simple hides (UX-BEGINNER 2.3, 6.2)
+			if (contextCharacterSettings.showCharacters && !isSimpleMode()) {
 				drawContextCharacters(ctx);
+			} else {
+				// B4 + B5 finalize: their names are links only while they are drawn; an earlier
+				// draw's links must not stay as invisible traps (a click jumping to another letter)
+				clearCanvasHotspots();
 			}
 
 			// ANY-INK guides layer: hover / drag highlights and live metric labels
@@ -396,7 +411,7 @@ export class EditCanvas extends HTMLElement {
 				deltaY = project.settings.font.capHeight;
 				setSystemGuideColor('light', alpha);
 				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
-				if (showLabels) drawGuideLabel('Cap height', deltaY, true, alpha);
+				if (showLabels) drawGuideLabel(guideLabel('line.capHeight'), deltaY, true, alpha);
 			}
 			// ascent
 			if (editor.systemGuides.ascent) {
@@ -404,7 +419,7 @@ export class EditCanvas extends HTMLElement {
 				deltaY = project.settings.font.ascent;
 				setSystemGuideColor('medium', alpha);
 				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
-				if (showLabels) drawGuideLabel('Ascent', deltaY, true, alpha);
+				if (showLabels) drawGuideLabel(guideLabel('line.ascent'), deltaY, true, alpha);
 			}
 			// xHeight
 			if (editor.systemGuides.xHeight) {
@@ -412,7 +427,7 @@ export class EditCanvas extends HTMLElement {
 				deltaY = project.settings.font.xHeight;
 				setSystemGuideColor('light', alpha);
 				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
-				if (showLabels) drawGuideLabel('X height', deltaY, true, alpha);
+				if (showLabels) drawGuideLabel(guideLabel('line.xHeight'), deltaY, true, alpha);
 			}
 			// descent
 			if (editor.systemGuides.descent) {
@@ -420,7 +435,7 @@ export class EditCanvas extends HTMLElement {
 				deltaY = project.settings.font.descent;
 				setSystemGuideColor('medium', alpha);
 				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
-				if (showLabels) drawGuideLabel('Descent', deltaY, true, alpha);
+				if (showLabels) drawGuideLabel(guideLabel('line.descent'), deltaY, true, alpha);
 			}
 
 			// baseline
@@ -429,7 +444,7 @@ export class EditCanvas extends HTMLElement {
 				deltaY = 0;
 				setSystemGuideColor('dark', alpha);
 				drawEmHorizontalLine(ctx, deltaY, lineLength, view, thickness);
-				if (showLabels) drawGuideLabel('Baseline', 0, true, alpha);
+				if (showLabels) drawGuideLabel(guideLabel('line.baseline'), 0, true, alpha);
 			}
 
 			// Verticals
@@ -440,28 +455,23 @@ export class EditCanvas extends HTMLElement {
 				const layerLine = guidesLayerState.dragging || guidesLayerState.hover;
 				if (layerLine === 'lsb' || layerLine === 'rsb') sbHover = layerLine;
 
+				// ANY-INK (B4 + B5 fix pass, D-035): pointed at or dragged, an edge has one label, the
+				// drag readout by the pointer (metrics/overlay.js, "left space 0"); its own label
+				// at the top goes, so nothing says the same thing twice
 				if (editor.systemGuides.leftSide) {
-					if (sbHover === 'lsb') {
-						const lsbDisplay = Math.round(currentItem.leftSideBearing * 100) / 100;
-						setSystemGuideColor('dark', 0.8);
-						drawGuideLabel(`Left side bearing: ${lsbDisplay}`, 0, false, 0.8);
-					} else {
-						setSystemGuideColor('dark', alpha);
-					}
+					setSystemGuideColor('dark', sbHover === 'lsb' ? 0.8 : alpha);
 					drawEmVerticalLine(ctx, 0, view, sbHover === 'lsb', thickness);
-					if (showLabels) drawGuideLabel('Left side', 0, false, alpha);
+					if (showLabels && sbHover !== 'lsb') {
+						drawGuideLabel(guideLabel('canvas.leftEdge'), 0, false, alpha);
+					}
 				}
 
 				if (editor.systemGuides.rightSide && advanceWidth && currentItem.objType !== 'Component') {
-					if (sbHover === 'rsb') {
-						const rsbDisplay = Math.round(currentItem.rightSideBearing * 100) / 100;
-						setSystemGuideColor('dark', 0.8);
-						drawGuideLabel(`Right side bearing: ${rsbDisplay}`, advanceWidth, false, 0.8);
-					} else {
-						setSystemGuideColor('dark', alpha);
-					}
+					setSystemGuideColor('dark', sbHover === 'rsb' ? 0.8 : alpha);
 					drawEmVerticalLine(ctx, advanceWidth, view, sbHover === 'rsb', thickness);
-					if (showLabels) drawGuideLabel('Right side', advanceWidth, false, alpha);
+					if (showLabels && sbHover !== 'rsb') {
+						drawGuideLabel(guideLabel('canvas.rightEdge'), advanceWidth, false, alpha);
+					}
 				} else if (
 					editor.systemGuides.rightSide &&
 					hasNoWidthYet(currentItem) &&
@@ -560,6 +570,16 @@ export class EditCanvas extends HTMLElement {
 // --------------------------------------------------------------
 // Guides
 // --------------------------------------------------------------
+
+/**
+ * ANY-INK (B4, UX-BEGINNER.md 2.2, 2.4 B): a guide line's label in house words, in both modes
+ * ('Writing line', 'Small-letter line', 'Left edge').
+ * @param {String} key - a words.js key (line.*, canvas.leftEdge, canvas.rightEdge)
+ * @returns {String}
+ */
+function guideLabel(key) {
+	return labelCase(word(key));
+}
 
 /**
  * Draws a horizontal line, based on some Em values

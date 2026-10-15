@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>ANY-INK house words (B4)</title>
+		<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+		<style>
+			body {
+				font-family: var(--font-ui);
+				background: var(--chrome-bg);
+				color: var(--chrome-text);
+				margin: 0;
+				padding: var(--space-5);
+			}
+			h1 {
+				font-size: var(--text-xl);
+				font-weight: normal;
+				margin: 0 0 var(--space-2);
+			}
+			h2 {
+				font-size: var(--text-lg);
+				font-weight: 600;
+				margin: var(--space-6) 0 var(--space-2);
+			}
+			p {
+				color: var(--chrome-text-muted);
+				max-width: 90ch;
+				margin: 0 0 var(--space-3);
+			}
+			code,
+			.key {
+				font-family: var(--font-mono);
+				font-size: var(--text-xs);
+			}
+			.row {
+				display: flex;
+				flex-wrap: wrap;
+				gap: var(--space-3);
+				align-items: center;
+				margin-bottom: var(--space-3);
+			}
+			input[type='search'] {
+				font: inherit;
+				background: var(--field-bg);
+				color: var(--field-text);
+				border: 1px solid var(--field-border);
+				border-radius: var(--radius);
+				padding: var(--space-1) var(--space-2);
+				min-width: 280px;
+			}
+			input[type='search']:focus-visible {
+				outline: none;
+				border-color: var(--field-border-focus);
+				box-shadow: var(--focus-ring);
+			}
+			label {
+				font-size: var(--text-sm);
+			}
+			#summary {
+				font-size: var(--text-sm);
+			}
+			#summary b {
+				color: var(--chrome-text);
+			}
+			.clean {
+				color: var(--touch);
+				font-weight: 600;
+			}
+			.hits {
+				color: var(--warning);
+				font-weight: 600;
+			}
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				font-size: var(--text-sm);
+			}
+			th {
+				text-align: left;
+				font-weight: 600;
+				color: var(--chrome-text-muted);
+				border-bottom: 1px solid var(--chrome-border-strong);
+				padding: var(--space-1) var(--space-2);
+				position: sticky;
+				top: 0;
+				background: var(--chrome-bg);
+			}
+			td {
+				vertical-align: top;
+				border-bottom: 1px solid var(--chrome-border);
+				padding: var(--space-1) var(--space-2);
+			}
+			tr.banned td {
+				background: var(--warning-soft);
+			}
+			.anyink-pro-word {
+				font-size: var(--text-xs);
+				color: var(--chrome-text-faint);
+			}
+			.flag {
+				font-family: var(--font-mono);
+				font-size: var(--text-xs);
+				color: var(--structure);
+			}
+			.flag.off {
+				color: var(--chrome-text-faint);
+			}
+			.badge {
+				display: inline-block;
+				font-size: var(--text-xs);
+				border: 1px solid var(--warning);
+				color: var(--warning);
+				border-radius: var(--radius-sm);
+				padding: 0 var(--space-1);
+				margin-top: 2px;
+			}
+			.muted {
+				color: var(--chrome-text-faint);
+			}
+			dl.glossary {
+				display: grid;
+				grid-template-columns: max-content 1fr;
+				gap: var(--space-2) var(--space-4);
+				margin: 0;
+				max-width: 110ch;
+			}
+			dl.glossary dt {
+				font-weight: 600;
+			}
+			dl.glossary dd {
+				margin: 0;
+				color: var(--chrome-text-muted);
+			}
+			.hidden-step {
+				color: var(--chrome-text-faint);
+				font-style: italic;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>House words (B4)</h1>
+		<p>
+			Every key in <code>src/anyink/words/words.js</code>, gathered from the set files in
+			<code>words/sets/</code>, with its text, hint, pro word and the feature flag that ships it. A
+			row turns amber with "!" and the word when its text, hint or comparison says a word from the
+			banned list (UX-BEGINNER 2.3) or something 2.4 E and G never show (a Unicode block name,
+			"project", "JSON", an error code); a quote entry's text is exempt. Below: Help's glossary as
+			it would show today, and every Undo title the app records turned into plain words.
+		</p>
+		<div class="row">
+			<input
+				type="search"
+				id="filter"
+				placeholder="Filter by key or words"
+				aria-label="Filter the keys"
+			/>
+			<label><input type="checkbox" id="landedOnly" /> Only words that show today</label>
+		</div>
+		<p id="summary">Loading…</p>
+
+		<h2>Every key</h2>
+		<table id="keys">
+			<thead>
+				<tr>
+					<th>Key</th>
+					<th>Text</th>
+					<th>Hint</th>
+					<th>Pro word</th>
+					<th>Feature</th>
+					<th>Like</th>
+					<th>Set</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+
+		<h2>Glossary as Help shows it today</h2>
+		<p>
+			Help's "What these words mean" (4.10) lists only words whose feature has landed (principle 8).
+			<span id="glossaryCount"></span>
+		</p>
+		<dl class="glossary" id="glossary"></dl>
+
+		<h2>Undo titles in plain words</h2>
+		<p>
+			<code>historyText(title)</code> for every title History records today. Looking-around steps
+			are never shown (in italics: the words they would have).
+		</p>
+		<table id="titles">
+			<thead>
+				<tr>
+					<th>Recorded title</th>
+					<th>He reads</th>
+					<th>Key</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+
+		<script type="module">
+			window.log = () => {};
+			const { wordKeys, wordEntry, glossary, isLanded, labelCase } = await import(
+				'../src/anyink/words/words.js'
+			);
+			const { findBanned } = await import('../src/anyink/words/banned.js');
+			const { describeHistoryTitle } = await import('../src/anyink/words/history_text.js');
+			const { HISTORY_SAMPLES } = await import('../src/anyink/words/tests/history_samples.js');
+			const { GLOSSARY } = await import('../src/anyink/words/sets/core.js');
+
+			// Which set file each key comes from
+			const sets = import.meta.glob('../src/anyink/words/sets/*.js', { eager: true });
+			const setOf = {};
+			Object.entries(sets).forEach(([path, module]) => {
+				const file = path.split('/').pop();
+				Object.keys(module.default || {}).forEach((key) => (setOf[key] = file));
+			});
+
+			const el = (tag, props = {}, children = []) => {
+				const node = document.createElement(tag);
+				Object.assign(node, props);
+				[].concat(children).forEach((child) => node.append(child));
+				return node;
+			};
+
+			/**
+			 * Banned words in an entry's text (unless a quote), hint and comparison. B4 + B5 fix pass:
+			 * strict, so what 2.4 E and G never show ("project", "Latin", "JSON", [PF0]) counts too.
+			 */
+			function entryHits(entry) {
+				return [entry.quote ? '' : entry.text, entry.hint, entry.like].flatMap((t) =>
+					findBanned(t, { strict: true })
+				);
+			}
+
+			const keys = wordKeys();
+			const rows = keys.map((key) => {
+				const entry = wordEntry(key);
+				const hits = entryHits(entry);
+				// A quote entry's text is an exact Windows label: marked as the house exemption (2.3)
+				const textCell = entry.quote
+					? el('td', { className: 'words anyink-quote' }, `"${entry.text}"`)
+					: el('td', { className: 'words' }, entry.text);
+				if (hits.length)
+					textCell.append(
+						el(
+							'div',
+							{},
+							hits.map((h) => el('span', { className: 'badge' }, `! ${h.match}`))
+						)
+					);
+				const row = el('tr', {}, [
+					el('td', { className: 'key' }, key),
+					textCell,
+					el('td', { className: 'words' }, entry.hint || ''),
+					el('td', {}, entry.pro ? el('span', { className: 'anyink-pro-word' }, entry.pro) : ''),
+					el(
+						'td',
+						{},
+						el(
+							'span',
+							{ className: `flag${isLanded(entry) ? '' : ' off'}` },
+							entry.feature ? `${entry.feature}${isLanded(entry) ? '' : ' (off)'}` : 'live'
+						)
+					),
+					el('td', { className: 'words' }, entry.like || ''),
+					el('td', { className: 'muted' }, setOf[key] || ''),
+				]);
+				row.dataset.key = key;
+				if (hits.length) row.classList.add('banned');
+				return { key, entry, row, hits };
+			});
+			const tbody = document.querySelector('#keys tbody');
+			rows.forEach(({ row }) => tbody.append(row));
+
+			const bannedRows = rows.filter((r) => r.hits.length);
+			const landed = rows.filter((r) => isLanded(r.entry));
+			const summary = document.querySelector('#summary');
+			summary.innerHTML = '';
+			summary.append(
+				el('b', {}, `${keys.length} keys`),
+				` from ${Object.keys(sets).length} set files; `,
+				el('b', {}, `${landed.length}`),
+				' show today; banned words: ',
+				bannedRows.length
+					? el('span', { className: 'hits' }, `! ${bannedRows.length} keys`)
+					: el('span', { className: 'clean' }, 'none')
+			);
+			summary.dataset.keys = String(keys.length);
+			summary.dataset.banned = String(bannedRows.length);
+
+			// Filter
+			const filter = document.querySelector('#filter');
+			const landedOnly = document.querySelector('#landedOnly');
+			const applyFilter = () => {
+				const q = filter.value.trim().toLowerCase();
+				rows.forEach(({ key, entry, row }) => {
+					const match = !q || `${key} ${entry.text} ${entry.hint}`.toLowerCase().includes(q);
+					row.hidden = !match || (landedOnly.checked && !isLanded(entry));
+				});
+			};
+			filter.addEventListener('input', applyFilter);
+			landedOnly.addEventListener('change', applyFilter);
+
+			// Glossary (Help)
+			const shown = glossary();
+			document.querySelector(
+				'#glossaryCount'
+			).textContent = `${shown.length} of ${GLOSSARY.length} words show now.`;
+			const dl = document.querySelector('#glossary');
+			shown.forEach((entry) => {
+				const dd = el('dd', {}, `${entry.hint} `);
+				if (entry.like) dd.append(el('span', { className: 'muted' }, `Like: ${entry.like}. `));
+				dd.append(el('span', { className: 'anyink-pro-word' }, `(pro word: ${entry.pro})`));
+				dl.append(el('dt', {}, labelCase(entry.text)), dd);
+			});
+
+			// Undo titles
+			const titles = document.querySelector('#titles tbody');
+			HISTORY_SAMPLES.forEach(({ title, context }) => {
+				const step = describeHistoryTitle(title, context);
+				const shownText = step.hidden
+					? el('span', { className: 'hidden-step' }, `(never shown: ${step.text})`)
+					: step.text;
+				const row = el('tr', {}, [
+					el('td', { className: 'key' }, title.replace(/\s+/g, ' ').trim() || '(empty)'),
+					el('td', { className: 'words' }, shownText),
+					el('td', { className: 'key' }, step.key || '(as written)'),
+				]);
+				row.dataset.hidden = String(step.hidden);
+				titles.append(row);
+			});
+			document.body.dataset.ready = 'true';
+		</script>
+	</body>
+</html>

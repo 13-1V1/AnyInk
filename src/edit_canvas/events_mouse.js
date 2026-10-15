@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { releaseFocus } from '../anyink/controls/focus_release.js';
 import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
 import { handleTraceLayerEvent } from '../anyink/trace/trace_layer.js';
@@ -31,7 +33,9 @@ export function handleMouseEvents(event) {
 	// log(`Raw mouse event x/y = ${event.layerX} / ${event.layerY}`);
 	// log(event);
 
-	if (event.type === 'mousedown' && typeof event.button === 'number') closeEveryTypeOfDialog();
+	// ANY-INK (B4 + B5 finalize, D-035): a press here leaves Simple's toasts to their own time
+	if (event.type === 'mousedown' && typeof event.button === 'number')
+		closeEveryTypeOfDialog({ fromCanvas: true });
 	// ANY-INK (M7 finalize): a press on the canvas takes the keyboard back from any panel
 	// control. Upstream cancels this mousedown, so the browser never moves focus itself.
 	if (event.type === 'mousedown') releaseFocus();

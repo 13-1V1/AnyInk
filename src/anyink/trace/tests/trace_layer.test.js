@@ -24,6 +24,8 @@ import {
 	traceLayerTarget,
 } from '../trace_layer.js';
 import { setDecoderForTests } from '../bitmap_cache.js';
+import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
+import { setModeForTests } from '../../mode/mode.js';
 import { TRACE_HANDLE_HIT_PX } from '../trace_draw.js';
 import { importTraceImage } from '../trace_import.js';
 import {
@@ -932,5 +934,32 @@ describe('shapes drawn over the image, with the arrow (fix track, D-028 revisit)
 		expect(handleTraceLayerEvent(mouse('mousedown', nw))).toBe(true);
 		expect(traceLayerState.dragging).toBe('nw');
 		handleTraceLayerEvent(mouse('mouseup', nw));
+	});
+});
+
+// B4 + B5 finalize (the dead-end photo variant): Simple draws no photo until B9's photo card
+// (photo_gate.js), so it can't be grabbed either: an invisible photo's corner or body must never
+// take a press. Once B9 turns 'photo' on, it can; All tools as before.
+describe('the photo layer in Simple before the photo card (B9)', () => {
+	afterEach(() => {
+		setModeForTests('all');
+		resetFeaturesForTests();
+	});
+
+	it('Simple, photo flag off: nothing to grab', () => {
+		const editor = makeEditor();
+		setModeForTests('simple');
+		expect(traceLayerTarget(editor)).toBe(null);
+	});
+
+	it("Simple, once B9 turns 'photo' on: the photo can be grabbed", () => {
+		const editor = makeEditor();
+		setModeForTests('simple');
+		setFeaturesForTests({ photo: true });
+		expect(traceLayerTarget(editor)).not.toBe(null);
+	});
+
+	it('All tools: as before', () => {
+		expect(traceLayerTarget(makeEditor())).not.toBe(null);
 	});
 });

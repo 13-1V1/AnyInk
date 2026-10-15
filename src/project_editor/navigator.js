@@ -1,10 +1,18 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { arriveAt } from '../anyink/mode/band.js';
+import { hiddenAttributes } from '../anyink/mode/hide.js';
+import { heading, item, keepShown } from '../anyink/mode/sections.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { navSuperTitle, pageTitle } from '../anyink/mode/simple_labels.js';
+import { filterShown, isShown } from '../anyink/mode/visibility.js';
 import { token } from '../anyink/theme/theme.js';
 import { installPageDropGuard } from '../anyink/trace/trace_drop.js';
 import { showAppErrorPage } from '../app/app.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
-import { makeAppTopBar } from '../app/menu.js';
+import { makeAppBand, makeAppTopBar } from '../app/menu.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
 import { makeIcon } from '../common/graphics.js';
@@ -120,6 +128,11 @@ export class Navigator {
 		// log(`this.panel: ${this.panel}`);
 		// log(`editor.selectedItemID: ${getCurrentProjectEditor().selectedItemID}`);
 
+		// ANY-INK (B5, UX-BEGINNER 6.3): the landing rule runs before anything is drawn. Arriving
+		// in Simple on a page Simple hides (an undo, a link) turns More tools on for that visit,
+		// so the page is drawn with More tools' controls; arriving back on a page Simple shows
+		// ends the visit. It never blocks or redirects the page (band.js arriveAt).
+		arriveAt(this.page);
 		closeEveryTypeOfDialog();
 		// ANY-INK: undo and other code paths change the page without the page button, which is
 		// the only place upstream resets a panel the new page does not offer (Trace on Kerning)
@@ -137,6 +150,9 @@ export class Navigator {
 				const pageContent = this.makePageContent();
 				wrapper.innerHTML = '';
 				wrapper.appendChild(makeAppTopBar());
+				// ANY-INK (B5): the purple More tools band, under the top bar, when there is one
+				const band = makeAppBand();
+				if (band) wrapper.appendChild(band);
 				wrapper.appendChild(pageContent);
 				// ANY-INK: app-wide elements (preview strip) react to page changes
 				window.dispatchEvent(
@@ -217,19 +233,30 @@ export class Navigator {
 // Helpers
 // --------------------------------------------------------------
 
+/**
+ * ANY-INK (B5, UX-BEGINNER 6.2): which chooser each nav button is, in visibility.js's
+ * 'chooser' area. A chooser the mode hides is still drawn (the page makers find it by id) but
+ * hidden (mode/hide.js).
+ */
+const CHOOSER_FOR_NAV_TYPE = { PAGE: 'page', EDITING: 'item', PANEL: 'panel' };
+
 export function makeNavButton(properties = {}) {
 	let title = properties.title || 't i t l e';
 	// ANY-INK (B1): nav.panel holds the id; the PANEL button shows its label
 	if (properties.superTitle === 'PANEL') title = panelLabel(title);
+	// ANY-INK (B5 fix track): Simple names its pages in house words ("All letters")
+	if (properties.superTitle === 'PAGE') title = pageTitle(title);
 	let superTitle = properties.superTitle || 's u p e r t i t l e';
 	let level = properties.level || '';
+	const chooser = CHOOSER_FOR_NAV_TYPE[superTitle];
+	const hidden = !!chooser && !isShown('chooser', chooser);
 
 	return `
 		<button
 			data-nav-type="${superTitle}"
 			class="nav-button"
 			id="nav-button${level ? `-${level}` : ''}"
-			title="${title}"
+			title="${title}"${hiddenAttributes(hidden)}
 		>
 			${makeNavButtonContent(title, superTitle)}
 		</button>
@@ -237,8 +264,9 @@ export function makeNavButton(properties = {}) {
 }
 
 export function makeNavButtonContent(title, superTitle) {
+	// ANY-INK (B4 + B5 integration): Simple's small label is a house word ("Letter")
 	return `
-		<span class="nav-button__super-title">${superTitle}</span>
+		<span class="nav-button__super-title">${navSuperTitle(superTitle)}</span>
 		<span class="nav-button__title" title="${title}">${title}</span>
 	`;
 }
@@ -347,9 +375,18 @@ function makePageChooserContent() {
 	let content = makeElement();
 	let pageButton;
 	let toc = getCurrentProjectEditor().nav.tableOfContents;
+	// ANY-INK (B5, UX-BEGINNER 6.3): only the pages the mode shows, and only the subtitles over
+	// them. The table of contents itself stays whole: navigate() needs every page.
+	// B5 fix track: Simple keeps the chooser until B6's rail, with its four pages and none of
+	// Glyphr Studio's headings ("Design glyphs"), in house words (makeNavButton_Page).
+	const simple = isSimpleMode();
+	const rows = Object.keys(toc)
+		.filter((name) => (toc[name]?.type === 'subtitle' ? !simple : toc[name].pageMaker))
+		.map((name) => (toc[name]?.type === 'subtitle' ? heading(name) : item(name, name)));
 
-	Object.keys(toc).forEach((itemName) => {
-		if (toc[itemName]?.type === 'subtitle') {
+	keepShown(rows, (pageName) => isShown('page', pageName)).forEach((row) => {
+		const itemName = row.value;
+		if (row.kind === 'heading') {
 			content.appendChild(
 				makeElement({ tag: 'h3', content: itemName, className: 'nav-dropdown__subtitle' })
 			);
@@ -377,11 +414,13 @@ function makeNavButton_Page(pageName, iconName) {
 	let button = makeElement({
 		tag: 'button',
 		className: 'nav-dropdown__button',
-		attributes: { tabindex: '0' },
+		// ANY-INK (B5 fix track): the page's id, so checks find a row without its words
+		attributes: { tabindex: '0', 'data-anyink-page': pageName },
 	});
 	const isCurrent = getCurrentProjectEditor().nav.page === pageName;
 	button.innerHTML += makeIcon({ name: iconName, color: navIconColor(isCurrent) });
-	button.appendChild(makeElement({ content: pageName }));
+	// ANY-INK (B5 fix track): Simple's house words for the page ("All letters")
+	button.appendChild(makeElement({ content: pageTitle(pageName) }));
 	button.addEventListener('click', () => {
 		let editor = getCurrentProjectEditor();
 		if (editor.nav.page !== pageName) {
@@ -474,7 +513,8 @@ function makePanelChooserContent() {
 	let panels = listOfPanels();
 	let page = getCurrentProjectEditor().nav.page;
 	// ANY-INK (B1): each row stores the panel's id and shows its label
-	panelsPerPage[page].forEach((panelID) => {
+	// ANY-INK (B5, UX-BEGINNER 6.2): only the panels the mode shows
+	filterShown('panel', panelsPerPage[page], (panelID) => panelID).forEach((panelID) => {
 		pageButton = makeNavButton_Panel(panelID, panels[panelID].name, panels[panelID].iconName);
 		content.appendChild(pageButton);
 	});

@@ -30,7 +30,15 @@
 		"verify:spacing": "node tests/spacing.verify.mjs",
 		"verify:placement": "node tests/placement.verify.mjs",
 		"verify:b23": "node tests/b23.verify.mjs",
-		"verify:hooks": "node tests/hooks.verify.mjs"
+		"verify:hooks": "node tests/hooks.verify.mjs",
+		"verify:words": "node tests/words.verify.mjs",
+		"verify:mode": "node tests/mode.verify.mjs",
+		"verify:wiring": "node tests/wiring.verify.mjs",
+		"verify:mode-fixes": "node tests/mode-fixes.verify.mjs",
+		"verify:toast": "node tests/toast.verify.mjs",
+		"verify:screens": "node tests/screens.verify.mjs",
+		"verify:b45": "node tests/b45.verify.mjs",
+		"verify:words-fix": "node tests/words-fix.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

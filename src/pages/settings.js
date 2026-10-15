@@ -1,6 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { makeMetricSettingsInput } from '../anyink/metrics/readouts.js';
+import { settingShown } from '../anyink/mode/settings_rows.js';
 import { isFontMetricKey } from '../anyink/metrics/metrics_math.js';
 import { markDirty } from '../anyink/recovery/recovery.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
@@ -130,6 +131,9 @@ export function makeOneSettingsRow(groupName, propertyName, callback, inputFirst
 	// log(`makeOneSettingsRow`, 'start');
 	// log(`groupName: ${groupName}`);
 	// log(`propertyName: ${propertyName}`);
+	// ANY-INK (B5, UX-BEGINNER 6.2 Settings): a row the mode hides is never built
+	// (src/anyink/mode/settings_rows.js); the tabs drop the headings left with nothing under them.
+	if (!settingShown(groupName, propertyName)) return [];
 	const settings = getCurrentProject().settings;
 	const thisSetting = settingsMap[groupName][propertyName];
 	const settingType = thisSetting?.type;

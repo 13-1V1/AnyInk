@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { toOverview } from './verify_standins.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const src = fileURLToPath(new URL('../src/', import.meta.url));
@@ -317,15 +318,15 @@ try {
 			};
 		});
 	const openLetter = async (id) => {
-		await page.locator('button[data-nav-type="PAGE"]').click();
-		await page.locator('.nav-dropdown__button:has-text("Overview"):visible').click();
-		await page.waitForTimeout(300);
+		// B5: Simple has no page chooser (verify_standins.mjs)
+		await toOverview(page, 300);
 		await page.locator(`glyph-tile[displayed-item-id="${id}"]`).click();
 		await waitUntil(async () => (await appState()).open === id, `open ${id}`);
 		await page.waitForTimeout(400);
 	};
 	const drawRectangle = async () => {
-		await page.locator('button[title="New rectangle"]').click();
+		// B4 + B5 integration: tools by their id; Simple's tooltips say "Rectangle (R)"
+		await page.locator('button[data-anyink-tool="newRectangle"]').click();
 		await page.mouse.move(960, 330);
 		await page.mouse.down();
 		await page.mouse.move(1080, 515, { steps: 8 });

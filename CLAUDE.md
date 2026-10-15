@@ -49,9 +49,38 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   The strip shows its first problem with Show me / Fix it (`src/anyink/preview/fix_it.js`).
   `src/anyink/words/letter_name.js` names letters ("small b"). Test page `tests/fontcheck.html`;
   real-Chrome checks `tests/*.verify.mjs` (see tests/README.md).
-- `src/anyink/mode` (B2) — `mode.js` (`'all'` by default, `?ui=simple` for one load,
-  `setModeForTests`) and `features.js` (per-feature flags, empty until B5+). Simple-only
-  behavior checks `isSimpleMode()`; All tools must behave as before.
+- `src/anyink/words` (B4) — the one vocabulary: `words.js` gathers `sets/*.js` (one file per owner;
+  `word(key, vars)` throws on a missing key; `glossary`, `labelCase`), `letter_name.js`,
+  `letter_set.js` (a letter set in house words, never a block name), `history_text.js`
+  (`historyText(title)`: every Undo title in plain words, '' for a hidden one), `banned.js` (the 2.3
+  list with plurals and -ed / -ing forms, plus 2.4 E / G's never-shown terms for strict scans;
+  `scanDom`, `findUppercase`; exemptions `.anyink-quote` and `.anyink-pro-word`), `error_words.js`
+  (7.7: what went wrong -> one sentence and its buttons), `word_html.js` (a key as HTML, quotes
+  marked), `error_box.js` (`sayError`: Simple's error box with those buttons, the first green;
+  All tools keeps upstream's box). A later B scans its Simple screens with `scanSimpleScreen` from
+  `words/tests/banned_scan.js` (strict by default). Test page `tests/words.html`.
+- `src/anyink/toast` (B4) — one toast voice: `toast(key, vars, { kind, action, group, tone, quotes,
+  stillGood })`; upstream's `showToast` goes through `upstreamToast` and `upstream_map.js` (every
+  message mapped; Simple drops an unmapped one and the scan fails on it). All tools keeps the
+  classic toast (`toast_view.js` showClassic); Simple has one queue (`queue.js`), bottom right:
+  undo > destructive > automatic > info, info toasts wait their turn, a stream (`group`: drop,
+  file, export, toolSwitch, merge) replaces itself, an offer (info + button) survives a clear
+  until its font is gone (`stillGood`), a press on the letter canvas leaves Simple's toasts alone.
+  `drop_toasts.js`: a work file or an empty drawing dropped. Test page `tests/toast.html`.
+- `src/anyink/mode` (B2 + B5) — `mode.js` (`'all'` by default, `?ui=simple` for one load, mirrored
+  to `html[data-ui-mode]`, `anyink-mode-change`, `setModeForTests`), `features.js` (14 flags, all
+  off; each B turns on only its own), `visibility.js` (6.2's tables: `isShown(area, id)`; screens
+  filter where they are drawn), `keys.js` (the one key map, 7.6), `band.js` (purple band, landing
+  rule `arriveAt` at the top of `Navigator.navigate`), `switch.js` (`switchMode`: mode changes from
+  the UI), `locks.js` (guide lines locked in Simple), `hide.js` / `sections.js` /
+  `settings_rows.js` (drawing helpers), `doors.js` (Use in Word / Fine-tune events),
+  `simple_labels.js` (Simple's words on today's letter page, tiles and nav until B7 / B10),
+  `back_to_letters.js` ([Back to my letters] on Simple's Help and About until B6 / B15).
+  `locks.js` also locks an empty letter's left edge in both modes. Simple-only behavior checks
+  `isSimpleMode()` or `isShown`; All tools must behave as before. Test page `tests/mode.html`.
+  `src/anyink/files/open_font.js`: Ctrl+O in both modes (opens into the font he is in; asks
+  whenever the work file is behind; a backup copy first). `src/anyink/trace/photo_gate.js`:
+  Simple takes, draws and grabs no photo until B9 turns 'photo' on.
 - `src/anyink/history` — settings steps (`settings_snapshot.js`, also `settings.anyink` and the
   name), B2's Simple undo (`simple_undo.js`: one press undoes the newest change wherever it is),
   the 200 / 30 cap with `history.undoFloor` (`undo_cap.js`; looking around never counts, "Navigated
@@ -104,7 +133,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — DONE 09/24/2026 (src/anyink/autotrace: params, binarize, potrace worker + client, svg_to_shapes, trace_region, facade autotrace.js for M9, session, preview, apply, Auto-trace card in the Trace panel; D-029)
-B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 to B16 next, then M9.
+B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 done 10/14/2026 (`src/anyink/words` and `src/anyink/toast`: house words at every display point Simple shares, one toast voice, the banned-word scan; D-035); B5 done 10/14/2026 (`src/anyink/mode`: visibility tables, the key map, the purple band and landing rule, guide-line locks, wired into navigator / menu / actions / tools / keys / settings / panels; D-035); B4 + B5 integration done 10/14/2026 (0 banned-word hits on every Simple page that exists, `verify:b45`); B4 + B5 critic, fix and finalize passes done 10/14/2026 (strict scans on by default, 7.7 error boxes with working buttons, Ctrl+O into the right font, "Saving..." while a write waits, Help / About with a way back, start page with one green, photos closed in Simple until B9; D-035); B6 to B16 next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
 9. Handwriting sheet — pending (after B16; plugs into the letter board)

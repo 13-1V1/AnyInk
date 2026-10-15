@@ -43,7 +43,7 @@ preview-strip * {
 .preview-strip__eyebrow {
 	font-size: var(--text-xs);
 	letter-spacing: var(--eyebrow-spacing);
-	text-transform: uppercase;
+	/* B4 (UX-BEGINNER.md 2.2): sentence case, never shown in capitals */
 	color: var(--chrome-text-faint);
 	line-height: 14px;
 	user-select: none;

@@ -10,6 +10,13 @@
 const TEXT_ENTRY_TAGS = ['input', 'textarea', 'input-number', 'option-chooser', 'option-toggle'];
 
 /**
+ * <input> types that type nothing: a range slider, a toggle and the buttons. With one of them
+ * focused the app keeps its keys (B4 + B5 finalize: the strip's Real font and Guide lines
+ * toggles are checkboxes, and every app key went dead once one had been clicked).
+ */
+const INPUTS_THAT_TYPE_NOTHING = ['range', 'checkbox', 'button', 'submit', 'reset'];
+
+/**
  * Elements that are contenteditable for a technical reason only: the edit
  * canvas turns it on so raw SVG can be pasted onto it. Shortcuts must keep
  * working while it has focus.
@@ -26,8 +33,10 @@ export function isTextEntryElement(element) {
 	if (!element || typeof element.tagName !== 'string') return false;
 	const tag = element.tagName.toLowerCase();
 	// A range slider keeps focus after a drag; it types nothing, so shortcuts stay live.
-	// (Slider rows own their arrow / Home / End keys with stopPropagation.)
-	if (tag === 'input' && String(element.type).toLowerCase() === 'range') return false;
+	// (Slider rows own their arrow / Home / End keys with stopPropagation.) So do a checkbox
+	// and the button inputs (B4 + B5 finalize).
+	if (tag === 'input' && INPUTS_THAT_TYPE_NOTHING.includes(String(element.type).toLowerCase()))
+		return false;
 	if (TEXT_ENTRY_TAGS.includes(tag)) return true;
 	if (EDITABLE_BUT_NOT_TEXT.includes(tag)) return false;
 

@@ -2,7 +2,10 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { AssetStore } from '../anyink/assets/asset_store.js';
+import { spaceWidth } from '../anyink/fontcheck/export_list.js';
 import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
 import { saveProject, saveProjectAs } from '../anyink/files/project_files.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
@@ -29,6 +32,22 @@ import { History } from './history.js';
 import { MultiSelectPoints, MultiSelectShapes } from './multiselect.js';
 import { Navigator } from './navigator.js';
 import { publish, subscribe, unsubscribe } from './pub_sub.js';
+
+/** ANY-INK (B4 + B5 finalize): the space and the no-break space */
+const SPACE_IDS = ['glyph-0x20', 'glyph-0xA0'];
+
+/**
+ * ANY-INK (B4 + B5 finalize): in Simple, opening the space (or the no-break space) makes it a
+ * quarter of the letter box wide, the width the font file gives it (export_list.js spaceWidth),
+ * so just opening it never leaves a font that needs fixing ("The space has no width"). All
+ * tools makes it as before (0 wide).
+ * @param {Object} project - GlyphrStudioProject
+ * @param {String} id - the letter just made
+ */
+function giveOpenedSpaceItsWidth(project, id) {
+	if (!isSimpleMode() || !SPACE_IDS.includes(id) || !project?.glyphs?.[id]) return;
+	project.glyphs[id].advanceWidth = spaceWidth(project);
+}
 
 /**
  * Creates a new Glyphr Studio Project Editor.
@@ -286,6 +305,7 @@ export class ProjectEditor {
 				});
 			}
 			this.project.addItemByType(new Glyph(), 'Glyph', selectedID);
+			giveOpenedSpaceItsWidth(this.project, selectedID);
 			if (recordHistory) this.history.addWholeProjectChangePostState();
 		}
 		let re = this.project.glyphs[selectedID];
@@ -507,6 +527,7 @@ export class ProjectEditor {
 			this._selectedGlyphID = id;
 		} else if (id.startsWith('glyph-')) {
 			this.project.glyphs[id] = new Glyph({ id: id, parent: this.project });
+			giveOpenedSpaceItsWidth(this.project, id);
 			this._selectedGlyphID = id;
 		}
 		this.publish('whichGlyphIsSelected', this.selectedGlyphID);

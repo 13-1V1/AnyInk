@@ -1,0 +1,717 @@
+{
+	"topMenus": [
+		"File",
+		"Projects",
+		"Help"
+	],
+	"fileMenu": {
+		"download": [
+			"heading",
+			"save",
+			"hr",
+			"heading",
+			"font-otf",
+			"font-ttf",
+			"font-woff",
+			"font-woff2",
+			"hr",
+			"heading",
+			"font-svg"
+		],
+		"fileSystem": [
+			"heading",
+			"save",
+			"save-as",
+			"hr",
+			"heading",
+			"font-otf",
+			"font-ttf",
+			"font-woff",
+			"font-woff2",
+			"font-folder",
+			"hr",
+			"heading",
+			"font-svg"
+		]
+	},
+	"projectsMenu": [
+		"EditingGS2 Test Font",
+		"Open another font",
+		"Cross-project actionsOpen another font f",
+		"hr",
+		"Open a separate project in a new window"
+	],
+	"helpMenu": [
+		"In-app help",
+		"About ANY-INK"
+	],
+	"pages": {
+		"Overview": {
+			"page": "Overview",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		},
+		"Characters": {
+			"page": "Characters",
+			"nav": [
+				"l1",
+				"l2",
+				"l3"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			],
+			"panelChooser": [
+				"Attributes",
+				"Layers",
+				"Trace",
+				"ContextCharacters",
+				"Transforms",
+				"History",
+				"Guides",
+				"CharacterInfo",
+				"QualityChecks"
+			],
+			"panel": true,
+			"panelActions": [
+				"Auto-fit advance width",
+				"Copy",
+				"Paste",
+				"Clear ANY-INK Clipboard",
+				"Undo",
+				"Redo",
+				"Add Path",
+				"Add Component Instance",
+				"Get Paths",
+				"Get Paths From Another Project",
+				"Flip Horizontal",
+				"Flip Vertical",
+				"Round all path point and handle position values",
+				"Combine all paths: Unite",
+				"Delete Glyph",
+				"Export glyph SVG File",
+				"Import paths from a SVG File"
+			],
+			"tools": [
+				"New rectangle",
+				"New oval",
+				"New path",
+				"Add path point",
+				"Path edit",
+				"Resize"
+			],
+			"viewTools": [
+				"Pan the edit canvas",
+				"Zoom out 10%",
+				"Zoom level",
+				"Zoom in 10%",
+				"Toggle fill / outline display mode",
+				"Paper / slate",
+				"Zoom so 1 pixel = 1 em",
+				"Zoom to fit a full Em",
+				"Pop out a Live Preview window"
+			]
+		},
+		"Ligatures": {
+			"page": "Ligatures",
+			"nav": [
+				"l1",
+				"l2",
+				"l3"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			],
+			"panelChooser": [
+				"Attributes",
+				"Layers",
+				"Trace",
+				"Transforms",
+				"History",
+				"Guides",
+				"QualityChecks"
+			],
+			"panel": true,
+			"panelActions": [
+				"Auto-fit advance width",
+				"Copy",
+				"Paste",
+				"Clear ANY-INK Clipboard",
+				"Undo",
+				"Redo",
+				"Add Path",
+				"Add Component Instance",
+				"Get Paths",
+				"Get Paths From Another Project",
+				"Flip Horizontal",
+				"Flip Vertical",
+				"Round all path point and handle position values",
+				"Combine all paths: Unite",
+				"Delete Glyph",
+				"Export glyph SVG File",
+				"Import paths from a SVG File"
+			],
+			"tools": [
+				"New rectangle",
+				"New oval",
+				"New path",
+				"Add path point",
+				"Path edit",
+				"Resize"
+			],
+			"viewTools": [
+				"Pan the edit canvas",
+				"Zoom out 10%",
+				"Zoom level",
+				"Zoom in 10%",
+				"Toggle fill / outline display mode",
+				"Paper / slate",
+				"Zoom so 1 pixel = 1 em",
+				"Zoom to fit a full Em",
+				"Pop out a Live Preview window"
+			]
+		},
+		"Components": {
+			"page": "Components",
+			"nav": [
+				"l1",
+				"l2",
+				"l3"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			],
+			"panelChooser": [
+				"Attributes",
+				"Layers",
+				"Trace",
+				"Transforms",
+				"History",
+				"Guides",
+				"QualityChecks"
+			],
+			"panel": true,
+			"panelActions": [
+				"Copy",
+				"Paste",
+				"Clear ANY-INK Clipboard",
+				"Undo",
+				"Redo",
+				"Link to Glyph",
+				"Add Path",
+				"Add Component Instance",
+				"Get Paths",
+				"Get Paths From Another Project",
+				"Flip Horizontal",
+				"Flip Vertical",
+				"Round all path point and handle position values",
+				"Combine all paths: Unite",
+				"Delete Glyph",
+				"Export glyph SVG File",
+				"Import paths from a SVG File"
+			],
+			"tools": [
+				"New rectangle",
+				"New oval",
+				"New path",
+				"Add path point",
+				"Path edit",
+				"Resize"
+			],
+			"viewTools": [
+				"Pan the edit canvas",
+				"Zoom out 10%",
+				"Zoom level",
+				"Zoom in 10%",
+				"Toggle fill / outline display mode",
+				"Paper / slate",
+				"Zoom so 1 pixel = 1 em",
+				"Zoom to fit a full Em",
+				"Pop out a Live Preview window"
+			]
+		},
+		"Kerning": {
+			"page": "Kerning",
+			"nav": [
+				"l1",
+				"l2",
+				"l3"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			],
+			"panelChooser": [
+				"Attributes",
+				"History"
+			],
+			"panel": true,
+			"panelActions": [
+				"Edit this kern group",
+				"Delete this kern group",
+				"Find instances of a single letter pair across all kern groups",
+				"Find and delete a single letter pair from all kern groups"
+			],
+			"tools": [
+				"Adjust kern value"
+			],
+			"viewTools": [
+				"Pan the edit canvas",
+				"Zoom out 10%",
+				"Zoom level",
+				"Zoom in 10%",
+				"Toggle fill / outline display mode",
+				"Paper / slate",
+				"Zoom so 1 pixel = 1 em",
+				"Zoom to fit a full Em",
+				"Pop out a Live Preview window"
+			]
+		},
+		"Live preview": {
+			"page": "Live preview",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		},
+		"Global actions": {
+			"page": "Global actions",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		},
+		"Settings": {
+			"page": "Settings",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		},
+		"Help": {
+			"page": "Help",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		},
+		"About": {
+			"page": "About",
+			"nav": [
+				"l1"
+			],
+			"pageChooser": [
+				"Overview",
+				"# Design glyphs",
+				"Characters",
+				"Ligatures",
+				"Components",
+				"# Refine",
+				"Kerning",
+				"Live preview",
+				"Global actions",
+				"# Settings & more",
+				"Settings",
+				"Help",
+				"About"
+			]
+		}
+	},
+	"actions": {
+		"Characters": {
+			"allActions": [
+				"allActions.copy",
+				"allActions.paste",
+				"allActions.clearClipboard",
+				"allActions.undo",
+				"allActions.redo"
+			],
+			"addShapeActions": [
+				"addShapeActions.addShape.path",
+				"addShapeActions.addShape.component",
+				"addShapeActions.pastePathsFromAnotherGlyph",
+				"addShapeActions.pastePathsFromAnotherProject"
+			],
+			"glyphActions": [
+				"glyphActions.flipHorizontal",
+				"glyphActions.flipVertical",
+				"glyphActions.round",
+				"glyphActions.combine_unite",
+				"glyphActions.deleteGlyph",
+				"glyphActions.exportGlyphSVG",
+				"glyphActions.importGlyphSVG"
+			],
+			"shapeActions": [
+				"shapeActions.copy",
+				"shapeActions.deleteShape",
+				"shapeActions.switchPathComponent",
+				"shapeActions.flipHorizontal",
+				"shapeActions.flipVertical",
+				"shapeActions.round"
+			],
+			"componentInstanceActions": [
+				"componentInstanceActions.switchPathComponent",
+				"componentInstanceActions.deleteShape"
+			],
+			"kernGroupActions": [
+				"kernGroupActions.edit",
+				"kernGroupActions.delete"
+			],
+			"otherKernGroupActions": [
+				"otherKernGroupActions.findSingleLetterPair",
+				"otherKernGroupActions.deleteSingleLetterPair"
+			],
+			"layerActions": [
+				"layerActions.moveLayerUp",
+				"layerActions.moveLayerTop",
+				"layerActions.moveLayerDown",
+				"layerActions.moveLayerBottom"
+			],
+			"alignShapeActions": [
+				"alignShapeActions.align_shapes.left",
+				"alignShapeActions.align_shapes.center",
+				"alignShapeActions.align_shapes.right",
+				"alignShapeActions.align_shapes.top",
+				"alignShapeActions.align_shapes.middle",
+				"alignShapeActions.align_shapes.bottom"
+			],
+			"alignPointActions": [
+				"alignPointActions.align_points.left",
+				"alignPointActions.align_points.center",
+				"alignPointActions.align_points.right",
+				"alignPointActions.align_points.top",
+				"alignPointActions.align_points.middle",
+				"alignPointActions.align_points.bottom"
+			],
+			"boolActions": [
+				"boolActions.combine_unite",
+				"boolActions.combine_divide",
+				"boolActions.combine_subtract",
+				"boolActions.combine_exclude",
+				"boolActions.combine_intersect"
+			],
+			"pointActions": [
+				"pointActions.insertPathPoint",
+				"pointActions.deletePathPoint",
+				"pointActions.resetPathPoint",
+				"pointActions.round",
+				"pointActions.mergePathPoints",
+				"pointActions.selectPreviousPathPoint",
+				"pointActions.selectNextPathPoint"
+			]
+		},
+		"Components": {
+			"allActions": [
+				"allActions.copy",
+				"allActions.paste",
+				"allActions.clearClipboard",
+				"allActions.undo",
+				"allActions.redo",
+				"allActions.linkToGlyph"
+			],
+			"addShapeActions": [
+				"addShapeActions.addShape.path",
+				"addShapeActions.addShape.component",
+				"addShapeActions.pastePathsFromAnotherGlyph",
+				"addShapeActions.pastePathsFromAnotherProject"
+			],
+			"glyphActions": [
+				"glyphActions.flipHorizontal",
+				"glyphActions.flipVertical",
+				"glyphActions.round",
+				"glyphActions.combine_unite",
+				"glyphActions.deleteGlyph",
+				"glyphActions.exportGlyphSVG",
+				"glyphActions.importGlyphSVG"
+			],
+			"shapeActions": [
+				"shapeActions.copy",
+				"shapeActions.deleteShape",
+				"shapeActions.switchPathComponent",
+				"shapeActions.flipHorizontal",
+				"shapeActions.flipVertical",
+				"shapeActions.round"
+			],
+			"componentInstanceActions": [
+				"componentInstanceActions.switchPathComponent",
+				"componentInstanceActions.deleteShape"
+			],
+			"kernGroupActions": [
+				"kernGroupActions.edit",
+				"kernGroupActions.delete"
+			],
+			"otherKernGroupActions": [
+				"otherKernGroupActions.findSingleLetterPair",
+				"otherKernGroupActions.deleteSingleLetterPair"
+			],
+			"layerActions": [
+				"layerActions.moveLayerUp",
+				"layerActions.moveLayerTop",
+				"layerActions.moveLayerDown",
+				"layerActions.moveLayerBottom"
+			],
+			"alignShapeActions": [
+				"alignShapeActions.align_shapes.left",
+				"alignShapeActions.align_shapes.center",
+				"alignShapeActions.align_shapes.right",
+				"alignShapeActions.align_shapes.top",
+				"alignShapeActions.align_shapes.middle",
+				"alignShapeActions.align_shapes.bottom"
+			],
+			"alignPointActions": [
+				"alignPointActions.align_points.left",
+				"alignPointActions.align_points.center",
+				"alignPointActions.align_points.right",
+				"alignPointActions.align_points.top",
+				"alignPointActions.align_points.middle",
+				"alignPointActions.align_points.bottom"
+			],
+			"boolActions": [
+				"boolActions.combine_unite",
+				"boolActions.combine_divide",
+				"boolActions.combine_subtract",
+				"boolActions.combine_exclude",
+				"boolActions.combine_intersect"
+			],
+			"pointActions": [
+				"pointActions.insertPathPoint",
+				"pointActions.deletePathPoint",
+				"pointActions.resetPathPoint",
+				"pointActions.round",
+				"pointActions.mergePathPoints",
+				"pointActions.selectPreviousPathPoint",
+				"pointActions.selectNextPathPoint"
+			]
+		}
+	},
+	"settings": {
+		"project": [
+			"Project name",
+			"Version",
+			"Initial version",
+			"Project ID",
+			"Export components as composite glyphs",
+			"Import composite glyphs as components",
+			"h2: Character ranges",
+			"button: Add standard character ranges from Unicode",
+			"button: Add a custom character range",
+			"h3: Enabled character ranges",
+			"h3: Hidden character ranges"
+		],
+		"font": [
+			"Font family",
+			"Font style",
+			"Font version",
+			"Font description",
+			"Panose‑1",
+			"button: Edit PANOSE",
+			"h2: Font metrics",
+			"h3: Key metrics",
+			"Units per Em (UPM)",
+			"Ascent",
+			"Descent",
+			"Capital letter height",
+			"X height",
+			"h3: Other metrics",
+			"Overshoot",
+			"Line gap",
+			"Font weight",
+			"Font stretch",
+			"Italic angle",
+			"Underline position",
+			"Underline thickness",
+			"h2: Links",
+			"Designer",
+			"Designer's URL",
+			"Manufacturer",
+			"Manufacturer's URL",
+			"License",
+			"License URL",
+			"Copyright",
+			"Trademark",
+			"h2: Properties for SVG Fonts",
+			"Font variant",
+			"Vertical stem",
+			"Horizontal stem",
+			"Slope",
+			"Strikethrough position",
+			"Strikethrough thickness",
+			"Overline position",
+			"Overline thickness"
+		],
+		"app": [
+			"h3: Saving",
+			"Warn about unsaved changes on window close",
+			"Forget crash-recovery snapshots",
+			"button: Forget",
+			"h3: Behavior",
+			"Unlink component instances",
+			"Directly click and drag curves to edit them",
+			"h3: Visibility",
+			"Canvas display mode \"Filled\"",
+			"Show non‑graphic control characters",
+			"Number of items to show in the item chooser",
+			"Project preview text",
+			"h3: Importing & exporting",
+			"Export Ligatures to fonts",
+			"Export Kern information to fonts",
+			"Export items that were created, but not edited",
+			"Move shapes when importing an SVG file",
+			"Add default Side Bearings when importing an SVG file",
+			"Add default Right Side Bearing when the first shape is added",
+			"h3: Quality checks",
+			"Highlight points that are near other points",
+			"Highlight points with short handles",
+			"Highlight points that are near x=0",
+			"Highlight points that are near y=0"
+		]
+	},
+	"toolKeys": {
+		"a": "resize",
+		"b": "pathEdit",
+		"c": null,
+		"d": null,
+		"e": "pathAddPoint",
+		"f": null,
+		"g": null,
+		"h": "newPath",
+		"i": null,
+		"j": null,
+		"k": null,
+		"l": null,
+		"m": "newRectangle",
+		"n": null,
+		"o": "newOval",
+		"p": "pathEdit",
+		"q": "newOval",
+		"r": "newRectangle",
+		"s": null,
+		"t": null,
+		"u": "pathAddPoint",
+		"v": "resize",
+		"w": "newPath",
+		"x": null,
+		"y": null,
+		"z": null
+	},
+	"hideUI": true
+}

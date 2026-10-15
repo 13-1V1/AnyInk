@@ -28,7 +28,9 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
+import { isSimpleMode } from '../mode/mode.js';
 import { injectStyleOnce } from '../preview/inject_style.js';
+import { word } from '../words/words.js';
 import { hasFileSystemAccess } from './file_api.js';
 import {
 	clearRecentProjects,
@@ -56,12 +58,22 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 	injectStyleOnce(STYLE_ID, style);
 
 	const card = makeElement({ tag: 'div', className: 'anyink-recents' });
-	const title = makeElement({ tag: 'h3', className: 'anyink-recents__title', content: 'Recent projects' });
+	// B4 + B5 integration: Simple says "Recent fonts" (sentence case, recents.css)
+	const title = makeElement({
+		tag: 'h3',
+		className: 'anyink-recents__title',
+		content: isSimpleMode() ? word('start.recentFonts') : 'Recent projects',
+	});
+	// B4 + B5 finalize: Simple's tooltips say font (2.1), All tools as before
+	const simple = isSimpleMode();
 	const clear = makeElement({
 		tag: 'button',
 		className: 'anyink-recents__clear',
 		content: 'Clear',
-		attributes: { type: 'button', title: 'Forget every recent project' },
+		attributes: {
+			type: 'button',
+			title: simple ? word('start.recentForgetAll') : 'Forget every recent project',
+		},
 	});
 	const head = makeElement({ tag: 'div', className: 'anyink-recents__head' });
 	addAsChildren(head, [title, clear]);
@@ -117,7 +129,13 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 		const row = makeElement({
 			tag: 'div',
 			className: 'anyink-recents__row',
-			attributes: { role: 'listitem', tabindex: '0', title: `Open ${fileName || entry.name}` },
+			attributes: {
+				role: 'listitem',
+				tabindex: '0',
+				title: simple
+					? word('start.recentOpen', { file: fileName || entry.name })
+					: `Open ${fileName || entry.name}`,
+			},
 		});
 		const name = makeElement({ className: 'anyink-recents__name', content: entry.name || fileName });
 		const meta = makeElement({ className: 'anyink-recents__meta' });
@@ -131,7 +149,10 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 			tag: 'button',
 			className: 'anyink-recents__remove',
 			content: '&times;',
-			attributes: { type: 'button', title: 'Remove from recent projects' },
+			attributes: {
+				type: 'button',
+				title: simple ? word('start.recentRemove') : 'Remove from recent projects',
+			},
 		});
 		remove.addEventListener('click', (event) => {
 			event.stopPropagation();

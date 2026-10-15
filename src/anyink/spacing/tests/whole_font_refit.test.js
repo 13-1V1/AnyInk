@@ -14,6 +14,7 @@ import { insertComponentInstance } from '../../../project_editor/cross_item_acti
 import { applyAutoTrace } from '../../autotrace/apply.js';
 import { B, R, square, traceInto, twoLetterEditor } from '../../history/tests/two_letters.js';
 import { setFontMetric } from '../../metrics/font_metrics.js';
+import { METRIC_LABELS } from '../../metrics/metrics_math.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { showItem } from '../../preview/show_item.js';
 import { sitsAtFit } from '../auto_space.js';
@@ -151,7 +152,7 @@ describe('Simple: moving the small-letter line refits every automatic letter in 
 		const [post, pre] = queueOf(editor);
 		expect(post.wholeProjectSave).toBe(true);
 		expect(pre.wholeProjectSave).toBe(true);
-		expect(pre.title).toBe('Moved X height to 400');
+		expect(pre.title).toBe(`Moved ${METRIC_LABELS.xHeight} to 400`);
 		expect(pre.itemID).toBe(false);
 		expect(post.itemID).toBe(false);
 		// The before-copy holds the line where it was
@@ -160,7 +161,7 @@ describe('Simple: moving the small-letter line refits every automatic letter in 
 
 		showItem(editor, B);
 		const undone = editor.history.restoreState();
-		expect(undone.title).toBe('Moved X height to 400');
+		expect(undone.title).toBe(`Moved ${METRIC_LABELS.xHeight} to 400`);
 		expect(undone.moved).toBe(false);
 		expect(editor.project.settings.font.xHeight).toBe(500);
 		expect(glyphOf(editor, B).advanceWidth).toBe(before.B);

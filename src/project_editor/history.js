@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import {
 	SAVED_AT_EMPTY,
 	collectionNameFromID,
@@ -23,10 +25,12 @@ import {
 } from '../anyink/history/settings_snapshot.js';
 import { writeItemState } from '../anyink/history/item_state.js';
 import { previousItemState, redoNewest, undoNewest } from '../anyink/history/simple_undo.js';
+import { sayUndoneElsewhere } from '../anyink/history/undo_elsewhere.js';
 import { MAX_UNDO_STEPS, capUndoQueue, countSteps } from '../anyink/history/undo_cap.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
 import { markDirty } from '../anyink/recovery/recovery.js';
+import { upstreamToast } from '../anyink/toast/toast.js';
 import {
 	beforeItemStep,
 	beforeWholeProjectPost,
@@ -556,6 +560,8 @@ export class History {
 		if (isSimpleMode()) {
 			const result = undoNewest(this, editor);
 			if (result?.done) this.undoRestOfStep(editor);
+			// B4 + B5 finalize: a letter changed away from its page says which (principle 6)
+			sayUndoneElsewhere(result, editor);
 			return result;
 		}
 		let q = this.queue;
@@ -624,7 +630,11 @@ export class History {
 				editor.navigate();
 
 				if (nextEntry.itemWasDeleted) {
-					showToast(`Restored deleted item<br>${nextEntry.itemState.name}`);
+					// ANY-INK (B4): the one toast voice; the letter's characters name it in house
+					// words ("Brought back small c", src/anyink/toast/upstream_map.js)
+					upstreamToast(`Restored deleted item<br>${nextEntry.itemState.name}`, {
+						context: { chars: nextEntry.itemState.chars },
+					});
 					// Continue: undo the deletion entry itself
 					topIndex = nextIndex;
 					nextIndex = indexOfNextItemEntry(q, topIndex + 1);
@@ -828,6 +838,7 @@ export class History {
 			const entries = this.redoQueue[0];
 			const result = redoNewest(this, editor);
 			if (result?.done) this.redoRestOfStep(editor, entries);
+			sayUndoneElsewhere(result, editor, { redo: true });
 			return result;
 		}
 

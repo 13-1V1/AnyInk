@@ -49,11 +49,11 @@ function openFileMenu() {
 	[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 }
 
-function clickMenuRow(name) {
-	const rows = [...document.querySelectorAll('#context-menu .context-menu-row')];
-	const row = rows.find((r) => r.querySelector('.row-name')?.textContent === name);
-	if (!row) throw new Error(`no File menu row named "${name}"`);
-	row.click();
+/** B4: rows are found by their id (menu.js data-anyink-row), never by their words. */
+function clickMenuRow(id) {
+	const mark = document.querySelector(`#context-menu [data-anyink-row="${id}"]`);
+	if (!mark) throw new Error(`no File menu row "${id}"`);
+	mark.closest('.context-menu-row').click();
 }
 
 let editor;
@@ -109,7 +109,7 @@ describe('callers catch rejections (finding 6)', () => {
 		setFileApi(fakeApi({ open: [], save: fakeFileHandle('x.gs2') }));
 		editor.saveProjectFile = () => Promise.reject(new Error('save exploded'));
 		openFileMenu();
-		clickMenuRow('Save');
+		clickMenuRow('save');
 		await settle();
 		expect(errorText()).toContain('save exploded');
 	});
@@ -118,7 +118,7 @@ describe('callers catch rejections (finding 6)', () => {
 		setFileApi(fakeApi({ open: [], save: fakeFileHandle('x.gs2') }));
 		editor.saveProjectFile = () => Promise.reject(new Error('save as exploded'));
 		openFileMenu();
-		clickMenuRow('Save as...');
+		clickMenuRow('save-as');
 		await settle();
 		expect(errorText()).toContain('save as exploded');
 	});
@@ -128,7 +128,7 @@ describe('callers catch rejections (finding 6)', () => {
 			fakeApi({ open: [], save: fakeFileHandle('x.gs2'), directory: new Error('picker exploded') })
 		);
 		openFileMenu();
-		clickMenuRow('Choose export folder...');
+		clickMenuRow('font-folder');
 		await settle();
 		expect(errorText()).toContain('picker exploded');
 	});
@@ -138,7 +138,7 @@ describe('callers catch rejections (finding 6)', () => {
 			fakeApi({ open: [], save: fakeFileHandle('x.gs2'), directory: new Error('export exploded') })
 		);
 		openFileMenu();
-		clickMenuRow('Export OTF file');
+		clickMenuRow('font-otf');
 		await settle();
 		expect(errorText()).toContain('export exploded');
 	});

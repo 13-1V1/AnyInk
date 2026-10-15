@@ -4,8 +4,11 @@
 	ANY-INK metrics math (Milestone 5, D-008 / D-009).
 	Pure helpers shared by the guides layer, the settings readouts, and the tests:
 	which font metrics exist, their labels, clamping so the metric lines keep their
-	order, the Shift-to-10 snap, and the baseline-shift arithmetic. No imports, no DOM.
+	order, the Shift-to-10 snap, and the baseline-shift arithmetic. No DOM.
+	B4: the labels are the house words (UX-BEGINNER.md 2.4 B), from src/anyink/words, in both
+	modes: the canvas and the Undo titles share them with Simple. The only import is words.js.
 */
+import { labelCase, word } from '../words/words.js';
 
 /** Every settings.font key the Font settings page treats as an Em value. */
 export const FONT_METRIC_KEYS = [
@@ -28,30 +31,32 @@ export const DRAGGABLE_METRIC_KEYS = ['ascent', 'capHeight', 'xHeight', 'descent
  */
 export const BASELINE_SHIFTED_KEYS = ['ascent', 'capHeight', 'xHeight', 'descent'];
 
-/** Title-case labels for history entries and panels. */
-export const METRIC_LABELS = {
-	upm: 'UPM',
-	ascent: 'Ascent',
-	capHeight: 'Cap height',
-	xHeight: 'X height',
-	baseline: 'Baseline',
-	descent: 'Descent',
-	overshoot: 'Overshoot',
-	lineGap: 'Line gap',
-	lsb: 'Left side bearing',
-	rsb: 'Right side bearing',
+/** The words key that names each line and side space. */
+const LABEL_KEYS = {
+	upm: 'metric.gridSize',
+	ascent: 'line.ascent',
+	capHeight: 'line.capHeight',
+	xHeight: 'line.xHeight',
+	baseline: 'line.baseline',
+	descent: 'line.descent',
+	overshoot: 'metric.overshoot',
+	lineGap: 'metric.lineGap',
+	lsb: 'space.lsb',
+	rsb: 'space.rsb',
 };
 
-/** Lowercase labels for the live canvas readout next to the pointer. */
-export const LIVE_LABELS = {
-	ascent: 'ascent',
-	capHeight: 'cap height',
-	xHeight: 'x-height',
-	baseline: 'baseline',
-	descent: 'descent',
-	lsb: 'left side bearing',
-	rsb: 'right side bearing',
-};
+/** Labels that start with a capital, for history entries and panels ('Small-letter line'). */
+export const METRIC_LABELS = Object.fromEntries(
+	Object.entries(LABEL_KEYS).map(([line, key]) => [line, labelCase(word(key))])
+);
+
+/** Lowercase labels for the live canvas readout next to the pointer ('small-letter line'). */
+export const LIVE_LABELS = Object.fromEntries(
+	['ascent', 'capHeight', 'xHeight', 'baseline', 'descent', 'lsb', 'rsb'].map((line) => [
+		line,
+		word(LABEL_KEYS[line]),
+	])
+);
 
 /**
  * @param {String} key

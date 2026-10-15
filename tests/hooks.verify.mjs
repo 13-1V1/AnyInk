@@ -22,6 +22,14 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import {
+	moveGuideLines,
+	nudgeWritingLine,
+	pressInAllTools,
+	toOverview,
+} from './verify_standins.mjs';
+// B4: the line's name in the Undo title is the house word (sets/core.js has no imports)
+import CORE from '../src/anyink/words/sets/core.js';
 
 const root = fileURLToPath(new URL('../src/', import.meta.url));
 const shots = resolve(process.argv[2] || resolve(tmpdir(), 'anyink-b23-hooks'));
@@ -133,15 +141,15 @@ const screenOf = (s, x, y) => ({
 });
 
 async function openLetter(page, id) {
-	await page.locator('button[data-nav-type="PAGE"]').click();
-	await page.locator('.nav-dropdown__button:has-text("Overview"):visible').click();
-	await page.waitForTimeout(300);
+	// B5: Simple has no page chooser (verify_standins.mjs)
+	await toOverview(page, 300);
 	await page.locator(`glyph-tile[displayed-item-id="${id}"]`).click();
 	await waitUntil(page, async () => (await state(page)).open === id, `open ${id}`);
 	await page.waitForTimeout(400);
 }
 async function drawRectangle(page, x0, y0, x1, y1) {
-	await page.locator('button[title="New rectangle"]').click();
+	// B4 + B5 integration: tools by their id; Simple's tooltips say "Rectangle (R)"
+	await page.locator('button[data-anyink-tool="newRectangle"]').click();
 	await page.mouse.move(x0, y0);
 	await page.mouse.down();
 	await page.mouse.move(x1, y1, { steps: 8 });
@@ -149,10 +157,7 @@ async function drawRectangle(page, x0, y0, x1, y1) {
 	await page.waitForTimeout(400);
 }
 async function pickArrow(page) {
-	await page
-		.locator('button[title="Pointer"], button[title^="Resize"], button[title^="Arrow"]')
-		.first()
-		.click();
+	await page.locator('button[data-anyink-tool="resize"]').click();
 	await page.waitForTimeout(200);
 }
 async function newProject(page, name) {
@@ -320,17 +325,21 @@ try {
 	await pickArrow(page);
 	s = await state(page);
 	const onLine = screenOf(s, s.letters[B].width + 150, s.xHeight);
+	// B5: Simple locks the guide lines; B15's Move the guide lines unlocks them (stand-in)
+	await moveGuideLines(page, true);
 	await page.mouse.move(onLine.x, onLine.y);
 	await page.waitForTimeout(200);
 	await page.mouse.down();
 	await page.mouse.move(onLine.x, onLine.y + 40, { steps: 8 });
 	await page.mouse.up();
 	await page.waitForTimeout(500);
+	await moveGuideLines(page, false);
 	const moved = await state(page);
 	assert.ok(moved.xHeight < s.xHeight, `line moved down (${s.xHeight} -> ${moved.xHeight})`);
 	assert.equal(moved.top[0].whole, true);
 	assert.equal(moved.top[1].whole, true);
-	assert.match(moved.top[1].title, /^Moved X height to/);
+	const xHeightLabel = CORE['line.xHeight'].text.replace(/^./, (c) => c.toUpperCase());
+	assert.ok(moved.top[1].title.startsWith(`Moved ${xHeightLabel} to`), moved.top[1].title);
 	assert.equal(moved.top[0].itemID, false);
 	assert.equal(moved.top[1].itemID, false);
 	assert.equal(moved.steps, s.steps + 1);
@@ -358,10 +367,9 @@ try {
 	await openLetter(page, B);
 	await pickArrow(page);
 	s = await state(page);
-	const onBaseline = screenOf(s, s.letters[B].width + 150, 0);
-	await page.mouse.move(onBaseline.x, onBaseline.y);
-	await page.waitForTimeout(250);
-	await page.keyboard.press('ArrowUp');
+	// B5: the writing line stays locked in Simple (7.6), so the step its arrow key makes stands in
+	// (a writing line step made in More tools, undone in Simple)
+	await nudgeWritingLine(page, 1);
 	await page.waitForTimeout(500);
 	const raised = await state(page);
 	assert.equal(
@@ -399,10 +407,13 @@ try {
 	await pickArrow(page);
 	s = await state(page);
 	const onSmallLine = screenOf(s, s.letters[B].width + 150, s.xHeight);
+	await moveGuideLines(page, true); // B5: B15's Move the guide lines (stand-in)
 	await page.mouse.move(onSmallLine.x, onSmallLine.y);
 	await page.waitForTimeout(250);
 	for (let k = 0; k < 40; k++) await page.keyboard.press('Shift+ArrowDown');
 	await page.waitForTimeout(500);
+	await page.mouse.move(5, 500);
+	await moveGuideLines(page, false);
 	const burst = await state(page);
 	assert.equal(
 		burst.xHeight,
@@ -520,12 +531,9 @@ try {
 	await drawRectangle(deleting, 900, 330, 980, 515);
 	await openLetter(deleting, R);
 	await drawRectangle(deleting, 900, 400, 950, 515);
-	if (!(await deleting.locator('[title^="Delete Glyph"]:visible').count())) {
-		await deleting.locator('button[data-nav-type="PANEL"]').click();
-		await deleting.locator('.nav-dropdown__button:has-text("Attributes"):visible').click();
-		await deleting.waitForTimeout(300);
-	}
-	await deleting.locator('[title^="Delete Glyph"]:visible').first().click();
+	// B5: Simple draws no panel, so the Delete letter icon is pressed through its own code (B7's
+	// Fine-tune row stands where it was)
+	await pressInAllTools(deleting, 'glyphActions', 'deleteGlyph');
 	await deleting.waitForTimeout(500);
 	let d = await state(deleting);
 	assert.equal(d.letters[R], null, 'r deleted');
@@ -536,7 +544,7 @@ try {
 	d = await state(deleting);
 	assert.equal(d.letters[R]?.shapes, 1, 'one Ctrl+Z brings r back');
 	pass(
-		'Simple: Delete letter (the real button) records no "Automatically navigated" step; one Ctrl+Z brings small r back with its shape'
+		'Simple: Delete letter (the code of its button; Simple draws no panel since B5) records no "Automatically navigated" step; one Ctrl+Z brings small r back with its shape'
 	);
 	await openLetter(deleting, B);
 	await drawRectangle(deleting, 1010, 420, 1100, 515);

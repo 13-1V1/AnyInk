@@ -1,6 +1,10 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
+import { withLandingCause } from '../anyink/mode/band.js';
+import { actionId, filterShown } from '../anyink/mode/visibility.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { getFilesFromFilePicker } from '../app/open_project.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -103,7 +107,8 @@ export function getActionData(name) {
 				disabled: !historyLength,
 				id: 'actionButtonUndo',
 				onClick: () => {
-					editor.history.restoreState();
+					// ANY-INK (B5): an undo that lands on a page Simple hides says so (band.js)
+					withLandingCause('undo', () => editor.history.restoreState());
 				},
 			},
 			{
@@ -113,7 +118,8 @@ export function getActionData(name) {
 				disabled: !redoLength,
 				id: 'actionButtonRedo',
 				onClick: () => {
-					editor.history.redoState();
+					// ANY-INK (B5 fix track): a redo that lands there says Redo did it
+					withLandingCause('redo', () => editor.history.redoState());
 				},
 			},
 		];
@@ -789,7 +795,11 @@ export function getActionData(name) {
 	// log(`\n⮟actionData⮟`);
 	// log(actionData);
 	// log(`getActionData`, 'end');
-	return actionData;
+	// ANY-INK (B5, UX-BEGINNER 6.2 Attribute icons, 6.3): only the icons the mode shows, by
+	// their ids in visibility.js's 'action' area (Simple keeps Undo, Redo, the letter flips and
+	// Merge). Every panel and card that draws icons asks here.
+	if (!Array.isArray(actionData)) return actionData;
+	return filterShown('action', actionData, (entry) => actionId(name, entry));
 }
 
 // --------------------------------------------------------------

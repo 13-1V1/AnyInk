@@ -1,6 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from '../../anyink/metrics/hit_test.js';
+import { toolTitle, viewToolTitle } from '../../anyink/mode/simple_labels.js';
+import { entryOf, isShown } from '../../anyink/mode/visibility.js';
 import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
@@ -37,6 +39,9 @@ export function makeEditToolsButtons() {
 		// log('makeEditToolsButtons', 'end');
 		return [];
 	}
+
+	// ANY-INK (B5): a tool this mode hides can't stay picked (Add a point, after More tools)
+	if (!toolShown(editor.selectedTool)) editor.selectedTool = 'resize';
 
 	// All the various permutations of states
 	// log(`editor.selectedTool: ${editor.selectedTool}`);
@@ -76,8 +81,11 @@ export function makeEditToolsButtons() {
 
 		let newToolButton = makeElement({
 			tag: 'button',
-			title: toolButtonData[buttonName].title,
+			// ANY-INK (B4 + B5 integration): Simple says the tool's house word and key
+			title: toolTitle(buttonName, toolButtonData[buttonName].title),
 			className: 'editor-page__tool',
+			// ANY-INK: found by its id, never by its words (which differ by mode)
+			attributes: { 'data-anyink-tool': buttonName },
 			innerHTML: makeToolButtonSVG({
 				name: buttonName,
 				selected: isSelected,
@@ -129,8 +137,15 @@ export function makeEditToolsButtons() {
 		content.push(toolButtonElements.resize);
 	}
 
+	// ANY-INK (B5, UX-BEGINNER 6.2 Tools): only the tools the mode shows (Simple: no Add a point)
+	const hidden = new Set(
+		Object.keys(toolButtonElements)
+			.filter((buttonName) => !isShown('tool', buttonName))
+			.map((buttonName) => toolButtonElements[buttonName])
+	);
+
 	// log('makeEditToolsButtons', 'end');
-	return content;
+	return content.filter((element) => !hidden.has(element));
 }
 
 /**
@@ -168,7 +183,9 @@ export function makeViewToolsButtons() {
 		let newToolButton = makeElement({
 			tag: 'button',
 			className: 'editor-page__tool',
-			title: viewButtonTitles[buttonName],
+			// ANY-INK (B4 + B5 integration): Simple says the switch's house word
+			title: viewToolTitle(buttonName, viewButtonTitles[buttonName]),
+			attributes: { 'data-anyink-view-tool': buttonName },
 			innerHTML: makeToolButtonSVG({
 				name: buttonNameSVG,
 				selected: isSelected,
@@ -294,22 +311,41 @@ export function makeViewToolsButtons() {
 		// log(`Live Preview Pop Out CLICK HANDLER`, 'end');
 	});
 
+	// ANY-INK (B5, UX-BEGINNER 6.2 Tools): only the view tools the mode shows (Simple: no Pan
+	// button, Actual size or live preview pop-out; Space-drag still pans), by their ids in
+	// visibility.js's 'viewTool' area
+	const viewToolIDs = new Map(
+		Object.entries(viewButtonElements).map(([buttonName, element]) => [element, buttonName])
+	);
+	viewToolIDs.set(zoomReadout, 'zoomSlider');
+	viewToolIDs.set(livePreviewPopOut, 'livePreviewPopOut');
+	const viewShown = (element) =>
+		!viewToolIDs.has(element) || isShown('viewTool', viewToolIDs.get(element));
+
 	// Put it all together
 	let responsiveGroup = makeElement({ className: 'editor-page__responsive-group' });
 
 	// Seven grid columns: the paper / slate toggle takes the leading spacer's slot
-	addAsChildren(responsiveGroup, [
-		viewButtonElements.zoomOut,
-		zoomReadout,
-		viewButtonElements.zoomIn,
-		makeElement({ tag: 'div', content: '&emsp;' }),
-		viewButtonElements.displayMode,
-		viewButtonElements.canvasTheme,
-		viewButtonElements.zoom1to1,
-	]);
+	addAsChildren(
+		responsiveGroup,
+		[
+			viewButtonElements.zoomOut,
+			zoomReadout,
+			viewButtonElements.zoomIn,
+			makeElement({ tag: 'div', content: '&emsp;' }),
+			viewButtonElements.displayMode,
+			viewButtonElements.canvasTheme,
+			viewButtonElements.zoom1to1,
+		].filter(viewShown)
+	);
 
 	// log(`makeViewToolsButtons`, 'end');
-	return [viewButtonElements.pan, responsiveGroup, viewButtonElements.zoomEm, livePreviewPopOut];
+	return [
+		viewButtonElements.pan,
+		responsiveGroup,
+		viewButtonElements.zoomEm,
+		livePreviewPopOut,
+	].filter(viewShown);
 }
 
 /**
@@ -318,6 +354,8 @@ export function makeViewToolsButtons() {
  */
 export function selectTool(tool) {
 	// log('selectTool', 'start');
+	// ANY-INK (B5, UX-BEGINNER 6.3): a tool the mode hides can't be picked, however it is asked
+	if (!toolShown(tool)) return;
 	const editor = getCurrentProjectEditor();
 	let viewTools = ['zoom1to1', 'zoomEm', 'zoomIn', 'zoomOut', 'displayMode', 'canvasTheme'];
 
@@ -356,6 +394,18 @@ export function selectTool(tool) {
 }
 
 /**
+ * ANY-INK (B5, UX-BEGINNER 6.2 Tools): the drawing tools (visibility.js 'tool' area: Add a
+ * point and the Kerning tool are More tools only) are gated by the mode. Anything else selectTool
+ * takes (the view buttons, 'pan' for Space-drag) is filtered where its button is drawn, so it
+ * passes here.
+ * @param {String} tool
+ * @returns {Boolean}
+ */
+export function toolShown(tool) {
+	return entryOf('tool', tool) ? isShown('tool', tool) : true;
+}
+
+/**
  * Which icon the paper / slate button shows: the surface the canvas is on now
  * @returns {String} - icon name
  */
@@ -370,6 +420,8 @@ function canvasThemeIconName() {
 export function switchToolTo(newTool) {
 	// log(`switchToolTo`, 'start');
 	// log(`newTool: ${newTool}`);
+	// ANY-INK (B5): the same gate as selectTool
+	if (!toolShown(newTool)) return;
 
 	const editor = getCurrentProjectEditor();
 	editor.selectedTool = newTool;

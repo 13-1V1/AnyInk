@@ -5,6 +5,8 @@ import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
 import { makeAllItemTypeChooserContent } from '../panels/item_chooser.js';
 import { makeNavButton, toggleNavDropdown } from '../project_editor/navigator.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { word } from '../anyink/words/words.js';
 
 /**
  * Page > Overview
@@ -57,7 +59,10 @@ export function makePage_Overview() {
 		makeElement({
 			tag: 'display-canvas',
 			attributes: { text: previewText, 'font-size': '64', 'show-placeholder-message': 'true' },
-			title: 'You can customize the the project preview text from the Settings > App page.',
+			// ANY-INK (B4 + B5 integration): Settings is a More tools page; Simple says what it is
+			title: isSimpleMode()
+				? word('overview.previewHint')
+				: 'You can customize the the project preview text from the Settings > App page.',
 		})
 	);
 
@@ -113,6 +118,19 @@ export function makePage_Overview() {
 			},
 		})
 	);
+
+	// ANY-INK (B4 + B5 integration, UX-BEGINNER 6.2): until B10's letter board, Simple's Overview
+	// is the welcome in house words and the letters; the project card (numbers, a door to Settings,
+	// a More tools page) is All tools only
+	if (isSimpleMode()) {
+		const title = document.createElement('h2');
+		title.textContent = word('overview.welcomeTitle');
+		const welcome = document.createElement('p');
+		welcome.textContent = word('overview.welcome');
+		welcomeCard.replaceChildren(title, welcome);
+		panelArea.appendChild(welcomeCard);
+		return content;
+	}
 
 	panelArea.appendChild(projectSummaryCard);
 	panelArea.appendChild(welcomeCard);

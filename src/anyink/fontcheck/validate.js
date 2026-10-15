@@ -30,9 +30,11 @@
 	  checkedItems(project, options)  -> the letters validateFont looks at
 	  isStrayShape(shape)             -> rule 5 for one shape (fix_it.js uses it too)
 	Messages are one plain sentence that starts with the letter's name ("small a has ...").
-	The check never changes the project.
+	B4: each sentence is a words key (src/anyink/words, check.*); {n|has|have} agrees with one
+	letter or joined letters. The check never changes the project.
 */
 import { letterPhrase, sentenceStart } from '../words/letter_name.js';
+import { labelCase, word } from '../words/words.js';
 import { getExportList } from './export_list.js';
 import { KERN_PROBLEM, validateKerning } from './validate_kerning.js';
 
@@ -90,56 +92,42 @@ export function validateFont(
  */
 export function validateItem(item) {
 	if (!item) return [];
-	const words = wordsFor(item);
+	const subject = subjectOf(item);
 	const problems = [];
-	const add = (problem, message) => problems.push({ itemId: item.id, problem, message });
+	const add = (problem, key, vars = {}) =>
+		problems.push({ itemId: item.id, problem, message: word(key, { ...subject, ...vars }) });
 
 	const paths = flatPaths(item);
 	const hasInk = paths.some((path) => path.pathPoints.length > 0);
 
 	const width = Number(item.advanceWidth);
 	if (!Number.isFinite(width)) {
-		add(PROBLEM.width, `${words.Name} ${words.has} a width the font file can't hold.`);
+		add(PROBLEM.width, 'check.widthBad');
 	} else if (Math.round(width) > MAX_WIDTH) {
-		add(PROBLEM.width, `${words.Name} ${words.is} wider than the font file allows.`);
+		add(PROBLEM.width, 'check.tooWide');
 	} else if (Math.round(width) < 0) {
-		add(
-			PROBLEM.width,
-			`${words.Name} ${words.has} a width below zero, which the font file can't hold.`
-		);
+		add(PROBLEM.width, 'check.widthBelowZero');
 	} else if (Math.round(width) === 0 && hasInk) {
-		add(
-			PROBLEM.inkNoWidth,
-			`${words.Name} ${words.has} ink but no width, so the next letter would sit on top of ${words.it}.`
-		);
+		add(PROBLEM.inkNoWidth, 'check.inkNoWidth');
 	} else if (Math.round(width) === 0 && SPACES.includes(item.chars)) {
-		add(
-			PROBLEM.spaceNoWidth,
-			`${words.Name} ${words.has} no width, so your words would run together.`
-		);
+		add(PROBLEM.spaceNoWidth, 'check.spaceNoWidth');
 	}
 
 	const coords = paths.flatMap(pathCoordinates);
 	if (coords.some((value) => !Number.isFinite(value))) {
-		add(PROBLEM.point, `${words.Name} ${words.has} a point the font file can't hold.`);
+		add(PROBLEM.point, 'check.pointBad');
 	} else if (coords.some((value) => !fitsInFile(Math.round(value))) || hasLongStep(paths)) {
-		add(PROBLEM.point, `${words.Name} ${words.has} a point too far out for the font file to hold.`);
+		add(PROBLEM.point, 'check.pointFar');
 	}
 
 	const short = paths.filter(isStrayShape);
 	if (short.length === 1) {
-		const count = short[0].pathPoints.length;
-		add(
-			PROBLEM.shape,
-			`${words.Name} ${words.has} a shape with only ${count} ${
-				count === 1 ? 'point' : 'points'
-			}. A shape needs at least ${MIN_SHAPE_POINTS}.`
-		);
+		add(PROBLEM.shape, 'check.strayShape', {
+			count: short[0].pathPoints.length,
+			min: MIN_SHAPE_POINTS,
+		});
 	} else if (short.length > 1) {
-		add(
-			PROBLEM.shape,
-			`${words.Name} ${words.has} ${short.length} shapes with fewer than ${MIN_SHAPE_POINTS} points. A shape needs at least ${MIN_SHAPE_POINTS}.`
-		);
+		add(PROBLEM.shape, 'check.strayShapes', { count: short.length, min: MIN_SHAPE_POINTS });
 	}
 
 	return problems;
@@ -160,19 +148,17 @@ export function isStrayShape(shape) {
 }
 
 /**
- * The letter's name and the verbs that agree with it.
+ * The letter's name as a sentence starts with it, and how many letters it is, so the words'
+ * {n|has|have} agree with it.
  * @param {Object} item
- * @returns {{Name: String, has: String, is: String, it: String}}
+ * @returns {{letter: String, n: Number}} n: 1 for a letter, 2 for joined letters
  */
-function wordsFor(item) {
+function subjectOf(item) {
 	const chars = typeof item.chars === 'string' ? item.chars : '';
-	const plural = [...chars].length > 1;
 	const phrase = letterPhrase(chars);
 	return {
-		Name: phrase ? sentenceStart(phrase) : 'A letter',
-		has: plural ? 'have' : 'has',
-		is: plural ? 'are' : 'is',
-		it: plural ? 'them' : 'it',
+		letter: phrase ? sentenceStart(phrase) : labelCase(word('check.aLetter')),
+		n: [...chars].length > 1 ? 2 : 1,
 	};
 }
 

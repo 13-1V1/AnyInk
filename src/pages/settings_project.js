@@ -18,6 +18,7 @@ import { getUnicodeName } from '../lib/unicode/unicode_names.js';
 import { makeDirectCheckbox } from '../panels/cards';
 import { CharacterRange } from '../project_data/character_range.js';
 import { resolveItemLinks } from '../project_editor/cross_item_actions';
+import { settingShown, settingsSections } from '../anyink/mode/settings_rows.js';
 import { makeOneSettingsRow, markSettingsChanged } from './settings.js';
 
 /**
@@ -42,15 +43,19 @@ export function makeSettingsTabContentProject() {
 		className: 'settings-table',
 	});
 
-	addAsChildren(settingsArea, [
-		makeOneSettingsRow('project', 'name'),
-		makeOneSettingsRow('project', 'latestVersion'),
-		makeOneSettingsRow('project', 'initialVersion'),
-		makeOneSettingsRow('project', 'id'),
-		makeOneSettingsRow('project', 'exportComponentsAsComposites'),
-		makeOneSettingsRow('project', 'importComponentsFromComposites'),
-		textToNode('<br>'),
-	]);
+	// ANY-INK (B5, UX-BEGINNER 6.2): only the rows the mode shows
+	addAsChildren(
+		settingsArea,
+		settingsSections([
+			makeOneSettingsRow('project', 'name'),
+			makeOneSettingsRow('project', 'latestVersion'),
+			makeOneSettingsRow('project', 'initialVersion'),
+			makeOneSettingsRow('project', 'id'),
+			makeOneSettingsRow('project', 'exportComponentsAsComposites'),
+			makeOneSettingsRow('project', 'importComponentsFromComposites'),
+			textToNode('<br>'),
+		])
+	);
 
 	const rangesArea = makeElement({
 		tag: 'div',
@@ -124,7 +129,11 @@ export function makeSettingsTabContentProject() {
 	);
 	addAsChildren(rangesArea.querySelector('#hidden-range-table__wrapper'), makeHiddenRangesTable());
 
-	addAsChildren(tabContent, [settingsArea, rangesArea]);
+	// ANY-INK (B5): the letter sets are a row of their own (Simple keeps it: Numbers & symbols)
+	addAsChildren(tabContent, [
+		settingsArea,
+		...(settingShown('project', 'characterRanges') ? [rangesArea] : []),
+	]);
 
 	return tabContent;
 }

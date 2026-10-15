@@ -9,14 +9,19 @@
 
 	  makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now })
 	      One row per session (name, "n minutes ago", "from file" badge, Restore,
-	      Discard). Defaults call restoreSession / discardSession. A Restore whose
+	      Discard). Defaults call restoreSession / discardSession. In Simple (B4 fix
+	      track, until B13's crash card): the badge says "has a saved file", only the
+	      first Restore is green (principle 1), and Discard on unsaved work with no work
+	      file first asks the one start-screen confirm (UX-BEGINNER 7.4 #1,
+	      confirmThrowAway): that backup is the only copy of the work. A Restore whose
 	      snapshot is gone (isRecoveryGoneError: discarded elsewhere, restored in
 	      another tab, saved) drops the row instead of showing an error. When the
 	      last row goes, onEmpty(card) runs when given, otherwise the empty message
 	      replaces the rows. Callers only build it when sessions.length > 0.
 	  makeRecoverArea({ banner, list })
 	      A container that lists sessions asynchronously and fills itself with a
-	      card, or the empty message (tab) / removes itself (banner). A listing that
+	      card, or the empty message (tab; Simple says "backup copy", 2.4 G) / removes
+	      itself (banner). A listing that
 	      fails is not "nothing to recover": the tab says the snapshots could not be
 	      read (the banner removes itself). It re-lists on
 	      every RECOVERY_CHANGE_EVENT (restore, discard, forget, a session ending),
@@ -25,6 +30,10 @@
 	      the first listing.
 	  confirmForgetSnapshots()
 	      Modal "Forget crash-recovery snapshots?" -> Promise<Boolean>.
+	  confirmThrowAway()
+	      Simple: modal "Throw away this unsaved work? This can't be undone. [Throw it
+	      away] [Keep it]" -> Promise<Boolean>; Keep it is the green one, and closing the
+	      box any other way keeps the work.
 	  forgetSnapshotsWithFeedback()
 	      Settings > App > Forget: forgetAllSnapshots() with a toast either way
 	      ('...were forgotten...' or 'Could not forget the snapshots: <reason>').
@@ -48,7 +57,10 @@ import {
 	restoreSession,
 } from './recovery.js';
 import { formatAgo } from './snapshot.js';
+import { isSimpleMode } from '../mode/mode.js';
+import { word } from '../words/words.js';
 
+/** All tools' empty Recover tab (Simple: 'recover.nothing'). */
 export const EMPTY_MESSAGE =
 	'Nothing to recover. Unsaved work is snapshotted every few seconds while you edit.';
 export const LOADING_MESSAGE = 'Looking for unsaved work…';
@@ -89,17 +101,26 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 		}
 	}
 
-	(sessions || []).forEach((session) => {
+	const simple = isSimpleMode();
+	(sessions || []).forEach((session, index) => {
 		const row = makeElement({ tag: 'div', className: 'anyink-recovery-row' });
 		row.dataset.sessionId = session.id;
 
 		const title = makeElement({ tag: 'div', className: 'anyink-recovery-row__title' });
 		title.appendChild(
-			makeElement({ tag: 'span', className: 'anyink-recovery-row__name', content: escapeHTML(session.name) })
+			makeElement({
+				tag: 'span',
+				className: 'anyink-recovery-row__name',
+				content: escapeHTML(session.name),
+			})
 		);
 		if (session.hasFile) {
 			title.appendChild(
-				makeElement({ tag: 'span', className: 'anyink-recovery-row__badge', content: 'from file' })
+				makeElement({
+					tag: 'span',
+					className: 'anyink-recovery-row__badge',
+					content: simple ? escapeHTML(word('recover.hasFile')) : 'from file',
+				})
 			);
 		}
 		const when = makeElement({
@@ -110,6 +131,8 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 		const restoreButton = makeElement({
 			tag: 'fancy-button',
 			className: 'anyink-recovery-row__restore',
+			// Simple: one green button (principle 1), the newest backup's Restore
+			attributes: simple && index > 0 ? { secondary: '' } : {},
 			innerHTML: 'Restore',
 		});
 		const discardButton = makeElement({
@@ -142,20 +165,29 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 					return;
 				}
 				setBusy(false);
-				showError(`Could not recover ${escapeHTML(session.name)}: ${escapeHTML(error?.message || error)}`);
+				showError(
+					`Could not recover ${escapeHTML(session.name)}: ${escapeHTML(error?.message || error)}`
+				);
 			}
 		});
 
 		discardButton.addEventListener('click', async () => {
 			if (discardButton.hasAttribute('disabled')) return;
 			setBusy(true);
+			// Simple: unsaved work with no work file is the only copy, so ask first (7.4 #1)
+			if (simple && !session.hasFile && !(await confirmThrowAway())) {
+				setBusy(false);
+				return;
+			}
 			try {
 				await discard(session.id);
 				row.remove();
 				if (!rows.children.length) showEmpty();
 			} catch (error) {
 				setBusy(false);
-				showError(`Could not discard ${escapeHTML(session.name)}: ${escapeHTML(error?.message || error)}`);
+				showError(
+					`Could not discard ${escapeHTML(session.name)}: ${escapeHTML(error?.message || error)}`
+				);
 			}
 		});
 
@@ -168,7 +200,12 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 
 /** @returns {HTMLElement} the empty-state line */
 export function makeEmptyMessage() {
-	return makeElement({ tag: 'i', className: 'anyink-recovery__empty', content: EMPTY_MESSAGE });
+	return makeElement({
+		tag: 'i',
+		className: 'anyink-recovery__empty',
+		// B4 fix track: Simple says "backup copy" (2.4 G), the editor's own word, never "snapshot"
+		content: isSimpleMode() ? escapeHTML(word('recover.nothing')) : EMPTY_MESSAGE,
+	});
 }
 
 /**
@@ -183,10 +220,14 @@ export function makeEmptyMessage() {
 export function makeRecoverArea({ banner = false, list } = {}) {
 	const area = makeElement({
 		tag: 'div',
-		className: banner ? 'anyink-recovery-area anyink-recovery-area--banner' : 'anyink-recovery-area',
+		className: banner
+			? 'anyink-recovery-area anyink-recovery-area--banner'
+			: 'anyink-recovery-area',
 	});
 	if (!banner) {
-		area.appendChild(makeElement({ tag: 'i', className: 'anyink-recovery__empty', content: LOADING_MESSAGE }));
+		area.appendChild(
+			makeElement({ tag: 'i', className: 'anyink-recovery__empty', content: LOADING_MESSAGE })
+		);
 	}
 	const load = list || listRecoverableSessions;
 	let listening = false;
@@ -253,11 +294,16 @@ export function makeRecoverArea({ banner = false, list } = {}) {
  * @returns {HTMLElement} the tab's message for a failed listing
  */
 function makeListErrorMessage(error) {
-	const reason = escapeHTML(error?.message || error?.name || String(error));
+	const said = error?.message || error?.name || String(error);
+	const reason = escapeHTML(said);
 	return makeElement({
 		tag: 'i',
 		className: 'anyink-recovery__empty',
-		content: `Could not read the crash-recovery snapshots (${reason}). Reload ANY-INK to try again.`,
+		// B4 + B5 integration: Simple says it in house words (2.4 G: "backup copy", never
+		// "snapshot"), until B13's crash card
+		content: isSimpleMode()
+			? escapeHTML(word('start.backupsUnreadable', { reason: said }))
+			: `Could not read the crash-recovery snapshots (${reason}). Reload ANY-INK to try again.`,
 	});
 }
 
@@ -315,6 +361,53 @@ export function confirmForgetSnapshots() {
 		addAsChildren(buttons, [cancel, forget]);
 		content.appendChild(buttons);
 		showModalDialog(content, 440);
+	});
+}
+
+/**
+ * Simple's one start-screen confirm (UX-BEGINNER 7.4 #1): unsaved work with no work file is
+ * thrown away only after this. Keep it is the green button (principle 1: the safe choice is
+ * the obvious one); Throw it away is outlined. Closing the box by its x or the backdrop keeps
+ * the work. Buttons carry data-anyink-choice ('throw-away', 'keep') for tests and B13.
+ * @returns {Promise<Boolean>} true: throw it away
+ */
+export function confirmThrowAway() {
+	return new Promise((resolve) => {
+		let answered = false;
+		let watcher = null;
+		const answer = (value) => {
+			if (answered) return;
+			answered = true;
+			watcher?.disconnect();
+			closeEveryTypeOfDialog();
+			resolve(value);
+		};
+		const content = makeElement({ tag: 'div', className: 'anyink-recovery-confirm' });
+		content.appendChild(
+			makeElement({ tag: 'p', content: escapeHTML(word('recover.throwAwayQuestion')) })
+		);
+		const button = (choice, key, outlined, value) =>
+			makeElement({
+				tag: 'fancy-button',
+				attributes: { 'data-anyink-choice': choice, ...(outlined ? { secondary: '' } : {}) },
+				content: escapeHTML(word(key)),
+				onClick: () => answer(value),
+			});
+		const buttons = makeElement({ tag: 'div', className: 'anyink-recovery-confirm__buttons' });
+		addAsChildren(buttons, [
+			button('throw-away', 'recover.throwAway', true, true),
+			button('keep', 'recover.keep', false, false),
+		]);
+		content.appendChild(buttons);
+		showModalDialog(content, 440);
+		// The x, the backdrop or Esc take the box down without an answer: that keeps the work
+		const box = content.closest('dialog');
+		if (box && typeof MutationObserver === 'function') {
+			watcher = new MutationObserver(() => {
+				if (!box.isConnected) answer(false);
+			});
+			watcher.observe(box.parentNode || document.body, { childList: true });
+		}
 	});
 }
 

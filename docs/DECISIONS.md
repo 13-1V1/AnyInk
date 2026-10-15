@@ -943,3 +943,184 @@ the body, so a letter's sides are no longer its plain ink box.
 (B11's limit) or rows off size by more than 10 %; a dropping f alone keeps landing off; Brennan
 fixes automatic spacing by hand on most letters (D-031's measured-spacing fallback); or a hand
 whose letters lean very differently still opens holes.
+
+## D-035: B4 and B5 build choices (house words, one toast voice, the mode switch)
+**Decided:** 10/14/2026, during B4 and B5 (UX-BEGINNER.md 2, 4.0, 4.9 to 4.11, 6, 7.6, 7.7, section 10
+B4 and B5): five tracks (B4 core, toasts, display points; B5 core, wiring) and their integration.
+Where a choice goes past the spec's literal words it says so.
+**Chose (words, `src/anyink/words`):**
+- One gatherer, `words.js`, over `sets/*.js`, one file per owner; a key defined twice stops the load,
+  and `word()` throws on a missing key or value, so a typo fails a test instead of a screen. The
+  integration added a seam test that every key the code asks for by name exists.
+- The scan matches whole words, their plurals and (finalize) their -ed and -ing forms ("glyphs",
+  "kerned" and "snapshotted" hit; "Advanced" doesn't; "kerning" is its own term). A quote entry's
+  text is exempt but its hint is scanned; `placeholder` and `alt` are scanned with `title` and
+  `aria-label`. Toasts are scanned in Simple only: All tools keeps Glyphr Studio's wording for
+  messages Simple never shows.
+- Two glossary comparisons were reworded because the spec's own used a banned word: "The level
+  knob on an audio noise gate" (ink cutoff) and "How far a typewriter carriage moves" (letter
+  width).
+- A surface with hits could be parked as `pending` (the test then asserted the hits were still
+  there). The integration re-enabled every parked scan; none is left.
+**Chose (one toast voice, `src/anyink/toast`):**
+- Every `showToast` goes through one queue. All tools looks and times toasts as before; only these
+  changed to house words there, because both modes share them: Merge ("Merging the shapes...",
+  "Merged the shapes"), the two backup-copy toasts and the shared photo toasts.
+- Simple never shows "No more undo/redo", "Navigated without undo-ing", Ctrl+R's rounding note or
+  the Saved toast (the save status says it). A message with no words key is dropped in Simple and
+  written to a hidden element whose text says "upstream", so the banned-word scan fails any Simple
+  flow that drops one.
+- The export check toast, in Simple, is one toast in the queue in the export's group, with [Show me]
+  as its own button and the file and folder names as quotes, so it takes the place of "Exported
+  ..." and its button is never lost while it waits (integration). The export's 2.5 s close leaves a
+  Simple toast to the queue (it used to close the check toast that replaced it).
+**Chose (shared display points, both modes):**
+- Canvas guide labels, drag readouts, the File menu, the save status, the strip labels and Samples
+  menu, the notices and every B1 string say the house words in both modes. Readouts read "label
+  value" with no colon ("right space 88"); the tail line is never negative; a pointed-at edge's
+  readout replaces the edge's own label (it used to draw over it, "Left sedge 0"). File names keep
+  their look: the quote span adds no visible quotation marks. The install button says "Install".
+- The empty preview ("Type something to see your letters here.", the strip and the Overview) and the
+  update notice's reasons (pwa/checkpoint.js: "Couldn't save a backup copy of every open font. Press
+  Save, then press Reload again.") are house words in both modes (integration).
+**Chose (the mode switch, `src/anyink/mode`):**
+- 6.2's tables list today's controls by the ids the code already uses; an id the table doesn't know
+  shows in All tools and is hidden in Simple. Screens filter where they are drawn; the table of
+  contents, `panelForPage` and `navigate` stay unfiltered. Simple hides all 9 panels at `makePanel`
+  (6.2 says the panel chooser and all 9 panels).
+- The landing rule runs at the top of `Navigator.navigate`, before the page is drawn (the spec put
+  it in `makeAppTopBar`, which runs after the page is built). A landing visit ends on its own when
+  he arrives back on a page Simple shows; More tools turned on deliberately stays on. The band shows
+  only after Simple has been on, so the launch default looks as it does today.
+- One key map in both modes: P picks the Point pen and E Edit points in All tools too (7.6); B keeps
+  upstream's Edit points until `brush` is on; layer-order keys, Ctrl+Space and Ctrl+G are off in
+  Simple; Ctrl+O opens the work file picker in both modes, asking "Your work has changes that aren't
+  saved. [Save] [Cancel]" first, and "Saved. [Open a font...]" after Save (a new click). Simple's
+  Ctrl+Space release changes nothing; All tools keeps upstream's release, which leaves the tool
+  unset after Ctrl+Space (an upstream bug, not fixed here).
+- Shape-level flips are hidden in Simple (the letter-level flips stay). The item chooser, the File
+  and Help menus, the check line and the start-page tabs stay in Simple until the B that replaces
+  each one lands.
+- Simple's strip hides Real font and Guide lines (6.2 Strip) and treats them as off while hidden;
+  the prefs are kept for All tools (integration).
+- While the band shows, `--anyink-band-height` (36 px) is set on the page and the viewport-sized
+  lists of content-pages.css take it off, so they don't scroll inside by the band's height
+  (integration).
+**Chose (integration: Simple words on the upstream pages Simple still shows):** so the scan finds 0
+hits on every Simple page that exists (UX-BEGINNER 2.3 "Done when"), each until the B that replaces
+it: the letter page's tool and view tooltips ("Rectangle (R)", "Fit letter", "Dark paper", "Outline
+only") and its letter button ("Letter" over "small a", sentence case), until B7; letter tiles
+("small a", then "Not made yet. Click to start it."; no id) and the Overview (the welcome only, no
+project card with numbers and a door to Settings), until B10; the letter chooser offers letters only
+(no joined letters or reusable parts) and no codes, until B7 and B10; Help shows its first tab only,
+in house words, until B15's Help; the start page's Load and Examples tabs, "Recent fonts" and the
+Recover card (sentence case), until B13; Simple's save status never shows a browser's own error
+sentence. All tools keeps Glyphr Studio's words on every one of these. Tool and view buttons carry
+`data-anyink-tool` / `data-anyink-view-tool`, so checks find them by id, never by their words.
+**Chose (critic, fix and finalize passes, 10/14/2026):** a critic pass re-ran every track's findings
+in real Chrome and jsdom; three fix tracks (words, toasts, mode) and a finalize pass fixed every
+open finding with a test that failed on the old code first.
+- Toasts in Simple: info toasts wait their turn, so an error toast always gets its 6 s; toasts
+  that follow one another share a group and replace each other at once (`drop`: the drag-over hint,
+  drop and paste results, photo toasts; `file`: open, save and recent-font toasts; `export`: the
+  font file's toasts, the folder row's included; `toolSwitch`; `merge`). The same words again
+  refresh the toast showing. An offer (an info toast with a button: the backup copy's [Save], the
+  export check's [Show me], "No folder picked [Pick a folder...]") comes back after an undo toast
+  pushes it aside and survives Esc and page changes, until its time is up or (finalize) its font
+  is no longer the open one (`stillGood`: then it goes at the next clear, never shows from the
+  line, and its button does nothing). The buttons of undo, destructive and automatic toasts end
+  when a newer toast replaces them: they belong to the newest change.
+- A press on the letter canvas leaves Simple's toasts alone (finalize; the toast track left it as a
+  question): 4.0 gives every toast 6 s and makes info toasts wait, so a tool key's "Switched to
+  Oval (O)" waiting behind another toast shows after it instead of being lost to the press that
+  starts drawing. Esc and page changes still clear them; All tools clears on a press, as before.
+- Photos in Simple before B9 (`trace/photo_gate.js`): a new photo is turned away ("ANY-INK can't
+  use photos yet. Draw the letter with the Rectangle, Oval or Point pen for now.") and the drop
+  and paste hints offer drawings only; a photo already in the font (put there in More tools) is
+  neither drawn nor grabbable in Simple (finalize: nothing on a Simple screen could hide, remove or
+  trace it, and it never goes in the font file). B9 turns 'photo' on and the gate opens; the
+  real-browser checks that stand in for B9 (`b23`, `mode-fixes`) turn the flag on in the page.
+- The start page's Recover card in Simple (until B13): Discard on a backup copy with no work file
+  asks "Throw away this unsaved work? This can't be undone. [Throw it away] [Keep it]" (7.4 #1);
+  Keep it is the one green button and closing the box keeps the work; the Recover tab says
+  "backup copy". Finalize: each start page tab has one green button, and while the banner offers
+  a backup copy its Restore is the one green (every tab button outlined); the Recover tab hides
+  the banner; New, Load and Examples say font and work file (`start.*`); the drag note says "Drop
+  it here"; a file the drop target can't take says 7.7's words (a drawing, an unreadable font
+  file, a work file that won't open); bringing in a font file says "Bringing in letters... N of
+  M"; the Windows Open and Save boxes call a .gs2 an "ANY-INK work file".
+- Plain error boxes (finalize, `words/error_box.js`): in Simple every error box a file command can
+  raise says the 7.7 sentence from `error_words.js` with its buttons (the first green): Save
+  failed [Try again] [Save somewhere else], the file changed on disk [Save as a new file], a work
+  file that won't open [Open another work file...] (Ctrl+O's command), the font file [Try again],
+  anything else [Close]. The browser's own sentence goes to the console. All tools keeps
+  upstream's box. The strict scan (2.4 E and G: no "project", no block names, no codes) is on by
+  default for every Simple scan.
+- Making a font file in Simple (until B14's Use in Word): before the folder picker opens the first
+  time a toast says what to pick; a cancelled picker says "No folder picked. ..." [Pick a
+  folder...], which makes the font file in that click; a refused folder says "Couldn't write to
+  "Fonts". Chrome may need your OK." as the picker opens again; after a file lands in its folder
+  with nothing to fix, the next step follows: "To use it in Word, open "Fonts", double-click
+  "X.otf" and press Install." The File menu's "Choose where font files go..." stays in Simple
+  until B14 (6.2 hides it; without it a folder picked once could never be changed).
+- Ctrl+O (finalize): the picked font takes the place of the font he is in (the one the unsaved
+  check guarded), never the app's import target, which with two fonts open can be the other one;
+  it asks first whenever the work file doesn't hold the latest change (ink the file lacks, or,
+  while the status isn't Saved, any real History step: a photo, a rename, a guide line), not
+  only for ink; a backup copy is written before the font is replaced.
+- "Saving..." (finalize, 4.11): the autosave's queued write (about 3 s after a change, D-030)
+  marks the save status queued, so Simple says "Saving..." from the change until the write ends;
+  only a font with a work file has a write to queue. A change queues the write whether or not
+  crash recovery started (D-030: the two are independent).
+- Simple keeps the page chooser (its four pages, "All letters / One letter / Help / About ANY-INK")
+  until B6's rail ('coach') replaces it; 6.2 says "Not shown at all", but until the rail exists
+  Help and About would be dead ends. Finalize: Help and About also get [Back to my letters]
+  (principle 7). Simple's Help is one "Help" tab in a few sentences (pick a letter, the tools with
+  the keys Simple has, Undo, Save and Open, the font file, the full manual said to use pro words)
+  until B15. About keeps every credit; Simple shows the Glyphr Studio credit in house words, the
+  libraries' own names as quotes and no "This project" card. All tools' Help > Keyboard shortcuts
+  lists the tool keys and Ctrl+O as `keys.js` has them (P New Path, E Path Edit, Ctrl+O opens a
+  saved project file), in Glyphr Studio's words.
+- Keys (mode track): in Simple B picks nothing until B8's Brush (Edit points would have two keys
+  and B would change tool later); Ctrl+R is off (tidy points is automatic, so Chrome keeps its
+  reload key); Ctrl+E makes the .otf until 'useInWord' (the one font file row Simple shows); the
+  "Switched to" toast names the key the tooltip shows (H and W say P). Simple's File menu gets
+  "Open a saved font..." (Ctrl+O) now; "Start a new font..." waits for B13 (a door to a start
+  screen that doesn't exist yet would break principle 8). Letter tiles' tooltips come from the
+  letter's ink ("Not made yet. Click to start it.", "Changed since you opened the font."), the
+  tile's own font's letter (finalize).
+- Changes All tools gets on purpose, because they fix results (Brennan to confirm before Gate 2):
+  Delete or Backspace with nothing picked records no Undo step; a side edge's drag or nudge stops
+  at width 0; the left edge of a letter with no shapes doesn't move (finalize: it moved the right
+  edge instead); Save as shows two key chips (`Ctrl+Shift`, `s`) so they don't wrap; a strip
+  toggle (a checkbox) with focus no longer swallows Ctrl+Z, Ctrl+S, Ctrl+E and the tool keys; the
+  strip redraws after every change (a rectangle added left its empty-sheet sentence over the new
+  letter); neighbor names stop being links once they aren't drawn.
+- Finalize, smaller choices: in Simple the space and the no-break space are made a quarter of the
+  letter box wide when opened (the width the font file gives them), so opening the space never
+  needs fixing; an Undo or Redo that changes a letter while Help, About or the Overview shows says
+  which ("Undid: added a rectangle on Capital B [Show Capital B]", kind undo; B6 adds the general
+  undo toasts); a work file dropped off a letter page says Ctrl+O; the strip's tooltip says
+  nothing over the letter already open; a mode switch on the start page keeps the typed font name
+  and the tab; in Simple the install offer waits until a font is open (B13 moves it to after the
+  first ready letter).
+**Rejected:**
+- `it.skip` for parked scans: a skip never says when its surface is clean.
+- Letting a tool key's toast replace a plain info toast at once (finalize): that needs every error
+  toast marked so it isn't replaced, and 4.0 says info toasts wait their turn; keeping Simple's
+  toasts through a canvas press shows the tool toast in its turn instead.
+- A "Take the photo off" action in Simple before B9: UI for a screen B9 replaces; not drawing the
+  photo is enough (it never goes in the font file).
+- Hiding the letter chooser's range switch in Simple: a second letter set enabled in More tools
+  would then be unreachable; codes are dropped instead.
+- Blocking a page Simple hides: 6.3 says landing is never blocked.
+**Why:** principle 2 (plain words, the scan at zero), principle 8 (no doors to unbuilt rooms), 6.1
+(All tools as it is today, apart from the shared display points).
+**Affects:** `src/anyink/words`, `src/anyink/toast`, `src/anyink/mode`, `files/open_font.js`,
+`files/autosave.js`, `trace/photo_gate.js`, the upstream files listed in TEST_LOG's B4 + B5 rows; B6 (undo toasts, the More tools button calls
+`turnOnMoreTools`, toast placement), B7 (`tool.*` words, Fine-tune door), B9, B10, B13, B14, B15
+(`setGuideLinesMoving`, Help keys from `keysShown`).
+**Revisit if:** a later screen can't be worded without a pro term (the exemptions would have to
+grow past quotes and pro-word small print), upstream adds a toast or a control (the inventory and
+toast-map tests fail until it is classified), or B16 flips the launch default (the band's
+"only after Simple" rule and the All tools snapshot change then).

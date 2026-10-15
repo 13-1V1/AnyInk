@@ -269,8 +269,14 @@ describe('markClean', () => {
 		initRecovery();
 		await flush();
 		expect(toast).toHaveBeenCalledTimes(1);
+		// B4: All tools only (key null), removed in Simple (UX-BEGINNER 2.4 G)
 		expect(toast).toHaveBeenCalledWith(
-			'Unsaved work from an earlier session exists for Test Font. Open the Recover tab to restore it.'
+			null,
+			{},
+			{
+				allTools:
+					'Unsaved work from an earlier session exists for Test Font. Open the Recover tab to restore it.',
+			}
 		);
 
 		await markClean(editor); // Ctrl+S with zero edits
@@ -428,8 +434,16 @@ describe('snapshot write failures', () => {
 		markDirty(editor.history);
 		await vi.advanceTimersByTimeAsync(SNAPSHOT_DELAY_MS);
 		expect(toast).toHaveBeenCalledTimes(1);
+		// B4: UX-BEGINNER 7.7's words and [Save] button; the reason stays in lastError
 		expect(toast).toHaveBeenCalledWith(
-			'Crash recovery could not save a snapshot (the quota has been exceeded). Save your work with Ctrl+S.'
+			'toast.backupFailed',
+			{},
+			{
+				tone: 'warning',
+				action: { key: 'term.save', run: expect.any(Function) },
+				// B4 + B5 finalize: [Save] belongs to the font open when it failed
+				stillGood: expect.any(Function),
+			}
 		);
 		expect(getRecoveryStatus().lastError).toMatchObject({
 			message: 'the quota has been exceeded',
@@ -747,7 +761,10 @@ describe('restoreSession', () => {
 		expect(target.loadedFileHandle).toBe(handle);
 		expect(target.setProjectAsUnsaved).toHaveBeenCalledTimes(1);
 		expect(projectFile).toHaveBeenCalledWith({ handle, saved: false, reason: 'recovered' });
-		expect(toast).toHaveBeenCalledWith('Recovered Crashed Font from 7 minutes ago');
+		expect(toast).toHaveBeenCalledWith('toast.backupOpened', {
+			name: 'Crashed Font',
+			ago: '7 minutes ago',
+		}); // B4: "Opened the backup copy of Crashed Font from 7 minutes ago"
 		expect(result).toEqual({
 			id: 'session:crashed:old',
 			projectId: 'crashed',
@@ -791,7 +808,7 @@ describe('restoreSession', () => {
 		}
 	});
 
-	it('falls back to no handle and escapes the name in the toast', async () => {
+	it('falls back to no handle and passes the name as it is (the toast shows words as text)', async () => {
 		await recSet('session:x', {
 			id: 'x',
 			name: '<b>Bold</b>',
@@ -801,9 +818,11 @@ describe('restoreSession', () => {
 		});
 		await restoreSession('session:x');
 		expect(editor.loadedFileHandle).toBe(false);
-		expect(toast).toHaveBeenCalledWith(
-			'Recovered &lt;b&gt;Bold&lt;/b&gt; from less than a minute ago'
-		);
+		// B4: a keyed toast is drawn as text, never HTML (src/anyink/toast/tests/toast.test.js)
+		expect(toast).toHaveBeenCalledWith('toast.backupOpened', {
+			name: '<b>Bold</b>',
+			ago: 'less than a minute ago',
+		});
 	});
 
 	it('rejects with a "gone" error when the record is missing, clean, or live in another tab', async () => {

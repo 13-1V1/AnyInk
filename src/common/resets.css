@@ -23,6 +23,17 @@
 	transition: var(--global-transition);
 }
 
+/*
+	ANY-INK (B4 + B5 integration): a quote (.anyink-quote: a file name or an exact Windows label,
+	UX-BEGINNER.md 2.3) keeps the look of the words around it; the rule above would otherwise give
+	it the base font and size (the File menu's monospace file-name headings).
+*/
+.anyink-quote {
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: inherit;
+}
+
 html,
 body {
 	background-color: var(--chrome-bg);

@@ -9,6 +9,7 @@ import {
 	makeGlyphContextText,
 	makePresetRows,
 } from '../sample_presets.js';
+import { word } from '../../words/words.js';
 
 const isPangram = (text) =>
 	'abcdefghijklmnopqrstuvwxyz'.split('').every((letter) => text.toLowerCase().includes(letter));
@@ -60,7 +61,8 @@ describe('makePresetRows', () => {
 		const groups = [...new Set(rows.map((row) => row.group))];
 		expect(groups).toEqual(['context', 'pangrams', 'control', 'sets']);
 		expect(rows[0].text).toBe(makeGlyphContextText('g'));
-		expect(rows[0].name).toBe('Context for g');
+		// B4: in house words (strip_words.test.js): 'small g with its neighbors'
+		expect(rows[0].name).toBe(word('strip.sampleNeighbors', { letter: 'small g' }));
 		expect(rows.filter((row) => row.group === 'pangrams')).toHaveLength(PANGRAMS.length);
 		expect(rows.filter((row) => row.group === 'sets')).toHaveLength(3);
 	});

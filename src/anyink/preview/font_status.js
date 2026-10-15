@@ -10,22 +10,21 @@
 	  "2 more letters and 1 gap need fixing too."), so three broken letters never read as one.
 	- hintFor: when [Fix it] can't fix it, one sentence saying what to do instead.
 	The letter's name comes from item_label.js.
-	B4 moves these strings into src/anyink/words/words.js.
+	B4: every word here is a words key (src/anyink/words, check.*), the same words B1 showed.
 */
 import { PROBLEM } from '../fontcheck/validate.js';
+import { word } from '../words/words.js';
 
-export const SHOW_ME = 'Show me';
-export const FIX_IT = 'Fix it';
-
-const CANT_SHOW = "Can't show your font yet";
+export const SHOW_ME = word('check.showMe');
+export const FIX_IT = word('check.fixIt');
 
 /**
  * @param {{name: String, plural?: Boolean}|null} label - from itemLabel (item_label.js)
  * @returns {String} one sentence
  */
 export function buildFailureText(label) {
-	if (!label?.name) return `${CANT_SHOW}: one of your letters needs fixing.`;
-	return `${CANT_SHOW}: ${label.name} ${label.plural ? 'need' : 'needs'} fixing.`;
+	if (!label?.name) return word('check.cantShowUnknown');
+	return word('check.cantShow', { list: label.name, count: label.plural ? 2 : 1 });
 }
 
 /**
@@ -76,19 +75,21 @@ export function moreText(more, moreGaps = 0, firstIsGap = false) {
 	const letters = count(more);
 	const gaps = count(moreGaps);
 	if (!letters && !gaps) return '';
+	// "more" goes with the letters, or with the gaps when the line itself names a gap
 	const parts = [];
-	if (letters) {
-		parts.push(`${letters} ${firstIsGap ? '' : 'more '}${letters === 1 ? 'letter' : 'letters'}`);
-	}
-	if (gaps) parts.push(`${gaps} ${firstIsGap ? 'more ' : ''}${gaps === 1 ? 'gap' : 'gaps'}`);
-	return `${parts.join(' and ')} ${letters + gaps === 1 ? 'needs' : 'need'} fixing too.`;
+	if (letters)
+		parts.push(word(firstIsGap ? 'check.letters' : 'check.moreLetters', { count: letters }));
+	if (gaps) parts.push(word(firstIsGap ? 'check.moreGaps' : 'check.gaps', { count: gaps }));
+	const list =
+		parts.length === 2 ? word('check.andList', { names: parts[0], last: parts[1] }) : parts[0];
+	return word('check.needFixingToo', { list, count: letters + gaps });
 }
 
 const HINTS = {
-	[PROBLEM.point]: 'Show me, then drag the far point back near the letter.',
-	[PROBLEM.kern]: 'Show me, then set the gap to a smaller number.',
+	[PROBLEM.point]: 'check.hintPoint',
+	[PROBLEM.kern]: 'check.hintGap',
 	// Fix it removes stray shapes from the letter itself; these sit in a letter it is made from
-	[PROBLEM.shape]: 'Show me, then delete the stray shape in the letter it is made from.',
+	[PROBLEM.shape]: 'check.hintShape',
 };
 
 /**
@@ -99,5 +100,5 @@ const HINTS = {
  */
 export function hintFor(problem, fixable) {
 	if (fixable || typeof problem !== 'string') return '';
-	return Object.hasOwn(HINTS, problem) ? HINTS[problem] : '';
+	return Object.hasOwn(HINTS, problem) ? word(HINTS[problem]) : '';
 }

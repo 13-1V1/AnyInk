@@ -21,6 +21,8 @@ import {
 	readClipboardImage,
 	summarizePaste,
 } from '../anyink/trace/paste_drop.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { isWorkFile, sayDrawingEmpty, sayWorkFileDropped } from '../anyink/toast/drop_toasts.js';
 import { importTraceImage, isTraceImageFile } from '../anyink/trace/trace_import.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
@@ -37,7 +39,15 @@ import { cancelDefaultEventActions } from './events.js';
 export function importSVGtoCurrentItem(svgData, sourceText = 'SVG') {
 	// log(`importSVGtoCurrentItem`, 'start');
 
-	const tempGlyph = ioSVG_convertSVGTagsToGlyph(svgData);
+	// ANY-INK (B4 fix track): a drawing that can't be read brings nothing in, and says so below.
+	// Simple says it once, in house words, without the reader's own error box (which speaks of
+	// "the operating system clipboard" and SVG code); All tools keeps the box
+	let tempGlyph = false;
+	try {
+		tempGlyph = ioSVG_convertSVGTagsToGlyph(svgData, !isSimpleMode());
+	} catch (error) {
+		console.warn('ANY-INK: the dropped drawing could not be read', error);
+	}
 
 	if (tempGlyph && tempGlyph.shapes.length) {
 		// Flip
@@ -75,6 +85,9 @@ export function importSVGtoCurrentItem(svgData, sourceText = 'SVG') {
 		showToast(`Imported ${tempGlyph.shapes.length} shapes from ${sourceText}`);
 	} else {
 		// showToast('Could not import pasted SVG code.');
+		// ANY-INK (B4 fix track): never silently wrong (UX-BEGINNER principle 6): Simple says the
+		// drawing had no shapes to bring in; All tools says nothing, as before
+		sayDrawingEmpty();
 	}
 	// log(`importSVGtoCurrentItem`, 'end');
 }
@@ -236,6 +249,9 @@ export function handleDropSVGonEditCanvas(event) {
 		reader.readAsText(file);
 	} else if (kind === 'image') {
 		sendImageToTrace(file);
+	} else if (isWorkFile(file)) {
+		// ANY-INK (B4 fix track): his own work file says how to open it (UX-BEGINNER 7.7, 7.6)
+		sayWorkFileDropped();
 	} else {
 		showToast(DROP_HINT);
 	}

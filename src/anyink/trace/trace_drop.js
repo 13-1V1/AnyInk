@@ -26,6 +26,7 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { handleDropSVGonEditCanvas } from '../../edit_canvas/events_drag_drop_paste.js';
+import { isWorkFile, sayWorkFileDropped } from '../toast/drop_toasts.js';
 import { DROP_HINT, NOT_TRACEABLE_HINT, classifyDroppedFile } from './paste_drop.js';
 import { isTraceImageFile } from './trace_import.js';
 
@@ -151,7 +152,14 @@ export function routeStrayDrop(
 		dropOnCanvas(event);
 		return;
 	}
-	const kind = classifyDroppedFile(event?.dataTransfer?.files?.[0], isTraceImageFile);
+	const file = event?.dataTransfer?.files?.[0];
+	// B4 + B5 finalize: his own work file says how to open it (Ctrl+O, 7.6), as on a letter;
+	// All tools keeps its drop hint (sayWorkFileDropped)
+	if (isWorkFile(file)) {
+		sayWorkFileDropped();
+		return;
+	}
+	const kind = classifyDroppedFile(file, isTraceImageFile);
 	showToast(kind === 'other' ? DROP_HINT : NOT_TRACEABLE_HINT);
 }
 

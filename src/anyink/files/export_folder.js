@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK export folder (Milestone 6, D-012, D-027).
 	Owner: FILES track (shared with the OTF export hand-off in font_export.js).
@@ -10,10 +12,17 @@
 	Two steps, because Chromium's transient user activation (needed for a
 	permission prompt or a picker) runs out about 5 s after the click, and a real
 	font can take longer than that to build (DESIGN_DOC 8):
-	  1. prepareExportDestination()   FIRST thing in the click / keydown, before the
-	                                  build. Remembered folder -> ensurePermission
+	  1. prepareExportDestination({ retry })   FIRST thing in the click / keydown, before
+	                                  the build. Remembered folder -> ensurePermission
 	                                  (may prompt). No folder, or the folder was
-	                                  refused -> the folder picker. Resolves
+	                                  refused -> the folder picker. B4 + B5 finalize
+	                                  (UX-BEGINNER.md 7.7), Simple only: before the first
+	                                  picker a toast says what to pick; a refused folder
+	                                  says "Couldn't write to "Fonts". Chrome may need
+	                                  your OK." as the picker opens; a cancelled picker
+	                                  says "No folder picked. ..." with [Pick a folder...]
+	                                  (retry: the export again, so the picker opens in
+	                                  that click; default: just choose the folder). Resolves
 	                                    { kind: 'folder', dir }  write there
 	                                    { kind: 'download' }     no File System Access /
 	                                                             no directory picker
@@ -61,6 +70,9 @@
 
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { saveFile } from '../../project_editor/file_io.js';
+import { isSimpleMode } from '../mode/mode.js';
+import { toast } from '../toast/toast.js';
+import { exportFolderWords } from '../words/error_words.js';
 import { askAboutExistingFile } from './existing_file_dialog.js';
 import { getFileApi, hasDirectoryPicker, hasFileSystemAccess, isAbortError } from './file_api.js';
 import {
@@ -167,13 +179,16 @@ export async function pickExportFolder() {
  * Settles where an export goes. Call first thing in the click or keydown that
  * starts the export, before the font is built, so the permission prompt and the
  * folder picker still have the gesture's transient activation.
+ * @param {{retry?: Function}} [options] - retry: the export again, for Simple's
+ *   [Pick a folder...] after a cancelled picker (B4 + B5 finalize)
  * @returns {Promise<{kind: 'folder', dir: FileSystemDirectoryHandle} |
  *   {kind: 'download' | 'cancelled' | 'prompt'}>} only 'folder' and 'download'
  *   mean "build the font"; the other two already showed a toast.
  */
-export async function prepareExportDestination() {
+export async function prepareExportDestination({ retry } = {}) {
 	if (!hasFileSystemAccess() || !hasDirectoryPicker()) return { kind: 'download' };
 	const remembered = await preloadExportFolder();
+	const simple = isSimpleMode();
 	if (remembered) {
 		const permission = await ensurePermission(remembered, 'readwrite');
 		if (permission === 'granted') return { kind: 'folder', dir: remembered };
@@ -182,12 +197,23 @@ export async function prepareExportDestination() {
 			return { kind: 'prompt' };
 		}
 		// 'denied': this folder was refused. Choose another (the picker starts there).
-		showToast(`ANY-INK was not allowed to write to ${remembered.name}. Choose an export folder.`);
+		if (simple) sayFolderWords(exportFolderWords('refused', remembered.name));
+		else showToast(`ANY-INK was not allowed to write to ${remembered.name}. Choose an export folder.`);
+	} else if (simple) {
+		// B4 + B5 finalize: say what to pick before the picker opens the first time
+		toast('menu.pickFolderFirst', {}, { group: 'export' });
 	}
 	const choice = await chooseExportFolder();
 	if (choice.status === 'picked') return { kind: 'folder', dir: choice.dir };
 	if (choice.status === 'cancelled') {
-		showToast('Export cancelled');
+		if (simple) {
+			sayFolderWords(exportFolderWords('cancelled'), {
+				key: 'error.button.pickFolder',
+				run: retry || (() => chooseFolderFromToast()),
+			});
+		} else {
+			showToast('Export cancelled');
+		}
 		return { kind: 'cancelled' };
 	}
 	if (choice.status === 'needsClick') {
@@ -195,6 +221,33 @@ export async function prepareExportDestination() {
 		return { kind: 'prompt' };
 	}
 	return { kind: 'download' };
+}
+
+/**
+ * Simple (B4 + B5 finalize, UX-BEGINNER.md 7.7): the folder's words as a toast in the font
+ * file's stream, the folder name as a quote, with the amber edge.
+ * @param {{key: String, vars: Object, quotes: Array<String>}} words - error_words.js
+ * @param {{key: String, run: Function}} [action] - its one button
+ */
+function sayFolderWords(words, action) {
+	toast(words.key, words.vars, {
+		group: 'export',
+		tone: 'warning',
+		quotes: words.quotes,
+		...(action ? { action } : {}),
+	});
+}
+
+/** [Pick a folder...] with no export to run again: chooses the folder and says where. */
+async function chooseFolderFromToast() {
+	const choice = await chooseExportFolder();
+	if (choice.status === 'picked') {
+		toast(
+			'menu.fontFolderPicked',
+			{ folder: choice.dir.name },
+			{ quotes: ['folder'], group: 'export' }
+		);
+	}
 }
 
 /**

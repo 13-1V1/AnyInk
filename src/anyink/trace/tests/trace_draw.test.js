@@ -18,6 +18,8 @@ import {
 } from '../trace_draw.js';
 import { traceLayerState } from '../trace_layer.js';
 import { setTrace } from '../trace_model.js';
+import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
+import { setModeForTests } from '../../mode/mode.js';
 
 // Canvas px = dx + x * dz, dy - y * dz
 const VIEW = { dx: 100, dy: 400, dz: 0.5 };
@@ -379,5 +381,37 @@ describe('traceReadoutText', () => {
 		const t = { ...setTraceAndGet(), x: 12.4, y: 799.6, scale: 2.1234 };
 		expect(traceReadoutText(t, 'move')).toBe('left 12, top 800');
 		expect(traceReadoutText(t, 'ne')).toBe('849 wide, 425 tall');
+	});
+});
+
+// B4 + B5 finalize (verdict "A dropped photo is a dead end in Simple", the variant that failed: a
+// photo put under a letter in More tools still showed in Simple, where nothing can hide, remove
+// or trace it until B9's photo card). Until the 'photo' flag is on, Simple doesn't draw a photo
+// (it never goes in the font file, and Simple has no way to use it); All tools draws it as before.
+describe('drawTraceImage in Simple before the photo card (B9)', () => {
+	afterEach(() => {
+		setModeForTests('all');
+		resetFeaturesForTests();
+	});
+
+	it('Simple, photo flag off: draws nothing', async () => {
+		await warmBitmap();
+		setModeForTests('simple');
+		drawTraceImage(ctx, VIEW, item, editor);
+		expect(drawCalls('drawImage')).toHaveLength(0);
+	});
+
+	it("Simple, once B9 turns 'photo' on: draws it", async () => {
+		await warmBitmap();
+		setModeForTests('simple');
+		setFeaturesForTests({ photo: true });
+		drawTraceImage(ctx, VIEW, item, editor);
+		expect(drawCalls('drawImage')).toHaveLength(1);
+	});
+
+	it('All tools: draws it, as before', async () => {
+		await warmBitmap();
+		drawTraceImage(ctx, VIEW, item, editor);
+		expect(drawCalls('drawImage')).toHaveLength(1);
 	});
 });

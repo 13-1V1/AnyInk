@@ -61,7 +61,7 @@ describe('PWA recovery gate', () => {
 	it('refuses during undo or redo', async () => {
 		const f = fixture();
 		f.editors[1].history.isRestoring = true;
-		await expect(checkpoint(f.deps)).rejects.toThrow('undo or redo');
+		await expect(checkpoint(f.deps)).rejects.toThrow(/undo or redo/i); // B4 integration: words key notice.undoRunning
 	});
 	it.each(['edit', 'replace', 'session'])(
 		'refuses a concurrent %s while snapshotting',

@@ -1,5 +1,12 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { makeBackToLettersButton } from '../anyink/mode/back_to_letters.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { QUOTE_CLASS } from '../anyink/words/banned.js';
+import { escapeWordHTML } from '../anyink/words/word_html.js';
+import { word } from '../anyink/words/words.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import logoVertical from '../common/graphics/anyink-wordmark-vertical.svg?raw';
@@ -47,8 +54,33 @@ export function makePage_About() {
 
 	const panelArea = content.querySelector('#content-page__panel');
 	addAsChildren(panelArea, [tabControl.makeTabs()]);
+	// ANY-INK (B4 + B5 finalize): a way back to the letters in Simple (principle 7)
+	if (isSimpleMode()) panelArea.appendChild(makeBackToLettersButton());
 
 	return content;
+}
+
+/**
+ * ANY-INK (B4 + B5 finalize, UX-BEGINNER 2.3): in Simple a library's own name is a quote (its
+ * makers' spelling: "bezier-boolean", "XMLtoJSON"); All tools shows it as before.
+ * @param {String} name
+ * @returns {String} HTML
+ */
+function libraryName(name) {
+	if (!isSimpleMode()) return name;
+	return `<span class="${QUOTE_CLASS}">${escapeWordHTML(word('about.library', { name }))}</span>`;
+}
+
+/**
+ * ANY-INK (B4 + B5 finalize): the Glyphr Studio credit; Simple says it in house words.
+ * @returns {String} HTML
+ */
+function glyphrCredit() {
+	if (isSimpleMode()) return escapeWordHTML(word('about.builtOn'));
+	return `ANY-INK is a personal fork of Glyphr Studio v2, the free web-based font editor
+			by Matthew LaGrandeur. The glyph editor, pen and pointer tools, boolean path
+			operations, components, ligatures, kerning data, and font import and export
+			all come from Glyphr Studio.`;
 }
 
 /**
@@ -73,14 +105,20 @@ function makeVersionInfo() {
 				}
 			</div>
 
-			<div class="page__card">
+			${
+				// ANY-INK (B4 + B5 finalize, UX-BEGINNER 2.4 E): Simple hides the project's id and
+				// versions (internal numbers, nothing to act on)
+				isSimpleMode()
+					? ''
+					: `<div class="page__card">
 				<h3>This project</h3>
 				<label>Project name:</label> ${editor.project.settings.project.name}<br>
 				<label>Unique project ID:</label> ${editor.project.settings.project.id}<br>
 				<label>Initially created with:</label> Version ${
 					editor.project.settings.project.initialVersion
 				}
-			</div>
+			</div>`
+			}
 		`,
 	});
 
@@ -99,10 +137,7 @@ function makeCreditsInfo() {
 		<h1>Credits</h1>
 		<div class="page__card">
 			<h3>Glyphr Studio v2</h3>
-			ANY-INK is a personal fork of Glyphr Studio v2, the free web-based font editor
-			by Matthew LaGrandeur. The glyph editor, pen and pointer tools, boolean path
-			operations, components, ligatures, kerning data, and font import and export
-			all come from Glyphr Studio.
+			${glyphrCredit()}
 			<br><br>
 			<a href="https://www.glyphrstudio.com/" target="_blank">glyphrstudio.com</a>
 			&nbsp;&middot;&nbsp;
@@ -116,7 +151,7 @@ function makeCreditsInfo() {
 		<p>ANY-INK includes the following third-party libraries:</p>
 
 		<div class="page__card">
-			<h3>Font Flux JS</h3>
+			<h3>${libraryName('Font Flux JS')}</h3>
 			Available on
 			<a href="https://github.com/mattlag/Font-Flux-JS" target="_blank">GitHub</a>
 			and
@@ -129,7 +164,7 @@ function makeCreditsInfo() {
 		</div>
 
 		<div class="page__card">
-			<h3>bezier-boolean</h3>
+			<h3>${libraryName('bezier-boolean')}</h3>
 			Available on
 			<a href="https://github.com/mattlag/bezier-boolean" target="_blank">GitHub</a>
 			and
@@ -142,7 +177,7 @@ function makeCreditsInfo() {
 		</div>
 
 		<div class="page__card">
-			<h3>SVG-to-Bézier</h3>
+			<h3>${libraryName('SVG-to-Bézier')}</h3>
 			Available on
 			<a href="https://github.com/mattlag/SVG-to-Bezier" target="_blank">GitHub</a>
 			and
@@ -155,7 +190,7 @@ function makeCreditsInfo() {
 		</div>
 
 		<div class="page__card">
-			<h3>XMLtoJSON</h3>
+			<h3>${libraryName('XMLtoJSON')}</h3>
 			Available on
 			<a href="https://github.com/mattlag/XMLtoJSON" target="_blank">GitHub</a>
 			and
@@ -180,7 +215,7 @@ function makeCreditsInfo() {
 		</div>
 
 		<div class="page__card">
-			<h3>esm-potrace-wasm</h3>
+			<h3>${libraryName('esm-potrace-wasm')}</h3>
 			Potrace compiled to WebAssembly for the browser, by Thomas Steiner.
 			Available on
 			<a href="https://github.com/tomayac/esm-potrace-wasm" target="_blank">GitHub</a>

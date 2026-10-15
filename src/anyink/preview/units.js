@@ -4,7 +4,9 @@
 	Type-size units for the preview strip and the Live preview panel.
 	The user sees points; TextBlockOptions.fontSize stays in CSS pixels so project
 	files keep working (px = pt * 96 / 72, D-011). Pure functions, no DOM.
+	B4: the readout's unit is the house word (words.js unit.pt).
 */
+import { word } from '../words/words.js';
 
 export const MIN_PT = 8;
 export const MAX_PT = 200;
@@ -68,5 +70,5 @@ export function nudgePt(pt, direction, big = false) {
  * @returns {String} e.g. '48 pt'
  */
 export function formatPt(pt) {
-	return `${Math.round(Number(pt) || 0)} pt`;
+	return word('unit.pt', { size: Math.round(Number(pt) || 0) });
 }

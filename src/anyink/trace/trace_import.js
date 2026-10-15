@@ -31,42 +31,61 @@
 	  editor.assets so undo can bring the image back; the .gs2 save leaves out assets that
 	  no trace uses.
 
+	Toasts (B4) go through the one toast voice (src/anyink/toast/toast.js) by words key
+	(words/sets/toasts.js), in house words in both modes. Two keep their All tools words, where
+	All tools has its own controls: the added toast points at the Trace panel's Start
+	auto-trace (Simple says where the photo went; B9's photo card replaces it), and "pick
+	again" names the panel's "Choose an image..." button. The photo toasts share the drop
+	group (toast/upstream_map.js DROP_GROUP): the drag-over hint gives way to them at once.
+
+	Simple, until B9's photo card turns feature 'photo' on (fix track, 10/14/2026): Simple has
+	no Trace panel, auto-trace, fade, hide or remove, so a photo on a letter would be a dead
+	end (UX-BEGINNER principle 8, no doors to unbuilt rooms). importTraceImage and
+	pickTraceImage add nothing and say "ANY-INK can't use photos yet. Draw the letter with the
+	Rectangle, Oval or Point pen for now." All tools is unchanged.
+
 	Test seams: bitmap_cache's setDecoderForTests (jsdom has no createImageBitmap) and
 	file_api.js's setFileApi (jsdom has no showOpenFilePicker). Nothing here touches a
 	browser API at import time.
 */
+import { photosClosed } from './photo_gate.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
-import { showToast } from '../../controls/dialogs/dialogs.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { isImageType, normalizeType } from '../assets/asset_store.js';
 import { getFileApi, isAbortError } from '../files/file_api.js';
+import { toast } from '../toast/toast.js';
+import { DROP_GROUP } from '../toast/upstream_map.js';
+import { letterPhrase } from '../words/letter_name.js';
+import { word } from '../words/words.js';
 import { TRACE_MAX_SIDE, decodeImageFile } from './bitmap_cache.js';
 import { NOT_TRACEABLE_HINT, isTraceableItem } from './paste_drop.js';
 import { keepPlacementForNewImage } from './trace_fit.js';
 import { getTrace, makeTrace, setTrace } from './trace_model.js';
 
 // --------------------------------------------------------------
-// Words the user sees
+// Words the user sees (B4: words.js keys; the constants are their text, for the tests)
 // --------------------------------------------------------------
 
-export const HEIC_MESSAGE =
-	'Chrome cannot open HEIC photos. Save the photo as JPEG or PNG and try again.';
-export const WRONG_TYPE_MESSAGE =
-	'That file is not an image ANY-INK can trace. Use PNG, JPEG, or WebP.';
-export const DECODE_FAILED_MESSAGE =
-	'ANY-INK could not open that image. The file may be damaged. Save it again as PNG or JPEG and try again.';
-export const LOADING_MESSAGE = 'Loading the image. A big photo takes a few seconds.';
-export const SWITCHED_MESSAGE =
-	'You opened something else while the image was loading, so it was not added. Try again.';
+export const HEIC_MESSAGE = word('toast.photoHeic');
+export const WRONG_TYPE_MESSAGE = word('toast.photoWrongType');
+export const DECODE_FAILED_MESSAGE = word('toast.photoDamaged');
+export const LOADING_MESSAGE = word('toast.photoLoading');
+export const SWITCHED_MESSAGE = word('toast.photoSwitched');
+export const REPLACED_MESSAGE = word('toast.photoReplaced');
+export const REMOVED_MESSAGE = word('toast.photoRemoved');
+export const PICK_FAILED_MESSAGE = word('toast.photoPickerFailed');
+/** All tools' own words for the added toast (Simple: 'toast.photoAdded'). */
 export const ADDED_MESSAGE =
 	'Added a trace image. Press Start auto-trace to turn it into outlines. The image itself is only for reference: it is saved with the project but never exported in the font.';
 /** The added toast says two things, so it stays up longer than the default 3 s, in ms. */
 export const ADDED_TOAST_MS = 6000;
-export const REPLACED_MESSAGE = 'Replaced the trace image.';
-export const REMOVED_MESSAGE = 'Removed the trace image. Undo brings it back.';
+/** All tools' own words for "pick again" (Simple: 'toast.photoPickAgain'). */
 export const PICK_AGAIN_MESSAGE = 'Click "Choose an image..." again to pick a file.';
-export const PICK_FAILED_MESSAGE =
-	'ANY-INK could not open the file picker. Drop the image on the canvas instead.';
+/** The loading toast stays until the photo is in (or not), in ms. */
+const LOADING_TOAST_MS = 60000;
+/** The photo toasts replace each other instead of queueing ("Loading" then "Added"), and the
+ * drag-over hint before them (one group with the drop toasts). */
+const PHOTO = Object.freeze({ group: DROP_GROUP });
 
 /** History titles, one entry per action. */
 export const HISTORY_ADDED = 'Added a trace image';
@@ -95,8 +114,15 @@ export const TRACE_PICKER_TYPES = Object.freeze([
 	},
 ]);
 
-/** bitmap_cache error codes whose own message is shown as is. */
-const DECODE_ERROR_CODES = ['no-decoder', 'decode-failed', 'encode-failed'];
+/** bitmap_cache error codes, and the words each one shows (words/sets/toasts.js). */
+const DECODE_ERROR_KEYS = Object.freeze({
+	heic: 'toast.photoHeic',
+	unsupported: 'toast.photoWrongType',
+	'not-a-file': 'toast.photoWrongType',
+	'no-decoder': 'toast.photoNoDecoder',
+	'decode-failed': 'toast.photoDamaged',
+	'encode-failed': 'toast.photoTooBig',
+});
 
 const INPUT_ID = 'anyink-trace-file-input';
 const INPUT_ACCEPT = 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.jfif,.webp';
@@ -169,6 +195,15 @@ export function isTraceImageFile(file) {
 // Import
 // --------------------------------------------------------------
 
+// B4 + B5 finalize: the gate lives in photo_gate.js, so the drawing (trace_draw.js) shares it
+export { photosClosed };
+
+/** Simple before the photo card: no photo comes in; the toast says what to do instead. */
+function turnPhotoAway() {
+	toast('toast.photoNotYet', {}, PHOTO);
+	return false;
+}
+
 /**
  * @param {File | Blob} fileOrBlob
  * @param {{editor?: Object, item?: Object}} [options] - default: current editor, the item
@@ -180,33 +215,36 @@ export async function importTraceImage(fileOrBlob, { editor, item } = {}) {
 		return await runImport(fileOrBlob, editor || getCurrentProjectEditor(), item);
 	} catch (error) {
 		console.warn('ANY-INK trace: the image could not be added', error);
-		showToast(DECODE_FAILED_MESSAGE);
+		toast('toast.photoDamaged', {}, PHOTO);
 		return false;
 	}
 }
 
 async function runImport(file, editor, item) {
 	if (!editor?.project) return false;
+	if (photosClosed()) return turnPhotoAway();
 
 	const page = editor.nav?.page;
 	const itemID = editor.selectedItemID;
 	const target = item || (itemID ? editor.selectedItem : false);
 	if (!itemID || !isTraceableItem(target) || editor.project.getItem(itemID) !== target) {
-		showToast(NOT_TRACEABLE_HINT);
+		toast('toast.openLetterFirst', {}, { allTools: NOT_TRACEABLE_HINT });
 		return false;
 	}
 
 	const { kind, type } = traceFileKind(file);
 	if (kind === 'heic') {
-		showToast(HEIC_MESSAGE);
+		toast('toast.photoHeic', {}, PHOTO);
 		return false;
 	}
 	if (kind !== 'image') {
-		showToast(WRONG_TYPE_MESSAGE);
+		toast('toast.photoWrongType', {}, PHOTO);
 		return false;
 	}
 
-	if (file.size > BIG_IMAGE_BYTES) showToast(LOADING_MESSAGE, 60000);
+	if (file.size > BIG_IMAGE_BYTES) {
+		toast('toast.photoLoading', {}, { ...PHOTO, ms: LOADING_TOAST_MS });
+	}
 
 	// A file that came without a type (some drops, some cameras) is decoded as its name says
 	const source = normalizeType(file.type) === type ? file : new Blob([file], { type });
@@ -215,18 +253,18 @@ async function runImport(file, editor, item) {
 		decoded = await decodeImageFile(source, { maxSide: TRACE_MAX_SIDE });
 	} catch (error) {
 		console.warn('ANY-INK trace: decode failed', error);
-		showToast(decodeErrorMessage(error));
+		toast(decodeErrorKey(error), {}, PHOTO);
 		return false;
 	}
 	if (!decoded?.blob || !(decoded.width > 0) || !(decoded.height > 0)) {
-		showToast(DECODE_FAILED_MESSAGE);
+		toast('toast.photoDamaged', {}, PHOTO);
 		return false;
 	}
 
 	// The history entry records the item on the canvas, so it must still be this one
 	const live = editor.project.getItem(itemID);
 	if (editor.nav?.page !== page || editor.selectedItemID !== itemID || !isTraceableItem(live)) {
-		showToast(SWITCHED_MESSAGE);
+		toast('toast.photoSwitched', {}, PHOTO);
 		return false;
 	}
 
@@ -235,7 +273,7 @@ async function runImport(file, editor, item) {
 		asset = editor.assets.add(decoded.blob, { type: decoded.type || decoded.blob.type });
 	} catch (error) {
 		console.warn('ANY-INK trace: the decoded image was refused by the asset store', error);
-		showToast(WRONG_TYPE_MESSAGE);
+		toast('toast.photoWrongType', {}, PHOTO);
 		return false;
 	}
 
@@ -247,7 +285,7 @@ async function runImport(file, editor, item) {
 	// setTrace refuses a trace it cannot draw (and then leaves the item as it was)
 	if (!next || !setTrace(live, next)) {
 		editor.assets.delete(asset);
-		showToast(DECODE_FAILED_MESSAGE);
+		toast('toast.photoDamaged', {}, PHOTO);
 		return false;
 	}
 
@@ -255,31 +293,26 @@ async function runImport(file, editor, item) {
 	editor.publish('traceLayer', live);
 	editor.publish('currentItem', live);
 	showTracePanel(editor);
-	if (previous) showToast(REPLACED_MESSAGE);
+	if (previous) toast('toast.photoReplaced', {}, PHOTO);
 	else {
 		showPanelTop();
-		showToast(ADDED_MESSAGE, ADDED_TOAST_MS);
+		const letter = letterPhrase(live.chars) || word('history.thisLetter');
+		toast(
+			'toast.photoAdded',
+			{ letter },
+			{ ...PHOTO, allTools: ADDED_MESSAGE, ms: ADDED_TOAST_MS }
+		);
 	}
 	return true;
 }
 
 /**
- * bitmap_cache rejects with plain-words messages and a code; the two type checks already
- * happened above with this module's own wording, so only the decode-side ones pass through.
+ * bitmap_cache rejects with a code; each code has its house words (B4).
  * @param {*} error
- * @returns {String}
+ * @returns {String} a words.js key
  */
-function decodeErrorMessage(error) {
-	if (error?.code === 'heic') return HEIC_MESSAGE;
-	if (error?.code === 'unsupported' || error?.code === 'not-a-file') return WRONG_TYPE_MESSAGE;
-	if (
-		DECODE_ERROR_CODES.includes(error?.code) &&
-		typeof error.message === 'string' &&
-		error.message
-	) {
-		return error.message;
-	}
-	return DECODE_FAILED_MESSAGE;
+function decodeErrorKey(error) {
+	return DECODE_ERROR_KEYS[error?.code] || 'toast.photoDamaged';
 }
 
 /**
@@ -320,6 +353,7 @@ function showPanelTop() {
  * @returns {Promise<Boolean>} true when an image was added or replaced
  */
 export function pickTraceImage({ editor, item } = {}) {
+	if (photosClosed()) return Promise.resolve(turnPhotoAway());
 	editor = editor || getCurrentProjectEditor();
 	const options = { editor, item };
 	const picker = getFileApi().showOpenFilePicker;
@@ -349,11 +383,11 @@ export function pickTraceImage({ editor, item } = {}) {
 function pickerFailed(error) {
 	if (isAbortError(error)) return false;
 	if (error?.name === 'SecurityError' || error?.name === 'NotAllowedError') {
-		showToast(PICK_AGAIN_MESSAGE);
+		toast('toast.photoPickAgain', {}, { allTools: PICK_AGAIN_MESSAGE });
 		return false;
 	}
 	console.warn('ANY-INK trace: the file picker failed', error);
-	showToast(PICK_FAILED_MESSAGE);
+	toast('toast.photoPickerFailed');
 	return false;
 }
 
@@ -410,6 +444,6 @@ export function removeTrace({ editor, item } = {}) {
 	editor.history.addState(HISTORY_REMOVED);
 	editor.publish('traceLayer', target);
 	editor.publish('currentItem', target);
-	showToast(REMOVED_MESSAGE);
+	toast('toast.photoRemoved', {}, PHOTO);
 	return true;
 }

@@ -1,10 +1,12 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { FontFlux, initWoff2 } from 'font-flux-js';
 import { getCurrentProject } from '../../app/main.js';
 import { parseCharsInputAsHex } from '../../common/character_ids.js';
 import { isUIUpdateDue, pause, resetUIUpdateThrottle, round } from '../../common/functions.js';
-import { closeAllToasts, showError, showToast } from '../../controls/dialogs/dialogs.js';
+import { closeAllToasts, showToast } from '../../controls/dialogs/dialogs.js';
 import { Glyph } from '../../project_data/glyph.js';
 import { Path } from '../../project_data/path.js';
 import {
@@ -13,6 +15,10 @@ import {
 	writeExport,
 } from '../../anyink/files/export_folder.js';
 import { getExportKerning } from '../../anyink/fontcheck/export_kerning.js';
+import { exportWithFontCheck } from '../../anyink/fontcheck/export_toast.js';
+import { runFileCommand } from '../../anyink/files/run_command.js';
+import { sayError } from '../../anyink/words/error_box.js';
+import { fontFileFailedWords } from '../../anyink/words/error_words.js';
 import {
 	getExportList,
 	shouldExportItem as shouldExportItemInProject,
@@ -120,7 +126,12 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 	// log('ioFont_exportFont', 'start');
 	let destination = null;
 	if (!testing) {
-		destination = await prepareExportDestination();
+		// ANY-INK (B4 + B5 finalize): Simple's [Pick a folder...] after a cancelled picker makes
+		// this same font file again (export_folder.js)
+		destination = await prepareExportDestination({
+			retry: () =>
+				runFileCommand(exportWithFontCheck, () => ioFont_exportFont(suffix, false, exportOptions)),
+		});
 		// 'cancelled' / 'prompt': nothing to build; the reason is already in a toast.
 		if (destination.kind !== 'folder' && destination.kind !== 'download') {
 			return destination.kind;
@@ -339,11 +350,23 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		// log('ioFont_exportFont', 'end');
 		return result;
 	}
-	showError(`
+	// ANY-INK (B4 + B5 finalize, UX-BEGINNER.md 7.7): Simple says "Couldn't make the font file.
+	// Your work is safe. Try again." with [Try again], never the error itself (the console has
+	// it); All tools shows the box as before
+	console.warn('ANY-INK: the font file could not be saved', result);
+	sayError(fontFileFailedWords(), {
+		actions: {
+			'error.button.tryAgain': () =>
+				runFileCommand(exportWithFontCheck, () =>
+					ioFont_exportFont(suffix, false, exportOptions)
+				),
+		},
+		allTools: `
 		The ${suffix.toUpperCase()} file could not be saved. Here is the error message that was returned:
 		<hr>
 		${result}
-	`);
+	`,
+	});
 	// log('ioFont_exportFont', 'end');
 	return false;
 }
@@ -378,6 +401,10 @@ function currentToastHTML() {
  */
 function closeToastLater(ms) {
 	const toast = document.querySelector('#toast:not([data-leaving])');
+	// ANY-INK (B4 integration): a Simple toast is timed by the one toast queue
+	// (anyink/toast/toast.js); closing every toast here would take down the export check
+	// toast that took its place (a Simple toast that was replaced is always data-leaving).
+	if (toast?.dataset.anyinkToast) return;
 	const shown = toast?.innerHTML;
 	window.setTimeout(() => {
 		if (!toast || toast.hasAttribute('data-leaving') || toast.innerHTML === shown) {

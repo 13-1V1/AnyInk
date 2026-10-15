@@ -1,5 +1,10 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isSimpleMode } from '../../anyink/mode/mode.js';
+import { escapeWordHTML } from '../../anyink/words/word_html.js';
+import { word } from '../../anyink/words/words.js';
 import { FontFlux } from 'font-flux-js';
 import {
 	getGlyphrStudioApp,
@@ -254,6 +259,15 @@ export async function updateFontImportProgressIndicator(type) {
 	// across however many items were processed in the interim, so it still
 	// appears to whiz by.
 	if (!isUIUpdateDue()) return;
+	// ANY-INK (B4 + B5 finalize, UX-BEGINNER 2.3): Simple says "Bringing in letters... 3 of 111"
+	if (isSimpleMode()) {
+		await updateProgressIndicator(
+			`<span class="progress-indicator__title">${escapeWordHTML(
+				word('start.importing', { done: importItemCounter, total: importItemTotal })
+			)}</span>`
+		);
+		return;
+	}
 	await updateProgressIndicator(`
 			<span class="progress-indicator__title">Importing ${type}s</span>
 			Item

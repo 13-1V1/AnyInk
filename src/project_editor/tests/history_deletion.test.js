@@ -17,8 +17,8 @@ import {
 	twoLetterEditor,
 } from '../../anyink/history/tests/two_letters.js';
 import { setModeForTests } from '../../anyink/mode/mode.js';
+import { actionInAllTools } from '../../anyink/mode/tests/all_tools_action.js';
 import { showItem } from '../../anyink/preview/show_item.js';
-import { getActionData } from '../../panels/actions.js';
 
 let warn;
 beforeEach(() => {
@@ -33,9 +33,13 @@ afterEach(() => {
 	setModeForTests('all');
 });
 
-/** The real Delete Glyph button (panels/actions.js): the deletion, then its own navigation step. */
+/**
+ * The real Delete Glyph button (panels/actions.js): the deletion, then its own navigation step.
+ * B5: Simple doesn't draw the icon (6.2), so it is taken as All tools draws it and pressed in the
+ * test's own mode.
+ */
 function pressDeleteGlyph() {
-	const action = getActionData('glyphActions').find((data) => data.iconName === 'deleteGlyph');
+	const action = actionInAllTools('glyphActions', 'deleteGlyph');
 	action.onClick();
 }
 

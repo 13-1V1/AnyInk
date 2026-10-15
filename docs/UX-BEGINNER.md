@@ -1576,8 +1576,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B1 | Fix what's broken (**done 10/14/2026**) | `fontcheck/`, fixes in existing files | 2.5 | Correct results in both modes |
 | B2 | Undo that never surprises (**done 10/14/2026**) | `history/` | 2.5 | One press = one change, anywhere |
 | B3 | Spacing and placement engine (**done 10/14/2026**) | `spacing/`, `placement/` | 3.5 | Traced and drawn letters type correctly |
-| B4 | House words and one toast voice | `words/`, `toast/` | 2.5 | No jargon on the main path |
-| B5 | Mode switch, gates and keys | `mode/` | 3 | Simple mode exists (behind `?ui=simple`) |
+| B4 | House words and one toast voice (**done 10/14/2026**) | `words/`, `toast/` | 2.5 | No jargon on the main path |
+| B5 | Mode switch, gates and keys (**done 10/14/2026**) | `mode/` | 3 | Simple mode exists (behind `?ui=simple`) |
 | B6 | Top bar, Next line, tips, undo toasts, save status | `topbar/`, `coach/`, `history/undo_toast.js` | 3 | Always a next step |
 | B7 | Letter view | `letter/` | 4 | A calm editing screen |
 | B8 | Brush (round) | `nib/` | 2.5 | Drag to draw |
@@ -1786,6 +1786,23 @@ part as the traced area).
 
 ### B4. House words and one toast voice
 
+**DONE 10/14/2026** (core, toast and display-points tracks, then the B4 + B5 integration, a critic
+pass, three fix tracks (words, toasts, mode) and a finalize pass; choices in D-035; numbers in
+TEST_LOG). Beyond the plan below: the integration gave the upstream pages Simple still shows until
+their B lands (the Overview, the letter chooser, the letter page's tooltips and letter button,
+Help's first tab, the start page's Load and Examples tabs, the Recover card) their Simple words, so
+the scan finds 0 hits on every Simple page that exists; Simple's save status never shows a
+browser's own error sentence; the empty preview and the update notice's reasons are house words in
+both modes. The later passes: the scan is strict by default (2.4 E and G: no "project", block
+names or codes) and catches -ed and -ing forms; every error box a file command raises says 7.7's
+words with working buttons ([Try again], [Save somewhere else], [Save as a new file], [Open
+another work file...], [Pick a folder...]); "Saving..." shows while a write waits (4.11); the
+start page has one green button per tab and says font and work file; Help is one tab in house
+words and Help and About have [Back to my letters]; letter sets are named in house words; an
+Undo that changes a letter away from its page says which; toasts in Simple wait their turn and
+a press on the canvas leaves them be, and an offer goes when its font does; photos stay closed in
+Simple (not taken, drawn or grabbed) until B9.
+
 - `src/anyink/words/`: `words.js` (keys to `{ text, hint, pro, feature, quote }`), `letter_name.js`
   (started in B1), `history_text.js` (pattern map for existing titles), `banned.js`, and
   `tests/banned_words.test.js` (2.3: DOM, the `fillText` / `strokeText` spy, the toast recorder).
@@ -1821,6 +1838,18 @@ part as the traced area).
   is green.
 
 ### B5. Mode switch, gates and keys
+
+**DONE 10/14/2026** (core and wiring tracks, then the B4 + B5 integration, the critic, fix and
+finalize passes; choices in D-035; numbers in TEST_LOG). Beyond the plan below: Simple hides all 9
+panels at `makePanel`; Simple's strip hides Real font and Guide lines and turns off what they turn
+on (the prefs are kept for All tools); a page drawn with the band takes the band's height off its
+viewport-sized lists. The later passes: Simple keeps the page chooser (its four pages) until B6's
+rail; B, Ctrl+R are off in Simple until the Brush; Ctrl+E makes the .otf until Use in Word; Simple's
+File menu has Open a saved font... and (until B14) Choose where font files go...; Ctrl+O opens into
+the font he is in and asks whenever its work file is behind; in both modes Delete with nothing
+picked is no step, an edge stops at width 0 and an empty letter's left edge doesn't move, and a
+strip toggle with focus no longer swallows the app's keys (Brennan to confirm these All tools
+changes before Gate 2, D-035).
 
 - `src/anyink/mode/` (on top of B2's `mode.js`): `html[data-ui-mode]` and the `navigate()` call on a
   change, `features.js` (the flags), `visibility.js` (shown pages, panels,

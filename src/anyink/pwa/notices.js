@@ -18,8 +18,10 @@
 	closeNotice(key)    removes it, showing or waiting.
 	activeNotice()      key on screen, or null.   waitingNotices()  keys in line.
 	resetNotices()      tests only: forget everything (a fresh launch).
+	B4: the panel's own words (its label, Later, OK) are words keys (src/anyink/words, notice.*).
 */
 import { getPref, setPref } from '../prefs/prefs.js';
+import { word } from '../words/words.js';
 import { watchNoticePlace } from './notice_place.js';
 
 const KINDS = {
@@ -113,7 +115,7 @@ function build(entry) {
 	const { spec } = entry;
 	const panel = document.createElement('section');
 	panel.className = 'anyink-pwa-notice';
-	panel.setAttribute('aria-label', 'ANY-INK app');
+	panel.setAttribute('aria-label', word('notice.appLabel'));
 	const text = document.createElement('p');
 	text.setAttribute('role', 'status');
 	text.textContent = spec.message;
@@ -137,7 +139,7 @@ function build(entry) {
 		panel.append(button);
 	}
 	const dismiss = document.createElement('button');
-	dismiss.textContent = spec.dismissLabel || (spec.action ? 'Later' : 'OK');
+	dismiss.textContent = spec.dismissLabel || word(spec.action ? 'notice.later' : 'notice.ok');
 	dismiss.onclick = () => {
 		entry.spec.onDismiss?.();
 		closeNotice(spec.key);

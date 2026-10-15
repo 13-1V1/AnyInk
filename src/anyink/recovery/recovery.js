@@ -44,6 +44,12 @@
 	A failed write shows a toast at most once per FAILURE_TOAST_INTERVAL_MS and is
 	kept in getRecoveryStatus().lastError.
 
+	Toasts (B4) go through the one toast voice (src/anyink/toast/toast.js) by words key:
+	deps.toast(key, vars, options), as toast() takes them. "Couldn't save a backup copy. Press
+	Save to keep your work. [Save]" and "Opened the backup copy of <font> from <when>" say the
+	house words in both modes (UX-BEGINNER 7.7, 2.4 G); "Open the Recover tab" is All tools
+	only (key null), removed in Simple, where B13's start screen offers backup copies.
+
 	Public API:
 	  initRecovery()                 once after the app starts (main.js); safe in jsdom
 	  markDirty(source)              History (source = the History), on every edit, undo
@@ -83,8 +89,10 @@ import { getCurrentProjectEditor, getGlyphrStudioApp } from '../../app/main.js';
 import { autosaveNow, scheduleAutosave, cancelAutosave, stopAutosave } from '../files/autosave.js';
 import { getSaveStatus, setSaveStatus, markSaveDirty } from '../files/save_status.js';
 import { adoptFileVersion } from '../files/save_queue.js';
+import { isProjectFileHandle } from '../files/write_file.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
-import { showToast } from '../../controls/dialogs/dialogs.js';
+import { runFileCommand } from '../files/run_command.js';
+import { toast } from '../toast/toast.js';
 import { recClear, recDel, recEntries, recGet, recSet } from '../storage/kv.js';
 import { acquireLock, heldLockNames, lockName, sessionLockName } from './session_lock.js';
 import {
@@ -116,7 +124,7 @@ const defaults = {
 	getEditors: () => getGlyphrStudioApp().projectEditors,
 	locks: () => globalThis.navigator?.locks,
 	importProject: (saveObject) => importProjectDataAndNavigate(saveObject),
-	toast: (message) => showToast(message),
+	toast: (key, vars, options) => toast(key, vars, options),
 	now: () => Date.now(),
 	makeSessionId: () => newSessionId(),
 };
@@ -232,7 +240,12 @@ export function markDirty(source) {
 		? liveEditors().find((editor) => editor === source || editor.history === source)
 		: safeGetEditor();
 	if (changedEditor) markSaveDirty(changedEditor);
-	if (!state.started) return;
+	// B4 + B5 finalize (D-030: file autosave and recovery are independent): the work file's
+	// write is queued whether or not crash recovery started (storage may be unavailable)
+	if (!state.started) {
+		if (isProjectFileHandle(changedEditor?.loadedFileHandle)) scheduleAutosave(changedEditor);
+		return;
+	}
 	syncSessions();
 	const session = findSession(source);
 	if (!session) return;
@@ -336,8 +349,10 @@ export async function restoreSession(id) {
 			reason: 'recovered',
 		});
 	}
-	const name = escapeHTML(record.name || 'Untitled');
-	deps.toast(`Recovered ${name} from ${formatAgo(record.time, deps.now())}`);
+	deps.toast('toast.backupOpened', {
+		name: record.name || 'Untitled',
+		ago: formatAgo(record.time, deps.now()),
+	});
 	notifyChange();
 	return describeSession(record, key);
 }
@@ -571,10 +586,16 @@ async function warnAboutOrphans(session) {
 			!(held && held.has(recordLockName(record)))
 	);
 	if (orphan) {
+		// All tools only: removed in Simple (UX-BEGINNER 2.4 G), whose start screen (B13)
+		// offers backup copies
 		deps.toast(
-			`Unsaved work from an earlier session exists for ${escapeHTML(
-				session.name
-			)}. Open the Recover tab to restore it.`
+			null,
+			{},
+			{
+				allTools: `Unsaved work from an earlier session exists for ${escapeHTML(
+					session.name
+				)}. Open the Recover tab to restore it.`,
+			}
 		);
 	}
 }
@@ -816,9 +837,27 @@ function reportWriteFailure(error) {
 	console.warn('ANY-INK recovery: snapshot failed', error);
 	if (time - state.lastFailureToast < FAILURE_TOAST_INTERVAL_MS) return;
 	state.lastFailureToast = time;
+	// UX-BEGINNER 7.7 "Backup write failed", in both modes; the reason stays in lastError.
+	// B4 + B5 finalize: [Save] belongs to the font open now; once another one opens, it goes
+	const editor = deps.getEditor();
+	const project = editor?.project;
 	deps.toast(
-		`Crash recovery could not save a snapshot (${escapeHTML(message)}). Save your work with Ctrl+S.`
+		'toast.backupFailed',
+		{},
+		{
+			tone: 'warning',
+			action: { key: 'term.save', run: () => saveFromToast(editor) },
+			stillGood: () => deps.getEditor() === editor && editor?.project === project,
+		}
 	);
+}
+
+/**
+ * The backup toast's [Save]: that font's Save (Ctrl+S), inside the click.
+ * @param {Object} [editor] - the editor open when the toast was raised
+ */
+function saveFromToast(editor = deps.getEditor()) {
+	if (typeof editor?.saveProjectFile === 'function') runFileCommand(() => editor.saveProjectFile());
 }
 
 // --------------------------------------------------------------

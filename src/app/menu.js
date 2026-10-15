@@ -2,14 +2,24 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import {
 	chooseExportFolder,
 	exportFolderName,
 	preloadExportFolder,
 } from '../anyink/files/export_folder.js';
 import { hasFileSystemAccess } from '../anyink/files/file_api.js';
+import { openFontCommand } from '../anyink/files/open_font.js';
 import { runFileCommand } from '../anyink/files/run_command.js';
 import { exportWithFontCheck } from '../anyink/fontcheck/export_toast.js';
+import { makeBand } from '../anyink/mode/band.js';
+import { fontFileKeyFormat } from '../anyink/mode/keys.js';
+import { toast } from '../anyink/toast/toast.js';
+import { heading, item, keepShown, rule } from '../anyink/mode/sections.js';
+import { isShown, menuRowId } from '../anyink/mode/visibility.js';
+import { QUOTE_CLASS } from '../anyink/words/banned.js';
+import { word } from '../anyink/words/words.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
 import logoHorizontal from '../common/graphics/anyink-wordmark-horizontal-small.svg?raw';
 import {
@@ -37,6 +47,8 @@ import { makePage_OpenProject } from './open_project.js';
 
 /**
  * Makes the Top Bar for the App
+ * ANY-INK (B5, UX-BEGINNER 6.2 Menus): only the menus the mode shows (Simple has no Projects
+ * menu). Navigator.navigate puts makeAppBand() right under it.
  * @returns {Element}
  */
 export function makeAppTopBar() {
@@ -45,13 +57,44 @@ export function makeAppTopBar() {
 	let logo = makeElement({ innerHTML: logoHorizontal, className: 'top-bar__logo' });
 
 	let menus = makeElement({ className: 'top-bar__menus' });
-	menus.appendChild(makeMenu('File'));
-	menus.appendChild(makeMenu('Projects'));
-	menus.appendChild(makeMenu('Help'));
+	[makeMenu('File'), makeMenu('Projects'), makeMenu('Help')]
+		.filter((entryPoint) => isShown('menu', entryPoint.dataset.anyinkMenu))
+		.forEach((entryPoint) => menus.appendChild(entryPoint));
 
 	addAsChildren(topBar, [logo, menus, document.createElement('anyink-save-status')]);
 
 	return topBar;
+}
+
+/**
+ * ANY-INK (B5, UX-BEGINNER 4.11, 6.3): the purple More tools band, drawn with the top bar on
+ * every navigate (the landing rule has already run, at the top of Navigator.navigate). Only
+ * when All tools was reached from Simple: as the launch default, All tools has no band.
+ * @returns {HTMLElement | null}
+ */
+export function makeAppBand() {
+	return makeBand();
+}
+
+/**
+ * ANY-INK (B5, UX-BEGINNER 6.3): a menu's rows, only those the mode shows (visibility.js
+ * 'menuRow', menuRowId(menu, id)). A row's id is its data-anyink-row mark (B4) or its anyinkRow
+ * field; a row with a child and no id is a heading, kept only over a row that shows; 'hr' is a
+ * rule. A row with no id is unknown: All tools shows it, Simple doesn't.
+ * @param {String} menu - 'file', 'projects', 'help'
+ * @param {Array<Object>} rows - makeContextMenu row data
+ * @returns {Array<Object>} the rows to draw
+ */
+function rowsShown(menu, rows) {
+	const entries = rows.map((row) => {
+		if (row.name === 'hr') return rule(row);
+		const mark = /data-anyink-row="([\w-]+)"/.exec(String(row.name || ''));
+		const id = row.anyinkRow || mark?.[1];
+		if (id) return item(menuRowId(menu, id), row);
+		if (row.child) return heading(row);
+		return item(menuRowId(menu, 'unknown'), row);
+	});
+	return keepShown(entries, (id) => isShown('menuRow', id)).map((entry) => entry.value);
 }
 
 // --------------------------------------------------------------
@@ -68,6 +111,8 @@ function makeMenu(menuName) {
 		tag: 'button',
 		innerHTML: menuName,
 		className: 'menu-entry-point',
+		// ANY-INK (B5): its id in visibility.js's 'menu' area
+		attributes: { 'data-anyink-menu': menuName.toLowerCase() },
 	});
 	if (menuName === 'File') {
 		// ANY-INK: the export-folder name is read from IndexedDB; warm it now so the
@@ -92,35 +137,39 @@ function makeMenu(menuName) {
 			// ANY-INK (B1, principle 6): a greyed-out row says why, beside it.
 			const onlyOneOpen = getGlyphrStudioApp().projectEditors.length === 1;
 			let menuRows = makeContextMenu(
-				[
+				rowsShown('projects', [
 					{
 						child: makeProjectPreviewRow(0),
 						className: 'spanAll',
+						anyinkRow: 'preview-0',
 					},
 					{
 						child: makeProjectPreviewRow(1),
 						className: 'spanAll',
+						anyinkRow: 'preview-1',
 					},
 					{
+						anyinkRow: 'cross-project-actions',
 						name: 'Cross-project actions',
 						icon: 'command_crossProjectActions',
 						onClick: () => {
 							getGlyphrStudioApp().appPageNavigate(makePage_CrossProjectActions);
 						},
 						disabled: onlyOneOpen,
-						note: onlyOneOpen ? 'Open another font first' : false,
+						note: onlyOneOpen ? word('menu.openAnotherFontFirst') : false,
 					},
 					{
 						name: 'hr',
 					},
 					{
+						anyinkRow: 'new-window',
 						name: 'Open a separate project in a new window',
 						icon: 'command_newTab',
 						onClick: () => {
 							window.open(window.location.href, '_blank');
 						},
 					},
-				],
+				]),
 				rect.x,
 				rect.y + rect.height,
 				500
@@ -138,8 +187,9 @@ function makeMenu(menuName) {
 			insertAfter(
 				entryPoint,
 				makeContextMenu(
-					[
+					rowsShown('help', [
 						{
+							anyinkRow: 'help-page',
 							name: 'In-app help',
 							icon: 'command_help',
 							onClick: () => {
@@ -149,6 +199,7 @@ function makeMenu(menuName) {
 							},
 						},
 						{
+							anyinkRow: 'about',
 							name: 'About ANY-INK',
 							icon: 'command_info',
 							onClick: () => {
@@ -157,7 +208,7 @@ function makeMenu(menuName) {
 								editor.navigate();
 							},
 						},
-					],
+					]),
 					rect.x,
 					rect.y + rect.height
 				)
@@ -175,6 +226,16 @@ function makeMenu(menuName) {
  * into a remembered folder. Without it: upstream's download entries, unchanged.
  * Every file row runs through runFileCommand: called in the click (pickers keep
  * the activation), failures shown in the error box, no unhandled rejections.
+ * ANY-INK (B4, UX-BEGINNER.md 2.2, 2.4 E): a display point Simple shares with More tools, so
+ * every row says the house words in both modes (work file, font file), from
+ * src/anyink/words; file names, folder names and file types are quotes (.anyink-quote). Each
+ * row carries its id in data-anyink-row, so tests and later Bs find it without its words.
+ * ANY-INK (B5): the rows the mode shows, by those ids (rowsShown).
+ * ANY-INK (B5 fix track): the font file heading and the Ctrl+E note name the file Ctrl+E really
+ * makes (keys.js fontFileKeyFormat): All tools' preferred format, Simple's .otf, never a format
+ * Simple hides. Simple gets "Open a saved font... (Ctrl+O)" (open_font.js, the box and picker
+ * Ctrl+O uses) until B6's Menu. A row has at most two key chips: the menu grid has two key
+ * cells, and a third wrapped onto its own line (Save as).
  * @param {ProjectEditor} editor
  * @returns {Array} context menu row data
  */
@@ -183,7 +244,11 @@ function makeFileMenuData(editor) {
 	let fileMenuData = [];
 	// Preferred font export format (the format that was imported, or 'otf'
 	// for new projects) drives the file name preview and the Ctrl+E note.
-	const preferredExportFormat = getPreferredExportFormat();
+	// ANY-INK (B5 fix track): the format Ctrl+E makes in this mode (Simple: always 'otf'); with
+	// no file from the key (Use in Word) the heading names the .otf and no row has the note.
+	const keyFormat = fontFileKeyFormat(getPreferredExportFormat());
+	const preferredExportFormat = keyFormat || 'otf';
+	const keyNote = (format) => (keyFormat === format ? ['Ctrl', 'e'] : false);
 	const fileSystemAccess = hasFileSystemAccess();
 	if (fileSystemAccess) {
 		let projectDisplayName = `${editor.project.settings.project.name}.gs2`;
@@ -198,21 +263,29 @@ function makeFileMenuData(editor) {
 			{
 				child: makeElement({
 					tag: 'h2',
-					content: projectDisplayName,
+					content: quoteHTML(projectDisplayName),
 				}),
 				className: 'spanAll',
 			},
 			{
-				name: 'Save',
+				name: rowHTML('save', escapeText(word('term.save'))),
 				icon: 'command_save',
 				note: ['Ctrl', 's'],
 				onClick: () => runFileCommand(() => editor.saveProjectFile()),
 			},
 			{
-				name: 'Save as...',
+				name: rowHTML('save-as', escapeText(word('menu.saveAs'))),
 				icon: 'command_save',
-				note: ['Ctrl', 'Shift', 's'],
+				// two chips: a third wrapped onto a line of its own
+				note: ['Ctrl+Shift', 's'],
 				onClick: () => runFileCommand(() => editor.saveProjectFile(true)),
+			},
+			{
+				// Simple only, until B6's Menu (visibility.js 'file.open-font')
+				name: rowHTML('open-font', escapeText(word('menu.openSavedFont'))),
+				icon: 'command_newTab',
+				note: ['Ctrl', 'o'],
+				onClick: () => openFontCommand({ editor }),
 			}
 		);
 	} else {
@@ -220,12 +293,12 @@ function makeFileMenuData(editor) {
 			{
 				child: makeElement({
 					tag: 'h2',
-					content: makeFileName('gs2', true),
+					content: quoteHTML(makeFileName('gs2', true)),
 				}),
 				className: 'spanAll',
 			},
 			{
-				name: 'Save project file (to downloads folder)',
+				name: rowHTML('save', escapeText(word('menu.saveDownload'))),
 				icon: 'command_save',
 				note: ['Ctrl', 's'],
 				onClick: () => runFileCommand(() => editor.saveProjectFile()),
@@ -237,49 +310,65 @@ function makeFileMenuData(editor) {
 		{
 			child: makeElement({
 				tag: 'h2',
-				content:
+				content: quoteHTML(
 					`${editor.project.settings.font.family}-${editor.project.settings.font.style}.${preferredExportFormat}`.replaceAll(
 						' ',
 						''
-					),
+					)
+				),
 			}),
 			className: 'spanAll',
 		},
 		{
-			name: 'Export OTF file',
+			name: fontFileRow('otf', 'menu.makeFontFile', 'menu.typeOtf'),
 			icon: 'command_export',
-			note: preferredExportFormat === 'otf' ? ['Ctrl', 'e'] : false,
+			note: keyNote('otf'),
 			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportOTF),
 		},
 		{
-			name: 'Export TTF file',
+			name: fontFileRow('ttf', 'menu.makeFontFile', 'menu.typeTtf'),
 			icon: 'command_export',
-			note: preferredExportFormat === 'ttf' ? ['Ctrl', 'e'] : false,
+			note: keyNote('ttf'),
 			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportTTF),
 		},
 		{
-			name: 'Export WOFF file',
+			name: fontFileRow('woff', 'menu.makeWebFontFile', 'menu.typeWoff'),
 			icon: 'command_export',
-			note: preferredExportFormat === 'woff' ? ['Ctrl', 'e'] : false,
+			note: keyNote('woff'),
 			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportWOFF),
 		},
 		{
-			name: 'Export WOFF2 file',
+			name: fontFileRow('woff2', 'menu.makeWebFontFile', 'menu.typeWoff2'),
 			icon: 'command_export',
-			note: preferredExportFormat === 'woff2' ? ['Ctrl', 'e'] : false,
+			note: keyNote('woff2'),
 			onClick: () => runFileCommand(exportWithFontCheck, ioFont_exportWOFF2),
 		},
 	]);
 	if (fileSystemAccess) {
 		const folderName = exportFolderName();
 		fileMenuData.push({
-			name: folderName ? `Export folder: ${folderName}...` : 'Choose export folder...',
+			name: rowHTML(
+				'font-folder',
+				folderName
+					? word('menu.fontFolder', { folder: quoteHTML(folderName) })
+					: escapeText(word('menu.chooseFontFolder'))
+			),
 			icon: 'command_export',
 			onClick: () =>
 				runFileCommand(async () => {
 					const choice = await chooseExportFolder();
-					if (choice.status === 'picked') showToast(`Fonts will export to ${choice.dir.name}`);
-					if (choice.status === 'needsClick') showToast('Click again to choose an export folder.');
+					// B4 integration: house words through the one toast voice, the folder as a quote
+					// B4 + B5 finalize: the font file's stream (group 'export'), so they take an export
+					// toast's place at once instead of waiting behind it
+					if (choice.status === 'picked') {
+						toast(
+							'menu.fontFolderPicked',
+							{ folder: choice.dir.name },
+							{ quotes: ['folder'], group: 'export' }
+						);
+					}
+					if (choice.status === 'needsClick')
+						toast('menu.fontFolderClickAgain', {}, { group: 'export' });
 				}),
 		});
 	}
@@ -288,18 +377,65 @@ function makeFileMenuData(editor) {
 		{
 			child: makeElement({
 				tag: 'h2',
-				content: makeFileName('svg'),
+				content: quoteHTML(makeFileName('svg')),
 			}),
 			className: 'spanAll',
 		},
 		{
-			name: 'Export SVG font file',
+			name: fontFileRow('svg', 'menu.makeFontFile', 'menu.typeSvg'),
 			icon: 'command_export',
 			note: ['Ctrl', 'g'],
 			onClick: ioSVG_exportSVGfont,
 		},
 	]);
-	return fileMenuData;
+	// ANY-INK (B5, UX-BEGINNER 6.2 Menus): only the rows the mode shows (Simple: no TTF, WOFF,
+	// WOFF2 or SVG font file, no export folder row; the headings over them go too)
+	return rowsShown('file', fileMenuData);
+}
+
+/**
+ * ANY-INK (B4): a File menu row's name, marked with its id.
+ * @param {String} id - 'save', 'save-as', 'font-otf', 'font-folder', ...
+ * @param {String} html - the row's words, as HTML
+ * @returns {String} HTML for the row name
+ */
+function rowHTML(id, html) {
+	return `<span data-anyink-row="${id}">${html}</span>`;
+}
+
+/**
+ * ANY-INK (B4): a font file row: 'Make a font file (.otf)', the file type shown as a quote.
+ * @param {String} type - 'otf', 'ttf', 'woff', 'woff2', 'svg'
+ * @param {String} key - 'menu.makeFontFile' or 'menu.makeWebFontFile'
+ * @param {String} typeKey - the quote entry for the file type ('menu.typeOtf')
+ * @returns {String} HTML for the row name
+ */
+function fontFileRow(type, key, typeKey) {
+	const quoted = `<span class="${QUOTE_CLASS}">${escapeText(word(typeKey))}</span>`;
+	return rowHTML(`font-${type}`, word(key, { type: quoted }));
+}
+
+/**
+ * ANY-INK (B4): a file or folder name, shown as a quote (an exact Windows label).
+ * @param {String} name
+ * @returns {String} HTML
+ */
+function quoteHTML(name) {
+	return `<span class="${QUOTE_CLASS}">${escapeText(
+		word('menu.fileName', { name: String(name) })
+	)}</span>`;
+}
+
+/**
+ * @param {String} text
+ * @returns {String} safe inside HTML
+ */
+function escapeText(text) {
+	return String(text ?? '')
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;');
 }
 
 /**
@@ -348,7 +484,7 @@ function makeProjectPreviewRow(projectID = 0) {
 			},
 		});
 	} else {
-		title.innerHTML = 'Open another font'; // ANY-INK (B1): house words
+		title.textContent = word('menu.openAnotherFont'); // ANY-INK (B1, B4): house words
 		rowWrapper.classList.add('project-preview__no-project');
 		rowWrapper.addEventListener('click', () => {
 			showModalDialog(makePage_OpenProject(true), 500, true);

@@ -51,11 +51,11 @@ function openFileMenu() {
 	[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 }
 
-function clickMenuRow(name) {
-	const rows = [...document.querySelectorAll('#context-menu .context-menu-row')];
-	const row = rows.find((r) => r.querySelector('.row-name')?.textContent === name);
-	if (!row) throw new Error(`no File menu row named "${name}"`);
-	row.click();
+/** B4: rows are found by their id (menu.js data-anyink-row), never by their words. */
+function clickMenuRow(id) {
+	const mark = document.querySelector(`#context-menu [data-anyink-row="${id}"]`);
+	if (!mark) throw new Error(`no File menu row "${id}"`);
+	mark.closest('.context-menu-row').click();
 }
 
 async function waitFor(check, ms = 8000) {
@@ -235,7 +235,7 @@ describe('File menu export', () => {
 		openBroken();
 		const { dir } = useFontsFolder();
 		openFileMenu();
-		clickMenuRow('Export OTF file');
+		clickMenuRow('font-otf');
 		expect(await waitFor(() => checkSentence().includes('small a'))).toBe(true);
 		expect(dir.files.has('CheckEdge-Regular.otf')).toBe(true);
 		expect(checkSentence()).toBe(
@@ -252,7 +252,7 @@ describe('File menu export', () => {
 		const { dir } = useFontsFolder();
 		dir.addFile('CheckEdge-Regular.otf'); // a font ANY-INK didn't write
 		openFileMenu();
-		clickMenuRow('Export OTF file');
+		clickMenuRow('font-otf');
 		await answerExistingFileDialog('keepBoth');
 		expect(await waitFor(() => checkSentence().includes('small a'))).toBe(true);
 		expect(dir.files.has('CheckEdge-Regular (2).otf')).toBe(true);
@@ -266,7 +266,7 @@ describe('File menu export', () => {
 		const api = fakeApi({});
 		setFileApi(api);
 		openFileMenu();
-		clickMenuRow('Export OTF file');
+		clickMenuRow('font-otf');
 		expect(
 			await waitFor(() => api.calls.download.length > 0 && checkSentence().includes('small a'))
 		).toBe(true);
@@ -280,7 +280,7 @@ describe('File menu export', () => {
 		openProject(edgeProjectJSON());
 		useFontsFolder();
 		openFileMenu();
-		clickMenuRow('Export OTF file');
+		clickMenuRow('font-otf');
 		expect(await waitFor(() => toastWords() === 'Exported CheckEdge-Regular.otf to Fonts')).toBe(
 			true
 		);

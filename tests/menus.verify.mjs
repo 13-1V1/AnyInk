@@ -180,7 +180,7 @@ try {
 	await page.locator('#context-menu').waitFor({ state: 'detached' });
 
 	// Presets menu (preview strip)
-	await page.getByRole('button', { name: /Presets/ }).click();
+	await page.locator('.preview-strip__presets').click(); // B4: the button now says Samples
 	await page.locator('#context-menu').waitFor();
 	await page.mouse.move(1500, 895);
 	await menuShot('presets-menu.png');

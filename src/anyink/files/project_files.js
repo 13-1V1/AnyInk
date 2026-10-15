@@ -53,7 +53,8 @@
 	    anything else               '<file> could not be saved' + the message
 	  (Save As happens once: a freshly picked file that fails is only reported.)
 	  Tail after a successful write: remember 'lastProject', pushRecentProject,
-	  publish 'projectFile', toast 'Saved <file>'. editor.setProjectAsSaved() and
+	  publish 'projectFile', toast 'Saved <file>' (All tools; in Simple the status pill
+	  says it, B4). editor.setProjectAsSaved() and
 	  recovery's markClean() run only when no edit landed while the project was being
 	  built and written (this editor's revision unchanged); otherwise the dot
 	  and the crash-recovery snapshot stay, the toast says the change is not in the
@@ -71,12 +72,19 @@ import { queueProjectSave, rememberFileVersion, assertFileUnchanged } from './sa
 import { getSaveStatus, setSaveStatus } from './save_status.js';
 import { getCurrentProjectEditor, getProjectEditorImportTarget } from '../../app/main.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
-import { showError, showToast } from '../../controls/dialogs/dialogs.js';
+import { showToast } from '../../controls/dialogs/dialogs.js';
 import { makeFileDateString, saveFile } from '../../project_editor/file_io.js';
+import { isSimpleMode } from '../mode/mode.js';
 import { markClean } from '../recovery/recovery.js';
+import { toast } from '../toast/toast.js';
+import { sayError } from '../words/error_box.js';
+import { openErrorWords, saveErrorWords } from '../words/error_words.js';
+import { word } from '../words/words.js';
 import { getFileApi, hasFileSystemAccess, isAbortError } from './file_api.js';
 import { ensurePermission, pushRecentProject, recallHandle, rememberHandle } from './handles.js';
+import { openFontCommand } from './open_font.js';
 import { readProjectFile } from './read_project.js';
+import { runFileCommand } from './run_command.js';
 import { isFileHandle, isProjectFileHandle, writeToHandle } from './write_file.js';
 
 export { hasFileSystemAccess } from './file_api.js';
@@ -89,6 +97,16 @@ export const LAST_PROJECT_KEY = 'lastProject';
 export const PROJECT_FILE_TYPES = [
 	{ description: 'ANY-INK project', accept: { 'application/json': ['.gs2'] } },
 ];
+
+/**
+ * B4 + B5 finalize (UX-BEGINNER.md 2.1 "work file"): the file types the Windows Open and Save
+ * boxes show; Simple calls a .gs2 an "ANY-INK work file", All tools as before.
+ * @returns {Array<Object>}
+ */
+export function projectFileTypes() {
+	if (!isSimpleMode()) return PROJECT_FILE_TYPES;
+	return [{ description: word('file.workFileType'), accept: { 'application/json': ['.gs2'] } }];
+}
 
 // In-memory mirror of the remembered last-project handle, so pickers can start
 // there without waiting for IndexedDB after the first read.
@@ -168,7 +186,7 @@ export async function pickProjectFile() {
 	if (!hasFileSystemAccess()) return false;
 	const handles = await runPicker(
 		getFileApi().showOpenFilePicker,
-		{ id: PROJECT_PICKER_ID, multiple: false, types: PROJECT_FILE_TYPES },
+		{ id: PROJECT_PICKER_ID, multiple: false, types: projectFileTypes() },
 		'Click Open again to choose a project file.'
 	);
 	const handle = Array.isArray(handles) ? handles[0] : handles;
@@ -196,9 +214,10 @@ function loadProjectIntoEditor(content, handle) {
  * @param {'read' | 'readwrite'} [options.mode] - permission to secure first.
  *   Picker handles already have read access; recents ask for readwrite behind
  *   the click so the next Save does not prompt again.
- * @param {Function} [options.load] - (content, handle) => editor; tests and test
- *   pages inject one that does not navigate. It gets the handle only for a .gs2
- *   (the one kind of file Save may write back to), otherwise false.
+ * @param {Function} [options.load] - (content, handle) => editor (or a Promise of it);
+ *   tests and test pages inject one that does not navigate, Ctrl+O one that loads into
+ *   the font he is in. It gets the handle only for a .gs2 (the one kind of file Save may
+ *   write back to), otherwise false.
  * @returns {Promise<'opened' | 'denied' | 'prompt' | 'missing' | 'invalid'>}
  */
 export async function openProjectFromHandle(handle, { mode = 'read', load } = {}) {
@@ -207,13 +226,29 @@ export async function openProjectFromHandle(handle, { mode = 'read', load } = {}
 	if (permission !== 'granted') return permission;
 	const file = await readProjectFile(handle);
 	if (file.status !== 'ok') {
-		if (file.status === 'invalid' || file.status === 'unreadable') showError(file.message);
+		if (file.status === 'invalid' || file.status === 'unreadable') sayOpenFailed(file, handle);
 		return file.status === 'missing' ? 'missing' : 'invalid';
 	}
 	const saveTarget = isProjectFileHandle(handle) ? handle : false;
-	const editor = (load || loadProjectIntoEditor)(file.content, saveTarget);
+	// B4 + B5 finalize: a loader may take its time first (Ctrl+O's writes a backup copy)
+	const editor = await (load || loadProjectIntoEditor)(file.content, saveTarget);
 	await noteProjectOpened(editor, handle, file.sourceFile);
 	return 'opened';
+}
+
+/**
+ * A work file that won't open. B4 + B5 finalize (7.7): Simple says it in plain words, with no
+ * JSON, codes or the reader's own sentence, and [Open another work file...] runs Ctrl+O's command
+ * (which asks first when his work isn't saved); All tools shows the reader's message, as before.
+ * @param {{message: String, fileName: String}} file - readProjectFile's result
+ * @param {FileSystemFileHandle} handle
+ */
+function sayOpenFailed(file, handle) {
+	if (file.message) console.warn('ANY-INK: the work file did not open:', file.message);
+	sayError(openErrorWords(file.message, file.fileName || handle?.name), {
+		actions: { 'error.button.openAnother': () => openFontCommand() },
+		allTools: file.message,
+	});
 }
 
 /**
@@ -389,7 +424,7 @@ export async function saveProjectAutomatically(editor, isCurrent = () => true) {
 		});
 	} catch (error) {
 		if (isCurrent() && editor.history === history)
-			setSaveStatus(editor, { file: 'failed', error: error.message || 'Use Save to retry' });
+			setSaveStatus(editor, { file: 'failed', error: error.message || word('status.tryAgain') });
 		return false;
 	}
 }
@@ -437,7 +472,7 @@ function settleSavedState(editor, written) {
 async function pickSaveHandle(editor) {
 	const handle = await runPicker(
 		getFileApi().showSaveFilePicker,
-		{ id: PROJECT_PICKER_ID, suggestedName: projectFileName(editor), types: PROJECT_FILE_TYPES },
+		{ id: PROJECT_PICKER_ID, suggestedName: projectFileName(editor), types: projectFileTypes() },
 		'Click Save again to choose where to save.'
 	);
 	return isFileHandle(handle) ? handle : false;
@@ -475,7 +510,17 @@ async function writeProject(editor, handle, text, written, canRepick) {
 			if (!picked) return false;
 			return writeProject(editor, picked, text, written, false);
 		}
-		showError(saveErrorMessage(handle, error));
+		// B4 + B5 finalize (7.7): Simple says it in plain words with [Try again] and [Save
+		// somewhere else] ([Save as a new file] when the file changed on disk); the browser's
+		// own sentence stays in the console (above). All tools: the box as before.
+		sayError(saveErrorWords(error, handle?.name), {
+			actions: {
+				'error.button.tryAgain': () => runFileCommand(() => saveProject(editor)),
+				'error.button.saveElsewhere': () => runFileCommand(() => saveProjectAs(editor)),
+				'error.button.saveAsNew': () => runFileCommand(() => saveProjectAs(editor)),
+			},
+			allTools: saveErrorMessage(handle, error),
+		});
 		return false;
 	}
 	if (editor.history !== written.history) return false;
@@ -524,12 +569,21 @@ async function afterProjectSaved(editor, handle, written) {
 	await rememberLastProject(handle);
 	await pushRecentProject(handle, projectName(editor));
 	publishProjectFile(editor, handle, 'save', clean);
-	showToast(savedMessage(handle.name || projectFileName(editor), clean));
+	saidSaved(savedMessage(handle.name || projectFileName(editor), clean));
 }
 
 function savedMessage(fileName, clean) {
 	if (clean) return `Saved ${fileName}`;
 	return `Saved ${fileName}.<br>A change made while saving is not in the file yet.`;
+}
+
+/**
+ * B4 (UX-BEGINNER 2.4 G): "Saved" is the status pill only in Simple (save_status.js says it);
+ * All tools keeps its toast.
+ * @param {String} message - HTML
+ */
+function saidSaved(message) {
+	toast(null, {}, { allTools: message });
 }
 
 /**
@@ -548,7 +602,7 @@ async function downloadProjectText(editor, getText) {
 	download(blob, fileName);
 	const clean = settleSavedState(editor, written);
 	publishProjectFile(editor, false, 'download', clean);
-	showToast(clean ? 'Saved project file' : savedMessage('project file', false));
+	saidSaved(clean ? 'Saved project file' : savedMessage('project file', false));
 	return true;
 }
 

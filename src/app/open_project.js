@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { noteImportedFontFile } from '../anyink/files/export_folder.js';
 import {
 	hasFileSystemAccess,
@@ -11,10 +13,16 @@ import {
 import { makeRecentFilesCard } from '../anyink/files/recents_ui.js';
 import { runFileCommand } from '../anyink/files/run_command.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
 import { makeRecoverArea } from '../anyink/recovery/recovery_ui.js';
+import { QUOTE_CLASS } from '../anyink/words/banned.js';
+import { sayError } from '../anyink/words/error_box.js';
+import { startFileErrorWords } from '../anyink/words/error_words.js';
+import { escapeWordHTML } from '../anyink/words/word_html.js';
+import { word } from '../anyink/words/words.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import logoVertical from '../common/graphics/anyink-wordmark-vertical.svg?raw';
-import { closeEveryTypeOfDialog, showError, showToast } from '../controls/dialogs/dialogs.js';
+import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
 import { makeProgressIndicator } from '../controls/progress-indicator/progress_indicator.js';
 import { cancelDefaultEventActions } from '../edit_canvas/events.js';
 import { ioFont_importFont } from '../formats_io/otf/font_import.js';
@@ -78,6 +86,8 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(content);
+	// ANY-INK (B4 + B5 finalize): Simple keeps one green button however the banner changes
+	if (isSimpleMode()) watchStartGreens(tableRight);
 
 	// Drag over handlers
 	const page = content.querySelector('#open-project__page');
@@ -126,6 +136,61 @@ export function resetOpenProjectTabs() {
 	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(document);
+	if (isSimpleMode()) syncStartGreens(tableRight);
+}
+
+// --------------------------------------------------------------
+// ANY-INK (B4 + B5 finalize): Simple's start page until B13's start screen
+// --------------------------------------------------------------
+
+/** The buttons that are a tab's one green (UX-BEGINNER.md 4.1, principle 1) */
+const START_PRIMARY_CLASS = 'anyink-start-primary';
+
+/**
+ * While the Recover banner offers a backup copy, its Restore is the one green button, so every
+ * tab's own green is outlined; with no banner each tab has its green again. The Recover tab
+ * hides the banner (its list shows the same copy).
+ * @param {Element} rightArea - #open-project__right-area
+ */
+function syncStartGreens(rightArea) {
+	const banner = rightArea.querySelector('.anyink-recovery-area--banner');
+	const offers = !!banner?.querySelector('fancy-button');
+	const onRecover = !!rightArea.querySelector('#open-project__tab-recover[selected]');
+	if (banner) banner.hidden = onRecover;
+	rightArea.querySelectorAll(`.${START_PRIMARY_CLASS}`).forEach((button) => {
+		if (offers && !onRecover) button.setAttribute('secondary', '');
+		else button.removeAttribute('secondary');
+	});
+}
+
+/**
+ * Keeps syncStartGreens current: the banner fills itself in later and removes itself when its
+ * last copy goes, and a tab press changes which tab shows.
+ * @param {Element} rightArea
+ */
+function watchStartGreens(rightArea) {
+	syncStartGreens(rightArea);
+	if (typeof MutationObserver !== 'function') return;
+	const observer = new MutationObserver(() => syncStartGreens(rightArea));
+	observer.observe(rightArea, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['selected'],
+	});
+}
+
+/**
+ * A file the start page's drop target or chooser can't take. Simple (UX-BEGINNER.md 7.7): what
+ * it is in plain words (a drawing, a font file ANY-INK can't read, a work file that won't open),
+ * never the file check's message or code; All tools: the message, as before.
+ * @param {{errorMessage?: String, fileName?: String}} result - the file check's result
+ */
+export function startPageFileError(result) {
+	const message = result?.errorMessage || 'Some unknown error happened when loading the file.';
+	const code = /\[([A-Z]+\d*(?:-[A-Z]+)?)\]/.exec(message)?.[1] || '';
+	if (isSimpleMode()) console.warn('ANY-INK: the start page could not take the file:', message);
+	sayError(startFileErrorWords(code, result?.fileName), { allTools: message });
 }
 
 /**
@@ -137,11 +202,18 @@ export function makeOpenProjectTabs() {
 	// Make contents for each tab
 	// --------------------------------------------------------------
 
+	// ANY-INK (B4 + B5 finalize): Simple says font and work file (start.*), never project, and
+	// each tab has one green button (the rest outlined), until B13's start screen
+	const simple = isSimpleMode();
+	const say = (key) => escapeWordHTML(word(key));
+
 	// Content for New Project tab
 	const tabContentNew = makeElement({
 		id: 'tab-content__new',
 		className: 'open-project__tab-content',
-		innerHTML: '<h2>Start a new project</h2>\nProject name: &nbsp;',
+		innerHTML: simple
+			? `<h2>${say('start.newFontTitle')}</h2>\n${say('start.fontName')}: &nbsp;`
+			: '<h2>Start a new project</h2>\nProject name: &nbsp;',
 		style: 'display: none;',
 	});
 
@@ -154,7 +226,8 @@ export function makeOpenProjectTabs() {
 	const buttonStartNewProject = makeElement({
 		tag: 'fancy-button',
 		id: 'button__create-new-project',
-		innerHTML: 'Create a new font from scratch',
+		className: START_PRIMARY_CLASS,
+		innerHTML: simple ? say('start.createFont') : 'Create a new font from scratch',
 		onClick: handleNewProject,
 	});
 
@@ -171,7 +244,9 @@ export function makeOpenProjectTabs() {
 
 	const dropTarget = makeElement({
 		id: 'open-project__drop-target',
-		innerHTML: `
+		innerHTML: isSimpleMode()
+			? simpleDropTargetHTML()
+			: `
 			ANY-INK project &ensp;(.gs2, .txt)<br>
 			Open Type, True Type, or WOFF&ensp;(.otf, .ttf, .woff)<br>
 			SVG Font &ensp;(.svg)
@@ -189,17 +264,25 @@ export function makeOpenProjectTabs() {
 			makeElement({
 				tag: 'fancy-button',
 				id: 'button__open-project-file',
-				innerHTML: 'Open a project file...',
+				className: START_PRIMARY_CLASS,
+				innerHTML: simple ? say('start.openWorkFile') : 'Open a project file...',
 				// A picker or loader failure shows in the error box, not as an unhandled rejection.
 				onClick: () => runFileCommand(() => openProjectFromPicker({ load: loadPickedProject })),
 			})
 		);
 	}
 
+	// Simple: the font file button is outlined beside the green work file one; with no file
+	// picker it is the only button, so it stays the tab's green
 	const openFileChooser = makeElement({
 		tag: 'fancy-button',
-		attributes: { dark: '' },
-		innerHTML: fileSystemAccess ? 'or, import a font or SVG file...' : 'or, open file chooser...',
+		className: simple && !fileSystemAccess ? START_PRIMARY_CLASS : '',
+		attributes: simple && fileSystemAccess ? { dark: '', secondary: '' } : { dark: '' },
+		innerHTML: simple
+			? say('start.openFontFile')
+			: fileSystemAccess
+			? 'or, import a font or SVG file...'
+			: 'or, open file chooser...',
 		onClick: async () => {
 			getFilesFromFilePicker(handleOpenProjectPageFileInput);
 		},
@@ -228,29 +311,39 @@ export function makeOpenProjectTabs() {
 	const tabContentExamples = makeElement({
 		id: 'tab-content__examples',
 		className: 'open-project__tab-content',
-		innerHTML: `<h2>Load an example project</h2>`,
+		innerHTML: simple
+			? `<h2>${say('start.examplesTitle')}</h2>`
+			: `<h2>Load an example project</h2>`,
 		style: 'display: none;',
 	});
 
+	// ANY-INK (B4 + B5 integration): Simple says the examples in house words, until B13
 	const contentSimpleProject = makeElement({
 		tag: 'div',
-		innerHTML: `The Simple v2 Project has a few characters and things to show off basic functionality:<br><br>`,
+		innerHTML: isSimpleMode()
+			? `${word('start.exampleSimple')}<br><br>`
+			: `The Simple v2 Project has a few characters and things to show off basic functionality:<br><br>`,
 	});
 
 	const buttonSimpleProject = makeElement({
 		tag: 'fancy-button',
-		innerHTML: 'Simple v2 project',
+		className: START_PRIMARY_CLASS,
+		innerHTML: simple ? say('start.exampleSimpleButton') : 'Simple v2 project',
 		onClick: () => handleLoadSample('simpleProject'),
 	});
 
 	const contentOblegg = makeElement({
 		tag: 'div',
-		innerHTML: `Oblegg is the upstream sample project that exercises every editor feature:<br><br>`,
+		innerHTML: isSimpleMode()
+			? `${word('start.exampleOblegg')}<br><br>`
+			: `Oblegg is the upstream sample project that exercises every editor feature:<br><br>`,
 	});
 
+	// Simple: Oblegg (every editor feature) is outlined beside the simple example
 	const buttonOblegg = makeElement({
 		tag: 'fancy-button',
-		innerHTML: 'Oblegg',
+		attributes: simple ? { secondary: '' } : {},
+		innerHTML: simple ? say('start.exampleObleggButton') : 'Oblegg',
 		onClick: () => handleLoadSample('oblegg'),
 	});
 
@@ -403,12 +496,13 @@ async function handleOpenProjectPageFileInput(files) {
 		else if (fileInput.getAsFile) fileResult = await fileInput.getAsFile();
 		else fileResult = fileInput;
 	} else {
-		showError(`No files were found that could be imported.`);
+		// ANY-INK (B4 + B5 finalize): Simple says what ANY-INK takes (7.7)
+		startPageFileError({ errorMessage: `No files were found that could be imported.` });
 	}
 
 	// log(fileResult);
 	if (!fileResult) {
-		showError(`The file could not be read.`);
+		startPageFileError({ errorMessage: `The file could not be read.` });
 		resetOpenProjectTabs();
 	} else {
 		validateSingleFileInput(fileResult, postValidationCallback);
@@ -451,11 +545,8 @@ function postValidationCallback(validationResult) {
 			);
 		}
 	} else {
-		if (validationResult.errorMessage) {
-			showError(validationResult.errorMessage);
-		} else {
-			showError(`Some unknown error happened when loading the file.`);
-		}
+		// ANY-INK (B4 + B5 finalize): Simple says it in 7.7's words (startPageFileError)
+		startPageFileError(validationResult);
 
 		resetOpenProjectTabs();
 	}
@@ -463,14 +554,28 @@ function postValidationCallback(validationResult) {
 }
 
 /**
+ * ANY-INK (B4 + B5 finalize): Ctrl+O opens a font in place of the one he is in (open_font.js),
+ * never as the second font a start page drawn for one earlier would add, so that page's
+ * "Switched to" note doesn't follow it.
+ */
+export function forgetSecondProject() {
+	isSecondProject = false;
+}
+
+/**
  * Do all the stuff necessary to import a text file and
  * get the UI to the right page.
+ * ANY-INK (B4 + B5 finalize): editor, when given, is the editor the project goes into (Ctrl+O:
+ * the font he is in); by default the app's import target, as before.
  * @param {GlyphrStudioProject | Object} glyphrStudioProjectFile
+ * @param {ProjectEditor} [editor]
  */
-export function importProjectDataAndNavigate(glyphrStudioProjectFile) {
+export function importProjectDataAndNavigate(
+	glyphrStudioProjectFile,
+	editor = getProjectEditorImportTarget()
+) {
 	// log(`importProjectDataAndNavigate`, 'start');
 	closeEveryTypeOfDialog();
-	const editor = getProjectEditorImportTarget();
 	setCurrentProjectEditor(editor);
 	// ANY-INK (M6, D-012): binary assets live on the editor, not in the project, so a
 	// project that replaces another must not inherit its images. Loaders that bring
@@ -531,7 +636,8 @@ function handleDragEnter(event) {
 	const dropNote = document.querySelector('#open-project__drop-note');
 	dropNote.style.animation = 'var(--animate-fade-in)';
 	dropNote.style.opacity = '1';
-	dropNote.innerHTML = `Drop it!`;
+	// ANY-INK (B4 + B5 finalize): Simple says it with no exclamation mark (2.2)
+	dropNote.innerHTML = isSimpleMode() ? escapeWordHTML(word('start.dropNote')) : `Drop it!`;
 	dropNote.style.display = 'block';
 	// log(`handleDragEnter`, 'end');
 }
@@ -570,8 +676,12 @@ function handleNewProject() {
  */
 function handleLoadSample(name) {
 	if (isSecondProject) addProjectEditorAndSetAsImportTarget();
-	document.querySelector('#tab-content__examples').innerHTML =
-		'<h2>Load an example project</h2>Loading example project...';
+	// ANY-INK (B4 + B5 finalize): Simple says it in house words
+	document.querySelector('#tab-content__examples').innerHTML = isSimpleMode()
+		? `<h2>${escapeWordHTML(word('start.examplesTitle'))}</h2>${escapeWordHTML(
+				word('start.loadingExample')
+		  )}`
+		: '<h2>Load an example project</h2>Loading example project...';
 
 	let project = simpleExampleProject;
 	if (name === 'oblegg') project = obleggExampleProject;
@@ -580,4 +690,20 @@ function handleLoadSample(name) {
 
 		importProjectDataAndNavigate(project);
 	}, 100);
+}
+
+/**
+ * ANY-INK (B4 + B5 integration, UX-BEGINNER 2.3, 2.4 E): the kinds of file the Load tab takes, in
+ * Simple's words, the file types as quotes (exact file name endings), until B13's start screen.
+ * @returns {String} HTML
+ */
+function simpleDropTargetHTML() {
+	const quote = (key) => `<span class="${QUOTE_CLASS}">${word(key)}</span>`;
+	return [
+		`${word('start.dropWorkFile')} &ensp;(${quote('start.typeWorkFile')})`,
+		`${word('start.dropFontFile')} &ensp;(${['menu.typeOtf', 'menu.typeTtf', 'menu.typeWoff']
+			.map(quote)
+			.join(', ')})`,
+		`${word('start.dropDrawing')} &ensp;(${quote('menu.typeSvg')})`,
+	].join('<br>');
 }

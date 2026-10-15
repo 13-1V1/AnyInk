@@ -10,6 +10,13 @@ call the bare `log()` helper. Vitest unit tests live beside the code in `src/`.
 Node scripts that drive real Chrome through Playwright with a throwaway profile. Each starts
 its own server on a free port.
 
+Since B5, Simple (`?ui=simple`) draws no page chooser, no panel chooser and no panel, and locks
+the horizontal guide lines (UX-BEGINNER 6.2, 7.6). Until the Bs that give Simple its own way
+there land, the walkthroughs that run in Simple reach those screens through
+`verify_standins.mjs`: `toOverview` (B10's "<- All letters"), `showTracePanel` (B9's photo
+card), `pressInAllTools` (B7's Fine-tune rows), `moveGuideLines` (B15's Move the guide lines)
+and `nudgeWritingLine`. In All tools each one uses the real chooser or control, as before.
+
 - `pwa.verify.mjs` (`npm run verify:pwa`): the installable offline app on a production build.
 - `pwa-storage.verify.mjs` (`npm run verify:pwa-storage`): storage on the production build.
 - `menus.verify.mjs` (`npm run verify:menus`): File, Presets and Projects menus readable without
@@ -66,3 +73,77 @@ its own server on a free port.
 - `check-line.verify.mjs` (`npm run verify:check-line`): the strip's font check line at 48, 120
   and 200 pt, canvas and Real font: nothing is drawn under it, and the letters never move when it
   comes or goes (B1). Optional argument: a screenshot folder.
+- `words.verify.mjs` (`npm run verify:words`): `tests/words.html` lists every words.js key with its
+  text, hint, pro word and feature, none says a banned word, Help's glossary shows the landed words
+  in 2.1's order, every Undo title has its plain words; then the dev app with `?ui=simple`: the
+  banned-word scanner run in the real page (real CSS) finds in the strip, the File menu and the
+  canvas (a guide line hovered) the same hits as the jsdom scan, and the whole Simple letter screen
+  has 0 hits (B4; asserted since the B4 + B5 integration). Optional argument: a screenshot folder.
+- `toast.verify.mjs` (`npm run verify:toast`): one toast voice (B4). `tests/toast.html`: All tools
+  draws a toast where and as long as upstream did (top middle, 3 s); Simple draws it bottom right
+  just above the strip, 6 s, hover pauses it, an undo toast holds while an info toast waits, a toast
+  with a button holds against info, a message with no words key is dropped, file names are quotes.
+  Then the dev app in Simple: the real Merge says "Merging the shapes..." then "Merged the shapes",
+  Ctrl+R says nothing, a photo is turned away until B9, Ctrl+S says nothing (the save status does),
+  no message dropped; the same steps in All tools keep today's words except Merge. Then the toast
+  fix track in Simple: dropped photo, work file and empty drawing; an error toast holds while a tool
+  key's toast waits; an offer keeps its button through a real click on the drawing surface (the
+  click is checked to land on the canvas); the Recover card asks before throwing work away.
+  Optional argument: a screenshot folder.
+- `screens.verify.mjs` (`npm run verify:screens`): the display points Simple shares with More tools
+  (B4), in both modes: the canvas guide labels and drag readouts ("small-letter line 1100", "tail
+  line 440", "Left space 0"), the File menu rows with file names and types as quotes, the strip
+  ("Preview" in sentence case, "Type anything", "Samples"; Real font and Guide lines in All tools
+  only since the B4 + B5 integration) and its Samples menu, the save status, the three app notices.
+  Optional argument: a screenshot folder.
+- `b45.verify.mjs` (`npm run verify:b45`): B4 and B5 together in the dev app. Before and after
+  screenshots of All tools (Characters page, File menu, guide labels, save status, strip; "before"
+  is the last commit's `src/`, exported to a temp folder) and checks that All tools keeps its
+  controls; then Simple: hidden pages, panels, tools, actions, menu rows and settings rows gone,
+  the keys per the map, the writing lines locked and the edges draggable, an Undo that lands on
+  Kerning with the purple band and Back to my letters, every toast in plain words with none
+  dropped, and the banned-word scan at 0 on every Simple page (start page tabs, Overview, letter
+  page, letter chooser, Help, About; strict since the finalize pass). The finalize pass added:
+  one green button per start page tab, a font file brought in on the Load tab (every progress line
+  scanned), [Back to my letters] on Help and About, the sentence before the first folder picker,
+  and in All tools the strip's redraw after a rectangle and Ctrl+Z with a strip toggle focused.
+  Optional argument: a screenshot folder.
+- `mode.verify.mjs` (`npm run verify:mode`): `tests/mode.html` on the sample font: All tools at
+  launch shows all of today's controls and no band; Simple shows today's Characters page minus what
+  UX-BEGINNER 6.2 hides, with `html[data-ui-mode]` following; More tools after Simple shows the
+  purple band (real CSS: contrast, sentence case, no banned word, an outlined button) and Back to
+  simple works; Simple's Undo of a More tools gap change lands on Kerning with the landing band, and
+  Back to my letters returns, and Redo lands there again saying Redo did it; the key map in both
+  modes ("Switched to Rectangle (R)" in Simple, H says P; U, B, Ctrl+R and Ctrl+G off; Ctrl+E makes
+  the .otf); a flag preview adds only its own control; then the dev app: `?ui=simple` mirrors
+  to `html[data-ui-mode]`, and `turnOnMoreTools` / `backToSimple` redraw the real page through
+  Navigator.navigate, with the band in its own grid row under the top bar (B5). Optional argument:
+  a screenshot folder.
+- `wiring.verify.mjs` (`npm run verify:wiring`): the B5 wiring in the dev app. All tools: a letter
+  page shows exactly the controls jsdom recorded before the wiring
+  (`src/anyink/mode/tests/today_controls.json`), P / E / U / B / V pick their tools, Ctrl+Space hides
+  the UI, Ctrl+G downloads the SVG font file, Ctrl+O opens the work file picker (no new window), the
+  small-letter line drags. Simple: the page chooser with Simple's four pages (kept until B6's rail),
+  no panel chooser or panel, 5 tools and 6 view controls, File and Help menus with Save, Save
+  as..., Open a saved font... and the .otf font file only, 0 banned-word
+  hits on the whole letter screen (asserted since the B4 + B5 integration), R says "Switched to Rectangle (R)", U / Ctrl+Space / Ctrl+G do
+  nothing, the guide lines stay put while the right edge drags, Ctrl+O with unsaved ink asks first.
+  Then the landing rule with real clicks and keys on the Simple v2 example (Kerning, Back to
+  simple, Ctrl+Z, Back to my letters). Optional argument: a screenshot folder.
+- `mode-fixes.verify.mjs` (`npm run verify:mode-fixes`): the B4 + B5 mode fix track in the dev app.
+  Simple keeps the page chooser ("All letters", "One letter", "Help", "About ANY-INK") so Help and
+  About are no dead end; an empty letter's edges aren't grabbed and its width stays 0 (All tools:
+  never below 0); Delete, Backspace and Ctrl+R with nothing picked add no Undo step (Ctrl+R is left
+  to Chrome in Simple); B picks nothing until the Brush and H says "Switched to Point pen (P)"; a
+  photo's corner on an empty letter's edge resizes the photo; tiles say "Changed since you opened
+  the font." / "Not made yet. Click to start it." by ink; the File menu has Open a saved font...,
+  key chips on one line, and a font from a .woff names and makes the .otf with Ctrl+E; Ctrl+Y that
+  lands on Kerning says "Redo took you to ..."; the Open Project page follows a mode switch.
+  (Finalize: the photo step turns B9's 'photo' flag on, since Simple draws no photo before B9.)
+  Optional argument: a screenshot folder.
+- `words-fix.verify.mjs` (`npm run verify:words-fix`): the B4 + B5 words fix track in the dev app:
+  the strip passes the app's keys on (Ctrl+Z after Fix it, Samples or the slider), Simple's four
+  save states and their tooltips, one label on a pointed-at edge, no neighbor letters on Simple's
+  canvas, the empty preview's two sentences, the Overview's sample on paper, the strip's
+  "Double-click to work on ..." tooltip, the start page's drawing line. Optional argument: a
+  screenshot folder.

@@ -5,7 +5,9 @@
 	to the bottom of the window. It is mounted in index.html next to #app__wrapper,
 	so page navigation never rebuilds it.
 
-	- Sample text input, presets menu, points slider, 'Real font' and 'Metrics' toggles.
+	- Sample text input, Samples menu (presets), points slider, 'Real font' and 'Guide lines'
+	  (metrics) toggles. B4: every label is a words key (src/anyink/words, strip.* and
+	  line.guides), the same in both modes (UX-BEGINNER.md 2.4 B, 4.0), in sentence case.
 	- Canvas mode: a DisplayCanvas (flavor gs) redrawn once per animation frame from
 	  the editor's pub/sub topics. Real-font mode: a FontPreview (OTF via font-flux-js)
 	  rebuilt with a 400 ms trailing debounce, and only on the topics that change the font.
@@ -22,6 +24,11 @@
 	  'font-status' event), so only one line ever speaks.
 	Light DOM on purpose: upstream's keyboard handler already ignores keys typed in
 	an <input>, and the app's resets style the controls.
+	- B4 integration (UX-BEGINNER.md 6.2 Strip, B5's visibility.js 'strip' area): each toggle
+	  carries its id (data-anyink-strip="realFont" / "guideLines"); a toggle the mode hides is
+	  hidden, and what it turns on is off while it is hidden (the remembered pref is kept for
+	  All tools), so Simple never shows a real-font sheet or guide lines it has no switch for.
+	  The strip follows 'anyink-mode-change'.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
@@ -29,13 +36,19 @@ import { makeCrisp } from '../../common/functions.js';
 import { closeAllContextMenus, makeContextMenu } from '../../controls/dialogs/dialogs.js';
 import { FontPreview } from '../../controls/font-preview/font_preview.js';
 import { DisplayCanvas } from '../../display_canvas/display_canvas.js';
+import { SAVE_STATUS_EVENT } from '../files/save_status.js';
 import { getLastFontCheck, runFontCheckNow } from '../fontcheck/font_check.js';
+import { HIDDEN_ATTRIBUTE } from '../mode/hide.js';
+import { MODE_EVENT } from '../mode/mode.js';
+import { isShown } from '../mode/visibility.js';
 import { getPref, setPref } from '../prefs/prefs.js';
 import { onThemeChange, token } from '../theme/theme.js';
+import { labelCase, word } from '../words/words.js';
 import { canFixProblem, fixProblem } from './fix_it.js';
 import { firstCheckProblem, hintFor, isGapId, moreText } from './font_status.js';
 import { findCharAtPoint, navigationTargetForChar } from './hit_test.js';
 import { injectStyleOnce } from './inject_style.js';
+import { stripLetterTooltip } from './letter_tooltip.js';
 import { centeringLineGap, nativeFirstLineView } from './layout.js';
 import { metricLineYs } from './metric_lines.js';
 import { makePointsSlider } from './points_slider.js';
@@ -46,6 +59,7 @@ import { DEFAULT_SAMPLE_TEXT, makePresetRows } from './sample_presets.js';
 import { makeFrameCoalescer, makeTrailingDebounce } from './scheduling.js';
 import { isItemOpen, showItem } from './show_item.js';
 import { makeEditorTracker } from './subscriptions.js';
+import { stripOwnsKey } from './strip_keys.js';
 import { DEFAULT_PT, clampPt, ptToPx } from './units.js';
 
 export const STRIP_HEIGHT = 150;
@@ -114,7 +128,7 @@ export class PreviewStrip extends HTMLElement {
 			onRedraw: () => this.scheduleRedraw(),
 			onFontChange: () => {
 				this.fontDirty = true;
-				if (this.options.realFont) this.scheduleFontRebuild();
+				if (this.realFontOn) this.scheduleFontRebuild();
 			},
 			onFontCheck: (payload) => this.setCheckProblem(firstCheckProblem(payload)),
 		});
@@ -128,6 +142,42 @@ export class PreviewStrip extends HTMLElement {
 			this.scheduleRedraw();
 		};
 		this.handleKeyDown = (event) => this.onKeyDown(event);
+		this.handleModeChange = () => this.applyMode();
+		// B4 + B5 finalize: every change (a History step, Undo, Redo) is heard by the save status;
+		// the strip redraws on it too, since a shape added by the Rectangle or Oval tool publishes
+		// nothing the strip subscribes to, and the empty sheet's sentence stayed over a made letter
+		this.handleChange = (event) => {
+			const changed = event?.detail?.editor;
+			if (changed && changed === this.editor) this.scheduleRedraw();
+		};
+	}
+
+	/** B4 integration: Real font is on, and the mode shows its switch (6.2 Strip). */
+	get realFontOn() {
+		return !!this.options.realFont && isShown('strip', 'realFont');
+	}
+
+	/** B4 integration: guide lines are on, and the mode shows their switch (6.2 Strip). */
+	get metricsOn() {
+		return !!this.options.metrics && isShown('strip', 'guideLines');
+	}
+
+	/**
+	 * B4 integration: shows the toggles the mode shows and redraws with what is on now.
+	 */
+	applyMode() {
+		if (!this.isBuilt) return;
+		[
+			[this.realFontToggle, 'realFont'],
+			[this.metricsToggle, 'guideLines'],
+		].forEach(([toggle, id]) => {
+			const hidden = !isShown('strip', id);
+			toggle.label.toggleAttribute('hidden', hidden);
+			toggle.label.toggleAttribute(HIDDEN_ATTRIBUTE, hidden);
+		});
+		this.fontDirty = true;
+		this.needsResize = true;
+		this.scheduleRedraw();
 	}
 
 	// --------------------------------------------------------------
@@ -141,6 +191,8 @@ export class PreviewStrip extends HTMLElement {
 		this.hidden = true;
 		this.visible = false;
 		window.addEventListener(PAGE_CHANGE_EVENT, this.handlePageChange);
+		window.addEventListener(MODE_EVENT, this.handleModeChange);
+		window.addEventListener(SAVE_STATUS_EVENT, this.handleChange);
 		window.addEventListener('resize', this.handleWindowResize);
 		this.addEventListener('keydown', this.handleKeyDown);
 		if (this.unsubscribeThemeChange) this.unsubscribeThemeChange();
@@ -150,6 +202,8 @@ export class PreviewStrip extends HTMLElement {
 
 	disconnectedCallback() {
 		window.removeEventListener(PAGE_CHANGE_EVENT, this.handlePageChange);
+		window.removeEventListener(MODE_EVENT, this.handleModeChange);
+		window.removeEventListener(SAVE_STATUS_EVENT, this.handleChange);
 		window.removeEventListener('resize', this.handleWindowResize);
 		this.removeEventListener('keydown', this.handleKeyDown);
 		if (this.unsubscribeThemeChange) {
@@ -170,7 +224,9 @@ export class PreviewStrip extends HTMLElement {
 
 		// Left column: eyebrow, text, presets + size, toggles
 		const controls = makeElement({ className: 'preview-strip__controls' });
-		controls.appendChild(makeElement({ className: 'preview-strip__eyebrow', content: 'Preview' }));
+		controls.appendChild(
+			makeElement({ className: 'preview-strip__eyebrow', content: escapeHTML(word('strip.title')) })
+		);
 
 		this.textInput = /** @type {HTMLInputElement} */ (
 			makeElement({
@@ -178,10 +234,10 @@ export class PreviewStrip extends HTMLElement {
 				className: 'preview-strip__text',
 				attributes: {
 					type: 'text',
-					placeholder: 'Sample text',
+					placeholder: word('strip.textPlaceholder'),
 					spellcheck: 'false',
 					autocomplete: 'off',
-					'aria-label': 'Preview sample text',
+					'aria-label': word('strip.textLabel'),
 				},
 			})
 		);
@@ -193,8 +249,8 @@ export class PreviewStrip extends HTMLElement {
 		this.presetsButton = makeElement({
 			tag: 'button',
 			className: 'preview-strip__presets',
-			content: 'Presets &#9662;',
-			attributes: { type: 'button', title: 'Sample text presets' },
+			content: `${escapeHTML(word('strip.samples'))} &#9662;`,
+			attributes: { type: 'button', title: word('strip.samplesHint') },
 		});
 		this.presetsButton.addEventListener('click', () => this.openPresets());
 		this.slider = makePointsSlider({
@@ -208,12 +264,16 @@ export class PreviewStrip extends HTMLElement {
 		controls.appendChild(sizeRow);
 
 		const toggles = makeElement({ className: 'preview-strip__toggles' });
-		this.realFontToggle = this.makeToggle('Real font', this.options.realFont, (on) =>
+		this.realFontToggle = this.makeToggle(word('strip.realFont'), this.options.realFont, (on) =>
 			this.setRealFont(on)
 		);
-		this.metricsToggle = this.makeToggle('Metrics', this.options.metrics, (on) =>
-			this.setMetrics(on)
+		this.metricsToggle = this.makeToggle(
+			labelCase(word('line.guides')),
+			this.options.metrics,
+			(on) => this.setMetrics(on)
 		);
+		this.markToggle(this.realFontToggle, 'realFont', 'real-font');
+		this.markToggle(this.metricsToggle, 'guideLines', 'guide-lines');
 		toggles.appendChild(this.realFontToggle.label);
 		toggles.appendChild(this.metricsToggle.label);
 		controls.appendChild(toggles);
@@ -223,9 +283,10 @@ export class PreviewStrip extends HTMLElement {
 		this.canvasWrapper = makeElement({ className: 'preview-strip__canvas-wrapper' });
 		this.canvasWrapper.addEventListener('dblclick', (event) => this.onDoubleClick(event));
 		this.canvasWrapper.addEventListener('mousemove', (event) => this.onMouseMove(event));
-		this.canvasWrapper.addEventListener('mouseleave', () =>
-			this.canvasWrapper.classList.remove('is-over-glyph')
-		);
+		this.canvasWrapper.addEventListener('mouseleave', () => {
+			this.canvasWrapper.classList.remove('is-over-glyph');
+			this.canvasWrapper.removeAttribute('title');
+		});
 		this.canvasWrapper.addEventListener('font-status', (event) =>
 			// @ts-expect-error CustomEvent detail
 			this.onFontStatus(event.detail || {})
@@ -243,6 +304,18 @@ export class PreviewStrip extends HTMLElement {
 		this.checkLine.element.classList.add('preview-strip__check');
 		this.canvasWrapper.appendChild(this.checkLine.element);
 		this.appendChild(this.canvasWrapper);
+		this.applyMode();
+	}
+
+	/**
+	 * B4 integration: a toggle's id in visibility.js's 'strip' area, and a class of its own.
+	 * @param {{label: HTMLElement}} toggle
+	 * @param {String} id - 'realFont' | 'guideLines'
+	 * @param {String} name - the class suffix
+	 */
+	markToggle(toggle, id, name) {
+		toggle.label.dataset.anyinkStrip = id;
+		toggle.label.classList.add(`preview-strip__toggle--${name}`);
 	}
 
 	/**
@@ -259,7 +332,7 @@ export class PreviewStrip extends HTMLElement {
 		input.checked = !!checked;
 		input.addEventListener('change', () => onChange(input.checked));
 		label.appendChild(input);
-		label.appendChild(makeElement({ content: text }));
+		label.appendChild(makeElement({ content: escapeHTML(text) }));
 		return { label, input };
 	}
 
@@ -388,8 +461,14 @@ export class PreviewStrip extends HTMLElement {
 		const page = this.page.getBoundingClientRect();
 		const line = this.checkLine.element.getBoundingClientRect();
 		const px = (value) => `${Math.max(0, Math.ceil(value))}px`;
-		this.canvasWrapper.style.setProperty('--preview-check-cut-w', px(page.right - line.left + CHECK_GAP));
-		this.canvasWrapper.style.setProperty('--preview-check-cut-h', px(page.bottom - line.top + CHECK_GAP));
+		this.canvasWrapper.style.setProperty(
+			'--preview-check-cut-w',
+			px(page.right - line.left + CHECK_GAP)
+		);
+		this.canvasWrapper.style.setProperty(
+			'--preview-check-cut-h',
+			px(page.bottom - line.top + CHECK_GAP)
+		);
 	}
 
 	/**
@@ -497,7 +576,7 @@ export class PreviewStrip extends HTMLElement {
 
 	/** Makes sure the right renderer for the current mode is in the sheet. */
 	ensureRenderer() {
-		const wantFont = this.options.realFont;
+		const wantFont = this.realFontOn;
 		const have = this.renderer;
 		if (have && have.isConnected && have instanceof FontPreview === wantFont) return have;
 		this.removeRenderer();
@@ -536,7 +615,7 @@ export class PreviewStrip extends HTMLElement {
 			showPlaceholderMessage: true,
 		});
 		canvas.setAttribute('hi-dpi', '');
-		canvas.showMetricLines = this.options.metrics;
+		canvas.showMetricLines = this.metricsOn;
 		return canvas;
 	}
 
@@ -582,7 +661,7 @@ export class PreviewStrip extends HTMLElement {
 			return;
 		}
 
-		renderer.showMetricLines = this.options.metrics;
+		renderer.showMetricLines = this.metricsOn;
 		if (this.needsResize) {
 			this.needsResize = false;
 			renderer.resizeAndRedraw();
@@ -594,7 +673,7 @@ export class PreviewStrip extends HTMLElement {
 
 	/** Real-font mode: regenerate the OTF. Debounced through this.scheduleFontRebuild. */
 	rebuildFontNow() {
-		if (!this.visible || !this.options.realFont) return;
+		if (!this.visible || !this.realFontOn) return;
 		const renderer = this.renderer;
 		if (renderer instanceof FontPreview && renderer.isConnected) {
 			this.fontDirty = false;
@@ -630,7 +709,7 @@ export class PreviewStrip extends HTMLElement {
 		if (!ctx) return;
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		ctx.clearRect(0, 0, width, height);
-		if (!this.options.metrics) return;
+		if (!this.metricsOn) return;
 		const font = this.editor?.project?.settings?.font;
 		if (!font) return;
 		const px = this.fontSizePx;
@@ -711,10 +790,17 @@ export class PreviewStrip extends HTMLElement {
 		);
 	}
 
-	/** @param {MouseEvent} event */
+	/**
+	 * B4 + B5 fix pass (4.0): a letter that a double-click opens says so in its tooltip.
+	 * @param {MouseEvent} event
+	 */
 	onMouseMove(event) {
-		const over = !!navigationTargetForChar(this.hitTest(event));
+		const hit = this.hitTest(event);
+		const over = !!navigationTargetForChar(hit);
 		this.canvasWrapper.classList.toggle('is-over-glyph', over);
+		const tip = over ? stripLetterTooltip(hit, { editor: this.editor }) : '';
+		if (!tip) this.canvasWrapper.removeAttribute('title');
+		else if (this.canvasWrapper.getAttribute('title') !== tip) this.canvasWrapper.title = tip;
 	}
 
 	/**
@@ -734,6 +820,9 @@ export class PreviewStrip extends HTMLElement {
 	 * canvas shortcuts see them (the real-font textarea lives in a shadow root, so
 	 * upstream's activeElement check would not recognise it). Ctrl+Z is left to the
 	 * browser. Escape leaves the text field.
+	 * B4 + B5 fix pass: only the keys the strip's controls use stay here (strip_keys.js); a
+	 * button, a toggle or the size slider with focus lets every other key reach the app, so
+	 * Ctrl+Z after [Fix it] undoes it, and Ctrl+S, Ctrl+E and the tool keys work.
 	 * @param {KeyboardEvent} event
 	 */
 	onKeyDown(event) {
@@ -745,7 +834,8 @@ export class PreviewStrip extends HTMLElement {
 				this.renderer.textElement.blur();
 			}
 		}
-		event.stopPropagation();
+		const isTextTarget = (target) => target === this.textInput || target === this.renderer;
+		if (stripOwnsKey(event, { isTextTarget })) event.stopPropagation();
 	}
 }
 

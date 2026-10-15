@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK mode switch (B5)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: 0 0 var(--space-6); }
+		main { padding: 0 var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: var(--space-4) 0 var(--space-2); }
+		h2 { font-size: var(--text-lg); font-weight: 600; margin: var(--space-6) 0 var(--space-2); }
+		h3 { font-size: var(--text-sm); font-weight: 600; margin: 0 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 95ch; margin: 0 0 var(--space-3); }
+		a { color: var(--touch); }
+		code { font-family: var(--font-mono); font-size: var(--text-xs); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		button[aria-pressed='true'] { border-color: var(--touch); box-shadow: inset 0 0 0 1px var(--touch); }
+		.topbar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-5); background: var(--chrome-bg-sunken); border-bottom: var(--hairline); font-size: var(--text-sm); }
+		.topbar b { color: var(--chrome-text); }
+		.topbar .muted { color: var(--chrome-text-faint); }
+		.readout { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); }
+		.readout b { color: var(--structure); font-weight: 600; }
+		.flags { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); }
+		.flags label { display: inline-flex; gap: var(--space-1); align-items: center; }
+		.flags .by { color: var(--chrome-text-faint); font-size: var(--text-xs); }
+		.areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); }
+		.area { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-3); box-shadow: var(--shadow-card); }
+		.area .count { color: var(--chrome-text-faint); font-weight: normal; }
+		.area ul { list-style: none; margin: 0; padding: 0; font-size: var(--text-sm); }
+		.area li { display: flex; gap: var(--space-2); align-items: baseline; padding: 1px 0; }
+		.area li code { font-size: var(--text-xs); }
+		.area li .state { font-size: var(--text-xs); border-radius: var(--radius-sm); padding: 0 var(--space-1); white-space: nowrap; }
+		.area li[data-shown='true'] .state { color: var(--touch); border: 1px solid var(--touch); }
+		.area li[data-shown='false'] code { color: var(--chrome-text-faint); text-decoration: line-through; }
+		.area li[data-shown='false'] .state { color: var(--chrome-text-faint); border: 1px solid var(--chrome-border-strong); }
+		.area li .why { color: var(--chrome-text-faint); font-size: var(--text-xs); }
+		.area li .drift { color: var(--warning); font-size: var(--text-xs); }
+		#keybox { display: inline-block; min-width: 320px; padding: var(--space-3); border: 1px dashed var(--chrome-border-strong); border-radius: var(--radius); color: var(--chrome-text-muted); cursor: text; }
+		#keybox:focus { outline: none; border-color: var(--touch); border-style: solid; color: var(--chrome-text); }
+		select { font: inherit; background: var(--field-bg); color: var(--field-text); border: 1px solid var(--field-border); border-radius: var(--radius); padding: 2px var(--space-2); }
+		pre { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); white-space: pre-wrap; }
+		#keyToast { font-size: var(--text-sm); color: var(--chrome-text); }
+		table { border-collapse: collapse; font-size: var(--text-sm); }
+		th { text-align: left; font-weight: 600; color: var(--chrome-text-muted); border-bottom: 1px solid var(--chrome-border-strong); padding: var(--space-1) var(--space-2); }
+		td { border-bottom: 1px solid var(--chrome-border); padding: var(--space-1) var(--space-2); vertical-align: top; }
+		td.keys { font-family: var(--font-mono); font-size: var(--text-xs); }
+		#log { height: 120px; overflow-y: auto; }
+	</style>
+</head>
+<body>
+	<div class="topbar" id="topbar">
+		<b>ANY-INK</b><span>GS2 Test Font</span><span class="muted">(stand-in top bar: the band shows under it)</span>
+	</div>
+	<div id="bandSlot"></div>
+	<main>
+		<h1>Mode switch (B5)</h1>
+		<p>
+			A real editor on the sample font (four letters, joined letters A B, three gap fixes). Switch
+			between <b>All tools</b> (today's Glyphr Studio screens, the launch default until B16) and
+			<b>Simple</b>. The lists below come from <code>src/anyink/mode/visibility.js</code>: with every
+			feature flag off, Simple is today's Characters page minus the controls UX-BEGINNER 6.2 hides.
+			A struck-out control is hidden in this mode; "later" ones wait for their flag. The purple band
+			shows only once Simple has been on (a plain All tools launch looks as it does today). This page
+			filters nothing in the app itself: the wiring track does that where each screen is drawn.
+		</p>
+		<div class="row">
+			<button type="button" id="toAll">More tools (All tools)</button>
+			<button type="button" id="toSimple">Simple</button>
+			<a href="./mode.html?ui=simple">Open with ?ui=simple</a>
+			<a href="./mode.html">Open with no flag</a>
+		</div>
+		<p class="readout">
+			mode <b id="mode"></b> &middot; html[data-ui-mode] <b id="attr"></b> &middot; page <b id="page"></b>
+			&middot; Simple used this session <b id="used"></b> &middot; visit <b id="visit"></b>
+		</p>
+
+		<h2>Feature flags</h2>
+		<p>
+			All off in the app (<code>features.js</code>). Tick one to preview what its B adds: a test
+			override on this page only.
+		</p>
+		<div class="flags" id="flags"></div>
+
+		<h2>Landing on a page Simple hides (6.3)</h2>
+		<p>
+			Change a gap in More tools on the Kerning page, then go back to Simple on a letter and press
+			Undo. Simple's Undo moves to the changed item, on the Kerning page, which Simple hides: the page
+			renders, More tools turns on for that visit, and the band says so with [Back to my letters].
+			Back in Simple, Redo lands there again and the band says Redo did it.
+			This page's <code>navigate()</code> asks <code>arriveAt()</code> first, as Navigator.navigate will.
+		</p>
+		<div class="row">
+			<button type="button" id="gap">1. In More tools, change a gap on the Kerning page</button>
+			<button type="button" id="undo">2. In Simple, on a letter, press Undo</button>
+			<button type="button" id="redo">3. Back on a letter, press Redo</button>
+			<span class="readout" id="landing"></span>
+		</div>
+
+		<h2>What shows</h2>
+		<p id="summary"></p>
+		<div class="areas" id="areas"></div>
+
+		<h2>Keys (7.6)</h2>
+		<p>
+			One key map in both modes (<code>keys.js</code>). Pick where the key is pressed, click the box
+			and press a key: it shows what the key would do here (nothing runs).
+		</p>
+		<div class="row">
+			<label>Pressed on
+				<select id="where">
+					<option value="canvas">a letter's canvas</option>
+					<option value="kerning">the Kerning canvas</option>
+					<option value="page">a page with no canvas</option>
+					<option value="board">the letter board (B10)</option>
+				</select>
+			</label>
+			<div id="keybox" tabindex="0">Click here, then press a key</div>
+		</div>
+		<p id="keyToast"></p>
+		<pre id="keyResult">(no key yet)</pre>
+		<table id="keys">
+			<thead><tr><th>Key</th><th>Does</th><th>Keys to press</th></tr></thead>
+			<tbody></tbody>
+		</table>
+
+		<h2>Log</h2>
+		<pre id="log"></pre>
+	</main>
+
+	<script type="module">
+		window.log = () => {};
+		import simpleExampleProject from '../src/samples/simpleExampleProject.json';
+		import { initTheme } from '../src/anyink/theme/theme.js';
+		import { setCurrentProjectEditor } from '../src/app/main.js';
+		import { GlyphrStudioProject } from '../src/project_data/glyphr_studio_project.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { Navigator } from '../src/project_editor/navigator.js';
+		import { getActionData } from '../src/panels/actions.js';
+		import { FEATURE_LIST, isFeatureOn, setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { MODE_EVENT, MODE_ATTRIBUTE, getMode, getVisit, hasUsedSimple } from '../src/anyink/mode/mode.js';
+		import { AREAS, VISIBILITY, actionId, isShown, shownIds, todayIds } from '../src/anyink/mode/visibility.js';
+		import { keyAction, keysShown, pressFromEvent } from '../src/anyink/mode/keys.js';
+		import { arriveAt, bandState, makeBand, turnOnMoreTools, withLandingCause } from '../src/anyink/mode/band.js';
+		import { switchMode } from '../src/anyink/mode/switch.js';
+		import { word } from '../src/anyink/words/words.js';
+
+		initTheme();
+		const $ = (selector) => document.querySelector(selector);
+		const el = (tag, props = {}, children = []) => {
+			const node = document.createElement(tag);
+			Object.assign(node, props);
+			[].concat(children).forEach((child) => node.append(child));
+			return node;
+		};
+		const say = (message) => ($('#log').textContent = `${new Date().toLocaleTimeString()}  ${message}\n` + $('#log').textContent);
+		window.addEventListener('error', (event) => say(`ERROR ${event.message}`));
+
+		// A real editor on the sample font; navigate() asks the landing rule first, then redraws this page
+		const project = new GlyphrStudioProject(structuredClone(simpleExampleProject));
+		const editor = new ProjectEditor({ project });
+		setCurrentProjectEditor(editor);
+		editor.nav.page = 'Characters';
+		editor.selectedGlyphID = Object.keys(project.glyphs)[0];
+		let navigations = 0;
+		editor.navigate = () => {
+			const landing = arriveAt(editor.nav.page);
+			navigations++;
+			say(`navigate to ${editor.nav.page}: ${landing} (${getMode()})`);
+			render();
+		};
+		window.anyinkModePage = { editor, navigations: () => navigations };
+
+		// The ids the code itself has today, to flag drift from the tables
+		const toc = new Navigator().tableOfContents;
+		const inCode = {
+			page: new Set(Object.keys(toc).filter((name) => toc[name].type !== 'subtitle')),
+			action: (() => {
+				const ids = new Set();
+				const groups = ['allActions', 'addShapeActions', 'glyphActions', 'shapeActions', 'componentInstanceActions', 'kernGroupActions', 'otherKernGroupActions', 'layerActions', 'alignShapeActions', 'alignPointActions', 'boolActions', 'pointActions'];
+				const page = editor.nav.page;
+				['Characters', 'Components'].forEach((p) => {
+					editor.nav.page = p;
+					groups.forEach((g) => getActionData(g).forEach((entry) => ids.add(actionId(g, entry))));
+				});
+				editor.nav.page = page;
+				return ids;
+			})(),
+		};
+
+		// Flags (test overrides)
+		FEATURE_LIST.forEach((feature) => {
+			const box = el('input', { type: 'checkbox', checked: isFeatureOn(feature.name) });
+			box.dataset.flag = feature.name;
+			box.addEventListener('change', () => {
+				setFeaturesForTests({ [feature.name]: box.checked });
+				say(`flag ${feature.name} ${box.checked ? 'on' : 'off'} (preview)`);
+				render();
+			});
+			$('#flags').append(el('label', { title: feature.what }, [box, feature.name, el('span', { className: 'by' }, feature.by)]));
+		});
+
+		$('#toAll').addEventListener('click', () => (getMode() === 'simple' ? turnOnMoreTools({ editor }) : switchMode('all', { editor })));
+		$('#toSimple').addEventListener('click', () => switchMode('simple', { editor }));
+		window.addEventListener(MODE_EVENT, (event) => say(`mode ${event.detail.previous} -> ${event.detail.mode}`));
+
+		// The landing demo
+		$('#gap').addEventListener('click', () => {
+			if (getMode() === 'simple') turnOnMoreTools({ editor });
+			editor.nav.page = 'Kerning';
+			editor.selectedKernGroupID = 'kern-0';
+			editor.selectedKernGroup.value += 10;
+			editor.history.addState(`Nudged kern group kern-0 by 10`);
+			editor.navigate();
+			$('#landing').textContent = `gap kern-0 is ${editor.project.kerning['kern-0'].value}`;
+		});
+		$('#undo').addEventListener('click', () => {
+			switchMode('simple', { editor, page: 'Characters' });
+			editor.nav.page = 'Characters';
+			const result = withLandingCause('undo', () => editor.history.restoreState());
+			$('#landing').textContent = `Undo: ${result?.title || 'nothing'}; gap kern-0 is ${editor.project.kerning['kern-0'].value}`;
+			render();
+		});
+		$('#redo').addEventListener('click', () => {
+			switchMode('simple', { editor, page: 'Characters' });
+			editor.nav.page = 'Characters';
+			const result = withLandingCause('redo', () => editor.history.redoState());
+			$('#landing').textContent = `Redo: ${result?.title || 'nothing'}; gap kern-0 is ${editor.project.kerning['kern-0'].value}`;
+			render();
+		});
+
+		// Keys
+		$('#keybox').addEventListener('keydown', (event) => {
+			if (['Tab'].includes(event.key)) return;
+			event.preventDefault();
+			if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return;
+			const press = pressFromEvent(event);
+			const result = keyAction(press, { where: $('#where').value });
+			$('#keyResult').textContent = JSON.stringify({ press, result }, null, 2);
+			$('#keyResult').dataset.action = result?.action || '';
+			$('#keyToast').textContent = result?.toast ? `Toast: ${word(result.toast.key, result.toast.vars)}` : '';
+		});
+
+		function renderAreas() {
+			const mode = getMode();
+			const areas = $('#areas');
+			areas.innerHTML = '';
+			let shownToday = 0;
+			let today = 0;
+			AREAS.forEach((area) => {
+				const entries = VISIBILITY[area];
+				const shown = shownIds(area);
+				const list = el('ul');
+				entries.forEach((entry) => {
+					const on = isShown(area, entry.id);
+					const later = !entry.all || !!entry.feature;
+					if (!later) {
+						today++;
+						if (on) shownToday++;
+					}
+					let state = on ? 'shown' : 'hidden';
+					if (!on && later) state = `later (${[].concat(entry.feature || []).join(' + ')})`;
+					if (!on && entry.replacedBy && isFeatureOn(entry.replacedBy) && mode === 'simple') state = `replaced (${entry.replacedBy})`;
+					const item = el('li', {}, [el('span', { className: 'state' }, state), el('code', {}, entry.id)]);
+					if (!on && entry.why) item.append(el('span', { className: 'why' }, entry.why));
+					if (inCode[area] && entry.all && !entry.feature && !inCode[area].has(entry.id)) item.append(el('span', { className: 'drift' }, '! not in the code'));
+					item.dataset.area = area;
+					item.dataset.id = entry.id;
+					item.dataset.shown = String(on);
+					list.append(item);
+				});
+				const card = el('section', { className: 'area' }, [
+					el('h3', {}, [area, el('span', { className: 'count' }, ` ${shown.length} shown of ${todayIds(area).length} today`)]),
+					list,
+				]);
+				card.dataset.area = area;
+				card.dataset.shown = String(shown.length);
+				areas.append(card);
+			});
+			$('#summary').textContent = `${mode === 'simple' ? 'Simple' : 'All tools'}: ${shownToday} of today's ${today} controls show.`;
+			$('#summary').dataset.shown = String(shownToday);
+			$('#summary').dataset.today = String(today);
+		}
+
+		function renderKeys() {
+			const body = $('#keys tbody');
+			body.innerHTML = '';
+			keysShown().forEach((row) => {
+				const does = row.tool ? `${row.action}: ${word(`tool.${row.tool}`)}` : row.action;
+				const tr = el('tr', {}, [el('td', {}, row.id), el('td', {}, does), el('td', { className: 'keys' }, row.keys.join('  '))]);
+				tr.dataset.key = row.id;
+				body.append(tr);
+			});
+		}
+
+		function render() {
+			$('#mode').textContent = getMode() === 'simple' ? 'Simple' : 'All tools';
+			$('#attr').textContent = document.documentElement.getAttribute(MODE_ATTRIBUTE);
+			$('#page').textContent = editor.nav.page;
+			$('#used').textContent = String(hasUsedSimple());
+			$('#visit').textContent = getVisit() ? `${getVisit().page} (${getVisit().cause})` : 'none';
+			$('#toAll').setAttribute('aria-pressed', String(getMode() === 'all'));
+			$('#toSimple').setAttribute('aria-pressed', String(getMode() === 'simple'));
+			const slot = $('#bandSlot');
+			slot.innerHTML = '';
+			const band = makeBand({ editor });
+			if (band) slot.append(band);
+			slot.dataset.band = bandState()?.kind || 'none';
+			renderAreas();
+			renderKeys();
+		}
+
+		render();
+		say(`ready in ${getMode()}`);
+		document.body.dataset.ready = 'true';
+	</script>
+</body>
+</html>

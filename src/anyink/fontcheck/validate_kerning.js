@@ -17,8 +17,10 @@
 	                                             or '' when the id isn't a kern pair
 	letters: the exporter's letter ids ('0x41', from export_list.js getExportList); they
 	default to the File menu export's list.
+	B4: the words are keys of src/anyink/words (check.gapTooFar, check.gapBetween, ...).
 */
 import { letterPhrase, sentenceStart } from '../words/letter_name.js';
+import { word } from '../words/words.js';
 import { kernFits } from './export_kerning.js';
 import { getExportList } from './export_list.js';
 
@@ -43,7 +45,7 @@ export function validateKerning(project, letters = fileLetters(project)) {
 		problems.push({
 			itemId: id,
 			problem: KERN_PROBLEM,
-			message: `${sentenceStart(gapPhrase(pair))} is moved further than the font file can hold.`,
+			message: word('check.gapTooFar', { gap: sentenceStart(gapPhrase(pair)) }),
 		});
 	});
 	return problems;
@@ -99,7 +101,7 @@ function pairInFont(group, inFont) {
  * @returns {String} 'the gap between Capital A or Capital B and Capital V'
  */
 function gapPhrase({ left, right }) {
-	return `the gap between ${nameList(left)} and ${nameList(right)}`;
+	return word('check.gapBetween', { left: nameList(left), right: nameList(right) });
 }
 
 /**
@@ -107,9 +109,11 @@ function gapPhrase({ left, right }) {
  * @returns {String} 'Capital A', 'Capital A or small b', 'A, B, C or 2 more'
  */
 function nameList(codes) {
-	const names = codes.map((code) => letterPhrase(code) || 'a letter');
+	const names = codes.map((code) => letterPhrase(code) || word('check.aLetter'));
 	if (names.length > MAX_NAMED) {
-		return `${names.slice(0, MAX_NAMED).join(', ')} or ${names.length - MAX_NAMED} more`;
+		const named = names.slice(0, MAX_NAMED).join(', ');
+		return word('check.orMore', { names: named, count: names.length - MAX_NAMED });
 	}
-	return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`;
+	if (names.length === 1) return names[0];
+	return word('check.orList', { names: names.slice(0, -1).join(', '), last: names.at(-1) });
 }

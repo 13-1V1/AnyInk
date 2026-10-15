@@ -13,6 +13,7 @@ import {
 	setFontMetric,
 	shiftItemPaths,
 } from '../font_metrics.js';
+import { METRIC_LABELS } from '../metrics_math.js';
 
 /**
  * A ProjectEditor on the simple sample project, with history and publish replaced by
@@ -61,12 +62,12 @@ describe('setFontMetric', () => {
 		expect(editor.published[0].data.key).toBe('xHeight');
 		expect(editor.published[0].data.value).toBe(790);
 		expect(editor.published[0].data.font).toBe(font);
-		expect(editor.history.titles).toEqual(['Set X height to 790']);
+		expect(editor.history.titles).toEqual([`Set ${METRIC_LABELS.xHeight} to 790`]);
 	});
 
 	it('uses the verb for drags and skips history when asked', () => {
 		setFontMetric('ascent', 850, { verb: 'Moved' });
-		expect(editor.history.titles).toEqual(['Moved Ascent to 850']);
+		expect(editor.history.titles).toEqual([`Moved ${METRIC_LABELS.ascent} to 850`]);
 		setFontMetric('ascent', 860, { history: false });
 		expect(editor.history.titles).toHaveLength(1);
 		expect(editor.published).toHaveLength(2);
@@ -78,7 +79,7 @@ describe('setFontMetric', () => {
 		expect(editor.published).toHaveLength(1);
 		setFontMetric('descent', 0); // clamps to -1 again, no change
 		expect(editor.published).toHaveLength(1);
-		expect(editor.history.titles).toEqual(['Set Descent to -1']);
+		expect(editor.history.titles).toEqual([`Set ${METRIC_LABELS.descent} to -1`]);
 	});
 
 	it('rejects unknown keys and leaves upm alone otherwise', () => {

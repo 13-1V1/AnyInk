@@ -1,11 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProject } from '../../app/main.js';
 import { hexesToChars } from '../../common/character_ids.js';
 import { makeElement } from '../../common/dom.js';
 import { addZWNJCharacters, remove } from '../../common/functions.js';
 import { isWhitespace } from '../../lib/unicode/unicode_names.js';
 import { getItemNameWithFallback } from '../../pages/characters.js';
+import { tileTitle } from '../../anyink/mode/simple_labels.js';
 import style from './glyph-tile.css?inline';
 
 /**
@@ -68,8 +71,16 @@ export class GlyphTile extends HTMLElement {
 		// Selection
 		if (this.hasAttribute('selected')) this.wrapper.setAttribute('selected', '');
 
+		// ANY-INK (B4 + B5 integration): Simple names the letter in words, with no id or "Item"
+		// (B4 + B5 finalize: from this tile's own letter, so another font's tile says its ink)
+		const title = tileTitle(
+			chars,
+			sessionState,
+			`${name}\n${displayedItemID}${sessionMessage}`,
+			this.glyph || null
+		);
 		if (this.glyph && this.glyph.hasChangedThisSession === true) {
-			this.setAttribute('title', `${name}\n${displayedItemID}${sessionMessage}`);
+			this.setAttribute('title', title);
 			this.thumbnail = makeElement({
 				tag: 'span',
 				className: 'thumbnail',
@@ -79,7 +90,7 @@ export class GlyphTile extends HTMLElement {
 			// @ts-expect-error 'property does exist'
 			this.thumbnail.height = overallSize;
 		} else {
-			this.setAttribute('title', `${name}\n${displayedItemID}${sessionMessage}`);
+			this.setAttribute('title', title);
 			this.thumbnail = makeElement({
 				className: 'thumbnail',
 			});

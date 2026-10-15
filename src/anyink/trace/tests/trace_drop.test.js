@@ -22,6 +22,8 @@ import {
 } from '../trace_drop.js';
 import { HISTORY_ADDED } from '../trace_import.js';
 import { getTrace } from '../trace_model.js';
+import { setModeForTests } from '../../mode/mode.js';
+import { word } from '../../words/words.js';
 
 function dragEvent(type, files = [], { types } = {}) {
 	const event = new Event(type, { bubbles: true, cancelable: true });
@@ -179,5 +181,27 @@ describe('makeFileDropTarget', () => {
 		expect(drop.defaultPrevented).toBe(true);
 		expect(onDrop).toHaveBeenCalledWith(drop);
 		expect(host.classList.contains('lit')).toBe(false);
+	});
+});
+
+// B4 + B5 finalize (verdict "Some drops give no message or the wrong one": a work file dropped on
+// the Overview in Simple got the drawing hint): his own work file dropped anywhere but a letter
+// says how to open it (Ctrl+O, 7.6), like a drop on a letter does. All tools keeps its drop hint.
+describe('routeStrayDrop: a work file', () => {
+	afterEach(() => setModeForTests('all'));
+
+	it('Simple: off a letter page, says to press Ctrl+O', () => {
+		setModeForTests('simple');
+		editor.nav.page = 'Overview';
+		routeStrayDrop(dragEvent('drop', [project()]), { editor, dropOnCanvas: vi.fn() });
+		expect(document.querySelector('#toast[data-anyink-toast]')?.textContent).toBe(
+			word('toast.dropWorkFile')
+		);
+	});
+
+	it('All tools: the drop hint, as before', () => {
+		editor.nav.page = 'Overview';
+		routeStrayDrop(dragEvent('drop', [project()]), { editor, dropOnCanvas: vi.fn() });
+		expect(toastText()).toBe(DROP_HINT);
 	});
 });

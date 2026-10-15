@@ -16,6 +16,8 @@
 //     4. switching letters adds no Undo steps
 //     5. from another letter, Undo twice: each press undoes the newest change, with at most one
 //        view jump (the first moves to n)
+//   The Simple run turns B9's 'photo' flag on in the page (B4 + B5 finalize: until B9, Simple
+//   turns photos away and draws none), since it stands in for B9's photo flow.
 //   All tools (no flag, a fresh profile): the same steps behave as before B3: no refit, width 0,
 //   the font check names the letter, "Navigated to" steps are kept.
 // Writes numbers.json (widths, side spaces, writing-line offsets) beside the screenshots.
@@ -30,6 +32,7 @@ import { tmpdir } from 'node:os';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { showTracePanel, toOverview } from './verify_standins.mjs';
 
 const root = fileURLToPath(new URL('../src/', import.meta.url));
 const fixture = fileURLToPath(
@@ -94,6 +97,11 @@ try {
 	// ----------------------------------------------------------------------------------------
 	await withBrowser(async () => {
 		await newFont('B23 Simple', '?ui=simple');
+		// B4 + B5 finalize: this run stands in for B9's photo flow, so B9's 'photo' flag is on for
+		// it (Simple turns photos away, and draws none, until B9 lands)
+		await page.evaluate(async () =>
+			(await import('/anyink/mode/features.js')).setFeaturesForTests({ photo: true })
+		);
 		let s = await state();
 		assert.equal(s.mode, 'simple');
 		assert.equal(s.steps.length, 0);
@@ -379,7 +387,8 @@ async function chooseFromNav(type, selector) {
 
 async function openLetter(char) {
 	const id = LETTERS[char];
-	await chooseFromNav('PAGE', '.nav-dropdown__button:has-text("Overview")');
+	// B5: Simple has no page chooser (verify_standins.mjs)
+	await toOverview(page);
 	await page.locator(`glyph-tile[displayed-item-id="${id}"]`).click();
 	await waitUntil(async () => (await state()).open === id, `open ${char}`);
 	await page.waitForTimeout(400);
@@ -450,7 +459,8 @@ function state() {
 async function photoThenTrace(char, photo, named, shotName) {
 	const key = photo === photos.a ? 'a' : 'en';
 	await page.evaluate((k) => (window.__nextPhoto = k), key);
-	await chooseFromNav('PANEL', '.nav-dropdown__button[data-panel-id="Trace"]');
+	// B5: Simple draws no panel; the real Trace panel stands in for B9's photo card
+	await showTracePanel(page);
 	await page.locator('button', { hasText: 'Choose an image...' }).first().click();
 	await waitUntil(
 		() => page.locator('button', { hasText: 'Start auto-trace' }).first().isVisible(),
@@ -571,6 +581,15 @@ async function realFont(text) {
 			true
 		);
 	});
+	// B4 + B5 integration (UX-BEGINNER 6.2 Strip): Real font is a More tools switch; in Simple the
+	// strip goes to All tools for the measurement (the font file is the same in both modes) and
+	// comes back after it
+	const simple = await page.evaluate(async () => {
+		const mode = await import('/anyink/mode/mode.js');
+		if (!mode.isSimpleMode()) return false;
+		mode.setMode('all');
+		return true;
+	});
 	const toggle = page.locator('.preview-strip__toggle', { hasText: 'Real font' });
 	const on = await toggle
 		.locator('input')
@@ -579,7 +598,7 @@ async function realFont(text) {
 	if (!on) await toggle.click();
 	await waitUntil(() => page.evaluate(() => window.__fontStatus.length > 0), 'font status', 20000);
 	await page.waitForTimeout(2600);
-	return page.evaluate(
+	const measured = await page.evaluate(
 		async ({ text, letters }) => {
 			const editor = (await import('/app/main.js')).getCurrentProjectEditor();
 			const { inkBounds } = await import('/anyink/spacing/measure.js');
@@ -628,6 +647,10 @@ async function realFont(text) {
 		},
 		{ text, letters: LETTERS }
 	);
+	if (simple) {
+		await page.evaluate(async () => (await import('/anyink/mode/mode.js')).setMode('simple'));
+	}
+	return measured;
 }
 
 /** Ctrl+Z `count` times, away from any text field; what each press did. */

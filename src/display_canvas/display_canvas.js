@@ -1,7 +1,11 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { metricLineYs } from '../anyink/preview/metric_lines.js';
+import { placeholderKey } from '../anyink/preview/placeholder.js';
 import { onThemeChange, token } from '../anyink/theme/theme.js';
+import { word } from '../anyink/words/words.js';
 import { getCurrentProject, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import {
@@ -402,15 +406,21 @@ export class DisplayCanvas extends HTMLElement {
 				showCharacter: true,
 			});
 			if (this.showMetricLines) this.drawDisplayMetricLines();
-		} else {
-			if (this.textBlockOptions.showPlaceholderMessage) {
-				this.ctx.fillStyle = token('--canvas-ink-faint');
-				this.ctx.font = '14px sans-serif';
-				this.ctx.textBaseline = 'middle';
-				let x = this.textBlock.canvasMaxes.xMin;
-				let y = this.height / 2;
-				this.ctx.fillText('Project preview text will be shown here.', x, y);
-			}
+		}
+		// ANY-INK (B4 integration): a display point Simple shares, in house words.
+		// B4 + B5 fix pass: the sentence fits the sheet (preview/placeholder.js): "Type
+		// something..." for an empty field, "Your letters show here as you make them." when
+		// no made letter is on the sheet, so a sheet with text is never blank and unexplained
+		const message = this.textBlockOptions.showPlaceholderMessage
+			? placeholderKey(this.textBlockOptions.text, this.textBlock)
+			: '';
+		if (message) {
+			this.ctx.fillStyle = token('--canvas-ink-faint');
+			this.ctx.font = '14px sans-serif';
+			this.ctx.textBaseline = 'middle';
+			let x = this.textBlock.canvasMaxes.xMin;
+			let y = this.height / 2;
+			this.ctx.fillText(word(message), x, y);
 		}
 
 		// log('DisplayCanvas.redraw', 'end');

@@ -1,3 +1,6 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { navItemTitle } from '../anyink/mode/simple_labels.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import { closeAllInfoBubbles } from '../controls/dialogs/dialogs.js';
@@ -39,7 +42,7 @@ export function makePage_Characters() {
 					${makeNavButton({
 						level: 'l2',
 						superTitle: 'EDITING',
-						title: getItemNameWithFallback(editor.selectedGlyphID),
+						title: letterButtonTitle(editor.selectedGlyphID),
 					})}
 					${makeNavButton({ level: 'l3', superTitle: 'PANEL', title: editor.nav.panel })}
 				</div>
@@ -72,7 +75,7 @@ export function makePage_Characters() {
 		topic: 'whichGlyphIsSelected',
 		subscriberID: 'nav.glyphChooserButton',
 		callback: (newGlyphID) => {
-			l2.innerHTML = makeNavButtonContent(getItemNameWithFallback(newGlyphID), 'EDITING');
+			l2.innerHTML = makeNavButtonContent(letterButtonTitle(newGlyphID), 'EDITING');
 		},
 	});
 
@@ -145,6 +148,17 @@ export function makePage_Characters() {
  * @param {String | false} itemID - ID of the item
  * @returns {String} - name of the item
  */
+/**
+ * ANY-INK (B4 + B5 integration): the letter button's title. Simple names the letter in words
+ * ("small a", UX-BEGINNER 2.2); All tools keeps the item's name.
+ * @param {String} itemID
+ * @returns {String}
+ */
+function letterButtonTitle(itemID) {
+	const upstream = getItemNameWithFallback(itemID);
+	return navItemTitle(getCurrentProjectEditor()?.project, itemID, upstream);
+}
+
 export function getItemNameWithFallback(itemID) {
 	// log(`getItemNameWithFallback`, 'start');
 	// log(`itemID: ${itemID}`);

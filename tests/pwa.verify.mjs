@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { resolve, extname, sep } from 'node:path';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+// B4: the update notice's button is a key of src/anyink/words (sets/screens.js has no imports)
+import SCREENS from '../src/anyink/words/sets/screens.js';
 
 const root = resolve('dist');
 let version = 1;
@@ -127,7 +129,7 @@ try {
 	await poll(() =>
 		page.evaluate(async () => !!(await navigator.serviceWorker.getRegistration()).waiting)
 	);
-	const updateButton = page.getByRole('button', { name: 'Update and reload', exact: true });
+	const updateButton = page.getByRole('button', { name: SCREENS['notice.reload'].text, exact: true });
 	await updateButton.waitFor();
 	assert.equal(await page.evaluate(() => window.pwaSentinel), 'keep-open');
 	console.log('PASS update waits for explicit consent without reloading');
@@ -154,9 +156,8 @@ try {
 	});
 	await updateButton.click();
 	await page
-		.getByText('Recovery could not protect every project. Save your work and try again.', {
-			exact: true,
-		})
+		// B4 integration: the checkpoint's errors are words keys (pwa/checkpoint.js)
+		.getByText(SCREENS['notice.backupNotEvery'].text, { exact: true })
 		.waitFor();
 	assert.equal(await page.evaluate(() => window.pwaSentinel), 'keep-open');
 	assert(

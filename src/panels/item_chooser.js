@@ -1,3 +1,9 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { isShown } from '../anyink/mode/visibility.js';
+import { letterSetName } from '../anyink/words/letter_set.js';
+import { word } from '../anyink/words/words.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
@@ -101,8 +107,10 @@ export function makeRangeAndItemTypeChooser(editor = getCurrentProjectEditor(), 
 	// log(`makeRangeAndItemTypeChooser`, 'start');
 	// log(`Project Name: ${editor.project.settings.project.name}`);
 
-	let componentCount = countItems(editor.project.components);
-	let ligatureCount = countItems(editor.project.ligatures);
+	// ANY-INK (B4 + B5 integration, UX-BEGINNER 6.3): no door to a page the mode hides; Simple's
+	// chooser offers letters only (joined letters and reusable parts are More tools pages)
+	let componentCount = isShown('page', 'Components') ? countItems(editor.project.components) : 0;
+	let ligatureCount = isShown('page', 'Ligatures') ? countItems(editor.project.ligatures) : 0;
 
 	let selectedRange;
 	if (rangeName === 'Components' && componentCount > 0) {
@@ -123,7 +131,7 @@ export function makeRangeAndItemTypeChooser(editor = getCurrentProjectEditor(), 
 	let optionChooser = makeElement({
 		tag: 'option-chooser',
 		attributes: {
-			'selected-name': selectedRange.name,
+			'selected-name': rangeLabel(selectedRange),
 			'selected-id': selectedRange.id,
 		},
 	});
@@ -181,7 +189,7 @@ function makeRangeChooser(editor = getCurrentProjectEditor()) {
 	let optionChooser = makeElement({
 		tag: 'option-chooser',
 		attributes: {
-			'selected-name': selectedRange.name,
+			'selected-name': rangeLabel(selectedRange),
 			'selected-id': selectedRange.id,
 		},
 	});
@@ -203,8 +211,10 @@ function addRangeOptionsToOptionChooser(optionChooser, editor = getCurrentProjec
 
 			option = makeElement({
 				tag: 'option',
-				innerHTML: range.name,
-				attributes: { note: range.note },
+				innerHTML: rangeLabel(range),
+				// ANY-INK (B4 + B5 integration, UX-BEGINNER 2.4 E): codes are never shown in Simple
+				// (B4 + B5 finalize: the option keeps the range's id, so it still shows as picked)
+				attributes: isSimpleMode() ? { note: '', 'selection-id': range.id } : { note: range.note },
 			});
 
 			option.addEventListener('click', () => {
@@ -223,6 +233,19 @@ function addRangeOptionsToOptionChooser(optionChooser, editor = getCurrentProjec
 		}
 	});
 	// log(`addRangeOptionsToOptionChooser`, 'end');
+}
+
+/**
+ * ANY-INK (B4 + B5 finalize, UX-BEGINNER 2.4 E): a letter set's name. Simple names it in house
+ * words (words/letter_set.js: "Letters, numbers and punctuation"), never a Unicode block name;
+ * All tools shows the range's own name, as before. Joined letters and reusable parts (their
+ * own choices, More tools only) keep their names.
+ * @param {{name: String, begin?: Number}} range
+ * @returns {String}
+ */
+function rangeLabel(range) {
+	if (!isSimpleMode() || range?.begin === undefined) return range?.name;
+	return letterSetName(range);
 }
 
 function makeCharacterChooserTileGrid(editor = getCurrentProjectEditor()) {
@@ -274,7 +297,10 @@ function makeCharacterChooserTileGrid(editor = getCurrentProjectEditor()) {
 		tileGrid.appendChild(
 			makeElement({
 				tag: 'i',
-				content: `No characters in this range.<br><br>If this is a range of Control Characters, make sure they are enabled in: Settings > App > Show non-graphic control characters.`,
+				// ANY-INK (B4 + B5 finalize): Simple says it in house words (2.3)
+				content: isSimpleMode()
+					? word('set.noLetters')
+					: `No characters in this range.<br><br>If this is a range of Control Characters, make sure they are enabled in: Settings > App > Show non-graphic control characters.`,
 			})
 		);
 	}

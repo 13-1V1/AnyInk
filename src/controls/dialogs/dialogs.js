@@ -1,6 +1,10 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isSimpleMode } from '../../anyink/mode/mode.js';
 import { token } from '../../anyink/theme/theme.js';
+import { clearToasts, upstreamToast } from '../../anyink/toast/toast.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { addAsChildren, makeElement, textToNode } from '../../common/dom.js';
 import { round } from '../../common/functions.js';
@@ -14,14 +18,20 @@ import { closeAllNavMenus } from '../../project_editor/navigator.js';
 
 /**
  * Closes all dialogs
+ * ANY-INK (B4 + B5 finalize, D-035): a press on the letter canvas ({ fromCanvas: true },
+ * events_mouse.js) leaves Simple's toasts alone: they last their 6 s and info toasts wait their
+ * turn (UX-BEGINNER.md 4.0), so a tool key's "Switched to Oval (O)" waiting behind another toast
+ * is never lost to the press that starts drawing. All tools clears them, as before. Called as an
+ * event listener it gets the event, which has no fromCanvas.
+ * @param {{fromCanvas?: Boolean}} [options]
  */
-export function closeEveryTypeOfDialog() {
+export function closeEveryTypeOfDialog({ fromCanvas = false } = {}) {
 	// log(`closeEveryTypeOfDialog`, 'start');
 	closeAllNavMenus();
 	closeAllModalDialogs();
 	closeAllOptionChoosers();
 	closeAllErrors();
-	closeAllToasts();
+	if (!(fromCanvas === true && isSimpleMode())) closeAllToasts();
 	closeAllNotations();
 	closeAllInfoBubbles();
 	// log(`closeEveryTypeOfDialog`, 'end');
@@ -67,7 +77,11 @@ export function closeAllContextMenus() {
  */
 export function closeAllToasts() {
 	// log(`closeAllToasts`, 'start');
-	animateRemoveAll('#toast');
+	// ANY-INK (B4): Simple's toast line goes too (src/anyink/toast/toast.js). Its toasts are
+	// taken down by the queue, which keeps an offer with its button ("Couldn't save a backup
+	// copy [Save]") through a click on the canvas, Esc or a page change (fix track, 10/14/2026)
+	clearToasts();
+	animateRemoveAll('#toast:not([data-anyink-toast])');
 	// log(`closeAllToasts`, 'end');
 }
 
@@ -149,51 +163,22 @@ export function animateRemove(element, animationLength = 120, scale = 0.98, tran
 // Toast
 // -----------------------------------------------------------------
 
-// ANY-INK (M7 finalize): each toast owns its timer. Upstream reused one #toast element and
-// never cleared the earlier toast's timer, so a 3 s hint (the canvas's drag hint) or the
-// 60 s loading message removed the toasts that came after it. A toast that is fading out
-// is marked data-leaving, and the next toast gets a fresh element instead of reusing it.
-const toastTimers = new WeakMap();
+// ANY-INK (B4): one toast voice (UX-BEGINNER.md 2.2). Every showToast goes through the one
+// queue in src/anyink/toast/toast.js, which maps the message to a words.js key
+// (upstream_map.js). All tools draws it exactly as before (toast_view.js showClassic, which
+// keeps the M7 finalize fix: each toast owns its timer, and a toast fading out is marked
+// data-leaving so the next one gets a fresh element). Simple shows the house words, or
+// nothing for a message with no key.
 
 /**
  * Creates and shows a little message at the top/center
  * of the screen, which disappears after a set time
  * @param {String} message - message to show
  * @param {Number} duration - how long to show the message (milliseconds)
+ * @param {Boolean} fancy - the larger, purple-edged style
  */
 export function showToast(message = '0_o', duration = 3000, fancy = false) {
-	// log(`showToast`, 'start');
-	// log(`message: ${message}`);
-	// log(`duration: ${duration}`);scaleItems
-	/** @type {HTMLElement} */
-	let element = document.querySelector('#toast:not([data-leaving])');
-
-	// remove any current context menu, or create one if it doesn't exist
-	if (element) {
-		// log(`Element detected!!!!!`);
-		// ANY-INK: the new message gets its own full time
-		window.clearTimeout(toastTimers.get(element));
-	} else {
-		element = makeElement({
-			tag: 'div',
-			id: 'toast',
-			attributes: { tabindex: '-1' },
-			style: 'display: none;',
-		});
-		if (fancy) element.setAttribute('fancy', '');
-		document.body.appendChild(element);
-	}
-
-	element.innerHTML = message;
-	element.style.display = 'block';
-	const timer = window.setTimeout(() => {
-		// log(`showToast - timeout animateRemove`);
-		toastTimers.delete(element);
-		element.setAttribute('data-leaving', '');
-		animateRemove(element);
-	}, duration);
-	toastTimers.set(element, timer);
-	// log(`showToast`, 'end');
+	upstreamToast(message, { duration, fancy });
 }
 
 // --------------------------------------------------------------

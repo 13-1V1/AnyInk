@@ -11,6 +11,8 @@ import {
 	handleGuidesLayerEvent,
 	nudgeLine,
 } from '../guides_layer.js';
+import { LIVE_LABELS, METRIC_LABELS } from '../metrics_math.js';
+import { word } from '../../words/words.js';
 import { currentLineValue, labelText } from '../overlay.js';
 import { resetGuidesLayerState } from '../state.js';
 
@@ -135,7 +137,7 @@ describe('metric drag', () => {
 
 		expect(handleGuidesLayerEvent(mouse('mouseup', 300, yOf(620)))).toBe(true);
 		expect(guidesLayerState.dragging).toBe(false);
-		expect(editor.history.titles).toEqual(['Moved X height to 620']);
+		expect(editor.history.titles).toEqual([`Moved ${METRIC_LABELS.xHeight} to 620`]);
 		expect(guidesLayerState.hover).toBe('xHeight');
 	});
 
@@ -147,7 +149,7 @@ describe('metric drag', () => {
 		handleGuidesLayerEvent(mouse('mousemove', 300, yOf(1200), { down: true }));
 		expect(font.xHeight).toBe(790); // capHeight
 		handleGuidesLayerEvent(mouse('mouseup', 300, yOf(1200)));
-		expect(editor.history.titles).toEqual(['Moved X height to 790']);
+		expect(editor.history.titles).toEqual([`Moved ${METRIC_LABELS.xHeight} to 790`]);
 	});
 
 	it('pushes nothing when the value did not change', () => {
@@ -226,7 +228,9 @@ describe('baseline drag (D-009)', () => {
 		expect(guidesLayerState.baselineDelta).toBe(40);
 		expect(glyph.shapes[0].pathPoints[0].p.y).toBe(pointY); // nothing moved yet
 		expect(font.ascent).toBe(800);
-		expect(labelText(guidesLayerState.line, 40, glyph, guidesLayerState)).toBe('baseline +40');
+		expect(labelText(guidesLayerState.line, 40, glyph, guidesLayerState)).toBe(
+			word('canvas.readout', { label: LIVE_LABELS.baseline, value: '+40' })
+		);
 		expect(currentLineValue(guidesLayerState.line, glyph, font, guidesLayerState)).toBe(40);
 
 		handleGuidesLayerEvent(mouse('mouseup', 300, yOf(40)));
@@ -250,7 +254,7 @@ describe('keyboard nudge', () => {
 		document.dispatchEvent(up);
 		expect(font.xHeight).toBe(581);
 		expect(up.defaultPrevented).toBe(true);
-		expect(editor.history.titles).toEqual(['Moved X height to 581']);
+		expect(editor.history.titles).toEqual([`Moved ${METRIC_LABELS.xHeight} to 581`]);
 
 		document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true, bubbles: true }));
 		expect(font.xHeight).toBe(571);

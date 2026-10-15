@@ -34,7 +34,11 @@
 		<li><a href="./undo.html?ui=simple">undo</a> — undo that never surprises (B2): one press undoes the newest change wherever it is; opening letters is never a step (<a href="./undo.html">All tools</a>)</li>
 		<li><a href="./spacing.html">spacing</a> — automatic spacing (B3): the gap rule at 1,000 and 2,048 units, side kinds (measured when not in the table), the letter-spacing slider, edge drags, photos following the ink</li>
 		<li><a href="./placement.html">placement</a> — placement on the guide lines (B3): one scale per photo, one writing line per row, tails kept; real auto-trace of the fixture photos</li>
+		<li><a href="./words.html">words</a> — house words (B4): every words.js key with its text, hint, pro word and feature; Help's glossary; every Undo title in plain words</li>
+		<li><a href="./toast.html">toast</a> — one toast voice (B4): All tools' classic toast and Simple's queue (bottom right, 6 s, hover pauses, priorities, a button holds, unmapped messages dropped, file names as quotes)</li>
+		<li><a href="./mode.html">mode</a> — mode switch (B5): All tools and Simple on the sample font, what each mode shows (today's controls minus 6.2's hidden ones), feature flag previews, the purple band, Undo landing on Kerning, the one key map (<a href="./mode.html?ui=simple">Simple</a>)</li>
 	</ul>
+	<p>Real-browser checks (Node + Chrome, no page here): <code>npm run verify:b45</code> (B4 + B5 together), <code>verify:screens</code> (the display points Simple shares, B4), <code>verify:toast</code>, <code>verify:words</code>, <code>verify:mode</code>, <code>verify:wiring</code> and the older ones; see <code>tests/README.md</code>.</p>
 	<div id="probe">probing…</div>
 	<script type="module">
 		// Upstream modules call a bare log(); the app sets it in index.html. Test pages must too.

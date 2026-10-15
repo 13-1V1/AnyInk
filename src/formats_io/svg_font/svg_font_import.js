@@ -1,5 +1,10 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isSimpleMode } from '../../anyink/mode/mode.js';
+import { escapeWordHTML } from '../../anyink/words/word_html.js';
+import { word } from '../../anyink/words/words.js';
 import { getProjectEditorImportTarget, setCurrentProjectEditor } from '../../app/main.js';
 import {
 	charToHex,
@@ -39,7 +44,10 @@ export async function ioSVG_importSVGfont(font, testing = false) {
 
 	const editor = testing ? new ProjectEditor() : getProjectEditorImportTarget();
 	const project = editor.project;
-	await updateProgressIndicator('Reading font data...');
+	// ANY-INK (B4 + B5 finalize): Simple's words while it reads (2.3)
+	await updateProgressIndicator(
+		isSimpleMode() ? escapeWordHTML(word('start.importReading')) : 'Reading font data...'
+	);
 
 	// --------------------------------------------------------------
 	// Import Glyphs and Ligatures
@@ -285,6 +293,11 @@ export async function ioSVG_importSVGfont(font, testing = false) {
 async function updateSVGImportProgressIndicator(type, counter) {
 	const total = glyphTags.length + kernTags.length;
 
+	// ANY-INK (B4 + B5 finalize): Simple says "Bringing in letters... 3 of 111" (2.3)
+	if (isSimpleMode()) {
+		await updateProgressIndicator(escapeWordHTML(word('start.importing', { done: counter, total })));
+		return;
+	}
 	await updateProgressIndicator(`
 			Importing ${type}:
 			<span class="progress-indicator__counter">${counter}</span>

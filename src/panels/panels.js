@@ -1,5 +1,6 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { isShown } from '../anyink/mode/visibility.js';
 import { makePanel_Trace } from '../anyink/trace/trace_panel.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -33,6 +34,15 @@ export function makePanel() {
 	if (panel !== 'Layers') {
 		document.removeEventListener('keydown', handlePanelsKeyPress, false);
 		document.removeEventListener('keyup', handlePanelsKeyUp, false);
+	}
+
+	// ANY-INK (B5, UX-BEGINNER 6.2 Panels): Simple shows none of the 9 panels (B7's letter card
+	// takes their place). Nothing is drawn and no panel keeps listening.
+	if (!isShown('panel', panel)) {
+		document.removeEventListener('keydown', handlePanelsKeyPress, false);
+		document.removeEventListener('keyup', handlePanelsKeyUp, false);
+		unsubscribeExcept();
+		return content;
 	}
 
 	if (editor.nav.page === 'Components' && countItems(editor.project.components) <= 0) {

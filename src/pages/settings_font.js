@@ -4,6 +4,7 @@ import { getCurrentProject } from '../app/main';
 import { addAsChildren, makeElement, textToNode } from '../common/dom';
 import { closeEveryTypeOfDialog, showModalDialog } from '../controls/dialogs/dialogs';
 import { panoseData } from '../lib/panose';
+import { settingRow, settingsSections } from '../anyink/mode/settings_rows.js';
 import { makeOneSettingsRow, makeSettingsLabelAndInfo, markSettingsChanged } from './settings';
 
 let workingPanoseValue;
@@ -25,46 +26,50 @@ export function makeSettingsTabContentFont() {
 		`,
 	});
 
-	addAsChildren(tabContent, [
-		makeOneSettingsRow('font', 'family'),
-		makeOneSettingsRow('font', 'style'),
-		makeOneSettingsRow('font', 'version'),
-		makeOneSettingsRow('font', 'description'),
-		makePanoseRow(),
-		textToNode('<h2>Font metrics</h2>'),
-		textToNode('<h3>Key metrics</h3>'),
-		makeOneSettingsRow('font', 'upm'),
-		makeOneSettingsRow('font', 'ascent'),
-		makeOneSettingsRow('font', 'descent'),
-		makeOneSettingsRow('font', 'capHeight'),
-		makeOneSettingsRow('font', 'xHeight'),
-		textToNode('<h3>Other metrics</h3>'),
-		makeOneSettingsRow('font', 'overshoot'),
-		makeOneSettingsRow('font', 'lineGap'),
-		makeOneSettingsRow('font', 'weight'),
-		makeOneSettingsRow('font', 'stretch'),
-		makeOneSettingsRow('font', 'italicAngle'),
-		makeOneSettingsRow('font', 'underlinePosition'),
-		makeOneSettingsRow('font', 'underlineThickness'),
-		textToNode('<h2>Links</h2>'),
-		makeOneSettingsRow('font', 'designer'),
-		makeOneSettingsRow('font', 'designerURL'),
-		makeOneSettingsRow('font', 'manufacturer'),
-		makeOneSettingsRow('font', 'manufacturerURL'),
-		makeOneSettingsRow('font', 'license'),
-		makeOneSettingsRow('font', 'licenseURL'),
-		makeOneSettingsRow('font', 'copyright'),
-		makeOneSettingsRow('font', 'trademark'),
-		textToNode('<h2>Properties for SVG Fonts</h2>'),
-		makeOneSettingsRow('font', 'variant'),
-		makeOneSettingsRow('font', 'stemv'),
-		makeOneSettingsRow('font', 'stemh'),
-		makeOneSettingsRow('font', 'slope'),
-		makeOneSettingsRow('font', 'strikethroughPosition'),
-		makeOneSettingsRow('font', 'strikethroughThickness'),
-		makeOneSettingsRow('font', 'overlinePosition'),
-		makeOneSettingsRow('font', 'overlineThickness'),
-	]);
+	// ANY-INK (B5, UX-BEGINNER 6.2): only the rows the mode shows, and the headings over them
+	addAsChildren(
+		tabContent,
+		settingsSections([
+			makeOneSettingsRow('font', 'family'),
+			makeOneSettingsRow('font', 'style'),
+			makeOneSettingsRow('font', 'version'),
+			makeOneSettingsRow('font', 'description'),
+			settingRow('font', 'panose', () => makePanoseRow()),
+			textToNode('<h2>Font metrics</h2>'),
+			textToNode('<h3>Key metrics</h3>'),
+			makeOneSettingsRow('font', 'upm'),
+			makeOneSettingsRow('font', 'ascent'),
+			makeOneSettingsRow('font', 'descent'),
+			makeOneSettingsRow('font', 'capHeight'),
+			makeOneSettingsRow('font', 'xHeight'),
+			textToNode('<h3>Other metrics</h3>'),
+			makeOneSettingsRow('font', 'overshoot'),
+			makeOneSettingsRow('font', 'lineGap'),
+			makeOneSettingsRow('font', 'weight'),
+			makeOneSettingsRow('font', 'stretch'),
+			makeOneSettingsRow('font', 'italicAngle'),
+			makeOneSettingsRow('font', 'underlinePosition'),
+			makeOneSettingsRow('font', 'underlineThickness'),
+			textToNode('<h2>Links</h2>'),
+			makeOneSettingsRow('font', 'designer'),
+			makeOneSettingsRow('font', 'designerURL'),
+			makeOneSettingsRow('font', 'manufacturer'),
+			makeOneSettingsRow('font', 'manufacturerURL'),
+			makeOneSettingsRow('font', 'license'),
+			makeOneSettingsRow('font', 'licenseURL'),
+			makeOneSettingsRow('font', 'copyright'),
+			makeOneSettingsRow('font', 'trademark'),
+			textToNode('<h2>Properties for SVG Fonts</h2>'),
+			makeOneSettingsRow('font', 'variant'),
+			makeOneSettingsRow('font', 'stemv'),
+			makeOneSettingsRow('font', 'stemh'),
+			makeOneSettingsRow('font', 'slope'),
+			makeOneSettingsRow('font', 'strikethroughPosition'),
+			makeOneSettingsRow('font', 'strikethroughThickness'),
+			makeOneSettingsRow('font', 'overlinePosition'),
+			makeOneSettingsRow('font', 'overlineThickness'),
+		])
+	);
 
 	return tabContent;
 }

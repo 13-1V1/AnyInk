@@ -4,7 +4,11 @@
 	Sample-text presets for the preview strip: pangrams, spacing control strings,
 	glyph sets, and a context string built around the glyph being edited.
 	Pure data and functions; the strip turns the rows into a menu.
+	B4: row names and hints are words keys (strip.*), in house words: "small g with its
+	neighbors", "26 letters", "capitals", "small letters" (UX-BEGINNER.md 2.4 D).
 */
+import { letterName } from '../words/letter_name.js';
+import { word } from '../words/words.js';
 
 export const DEFAULT_SAMPLE_TEXT = 'the five boxing wizards jump quickly';
 
@@ -18,8 +22,8 @@ export const PANGRAMS = [
 
 /** Classic straight / round / diagonal spacing strings. */
 export const CONTROL_STRINGS = [
-	{ name: 'HHAV', note: 'capitals', text: 'HHAVHHOOAVOO' },
-	{ name: 'nnav', note: 'small letters', text: 'nnavnnooavoo' },
+	{ name: 'HHAV', note: word('strip.noteCapitals'), text: 'HHAVHHOOAVOO' },
+	{ name: 'nnav', note: word('strip.noteSmallLetters'), text: 'nnavnnooavoo' },
 ];
 
 export const GLYPH_SETS = [
@@ -56,8 +60,8 @@ export function makePresetRows({ currentChar = '', storedContext = '' } = {}) {
 	if (context) {
 		rows.push({
 			group: 'context',
-			name: `Context for ${currentChar}`,
-			note: 'this letter',
+			name: word('strip.sampleNeighbors', { letter: letterName(currentChar) || currentChar }),
+			note: word('strip.noteThisLetter'),
 			text: context,
 		});
 	}
@@ -66,7 +70,12 @@ export function makePresetRows({ currentChar = '', storedContext = '' } = {}) {
 		rows.push({ group: 'control', name: row.name, note: row.note, text: row.text })
 	);
 	GLYPH_SETS.forEach((row) =>
-		rows.push({ group: 'sets', name: row.name, note: `${row.text.length} letters`, text: row.text })
+		rows.push({
+			group: 'sets',
+			name: row.name,
+			note: word('strip.noteLetters', { count: row.text.length }),
+			text: row.text,
+		})
 	);
 	return rows;
 }

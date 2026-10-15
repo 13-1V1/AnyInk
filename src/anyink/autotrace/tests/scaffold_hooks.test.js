@@ -171,7 +171,8 @@ describe('shared hooks', () => {
 		const source = readSrc('pages/about.js');
 		expect(source).toContain('<h3>Potrace</h3>');
 		expect(source).toContain('Peter Selinger');
-		expect(source).toContain('<h3>esm-potrace-wasm</h3>');
+		// B4 + B5 finalize: Simple shows a library's own name as a quote (libraryName)
+		expect(source).toContain("<h3>${libraryName('esm-potrace-wasm')}</h3>");
 		expect(source).toContain('Thomas Steiner');
 		expect(source).toContain('version 2 or (at your option) any later version');
 	});

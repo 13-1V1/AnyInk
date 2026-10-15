@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK one toast voice (B4)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<style>
+		html { --anyink-strip-height: 150px; }
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5) var(--space-5) 190px; }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-lg); font-weight: 600; margin: var(--space-5) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		code { font-family: var(--font-mono); font-size: var(--text-xs); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+		button.try { font: inherit; font-size: var(--text-sm); background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); cursor: pointer; }
+		button.try:hover { background: var(--chrome-bg-hover); }
+		button.try:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		label { font-size: var(--text-sm); }
+		table { border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+		th { text-align: left; font-weight: 600; color: var(--chrome-text-muted); border-bottom: 1px solid var(--chrome-border-strong); padding: var(--space-1) var(--space-2); }
+		td { vertical-align: top; border-bottom: 1px solid var(--chrome-border); padding: var(--space-1) var(--space-2); }
+		td.key { font-family: var(--font-mono); font-size: var(--text-xs); }
+		tr.hidden-toast td { color: var(--chrome-text-faint); }
+		tr.dropped td { background: var(--warning-soft); }
+		#strip { position: fixed; left: 0; right: 0; bottom: 0; height: 150px; box-sizing: border-box; background: var(--chrome-bg-sunken); border-top: var(--hairline); color: var(--chrome-text-faint); padding: var(--space-3); font-size: var(--text-sm); }
+	</style>
+</head>
+<body>
+	<h1>One toast voice (B4)</h1>
+	<p>
+		Every toast goes through <code>src/anyink/toast/toast.js</code>. <b>All tools</b> shows each
+		one the way it always has: top middle, the caller's time, the newest replaces the last.
+		<b>Simple</b> shows one at a time, bottom right above the strip, for 6 seconds (the pointer
+		over it pauses it); undo over destructive over automatic over info; a toast with a button is
+		never replaced by an info toast; only house words, so a message with no words key is
+		dropped (listed below in amber).
+	</p>
+	<div class="row" role="radiogroup" aria-label="Mode">
+		<label><input type="radio" name="mode" value="all" checked /> All tools</label>
+		<label><input type="radio" name="mode" value="simple" /> Simple</label>
+	</div>
+
+	<h2>Upstream messages (through showToast)</h2>
+	<div class="row" id="upstream"></div>
+	<h2>ANY-INK toasts (by words key)</h2>
+	<div class="row" id="keyed"></div>
+	<div class="row">
+		<button class="try" type="button" id="close-all">Close all toasts</button>
+		<button class="try" type="button" id="clear-log">Clear the list</button>
+	</div>
+
+	<h2>What each one said</h2>
+	<table id="log">
+		<thead><tr><th>Mode</th><th>From</th><th>Key</th><th>Shown</th><th>Why</th><th>Words</th></tr></thead>
+		<tbody></tbody>
+	</table>
+
+	<div id="strip">The preview strip sits here (150 px). Simple toasts sit just above it.</div>
+
+	<script type="module">
+		import { closeAllToasts, showToast } from '../src/controls/dialogs/dialogs.js';
+		import { setMode } from '../src/anyink/mode/mode.js';
+		import { resetToastsForTests, toast, toastLog } from '../src/anyink/toast/toast.js';
+
+		const UPSTREAM = [
+			['Merge', 'Uniting all glyph shapes... ', 10000],
+			['Merge done', 'Combine shapes: unite complete!', 2000],
+			['Ctrl+R', 'Values were rounded for the selected path points.'],
+			['Undo (deleted)', 'Restored deleted item<br>Latin Small Letter C'],
+			['No more undo', 'No more undo'],
+			['Font file', 'Exported BrennanHand-Regular.otf to Fonts'],
+			['Unmapped', 'Done!<br>Something new from upstream'],
+		];
+		const KEYED = [
+			['Undid (undo, Redo button)', () => toast('toast.broughtBack', { letter: 'small c' }, { kind: 'undo', action: { label: 'Redo', run: () => {} } })],
+			['Info note', () => toast('toast.photoReplaced')],
+			['Backup failed (Save)', () => toast('toast.backupFailed', {}, { tone: 'warning', action: { key: 'term.save', run: () => {} } })],
+			['Photo added', () => toast('toast.photoAdded', { letter: 'small a' }, { group: 'photo', allTools: 'Added a trace image. Press Start auto-trace to turn it into outlines.' })],
+			['Saved (All tools only)', () => toast(null, {}, { allTools: 'Saved Brennan Hand.gs2' })],
+		];
+
+		const button = (label, onClick, id) => {
+			const b = document.createElement('button');
+			b.className = 'try';
+			b.type = 'button';
+			b.textContent = label;
+			b.dataset.try = id;
+			b.addEventListener('click', () => {
+				onClick();
+				render();
+			});
+			return b;
+		};
+		UPSTREAM.forEach(([label, message, ms], i) =>
+			document.getElementById('upstream').append(button(label, () => showToast(message, ms), `upstream-${i}`))
+		);
+		KEYED.forEach(([label, run], i) => document.getElementById('keyed').append(button(label, run, `keyed-${i}`)));
+
+		document.querySelectorAll('input[name="mode"]').forEach((radio) =>
+			radio.addEventListener('change', () => {
+				closeAllToasts();
+				setMode(radio.value);
+				document.documentElement.dataset.uiMode = radio.value;
+			})
+		);
+		document.getElementById('close-all').addEventListener('click', () => closeAllToasts());
+		document.getElementById('clear-log').addEventListener('click', () => {
+			resetToastsForTests();
+			render();
+		});
+
+		function render() {
+			const body = document.querySelector('#log tbody');
+			body.replaceChildren(
+				...toastLog()
+					.reverse()
+					.map((record) => {
+						const row = document.createElement('tr');
+						if (!record.shown) row.className = record.reason === 'unmapped' ? 'dropped' : 'hidden-toast';
+						const words = record.text || String(record.message || '').replace(/<[^>]*>/g, ' ');
+						[record.mode, record.source, record.key ?? '—', record.shown ? 'yes' : 'no', record.reason, words].forEach((value, i) => {
+							const cell = document.createElement('td');
+							if (i === 2) cell.className = 'key';
+							cell.textContent = value;
+							row.append(cell);
+						});
+						return row;
+					})
+			);
+		}
+		window.__toastPage = { setMode, toastLog, showToast, toast };
+		render();
+		document.body.dataset.ready = 'true';
+	</script>
+</body>
+</html>

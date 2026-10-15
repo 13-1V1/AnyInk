@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { showError } from '../../../controls/dialogs/dialogs.js';
 import { recClear, recDel, recSet, setStorageDriver } from '../../storage/kv.js';
 import { fakeDriver } from '../../storage/tests/fake_driver.js';
+import { setModeForTests } from '../../mode/mode.js';
 import { RECOVERY_CHANGE_EVENT, setRecoveryDeps } from '../recovery.js';
 import {
 	EMPTY_MESSAGE,
 	LOADING_MESSAGE,
 	forgetSnapshotsWithFeedback,
+	makeEmptyMessage,
 	makeRecoverArea,
 	makeRecoveryCard,
 } from '../recovery_ui.js';
@@ -178,7 +180,11 @@ describe('recover areas stay in sync', () => {
 	beforeEach(async () => {
 		await recClear();
 		await recSet('session:a', { id: 'a', name: 'Alpha', time: now, dirty: true, project: {} });
-		restoreDeps = setRecoveryDeps({ locks: () => undefined, getEditor: () => null, getEditors: () => [] });
+		restoreDeps = setRecoveryDeps({
+			locks: () => undefined,
+			getEditor: () => null,
+			getEditors: () => [],
+		});
 		showError.mockClear();
 	});
 	afterEach(() => {
@@ -236,5 +242,136 @@ describe('recover areas stay in sync', () => {
 		window.dispatchEvent(new Event(RECOVERY_CHANGE_EVENT));
 		await flush();
 		expect(list).toHaveBeenCalledTimes(2);
+	});
+});
+
+// --------------------------------------------------------------
+// Simple (B4 fix track, until B13's start screen and crash card)
+// --------------------------------------------------------------
+
+describe('Simple: the card in house words, and the one start-screen confirm', () => {
+	beforeEach(() => {
+		if (!Element.prototype.animate) Element.prototype.animate = () => ({});
+		setModeForTests('simple');
+	});
+	afterEach(() => {
+		setModeForTests('all');
+		document.body.innerHTML = '';
+	});
+
+	const neverSaved = {
+		id: 'n',
+		name: 'Never Saved',
+		time: now - 60000,
+		dirty: true,
+		hasFile: false,
+	};
+	const withFile = { id: 'f', name: 'Brennan Hand', time: now - 60000, dirty: true, hasFile: true };
+	/** The newest box (one that was answered fades out for 110 ms first). */
+	const dialog = () =>
+		[...document.querySelectorAll('dialog#modal-dialog')].filter((box) => box.isConnected).at(-1) ??
+		null;
+	const choice = (name) => dialog()?.querySelector(`[data-anyink-choice="${name}"]`);
+
+	it('Discard on unsaved work with no work file asks first (UX-BEGINNER 7.4 #1)', async () => {
+		// fix track: the only copy of a never-saved font went with one press, no confirm, no undo
+		const onDiscard = vi.fn(async () => undefined);
+		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
+		document.body.append(card);
+		card.querySelector('.anyink-recovery-row__discard').click();
+		await flush();
+		expect(onDiscard).not.toHaveBeenCalled();
+		expect(dialog().textContent).toContain("Throw away this unsaved work? This can't be undone.");
+		expect(choice('throw-away').textContent).toBe('Throw it away');
+		expect(choice('keep').textContent).toBe('Keep it');
+		// one green button: Keep it; Throw it away is outlined (principle 1)
+		expect(choice('keep').hasAttribute('secondary')).toBe(false);
+		expect(choice('throw-away').hasAttribute('secondary')).toBe(true);
+
+		choice('keep').click();
+		await flush();
+		expect(onDiscard).not.toHaveBeenCalled();
+		expect(card.querySelectorAll('.anyink-recovery-row')).toHaveLength(1);
+
+		card.querySelector('.anyink-recovery-row__discard').click();
+		await flush();
+		choice('throw-away').click();
+		await flush();
+		expect(onDiscard).toHaveBeenCalledWith('n');
+		expect(card.querySelector('.anyink-recovery-row')).toBeNull();
+	});
+
+	it('closing the box by its x keeps the work, and the row can be pressed again', async () => {
+		vi.useFakeTimers({ toFake: ['setTimeout'] });
+		const onDiscard = vi.fn(async () => undefined);
+		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
+		document.body.append(card);
+		const discard = card.querySelector('.anyink-recovery-row__discard');
+		discard.click();
+		await flush();
+		dialog().querySelector('.modal-dialog__close-button').click();
+		vi.advanceTimersByTime(200); // the box fades out, then leaves the page
+		await flush();
+		vi.useRealTimers();
+		expect(dialog()).toBeNull();
+		expect(onDiscard).not.toHaveBeenCalled();
+		expect(discard.hasAttribute('disabled')).toBe(false);
+		expect(card.querySelectorAll('.anyink-recovery-row')).toHaveLength(1);
+	});
+
+	it('Discard on a backup with a work file goes at once, as before', async () => {
+		const onDiscard = vi.fn(async () => undefined);
+		const card = makeRecoveryCard([withFile], { now, onDiscard, onRestore: vi.fn() });
+		card.querySelector('.anyink-recovery-row__discard').click();
+		await flush();
+		expect(onDiscard).toHaveBeenCalledWith('f');
+		expect(dialog()).toBeNull();
+	});
+
+	it('All tools discards at once, as before', async () => {
+		setModeForTests('all');
+		const onDiscard = vi.fn(async () => undefined);
+		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
+		card.querySelector('.anyink-recovery-row__discard').click();
+		await flush();
+		expect(onDiscard).toHaveBeenCalledWith('n');
+	});
+
+	it('the Recover tab says "backup copy", never any form of "snapshot" (2.4 G)', async () => {
+		// fix track: "Unsaved work is snapshotted every few seconds" slipped past the scan,
+		// which matches whole words and plurals only
+		const tab = makeRecoverArea({ list: async () => [] });
+		await tab.ready;
+		expect(tab.textContent).toBe(
+			'Nothing to recover. ANY-INK keeps a backup copy every few seconds while you work.'
+		);
+		expect(tab.textContent).not.toMatch(/snapshot/i);
+		const card = makeRecoveryCard([neverSaved], {
+			now,
+			onDiscard: async () => undefined,
+			onRestore: vi.fn(),
+		});
+		card.querySelector('.anyink-recovery-row__discard').click();
+		await flush();
+		choice('throw-away').click();
+		await flush();
+		expect(card.textContent).not.toMatch(/snapshot/i);
+		setModeForTests('all');
+		expect(makeEmptyMessage().textContent).toBe(EMPTY_MESSAGE); // All tools keeps its words
+	});
+
+	it('the badge says "has a saved file"; only the first Restore is green (principle 1)', () => {
+		const card = makeRecoveryCard([withFile, { ...withFile, id: 'g' }], { now });
+		expect(card.querySelector('.anyink-recovery-row__badge').textContent).toBe('has a saved file');
+		const restores = [...card.querySelectorAll('.anyink-recovery-row__restore')];
+		expect(restores.map((button) => button.hasAttribute('secondary'))).toEqual([false, true]);
+		setModeForTests('all');
+		const classic = makeRecoveryCard([withFile, { ...withFile, id: 'g' }], { now });
+		expect(classic.querySelector('.anyink-recovery-row__badge').textContent).toBe('from file');
+		expect(
+			[...classic.querySelectorAll('.anyink-recovery-row__restore')].map((b) =>
+				b.hasAttribute('secondary')
+			)
+		).toEqual([false, false]);
 	});
 });

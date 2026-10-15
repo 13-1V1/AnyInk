@@ -1,15 +1,20 @@
 // Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
-
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // No app imports: exercised independently of editor boot and service workers.
+// B4 integration: the update notice shows these errors as its sentence, so they are house words
+// (src/anyink/words, notice.*; UX-BEGINNER.md 2.4 G: "backup copy", never "recovery snapshot").
+import { word } from '../words/words.js';
+
 export async function checkpoint({ getEditors, getStatus, snapshot }) {
 	const before = getStatus();
-	if (!before.started) throw new Error('Recovery is still starting. Try again shortly.');
+	if (!before.started) throw new Error(word('notice.backupStarting'));
 	const editors = [...getEditors()];
 	for (const editor of editors) {
-		if (editor.history?.isRestoring) throw new Error('Wait for undo or redo to finish.');
+		if (editor.history?.isRestoring) throw new Error(word('notice.undoRunning'));
 		if (!(await snapshot('manual', editor))) {
-			throw new Error('Recovery could not protect every project. Save your work and try again.');
+			throw new Error(word('notice.backupNotEvery'));
 		}
 	}
 	const unchanged = () => {
@@ -24,8 +29,7 @@ export async function checkpoint({ getEditors, getStatus, snapshot }) {
 			!editors.some((editor) => editor.history?.isRestoring)
 		);
 	};
-	if (!unchanged())
-		throw new Error('A project changed while saving recovery. Try the update again.');
+	if (!unchanged()) throw new Error(word('notice.changedDuringBackup'));
 	return unchanged;
 }
 
@@ -37,8 +41,7 @@ export function makeSafeReload({ protect, activate, reload }) {
 		try {
 			const unchanged = await protect();
 			await activate();
-			if (!unchanged())
-				throw new Error('A project changed. Try the update again to protect the latest edits.');
+			if (!unchanged()) throw new Error(word('notice.changedBeforeReload'));
 			reload();
 			return true;
 		} finally {

@@ -1,15 +1,22 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { runFileCommand } from '../anyink/files/run_command.js';
 import { exportWithFontCheck } from '../anyink/fontcheck/export_toast.js';
-import { getUndoRedoAction, isTextEntryElement } from '../anyink/history/undo_shortcut.js';
+import { openFontCommand } from '../anyink/files/open_font.js';
+import { isTextEntryElement } from '../anyink/history/undo_shortcut.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
+import { withLandingCause } from '../anyink/mode/band.js';
+import { openFineTune, openUseInWord } from '../anyink/mode/doors.js';
+import { keyAction, keyOn, pressFromEvent, whereFor } from '../anyink/mode/keys.js';
+import { toast } from '../anyink/toast/toast.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
 import { DisplayCanvas } from '../display_canvas/display_canvas.js';
 import { TextBlockOptions } from '../display_canvas/text_block_options.js';
-import { ioFont_exportDefaultFormat } from '../formats_io/otf/font_export.js';
+import { ioFont_exportDefaultFormat, ioFont_exportOTF } from '../formats_io/otf/font_export.js';
 import { ioSVG_exportSVGfont } from '../formats_io/svg_font/svg_font_export.js';
 import { getAdjacentItem } from '../panels/card_glyph.js';
 import {
@@ -38,6 +45,13 @@ import { selectTool } from './tools/tools.js';
 
 /**
  * Handles key presses
+ * ANY-INK (B5, UX-BEGINNER 7.6): every key asks the one key map (src/anyink/mode/keys.js), in
+ * both modes, which says what the press means here: keyAction(press, { where }). A key the
+ * map has off in this mode (Simple: Ctrl+Space, Ctrl+G, Ctrl+R, U, B until the Brush, the layer
+ * order keys) does nothing here, so the browser keeps it (Ctrl+R reloads, as in Chrome).
+ * What changes from upstream in both modes: P picks the Point pen, E picks Edit points (B keeps
+ * Edit points until the Brush lands), and Ctrl+O opens a saved font instead of a new window.
+ * Holding Space or Ctrl stays a state (pan, the Ctrl redraw), as upstream reads it.
  * @param {KeyboardEvent} event - key press event
  * @returns nothing
  */
@@ -53,36 +67,44 @@ export function handleKeyPress(event) {
 	handleSpecialKeys(key, 'down');
 	const ehd = eventHandlerData;
 	// log(`ehd.isCtrlDown: ${ehd.isCtrlDown}`);
+	const press = pressFromEvent(event, ehd);
+	const action = keyAction(press, { where: whereFor(editor?.nav?.page) });
+	const id = action?.id;
 
-	// s
-	if (ehd.isCtrlDown && key === 's') {
+	// Ctrl+S - Save / Ctrl+Shift+S - Save as
+	if (id === 'save' || id === 'saveAs') {
 		cancelDefaultEventActions(event);
 		// ANY-INK (M6): a failed save shows in the error box, never as an unhandled rejection.
-		// Ctrl+Shift+S is Save as (DESIGN_DOC 6); getKeyFromEvent lowercases 'S', so the
-		// Shift key decides.
-		const saveAs = !!(ehd.isShiftDown || event.shiftKey);
-		runFileCommand(() => getCurrentProjectEditor().saveProjectFile(saveAs));
+		runFileCommand(() => getCurrentProjectEditor().saveProjectFile(id === 'saveAs'));
 	}
 
-	// g
-	if (ehd.isCtrlDown && key === 'g') {
+	// Ctrl+G - the SVG font file (All tools only)
+	if (id === 'svgFontFile') {
 		cancelDefaultEventActions(event);
 		setTimeout(ioSVG_exportSVGfont, 10);
 	}
 
-	// e
-	if (ehd.isCtrlDown && key === 'e') {
+	// Ctrl+E - the font file; in Simple the .otf (its File menu's one font file row), then Use
+	// in Word once it has landed
+	if (id === 'makeFontFile') {
 		cancelDefaultEventActions(event);
-		// ANY-INK (M6, DESIGN_DOC 8): no delay. The export settles its folder permission
-		// or picker first, inside this keydown, then shows 'Exporting...' and builds.
-		// ANY-INK (B1): then names any letters the font file can't hold, as the File menu does.
-		runFileCommand(exportWithFontCheck, ioFont_exportDefaultFormat);
+		if (action.action === 'useInWord') {
+			openUseInWord('key');
+		} else {
+			// ANY-INK (M6, DESIGN_DOC 8): no delay. The export settles its folder permission
+			// or picker first, inside this keydown, then shows 'Exporting...' and builds.
+			// ANY-INK (B1): then names any letters the font file can't hold, as the File menu does.
+			// ANY-INK (B5 fix track): All tools makes the font's preferred format (the one it
+			// was imported from); Simple always the .otf, never a format it hides (6.2 Menus).
+			const otf = action.action === 'exportOtf';
+			runFileCommand(exportWithFontCheck, otf ? ioFont_exportOTF : ioFont_exportDefaultFormat);
+		}
 	}
 
-	// o
-	if (ehd.isCtrlDown && key === 'o') {
+	// Ctrl+O - open a saved font (the work file picker)
+	if (id === 'open') {
 		cancelDefaultEventActions(event);
-		window.open(window.location.href, '_blank');
+		openFontCommand({ editor });
 	}
 
 	// q
@@ -97,18 +119,14 @@ export function handleKeyPress(event) {
 	// Ctrl+Z - Undo / Ctrl+Y or Ctrl+Shift+Z - Redo
 	// ANY-INK: works on every page (settings entries can be undone from
 	// the Settings page), as long as focus is not in a text field.
-	// Honor the event's own modifier flags too: synthetic or fast key combos can arrive
-	// without a separate Control keydown, so ehd.isCtrlDown alone would miss them.
-	const undoRedo = getUndoRedoAction(key, {
-		isCtrlDown: ehd.isCtrlDown || event.ctrlKey || event.metaKey,
-		isShiftDown: ehd.isShiftDown || event.shiftKey,
-	});
-	if (undoRedo === 'redo') {
+	// B5: an undo that lands on a page Simple hides says Undo took him there (band.js), and a
+	// redo says Redo did (fix track).
+	if (id === 'redo') {
 		cancelDefaultEventActions(event);
-		editor.history.redoState();
-	} else if (undoRedo === 'undo') {
+		withLandingCause('redo', () => editor.history.redoState());
+	} else if (id === 'undo') {
 		cancelDefaultEventActions(event);
-		editor.history.restoreState();
+		withLandingCause('undo', () => editor.history.restoreState());
 	}
 
 	// --------------------------------------------------------------
@@ -127,77 +145,51 @@ export function handleKeyPress(event) {
 
 	// Space
 	if (ehd.isCtrlDown && ehd.isSpaceDown) {
-		// Ctrl+Space - Hide UI
-		addHideUIOverlay();
+		// Ctrl+Space - Hide UI (All tools only)
+		if (keyOn('hideUI')) addHideUIOverlay();
 	} else if (ehd.isSpaceDown) {
 		// Space - Pan
 		cancelDefaultEventActions(event);
 		if (!ehd.isPanning) togglePanOn(event);
 	}
 
-	if (key === 'Escape') {
+	if (id === 'escape') {
 		closeEveryTypeOfDialog();
 	}
 
 	// Ctrl+Plus - Zoom in
-	if (ehd.isCtrlDown && key === 'Plus') {
+	if (id === 'zoomIn') {
 		cancelDefaultEventActions(event);
 		editor.updateViewZoom(1.1);
 	}
 
 	// Ctrl+Minus - Zoom out
-	if (ehd.isCtrlDown && key === 'Minus') {
+	if (id === 'zoomOut') {
 		cancelDefaultEventActions(event);
 		editor.updateViewZoom(0.9);
 	}
 
 	// Ctrl+0 - Auto fit
-	if (ehd.isCtrlDown && key === '0') {
+	if (id === 'fitView') {
 		cancelDefaultEventActions(event);
 		editor.autoFitView();
 	}
 
-	// LeftArrow - Nudge left
-	if (key === 'ArrowLeft') {
+	// Arrows: Nudge (Shift: by 10); Ctrl+Left / Ctrl+Right - the previous / next path point.
+	// The page never scrolls on an arrow here, whatever the arrow does.
+	if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) {
 		cancelDefaultEventActions(event);
-		if (ehd.isCtrlDown) selectPreviousPathPoint();
-		else nudge(-1, 0);
 	}
-
-	// RightArrow - Nudge right
-	if (key === 'ArrowRight') {
-		cancelDefaultEventActions(event);
-		if (ehd.isCtrlDown) selectNextPathPoint();
-		else nudge(1, 0);
-	}
-
-	// UpArrow - Nudge up
-	if (key === 'ArrowUp') {
-		cancelDefaultEventActions(event);
-		nudge(0, 1);
-	}
-
-	// DownArrow - Nudge down
-	if (key === 'ArrowDown') {
-		cancelDefaultEventActions(event);
-		nudge(0, -1);
-	}
+	if (id === 'nudge') nudge(action.arg.dx, action.arg.dy);
+	if (id === 'previousPoint') selectPreviousPathPoint();
+	if (id === 'nextPoint') selectNextPathPoint();
 
 	// Ctrl+Period - Navigate to Next Item
-	if (key === '.' && ehd.isCtrlDown) {
-		// log(`Detected Next Item`);
-		cancelDefaultEventActions(event);
-		const item = getAdjacentItem(editor.selectedItem, 1);
-		const itemName = editor.project.getItemName(item.id, true);
-		editor.selectedItemID = item.id;
-		editor.history.addState(`Navigated to ${itemName}`);
-	}
-
 	// Ctrl+Comma - Navigate to Previous Item
-	if (key === ',' && ehd.isCtrlDown) {
-		// log(`Detected Previous Item`);
+	if (id === 'nextItem' || id === 'previousItem') {
+		// log(`Detected Next / Previous Item`);
 		cancelDefaultEventActions(event);
-		const item = getAdjacentItem(editor.selectedItem, -1);
+		const item = getAdjacentItem(editor.selectedItem, id === 'nextItem' ? 1 : -1);
 		const itemName = editor.project.getItemName(item.id, true);
 		editor.selectedItemID = item.id;
 		editor.history.addState(`Navigated to ${itemName}`);
@@ -209,41 +201,26 @@ export function handleKeyPress(event) {
 	// Characters, Ligatures, and Components
 	// --------------------------------------------------------------
 
-	// Tool selection
-	if (!ehd.isCtrlDown) {
-		// v, a - resize
-		if (key === 'v' || key === 'a') selectTool('resize');
-
-		// b, p - path edit
-		if (key === 'b' || key === 'p') selectTool('pathEdit');
-
-		// m, r - new rectangle
-		if (key === 'm' || key === 'r') selectTool('newRectangle');
-
-		// o, q - new oval
-		if (key === 'o' || key === 'q') selectTool('newOval');
-
-		// h, w - new path
-		if (key === 'h' || key === 'w') selectTool('newPath');
-
-		// u, e - path add point
-		if (key === 'u' || key === 'e') selectTool('pathAddPoint');
-	}
+	// Tool selection: the map's tool keys (keys.js, 7.6)
+	if (action?.action === 'selectTool') selectToolByKey(editor, action);
 
 	// Del, Backspace - delete selected items
-	if (key === 'Delete' || key === 'Backspace') {
+	// ANY-INK (B5 fix track, UX-BEGINNER 7.6 "Delete acts only on a picked shape or point"): with
+	// nothing picked there is nothing to delete, so no Undo step ("Deleted path: undefined",
+	// which a later Undo press would spend on nothing), in both modes, like an empty nudge
+	if (id === 'delete') {
 		cancelDefaultEventActions(event);
 
 		if (editMode === 'pen') {
-			deleteSelectedPoints();
+			if (editor.multiSelect.points.length) deleteSelectedPoints();
 		} else if (editMode === 'arrow') {
-			deleteSelectedPaths();
+			if (editor.multiSelect.shapes.length) deleteSelectedPaths();
 		}
 	}
 
 	// Ctrl+A - Select / Ctrl+Shift+A - Deselect All
-	if (ehd.isCtrlDown && key === 'a') {
-		if (ehd.isShiftDown) {
+	if (id === 'selectAll' || id === 'deselectAll') {
+		if (id === 'deselectAll') {
 			// Clear all selections
 			cancelDefaultEventActions(event);
 			editor.multiSelect.points.clear();
@@ -268,89 +245,82 @@ export function handleKeyPress(event) {
 	}
 
 	// Shape Layer / Selection Actions
+	// (the layer order keys are All tools only)
 	const msShapes = editor.multiSelect.shapes;
 	const selectedItem = editor.selectedItem;
-	if (key === ']' || key === '}') {
-		if (ehd.isCtrlDown) {
-			if (ehd.isShiftDown && key === '}') {
-				// Ctrl+Shift+] (Same as Ctrl+}) - move shape layer to the top
-				// log(`DETECTED: Ctrl+Shift+] - move shape layer to the top`);
-				moveLayer('top');
-				editor.history.addState(`Moved layer to the top`);
-				editor.publish('currentItem', editor.selectedItem);
-			} else {
-				// Ctrl+] - move shape layer up
-				// log(`DETECTED: Ctrl+] - move shape layer up`);
-				moveLayer('up');
-				editor.history.addState(`Moved layer up`);
-				editor.publish('currentItem', editor.selectedItem);
+	if (id === 'layerTop') {
+		// Ctrl+Shift+] (Same as Ctrl+}) - move shape layer to the top
+		// log(`DETECTED: Ctrl+Shift+] - move shape layer to the top`);
+		moveLayer('top');
+		editor.history.addState(`Moved layer to the top`);
+		editor.publish('currentItem', editor.selectedItem);
+	} else if (id === 'layerUp') {
+		// Ctrl+] - move shape layer up
+		// log(`DETECTED: Ctrl+] - move shape layer up`);
+		moveLayer('up');
+		editor.history.addState(`Moved layer up`);
+		editor.publish('currentItem', editor.selectedItem);
+	} else if (id === 'nextShape') {
+		// ] - select next shape
+		// log(`DETECTED: ] - select next shape`);
+		editor.multiSelect.points.clear();
+		if (msShapes.length === 0) {
+			const selShape = currentItemFindSelectableShapeAt(0, false);
+			if (selShape) {
+				editor.multiSelect.shapes.select(selShape);
 			}
 		} else {
-			// ] - select next shape
-			// log(`DETECTED: ] - select next shape`);
-			editor.multiSelect.points.clear();
-			if (msShapes.length === 0) {
-				const selShape = currentItemFindSelectableShapeAt(0, false);
-				if (selShape) {
-					editor.multiSelect.shapes.select(selShape);
-				}
-			} else {
-				let msShapes = editor.multiSelect.shapes.members;
-				const itemShapes = selectedItem.shapes;
-				msShapes.sort();
-				const currentIndex = itemShapes.indexOf(msShapes.at(-1));
-				const newIndex = (currentIndex + 1) % itemShapes.length;
+			let msShapes = editor.multiSelect.shapes.members;
+			const itemShapes = selectedItem.shapes;
+			msShapes.sort();
+			const currentIndex = itemShapes.indexOf(msShapes.at(-1));
+			const newIndex = (currentIndex + 1) % itemShapes.length;
 
-				// Select or add to selection
-				if (key === '}') editor.multiSelect.shapes.add(itemShapes[newIndex]);
-				else editor.multiSelect.shapes.select(itemShapes[newIndex]);
-			}
+			// Select or add to selection
+			if (key === '}') editor.multiSelect.shapes.add(itemShapes[newIndex]);
+			else editor.multiSelect.shapes.select(itemShapes[newIndex]);
 		}
 	}
 
-	if (key === '[' || key === '{') {
-		if (ehd.isCtrlDown) {
-			if (ehd.isShiftDown && key === '{') {
-				// Ctrl+Shift+[ (same as Ctrl+{)- move shape layer to the bottom
-				// log(`DETECTED: Ctrl+Shift+[ - move shape layer to the bottom`);
-				moveLayer('bottom');
-				editor.history.addState(`Moved layer to the bottom`);
-				editor.publish('currentItem', editor.selectedItem);
-			} else {
-				// Ctrl+[ - move shape layer down
-				// log(`DETECTED: Ctrl+[ - move shape layer down`);
-				moveLayer('down');
-				editor.history.addState(`Moved layer down`);
-				editor.publish('currentItem', editor.selectedItem);
+	if (id === 'layerBottom') {
+		// Ctrl+Shift+[ (same as Ctrl+{)- move shape layer to the bottom
+		// log(`DETECTED: Ctrl+Shift+[ - move shape layer to the bottom`);
+		moveLayer('bottom');
+		editor.history.addState(`Moved layer to the bottom`);
+		editor.publish('currentItem', editor.selectedItem);
+	} else if (id === 'layerDown') {
+		// Ctrl+[ - move shape layer down
+		// log(`DETECTED: Ctrl+[ - move shape layer down`);
+		moveLayer('down');
+		editor.history.addState(`Moved layer down`);
+		editor.publish('currentItem', editor.selectedItem);
+	} else if (id === 'previousShape') {
+		// [ - select previous shape
+		// log(`DETECTED: [ - select previous shape`);
+		editor.multiSelect.points.clear();
+		if (msShapes.length === 0) {
+			const selShape = currentItemFindSelectableShapeAt(-1, false);
+			if (selShape) {
+				editor.multiSelect.shapes.select(selShape);
 			}
 		} else {
-			// [ - select previous shape
-			// log(`DETECTED: [ - select previous shape`);
-			editor.multiSelect.points.clear();
-			if (msShapes.length === 0) {
-				const selShape = currentItemFindSelectableShapeAt(-1, false);
-				if (selShape) {
-					editor.multiSelect.shapes.select(selShape);
-				}
-			} else {
-				let msShapes = editor.multiSelect.shapes.members;
-				const itemShapes = selectedItem.shapes;
-				msShapes.sort();
-				const currentIndex = itemShapes.indexOf(msShapes[0]);
-				let newIndex = currentIndex - 1;
-				if (newIndex < 0) newIndex = itemShapes.length - 1;
+			let msShapes = editor.multiSelect.shapes.members;
+			const itemShapes = selectedItem.shapes;
+			msShapes.sort();
+			const currentIndex = itemShapes.indexOf(msShapes[0]);
+			let newIndex = currentIndex - 1;
+			if (newIndex < 0) newIndex = itemShapes.length - 1;
 
-				// Select or add to selection
-				if (key === '{') editor.multiSelect.shapes.add(itemShapes[newIndex]);
-				else editor.multiSelect.shapes.select(itemShapes[newIndex]);
-			}
+			// Select or add to selection
+			if (key === '{') editor.multiSelect.shapes.add(itemShapes[newIndex]);
+			else editor.multiSelect.shapes.select(itemShapes[newIndex]);
 		}
 	}
 
 	// Ctrl+C - copy
 	// ANY-INK (M7): clipboardCopy also leaves a note on the system clipboard, so a photo
 	// copied later wins a Ctrl+V and one copied earlier never does (clipboard_note.js)
-	if (ehd.isCtrlDown && key === 'c') {
+	if (id === 'copy') {
 		cancelDefaultEventActions(event);
 		clipboardCopy();
 	}
@@ -358,12 +328,12 @@ export function handleKeyPress(event) {
 	// Ctrl+V - paste
 	// ANY-INK (M7 fix track): copied shapes paste unless an image was copied after them
 	// (events_drag_drop_paste.js handlePasteShortcut); otherwise the image becomes the trace.
-	if (ehd.isCtrlDown && key === 'v') {
+	if (id === 'paste') {
 		handlePasteShortcut(event);
 	}
 
 	// Ctrl+R - round
-	if (ehd.isCtrlDown && key === 'r') {
+	if (id === 'round') {
 		cancelDefaultEventActions(event);
 		if (editMode === 'pen') {
 			// log(`Rounding all points`);
@@ -388,6 +358,22 @@ export function handleKeyPress(event) {
 		}
 	}
 	// log('handleKeyPress', 'end');
+}
+
+/**
+ * ANY-INK (B5, UX-BEGINNER 7.6): a tool key. Picks the tool as upstream did (on every press, so
+ * pressing the current tool's key still clears what upstream clears). In Simple it says which
+ * tool, when the tool changed ("Switched to Rectangle (R)"); once the letter view lands, a tool
+ * that lives inside Fine-tune opens Fine-tune too (doors.js).
+ * @param {Object} editor - ProjectEditor
+ * @param {Object} action - keyAction's result: { tool, toast, opensFineTune }
+ */
+function selectToolByKey(editor, action) {
+	const before = editor.selectedTool;
+	selectTool(action.tool);
+	if (action.opensFineTune) openFineTune(action.tool);
+	const changed = before !== action.tool && editor.selectedTool === action.tool;
+	if (action.toast && changed) toast(action.toast.key, action.toast.vars, action.toast.options);
 }
 
 /**
@@ -568,7 +554,9 @@ export function handleKeyUp(event) {
 	}
 
 	// Space
-	if (key === 'Space' && !ehd.isSpaceDown) {
+	// ANY-INK (B5): where Ctrl+Space is off (Simple), letting it go changes nothing either; All
+	// tools keeps upstream's release as it was
+	if (key === 'Space' && !ehd.isSpaceDown && (ehd.isPanning || keyOn('hideUI'))) {
 		if (hideUI) document.body.removeChild(hideUI);
 		// if (ehd.isMouseOverCanvas) togglePanOff(event);
 		togglePanOff(event);

@@ -4,6 +4,7 @@
 // offer's "Not now" is remembered, and the first launch never stacks notices.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPref, resetPrefsCache, setPref } from '../../prefs/prefs.js';
+import { word } from '../../words/words.js';
 import { resetNotices, showNotice, waitingNotices } from '../notices.js';
 import {
 	announceOfflineReady,
@@ -49,12 +50,12 @@ describe('ready to open offline', () => {
 	it('shows once even when the worker reports it twice', () => {
 		announceOfflineReady();
 		announceOfflineReady();
-		expect(shownText()).toEqual(['ANY-INK is ready to open offline.']);
+		expect(shownText()).toEqual([word('notice.offlineReady')]);
 	});
 
 	it('never shows again on a later launch', () => {
 		announceOfflineReady();
-		button('OK').click();
+		button(word('notice.ok')).click();
 		expect(getPref(OFFLINE_READY_PREF)).toBeTruthy();
 		relaunch();
 		announceOfflineReady();
@@ -66,13 +67,13 @@ describe('install offer', () => {
 	it('offers Install and Not now, once, however often Chrome fires', () => {
 		window.dispatchEvent(installEvent());
 		window.dispatchEvent(installEvent());
-		expect(shownText()).toEqual(['Install ANY-INK to open it from your desktop.']);
-		expect(buttons()).toEqual(['Install ANY-INK', 'Not now']);
+		expect(shownText()).toEqual([word('notice.install')]);
+		expect(buttons()).toEqual([word('notice.installButton'), word('notice.notNow')]);
 	});
 
 	it('remembers Not now, so the next launch does not offer again', () => {
 		offerInstall(installEvent());
-		button('Not now').click();
+		button(word('notice.notNow')).click();
 		expect(getPref(INSTALL_NOT_NOW_PREF)).toBeTruthy();
 		relaunch();
 		const event = installEvent();
@@ -83,7 +84,7 @@ describe('install offer', () => {
 
 	it('remembers a No in Chrome own install box the same way', async () => {
 		offerInstall(installEvent('dismissed'));
-		button('Install ANY-INK').click();
+		button(word('notice.installButton')).click();
 		await vi.waitFor(() => expect(getPref(INSTALL_NOT_NOW_PREF)).toBeTruthy());
 		expect(shownText()).toEqual([]);
 	});
@@ -101,9 +102,9 @@ describe('one app notice per launch', () => {
 	it('after the install offer, "ready offline" does not follow it in the same launch', () => {
 		offerInstall(installEvent());
 		announceOfflineReady();
-		expect(shownText()).toEqual(['Install ANY-INK to open it from your desktop.']);
+		expect(shownText()).toEqual([word('notice.install')]);
 		expect(waitingNotices()).toEqual([]);
-		button('Not now').click();
+		button(word('notice.notNow')).click();
 		expect(shownText()).toEqual([]);
 		expect(getPref(OFFLINE_READY_PREF)).toBeFalsy();
 	});
@@ -111,11 +112,11 @@ describe('one app notice per launch', () => {
 	it('says "ready offline" on the next launch instead, once', () => {
 		offerInstall(installEvent());
 		announceOfflineReady();
-		button('Not now').click();
+		button(word('notice.notNow')).click();
 		relaunch();
 		announceOfflineReadyFromEarlierLaunch(true);
-		expect(shownText()).toEqual(['ANY-INK is ready to open offline.']);
-		button('OK').click();
+		expect(shownText()).toEqual([word('notice.offlineReady')]);
+		button(word('notice.ok')).click();
 		relaunch();
 		announceOfflineReadyFromEarlierLaunch(true);
 		expect(shownText()).toEqual([]);
@@ -137,13 +138,13 @@ describe('one app notice per launch', () => {
 	it('after "ready offline", the install offer waits for a later launch (nothing remembered)', () => {
 		announceOfflineReady();
 		offerInstall(installEvent());
-		expect(shownText()).toEqual(['ANY-INK is ready to open offline.']);
-		button('OK').click();
+		expect(shownText()).toEqual([word('notice.offlineReady')]);
+		button(word('notice.ok')).click();
 		expect(shownText()).toEqual([]);
 		expect(getPref(INSTALL_NOT_NOW_PREF)).toBeFalsy();
 		relaunch();
 		offerInstall(installEvent());
-		expect(shownText()).toEqual(['Install ANY-INK to open it from your desktop.']);
+		expect(shownText()).toEqual([word('notice.install')]);
 	});
 
 	// B1 fix pass: an update or a problem notice takes the launch too, so nothing follows it.
@@ -160,7 +161,7 @@ describe('one app notice per launch', () => {
 		expect(shownText()).toEqual([]);
 		relaunch();
 		announceOfflineReadyFromEarlierLaunch(true);
-		expect(shownText()).toEqual(['ANY-INK is ready to open offline.']);
+		expect(shownText()).toEqual([word('notice.offlineReady')]);
 	});
 
 	it('an update that cuts in on "ready offline" is not followed by it again', () => {
@@ -178,18 +179,18 @@ describe('one app notice per launch', () => {
 			message: 'Offline setup could not finish.',
 		});
 		expect(offerInstall(installEvent())).toBe(null);
-		button('OK').click();
+		button(word('notice.ok')).click();
 		expect(shownText()).toEqual([]);
 		expect(getPref(INSTALL_NOT_NOW_PREF)).toBeFalsy();
 		relaunch();
 		offerInstall(installEvent());
-		expect(shownText()).toEqual(['Install ANY-INK to open it from your desktop.']);
+		expect(shownText()).toEqual([word('notice.install')]);
 	});
 
 	it('a second install event in the same launch still refreshes the offer on screen', () => {
 		offerInstall(installEvent());
 		expect(offerInstall(installEvent())).toBe('install');
-		expect(shownText()).toEqual(['Install ANY-INK to open it from your desktop.']);
+		expect(shownText()).toEqual([word('notice.install')]);
 	});
 
 	it('an update still cuts in, whatever else showed this launch', () => {

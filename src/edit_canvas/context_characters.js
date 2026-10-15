@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { token, withAlpha } from '../anyink/theme/theme.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main';
 import { charsToHexArray } from '../common/character_ids';
@@ -537,8 +539,10 @@ function registerCanvasHotspot(hotspot) {
 
 /**
  * Clears all hotspots
+ * ANY-INK (B4 + B5 finalize): exported, so a redraw that draws no neighbor letters (Simple, or
+ * their switch off) leaves no invisible links behind (edit_canvas.js)
  */
-function clearCanvasHotspots() {
+export function clearCanvasHotspots() {
 	contextCharacters.canvasHotspots = [];
 }
 

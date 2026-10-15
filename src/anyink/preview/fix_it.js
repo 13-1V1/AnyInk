@@ -19,11 +19,14 @@
 	he may have fixed it himself since.
 	History records the letter that is open, so a letter that isn't open is opened first
 	(show_item.js); the person sees the letter that changed.
+	B4: the Undo titles are the plain words of src/anyink/words (history.gaveWidth,
+	history.fixedWidth, history.removedStray), which history_text.js reads back.
 */
 import { MAX_WIDTH, PROBLEM, isStrayShape, validateItem } from '../fontcheck/validate.js';
 import { fitSpacing } from '../spacing/auto_space.js';
 import { isAutomatic } from '../spacing/owner.js';
 import { letterPhrase } from '../words/letter_name.js';
+import { word } from '../words/words.js';
 import { FIX_IT } from './font_status.js';
 import { isItemOpen, showItem } from './show_item.js';
 
@@ -112,7 +115,7 @@ export function fixProblem(editor, problem) {
 
 	const item = editor.selectedItem;
 	if (!item || item.id !== itemId) return false;
-	const name = letterPhrase(item.chars) || 'this letter';
+	const name = letterPhrase(item.chars) || word('history.thisLetter');
 
 	let title = '';
 	if (problem.problem === PROBLEM.shape) {
@@ -125,17 +128,14 @@ export function fixProblem(editor, problem) {
 		}
 		const removed = shapesBefore - item.shapes.length;
 		if (removed < 1) return false;
-		title =
-			removed === 1
-				? `removed a stray shape from ${name}`
-				: `removed ${removed} stray shapes from ${name}`;
+		title = word('history.removedStray', { count: removed, letter: name });
 	} else {
 		// B3: an automatic letter gets its fitted spacing, so the fix is one ANY-INK would make
 		const fitted = isAutomatic(item) && fitSpacing(item, editor.project).changed;
 		if (!fitted) item.advanceWidth = fittedWidth(item, editor.project.defaultAdvanceWidth);
 		if (!fitted && Number(item.advanceWidth) === widthBefore) return false;
 		const hadWidth = Number.isFinite(widthBefore) && Math.round(widthBefore) !== 0;
-		title = hadWidth ? `fixed the width of ${name}` : `gave ${name} a width`;
+		title = word(hadWidth ? 'history.fixedWidth' : 'history.gaveWidth', { letter: name });
 	}
 
 	editor.history.addState(title);

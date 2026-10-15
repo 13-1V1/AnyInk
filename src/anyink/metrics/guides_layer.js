@@ -25,6 +25,14 @@
 	top of History.addState (src/anyink/spacing/history_hook.js) leaves it where it was put. In
 	Simple the photo moves with the shapes while the left edge moves them; All tools leaves the
 	photo where it is, as before.
+	B5 (UX-BEGINNER 7.6): in Simple the horizontal lines ('metric' and 'baseline') are locked at
+	both gates (mode/locks.js): handleGuidesLayerEvent never finds one (findLineAt leaves them
+	out, so the press goes to the tool and an edge crossing one wins), and onKeyDown never nudges
+	one. The side edges and guides added in More tools stay draggable. All tools locks nothing.
+	Fix track: in Simple the side edges of a letter with no shapes lock too (a press there goes to
+	the tool or the photo's corner); in both modes an edge drag or an arrow nudge stops at width 0
+	(UX-BEGINNER 7.2: the font file can't hold a width below zero), and a press that moves nothing
+	records nothing.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor } from '../../edit_canvas/cursors.js';
@@ -39,6 +47,7 @@ import {
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from './hit_test.js';
 import { clampBaselineDelta, METRIC_LABELS, metricValue, snapToTen } from './metrics_math.js';
 import { guidesLayerState, resetGuidesLayerState } from './state.js';
+import { isGuideLineLocked } from '../mode/locks.js';
 import { isSimpleMode } from '../mode/mode.js';
 import { markManual } from '../spacing/owner.js';
 import { followShapes } from '../spacing/trace_follow.js';
@@ -220,7 +229,7 @@ function sideBearingTick(editor, line, pos, shift) {
 
 	if (line.side === 'lsb') {
 		const current = item.leftSideBearing;
-		const target = snapToTen(current - dxEm, shift);
+		const target = keepWidth(item, current, snapToTen(current - dxEm, shift));
 		if (target === current) return;
 		item.leftSideBearing = target;
 		const applied = item.leftSideBearing;
@@ -228,7 +237,7 @@ function sideBearingTick(editor, line, pos, shift) {
 		editor.view = { dx: view.dx + (current - applied) * view.dz };
 	} else {
 		const current = item.rightSideBearing;
-		const target = snapToTen(current + dxEm, shift);
+		const target = keepWidth(item, current, snapToTen(current + dxEm, shift));
 		if (target === current) return;
 		item.rightSideBearing = target;
 		line.value = item.advanceWidth;
@@ -290,6 +299,8 @@ function onKeyDown(event) {
 	if (isFocusedOnInput()) return;
 
 	const line = state.line;
+	// B5: a line Simple locks never moves, even one hovered before Simple came on
+	if (isGuideLineLocked(line, { item: getCurrentProjectEditor()?.selectedItem })) return;
 	let step = 0;
 	if (line.orientation === 'h') {
 		if (event.key === 'ArrowUp') step = 1;
@@ -339,18 +350,24 @@ export function nudgeLine(editor, line, step, isRepeat = false) {
 		case 'sideBearing': {
 			const item = editor.selectedItem;
 			if (!item || item.objType === 'KernGroup') return;
+			const left = line.side === 'lsb';
+			const current = left ? item.leftSideBearing : item.rightSideBearing;
+			// Moving the left line right makes the LSB smaller; never below width 0 (fix track)
+			const asked = Math.round(left ? current - step : current + step);
+			const target = keepWidth(item, current, asked);
+			// fix track: a press that moves nothing (the width already 0) is no step
+			if (target === current) return;
 			// B3: set by hand, before the step, so the refit hook never snaps it back
 			markManual(item);
-			if (line.side === 'lsb') {
-				// Moving the left line right makes the LSB smaller; the view shifts so the glyph stays put
+			if (left) {
+				// the view shifts so the glyph stays put
 				const view = editor.view;
-				const current = item.leftSideBearing;
-				item.leftSideBearing = Math.round(current - step);
+				item.leftSideBearing = target;
 				followShapesInSimple(item, item.leftSideBearing - current);
 				editor.view = { dx: view.dx + (current - item.leftSideBearing) * view.dz };
 				editor.history.addState('Updated left side bearing.');
 			} else {
-				item.rightSideBearing = Math.round(item.rightSideBearing + step);
+				item.rightSideBearing = target;
 				line.value = item.advanceWidth;
 				editor.history.addState('Updated right side bearing.');
 			}
@@ -368,7 +385,8 @@ export function nudgeLine(editor, line, step, isRepeat = false) {
 
 /**
  * The draggable line under a canvas pixel, or false. Honors visibility flags and gives
- * the pen tools priority over a line running through a point or handle.
+ * the pen tools priority over a line running through a point or handle. B5: a line the mode
+ * locks (Simple's horizontal lines) is not draggable, so it is never found.
  * @param {Object} editor - ProjectEditor
  * @param {{x: Number, y: Number}} pos - canvas pixels
  * @returns {Object | false}
@@ -381,12 +399,14 @@ export function findLineAt(editor, pos) {
 	// placement puts every corner on a line (ascent, descent, left side), so without this a
 	// new trace could never be resized. Edges and the body still let the line win.
 	if (traceHandleHasPriority(editor, pos)) return false;
+	// B5: the lines Simple locks are never found, so they can't be hovered, dragged or nudged
+	// (fix track: nor the edges of a letter with no shapes, so its photo's corner gets the press)
 	const lines = collectGuideLines({
 		font: editor.project.settings.font,
 		systemGuides: editor.systemGuides,
 		guides: editor.project.settings.app.guides,
 		item,
-	});
+	}).filter((line) => !isGuideLineLocked(line, { item }));
 	return hitTestLines(lines, pos.x, pos.y, editor.view, HIT_ZONE_PX);
 }
 
@@ -413,6 +433,21 @@ function penHasPriority(editor, pos) {
 // --------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------
+
+/**
+ * Fix track (UX-BEGINNER 7.2): a side space the edges may set without taking the letter's width
+ * below 0. Moving either edge by (target - current) changes the width by the same amount (the
+ * left edge's sign is folded into its side bearing), so the side bearing may fall only to
+ * current - width. A width already below 0 (an older file) can grow back but never shrink.
+ * @param {Object} item - Glyph, Ligature or Component
+ * @param {Number} current - the side bearing now (left or right)
+ * @param {Number} target - the side bearing asked for
+ * @returns {Number} target, or the nearest side bearing that keeps the width at 0 or more
+ */
+export function keepWidth(item, current, target) {
+	const width = Number(item?.advanceWidth) || 0;
+	return Math.max(target, current - Math.max(0, width));
+}
 
 /**
  * B3: in Simple the faint photo moves with the shapes when the left edge moves them (7.2).

@@ -1,0 +1,7 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* ANY-INK (B4 + B5 fix pass): the letters are drawn in the paper's ink (--canvas-ink), so the
+   element carries the paper behind them wherever it sits, the Overview's dark card included. */
+:host {
+	background-color: var(--canvas-bg);
+}

@@ -350,10 +350,12 @@ function shouldWarnBeforeLeaving(app = getGlyphrStudioApp()) {
 }
 
 /**
+ * ANY-INK (B5): exported for Ctrl+O (src/anyink/files/open_font.js), which asks before another
+ * font takes this one's place, by the same rule the leave-site check uses.
  * @param {ProjectEditor} editor
  * @returns {Boolean}
  */
-function hasInkNotInItsFile(editor) {
+export function hasInkNotInItsFile(editor) {
 	// peekProject never builds an empty project for an editor that has none yet.
 	const project = peekProject(editor);
 	if (!project) return false;

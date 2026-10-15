@@ -6,10 +6,14 @@
 	the touch color (2 px wide while dragging), a live value label next to the pointer, and
 	during a baseline drag a ghost of the current glyph where it will land. Colors come from
 	theme tokens at draw time.
+	B4: the readout says the house words in both modes ("small-letter line 1100", "right space
+	88"; UX-BEGINNER.md 2.4 B), from src/anyink/words; the tail line is never shown as a
+	negative number.
 */
 import { getCurrentProject } from '../../app/main.js';
 import { drawGlyph } from '../../display_canvas/draw_paths.js';
 import { token } from '../theme/theme.js';
+import { word } from '../words/words.js';
 import { LIVE_LABELS, metricValue } from './metrics_math.js';
 import { guidesLayerState } from './state.js';
 
@@ -88,7 +92,7 @@ export function currentLineValue(line, item, font, state) {
 }
 
 /**
- * Text for the live readout, e.g. 'x-height 1100'.
+ * Text for the live readout, e.g. 'small-letter line 1100'.
  * @param {Object} line - descriptor
  * @param {Number} value - current Em value of the line
  * @param {Object} item - current item
@@ -96,27 +100,27 @@ export function currentLineValue(line, item, font, state) {
  * @returns {String}
  */
 export function labelText(line, value, item, state) {
+	const readout = (label, shown) =>
+		word('canvas.readout', { label: String(label ?? ''), value: String(shown ?? '') });
 	switch (line.kind) {
 		case 'metric':
-			return `${LIVE_LABELS[line.key]} ${value}`;
+			// The tail line says how far down it reaches, never a negative number (2.4 B)
+			return readout(LIVE_LABELS[line.key], line.key === 'descent' ? Math.abs(value) : value);
 		case 'baseline': {
-			if (state.dragging) {
-				const d = state.baselineDelta;
-				return `baseline ${d > 0 ? '+' : ''}${d}`;
-			}
-			return 'baseline 0';
+			const d = state.dragging ? state.baselineDelta : 0;
+			return readout(LIVE_LABELS.baseline, `${d > 0 ? '+' : ''}${d}`);
 		}
 		case 'guide': {
 			const guide = getCurrentProject().settings.app.guides?.custom?.[line.index];
-			return `${guide?.name || line.label} ${value}`;
+			return readout(guide?.name || line.label, value);
 		}
 		case 'sideBearing': {
 			const raw = line.side === 'lsb' ? item?.leftSideBearing : item?.rightSideBearing;
 			const shown = Math.round((Number(raw) || 0) * 100) / 100;
-			return `${LIVE_LABELS[line.side]} ${shown}`;
+			return readout(LIVE_LABELS[line.side], shown);
 		}
 		default:
-			return `${line.label || line.id} ${value}`;
+			return readout(line.label || line.id, value);
 	}
 }
 

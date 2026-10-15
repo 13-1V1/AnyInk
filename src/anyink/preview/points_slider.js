@@ -7,6 +7,7 @@
 	cheap work per tick and the expensive work for release.
 */
 import { makeFancySlider } from '../../controls/fancy-slider/fancy_slider.js';
+import { word } from '../words/words.js';
 import { injectStyleOnce } from './inject_style.js';
 import style from './points-slider.css?inline';
 import { DEFAULT_PT, MAX_PT, MIN_PT, clampPt, formatPt, nudgePt, snapPt } from './units.js';
@@ -45,8 +46,8 @@ export function makePointsSlider({ value = DEFAULT_PT, onInput, onChange, id, do
 	const input = element.querySelector('.fancy-slider__bar');
 	const readout = element.querySelector('.fancy-slider__slider-readout');
 	if (id) input.id = id;
-	input.setAttribute('aria-label', 'Type size in points');
-	input.setAttribute('title', 'Type size (Shift snaps to 10 pt)');
+	input.setAttribute('aria-label', word('strip.sizeLabel'));
+	input.setAttribute('title', word('strip.sizeHint'));
 
 	const show = () => {
 		readout.textContent = formatPt(pt);

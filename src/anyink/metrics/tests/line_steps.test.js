@@ -16,6 +16,7 @@ import {
 	twoLetterEditor,
 } from '../../history/tests/two_letters.js';
 import { setModeForTests } from '../../mode/mode.js';
+import { METRIC_LABELS } from '../metrics_math.js';
 import { showItem } from '../../preview/show_item.js';
 import { BURST_MS } from '../../../project_editor/history.js';
 import { moveBaseline } from '../font_metrics.js';
@@ -99,11 +100,11 @@ describe('quick presses of an arrow key on one guide line', () => {
 		const { editor, added } = nudged(31);
 		expect(editor.project.settings.font.xHeight).toBe(190);
 		expect(added).toBe(2); // one pre / post pair
-		expect(editor.history.queue[1].title).toBe('Moved X height to 190');
+		expect(editor.history.queue[1].title).toBe(`Moved ${METRIC_LABELS.xHeight} to 190`);
 		expect(editor.history.undoFloor).toBe(null);
 
 		const result = editor.history.restoreState();
-		expect(result.title).toBe('Moved X height to 190');
+		expect(result.title).toBe(`Moved ${METRIC_LABELS.xHeight} to 190`);
 		expect(editor.project.settings.font.xHeight).toBe(500);
 		editor.history.restoreState();
 		editor.history.restoreState();

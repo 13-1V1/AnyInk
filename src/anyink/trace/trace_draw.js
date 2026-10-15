@@ -1,7 +1,10 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK trace layer: drawing on the edit canvas (Milestone 7).
+	B4 + B5 finalize: Simple draws no photo until B9's photo card (photo_gate.js).
 	Owner: TRACK A (model + draw + bitmap cache).
 
 	Hooks (src/edit_canvas/edit_canvas.js, redrawGlyphEdit):
@@ -26,6 +29,7 @@
 import { guidesLayerState } from '../metrics/state.js';
 import { token } from '../theme/theme.js';
 import { getBitmap } from './bitmap_cache.js';
+import { photosClosed } from './photo_gate.js';
 import { isTraceLayerTool, traceLayerState } from './trace_layer.js';
 import { getTrace, TRACE_CORNERS } from './trace_model.js';
 
@@ -75,6 +79,8 @@ export function traceCanvasRect(trace, view) {
  */
 export function drawTraceImage(ctx, view, item, editor) {
 	if (!ctx || !view) return;
+	// B4 + B5 finalize: Simple has no photo controls until B9 (photo_gate.js)
+	if (photosClosed()) return;
 	const trace = getTrace(item);
 	if (!trace || !trace.visible) return;
 

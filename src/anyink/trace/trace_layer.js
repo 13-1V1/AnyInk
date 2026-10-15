@@ -45,6 +45,7 @@
 	can then switch items safely. If the item changed anyway before an entry could be
 	written, the placement goes back to what history last recorded.
 */
+import { photosClosed } from './photo_gate.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor, updateCursor } from '../../edit_canvas/cursors.js';
 import { cXsX, cYsY } from '../../edit_canvas/edit_canvas.js';
@@ -125,6 +126,8 @@ const watchedCanvases = new WeakSet();
  * @returns {{item: Object, trace: Object} | null}
  */
 export function traceLayerTarget(editor = getCurrentProjectEditor()) {
+	// B4 + B5 finalize: Simple draws no photo until B9 (photo_gate.js), so none can be grabbed
+	if (photosClosed()) return null;
 	if (!editor?.nav?.isOnEditCanvasPage) return null;
 	if (editor.nav.panel !== PANEL) return null;
 	if (!isTraceLayerTool(editor)) return null;

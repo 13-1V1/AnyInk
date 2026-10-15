@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK file command runner (Milestone 6, D-012).
 	Owner: FILES track.
@@ -12,9 +14,13 @@
 
 	  runFileCommand(command, ...args)  -> Promise: the command's result, or false
 	                                       after showing the failure with showError
+	B4 + B5 finalize (UX-BEGINNER.md 7.7): Simple's box says "That didn't finish. Your work is
+	safe. Try again." and never the error's own sentence (the console has it); All tools shows
+	the box as before.
 */
 
-import { showError } from '../../controls/dialogs/dialogs.js';
+import { sayError } from '../words/error_box.js';
+import { fileCommandWords } from '../words/error_words.js';
 
 /**
  * @param {Function} command - (...args) => any | Promise<any>
@@ -31,11 +37,13 @@ export function runFileCommand(command, ...args) {
 
 function showFailure(error) {
 	console.warn('ANY-INK file command failed', error);
-	showError(`
+	sayError(fileCommandWords(), {
+		allTools: `
 		That did not finish.
 		<hr>
 		${escapeHTML(error?.message || String(error))}
-	`);
+	`,
+	});
 	return false;
 }
 

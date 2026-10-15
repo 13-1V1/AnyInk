@@ -13,6 +13,7 @@ import {
 	shiftedMetricsForBaseline,
 	snapToTen,
 } from '../metrics_math.js';
+import { labelCase, word } from '../../words/words.js';
 
 const font = { upm: 1000, ascent: 800, descent: -200, capHeight: 790, xHeight: 580, overshoot: 20, lineGap: 100 };
 
@@ -25,8 +26,9 @@ describe('metric keys and labels', () => {
 
 	it('has a label for every draggable line', () => {
 		DRAGGABLE_METRIC_KEYS.forEach((key) => expect(typeof METRIC_LABELS[key]).toBe('string'));
-		expect(METRIC_LABELS.baseline).toBe('Baseline');
-		expect(METRIC_LABELS.lsb).toBe('Left side bearing');
+		// B4: house words, from src/anyink/words (labels_words.test.js covers every one)
+		expect(METRIC_LABELS.baseline).toBe(labelCase(word('line.baseline')));
+		expect(METRIC_LABELS.lsb).toBe(labelCase(word('space.lsb')));
 	});
 
 	it('reads metrics as integers and tolerates junk', () => {

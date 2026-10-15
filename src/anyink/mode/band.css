@@ -1,0 +1,83 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B5: the More tools band (UX-BEGINNER.md 4.11), purple = structure, under the top bar while
+	More tools is on after Simple. Its one button is outlined: the green primary belongs to the
+	screen (principle 1). Sentence case, no uppercase transform (2.2). Tokens only.
+	Text on the band: --chrome-text on --structure-deep, 4.7:1.
+*/
+
+.anyink-band {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-height: 32px;
+	padding: var(--space-1) var(--space-4);
+	background-color: var(--structure-deep);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	line-height: 1.4;
+	text-transform: none;
+	box-sizing: border-box;
+}
+
+.anyink-band__text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.anyink-band__back {
+	flex: 0 0 auto;
+	font: inherit;
+	font-weight: 600;
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-text);
+	border-radius: var(--radius);
+	padding: 2px var(--space-3);
+	cursor: pointer;
+	text-transform: none;
+}
+
+.anyink-band__back:hover {
+	color: var(--chrome-text-inverse);
+	background-color: var(--structure-strong);
+	border-color: var(--structure-strong);
+}
+
+.anyink-band__back:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/*
+	In the app, the band is a child of #app__wrapper, a two-row grid (the 40 px top bar, then the
+	page). While the band is there it takes a row of its own between them, so the page moves down
+	by the band's height instead of the band falling into a row past the bottom (overflow hidden).
+	The DOM order doesn't matter: the rows are named here.
+*/
+#app__wrapper:has(> .anyink-band) {
+	grid-template-rows: 40px auto minmax(0, 1fr);
+}
+
+#app__wrapper > .anyink-band {
+	grid-row: 2;
+	height: var(--anyink-band-height);
+	min-height: 0;
+}
+
+/*
+	B4 + B5 integration: while the band shows, its height is known to the whole page, so the
+	content pages that size a list from the viewport (content-pages.css: the character range
+	tables) take it off as they take off the strip's, and don't scroll inside by the band's height.
+	One line of text with its outlined button fits it at 1280 px and wider.
+*/
+:root:has(#app__wrapper > .anyink-band) {
+	--anyink-band-height: 36px;
+}
+
+#app__wrapper:has(> .anyink-band) > #app__main-content {
+	grid-row: 3;
+	min-height: 0;
+}
