@@ -1,3 +1,6 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { autoHoleNewShape, sayMadeHole } from '../../anyink/letter/auto_hole.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
 import { isVal, round } from '../../common/functions.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
@@ -94,13 +97,17 @@ export class Tool_NewBasicPath {
 		// log(`ySize: ${ySize}`);
 
 		let path;
+		/** ANY-INK (B7): what auto-hole made of the new shape, for its toast after the step */
+		let hole = null;
+		/** ANY-INK (B6 + B7 fix): the drawn shape's name, for its step */
+		let stepName = '';
 		if (xSize > canvasUIPointSize && ySize > canvasUIPointSize) {
 			// log(`New path is large enough`);
+			// ANY-INK (B7, UX-BEGINNER 10 B7): upstream compared the page with 'components', an id
+			// no page has ('Components'), so its branch (the font's component count) never ran. On
+			// the Components page the open item is the part itself, so its own shapes are the
+			// count on every page, and the names stay what they have always been.
 			let count = editor.selectedItem.shapes.length;
-
-			if (editor.nav.page === 'components') {
-				count = Object.keys(editor.project.components).length;
-			}
 
 			// Update the fake ... path with new data
 			if (editor.selectedTool === 'newOval') {
@@ -114,6 +121,13 @@ export class Tool_NewBasicPath {
 			ehd.newBasicPathMaxes = false;
 			ehd.newBasicPath = false;
 			path = addPathToCurrentItem(path);
+			// ANY-INK (B7, UX-BEGINNER 7.1 #5): in Simple, drawn on ink it becomes a hole, on paper
+			// it stays solid, before the step below, so all of it is one Undo step
+			hole = autoHoleNewShape(editor, path);
+			// ANY-INK (B6 + B7 fix): a hole drawn across a hole was merged with it: the step keeps
+			// the drawn shape's name, and the merged hole is the one picked
+			stepName = path.name;
+			if (hole?.shape) path = hole.shape;
 			// log(`\n⮟Added path⮟`);
 			// log(path);
 			editor.multiSelect.shapes.select(path);
@@ -131,9 +145,11 @@ export class Tool_NewBasicPath {
 		ehd.firstY = -100;
 
 		if (ehd.undoQueueHasChanged) {
-			editor.history.addState(`Added path: ${path.name}`);
+			editor.history.addState(`Added path: ${stepName || path.name}`);
 			ehd.undoQueueHasChanged = false;
 		}
+		// ANY-INK (B7): "Made shape 2 a hole [Make it solid]", once the step holds the hole
+		sayMadeHole(editor, path, hole);
 
 		// selectTool('pathEdit');
 		editor.editCanvas.redraw('newBasicPath:mouseup');

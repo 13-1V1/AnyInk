@@ -84,3 +84,20 @@ describe('sayError', () => {
 		expect(buttons()).toEqual([]);
 	});
 });
+
+// B6 + B7 finalize (verdict: "the Fix box's green button isn't counted"): its first button is
+// the screen's one green button, marked as every other one is (.anyink-primary), so the Next
+// line's button and the empty overlay's give way to it (coach/dom_probe.js, principle 1)
+describe('the first button is the green one', () => {
+	it('marked .anyink-primary; the others outlined (secondary), unmarked', () => {
+		const box = showWordsError({
+			key: 'error.saveFailed',
+			vars: { file: 'Brennan Hand.gs2' },
+			buttons: ['error.button.tryAgain', 'error.button.saveElsewhere'],
+		});
+		const [first, second] = box.querySelectorAll('fancy-button');
+		expect(first.classList.contains('anyink-primary')).toBe(true);
+		expect(second.classList.contains('anyink-primary')).toBe(false);
+		expect(second.hasAttribute('secondary')).toBe(true);
+	});
+});

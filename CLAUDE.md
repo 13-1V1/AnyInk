@@ -98,6 +98,44 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   each row's writing line sloped with the photo and every letter's body on it, the photo's
   x / y / scale for a picked part (`fit_lines.js` placePart, followPlan). Pure; B9's photo flow
   calls it; `tests/ink_parts_lite.js` is B9's reference parts finder. Test page `tests/placement.html`.
+- `src/anyink/topbar` (B6) — Simple's top bar (`simple_top_bar.js`, drawn by `menu.js`
+  makeAppTopBar in Simple): logo, font name, the rail with its ready count (`ready_count.js`, the
+  open Point pen shape left out, said again on a tool switch), Undo / Redo (`undo_buttons.js`, the
+  tooltip names another letter), the status pill (`status_pill.js`), More tools, the Menu
+  (`simple_menu.js`), the notices gap; `letters_page.js` (`goToLetters`: where the logo, "1
+  Letters", "<- All letters" and "Back to my letters" go); `doors.js` are the events later Bs
+  answer. Space presses a keyboard-focused button in Simple (`events_keyboard.js`). Test page
+  `tests/topbar.html`.
+- `src/anyink/coach` (B6) — the Next line `<anyink-coach>` under the top bar: `rules.js` (the 17
+  rules of 4.0, pure), `coach_state.js` (follows the editor; `getCoach`, `setCoachFact`,
+  `setCoachSource`, `noteCoach`, `showTip`; memory per font), `font_facts.js` (every font problem,
+  the one ink rule), `letter_order.js`, `skips.js` (pruned when the state changes), `tips.js` (the
+  Point pen's tip stays while drawing), `open_shape.js` (`openPathOf` / `openShapeOf`: the Point
+  pen's open shape, read by the coach, the rail, the card, the overlay and the font check),
+  `dom_probe.js` (open dialog, another green button: `.anyink-primary` or a green fancy-button),
+  `actions.js` (`setCoachAction`), `coach_element.js`. Every ANY-INK dialog carries
+  `data-anyink-dialog`. Test page `tests/coach.html`.
+- `src/anyink/history/undo_toast.js` (B6) — every Undo / Redo press named ("Undid: traced Capital B"
+  [Redo]); History calls `sayUndone`, once per press; a toast is good only while it speaks for the
+  newest change (`stillGoodAfterPress`, `undoOffer` for destructive toasts' [Undo]) and goes at the
+  next step (`toast.js dropStaleToasts`, `queue.js sweep`).
+- `src/anyink/letter` (B7) — the letter view (Characters page in Simple): `letter_header.js`,
+  `letter_card.js` (Fine-tune), `empty_overlay.js`, `view_switches.js` (Fine-tune state, the four
+  switches), canvas `guide_lines.js`, `guide_letter.js`, `edges.js`, `neighbors.js` +
+  `neighbor_pick.js`, tools `auto_hole.js` (hole or solid by what shows under a shape) with
+  `outlines.js` (how two outlines lie) and `unite_shapes.js` (joins, islands kept), `pen_follow.js`
+  (the Point pen through Undo / Redo), `point_kind.js`, `delete_toast.js` (Delete says what it took,
+  [Undo]), `tool_labels.css`. The edges lock while Fine-tune is closed or a drawing tool is picked
+  (`mode/locks.js`). In Simple a Point pen shape of 1 or 2 points is taken away when it ends, and
+  leaving the letter mid-shape ends it on its letter (`new_path.js` endOpenShape / leaveLetter,
+  called by `navigator.js` and `project_editor.js`). Test page `tests/letter.html`; seam tests use
+  `letter/tests/simple_screen.js`.
+- `src/anyink/board/letter_set.js` — the Quick set (58) and + Numbers & symbols (80), one copy for
+  the rail, the Next line and the letter header, and the one rule for ink, Ready and empty
+  (`inkOf`, `hasInk`, `finishedShapes`, `isEmptyLetter`; the open shape is never ink); B10 builds
+  the board around it.
+- Feature flags on: `coach` (B6), `letterView` (B7). Tests that check Simple "with no flag" (B5's
+  stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -133,7 +171,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — DONE 09/24/2026 (src/anyink/autotrace: params, binarize, potrace worker + client, svg_to_shapes, trace_region, facade autotrace.js for M9, session, preview, apply, Auto-trace card in the Trace panel; D-029)
-B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 done 10/14/2026 (`src/anyink/words` and `src/anyink/toast`: house words at every display point Simple shares, one toast voice, the banned-word scan; D-035); B5 done 10/14/2026 (`src/anyink/mode`: visibility tables, the key map, the purple band and landing rule, guide-line locks, wired into navigator / menu / actions / tools / keys / settings / panels; D-035); B4 + B5 integration done 10/14/2026 (0 banned-word hits on every Simple page that exists, `verify:b45`); B4 + B5 critic, fix and finalize passes done 10/14/2026 (strict scans on by default, 7.7 error boxes with working buttons, Ctrl+O into the right font, "Saving..." while a write waits, Help / About with a way back, start page with one green, photos closed in Simple until B9; D-035); B6 to B16 next, then M9.
+B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 done 10/14/2026 (`src/anyink/words` and `src/anyink/toast`: house words at every display point Simple shares, one toast voice, the banned-word scan; D-035); B5 done 10/14/2026 (`src/anyink/mode`: visibility tables, the key map, the purple band and landing rule, guide-line locks, wired into navigator / menu / actions / tools / keys / settings / panels; D-035); B4 + B5 integration done 10/14/2026 (0 banned-word hits on every Simple page that exists, `verify:b45`); B4 + B5 critic, fix and finalize passes done 10/14/2026 (strict scans on by default, 7.7 error boxes with working buttons, Ctrl+O into the right font, "Saving..." while a write waits, Help / About with a way back, start page with one green, photos closed in Simple until B9; D-035); B6 done 10/14/2026 (`src/anyink/topbar`, `src/anyink/coach`, `history/undo_toast.js`: Simple top bar, the Next line and tips, named undo toasts, the save pill; `coach` on; D-036); B7 done 10/14/2026 (`src/anyink/letter`: header, letter card with Fine-tune, empty overlay, Simple guide lines, guide letter, edges, neighbors, auto-hole, Smooth / Corner, labeled tools; `letterView` on; D-036); B6 + B7 integration done 10/14/2026 (`verify:b67`); B6 + B7 critic, fix and finalize passes done 10/14/2026 (one ink rule, the Point pen's edges and Undo, stale toasts, Delete with [Undo], holes where shapes overlap; D-037; `verify:b67-fixes`; the B5-era walkthroughs pin B5's Simple with `pinB5Simple`); B8 to B16 next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
 9. Handwriting sheet — pending (after B16; plugs into the letter board)

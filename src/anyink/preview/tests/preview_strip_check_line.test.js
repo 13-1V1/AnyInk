@@ -15,6 +15,8 @@ import { GlyphrStudioProject } from '../../../project_data/glyphr_studio_project
 import simpleExampleProject from '../../../samples/simpleExampleProject.json';
 import { runFontCheckNow } from '../../fontcheck/font_check.js';
 import { PROBLEM } from '../../fontcheck/validate.js';
+import { setFeaturesForTests } from '../../mode/features.js';
+import { setModeForTests } from '../../mode/mode.js';
 import { resetPrefsCache } from '../../prefs/prefs.js';
 import { CHECK_GAP, PreviewStrip } from '../preview_strip.js';
 import { FONT_CHECK_ID } from '../subscriptions.js';
@@ -155,6 +157,42 @@ describe('preview strip font check line', () => {
 // Walkthrough p2 / p8: the line named one letter and stopped there. It now says how many more
 // letters need fixing, and [Fix it] fixes what can be fixed safely (fix_it.js) and moves the line
 // on at once, instead of 2 s later.
+// B6 + B7 integration (coach track's hand-off; UX-BEGINNER.md 4.0 "Hidden in Simple: ... the
+// font-check chip (in Simple the Next line carries it, rule 6)"; visibility.js strip.checkLine
+// replacedBy 'coach'): the problem is said once, in the Next line, never twice
+describe('Simple with the Next line (B6): the strip keeps no check line', () => {
+	const sheet = () => strip.querySelector('.preview-strip__canvas-wrapper');
+
+	it('a problem shows no line on the strip, and the sheet keeps its whole width', () => {
+		setModeForTests('simple');
+		editor.publish('fontCheck', { problems: [problemA] });
+		expect(line().hidden).toBe(true);
+		expect(sheet().classList.contains('has-check')).toBe(false);
+	});
+
+	it('Simple before B6 and All tools: the line shows, as before', () => {
+		setModeForTests('simple');
+		setFeaturesForTests({ coach: false });
+		editor.publish('fontCheck', { problems: [problemA] });
+		expect(line().hidden).toBe(false);
+		setModeForTests('all');
+		setFeaturesForTests({ coach: true });
+		strip.applyMode();
+		expect(line().hidden).toBe(false);
+	});
+
+	it('switching to Simple takes a showing line away; More tools brings it back', () => {
+		editor.publish('fontCheck', { problems: [problemA] });
+		expect(line().hidden).toBe(false);
+		setModeForTests('simple');
+		strip.applyMode();
+		expect(line().hidden).toBe(true);
+		setModeForTests('all');
+		strip.applyMode();
+		expect(line().hidden).toBe(false);
+	});
+});
+
 describe('preview strip font check line: what to do next', () => {
 	const text = () => line().querySelector('.anyink-notice__text').textContent;
 	const more = () => line().querySelector('.anyink-notice__more');

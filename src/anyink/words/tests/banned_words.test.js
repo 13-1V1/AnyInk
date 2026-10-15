@@ -59,6 +59,7 @@ import { guidesLayerState, resetGuidesLayerState } from '../../metrics/state.js'
 import { setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { shownIds } from '../../mode/visibility.js';
+import { noFlags } from '../../mode/tests/no_flags.js';
 import { resetPrefsCache } from '../../prefs/prefs.js';
 import { buildFailureText, hintFor, moreText } from '../../preview/font_status.js';
 import { PreviewStrip } from '../../preview/preview_strip.js';
@@ -142,11 +143,14 @@ async function waitFor(check, ms = 8000) {
 	return false;
 }
 
+/** The menu with the file rows: B6's Menu in Simple's top bar, the File menu otherwise */
 function openFileMenu() {
 	document.querySelectorAll('#app__top-bar').forEach((el) => el.remove());
 	const topBar = makeAppTopBar();
 	document.body.appendChild(topBar);
-	[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
+	const simpleMenu = topBar.querySelector('[data-anyink-control="menu"]');
+	if (simpleMenu) simpleMenu.click();
+	else [...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 	return document.querySelector('#context-menu');
 }
 
@@ -263,6 +267,7 @@ describe('canvas text', () => {
 
 describe('shared display points', () => {
 	scanStrict('the File menu', () => {
+		noFlags(); // the File menu Simple had before B6's Menu (scanned in topbar_words.test.js)
 		setFileApi(fakeApi({ open: [], save: fakeFileHandle('Brennan Hand.gs2') }));
 		letterEditor();
 		const menu = openFileMenu();
@@ -278,6 +283,7 @@ describe('shared display points', () => {
 	});
 
 	scanStrict('the preview strip, with the font check line', async () => {
+		noFlags(); // the line Simple had before B6; since B6 the Next line says it (coach_words)
 		addStyles('anyink/preview/preview-strip.css', 'anyink/preview/preview-notice.css');
 		const editor = openBroken();
 		const strip = document.createElement('preview-strip');
@@ -453,9 +459,14 @@ describe('toasts', () => {
 // --------------------------------------------------------------
 
 // B5 (the More tools band, Back to simple, the tool-key toast): mode/tests/band_words.test.js
+// B6 (the top bar, the Menu, the status pill, undo toasts): topbar/tests/topbar_words.test.js;
+//   the Next line, its every rule and tip: coach/tests/coach_words.test.js
+// B7 (the letter header, letter card, Fine-tune, the empty overlay): letter/tests/letter_page.test.js;
+//   the canvas words: letter/tests/letter_canvas_words.test.js; the tools: auto_hole_tools.test.js
+// B6 + B7 together, one Simple letter screen as the app draws it: letter/tests/b67_seams.test.js;
+//   the finalize pass's toasts (Delete with [Undo], a shape too small taken away):
+//   letter/tests/delete_toast.test.js
 describe('later screens', () => {
-	it.todo('the top bar, the Next line, tips, undo toasts and the save status pill (B6)');
-	it.todo('the letter view: header, letter card, Fine-tune, the empty overlay (B7)');
 	it.todo('the brush: drawing a stroke, its toast (B8)');
 	it.todo('photos: the How card, the photo dialog, the photo card (B9)');
 	it.todo('the letter board (B10)');

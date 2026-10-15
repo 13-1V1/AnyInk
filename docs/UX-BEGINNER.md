@@ -75,7 +75,10 @@ Every Simple-mode screen must pass all eight. Section 9 checks them.
    the Next line's button is the green one. Every other button, including one that repeats a step, is
    outlined. *Test:* the automated run (9.4) counts exactly one visible `.anyink-primary` in every
    screen state, and the agent first-timer (9.1) names the right button from a screenshot alone on
-   every screen.
+   every screen. *One exemption (D-037):* a drawing tool picked on an empty letter, before its first
+   point, has no green button: the next step is a click or a drag on the paper, and the Next line
+   says exactly that ("Click on the paper to drop your first point."). A green button there would
+   be a second way to do nothing. Upstream's green `fancy-button` counts as a green button too.
 2. **Plain words.** No word on the banned list (2.3) appears on the main path, including toasts and
    words drawn on the canvas. The pro term, if shown at all, is small print inside a "?" hint
    ("writing line (pro word: baseline)"). *Test:* the banned-word scan (2.3) finds zero hits.
@@ -438,12 +441,18 @@ quiet **"Something else"** link and "x".
 - **"x"** hides the line for this session; a small "Next" chip at the end of the rail brings it back.
   While it is hidden, a screen with no card or overlay may have no green button; that is his choice, and
   the one-green test runs with the line showing.
-- **Tips** use the same voice: a first-use tip is a quiet "Tip:" line under the sentence, never a
-  floating callout. At most 3 tips in the first session, never a tip that repeats the sentence above
-  it, and each disappears after his next action. Seen tips are kept in prefs (`tipsSeen`); Menu > Help >
+- **Tips** use the same voice: a first-use tip is a quiet "Tip:" beside the sentence, in the same
+  row (D-037: the line is one row tall with or without a tip, so the page never moves), never a
+  floating callout. At most 3 tips in the first session, never a tip that repeats the sentence beside
+  it, and each disappears after his next action, except the Point pen's, which stays while its shape
+  is being drawn (its clicks are one action). Seen tips are kept in prefs (`tipsSeen`); Menu > Help >
   "Show tips again" resets them. There is no tour.
 
-The rules are checked in this order; the first match wins. "Ready" is defined in 4.2.
+The rules are checked in this order; the first match wins. "Ready" is defined in 4.2. While a
+Point pen shape is open in the letter view the line keeps to it (rule 8's drawing sentences: "Keep
+clicking to drop points, then press Finish the shape." and, from 3 points, "Click your first point,
+or press Finish the shape."), ahead of rule 6, with no button (D-036, D-037). Rule 6 says the first
+font problem not skipped; each problem keeps its own skip (D-037).
 
 | # | When | Sentence | Button |
 |---|---|---|---|
@@ -729,8 +738,8 @@ hides while the photo card is running.
 |---|---|---|---|---|
 | nib (B8) | Brush | B | Always | Default on an empty letter. Tip once: "Drag to draw. Each drag is one stroke; Undo removes the last one." |
 | resize | Select | V | Always | Default on a letter with ink. A drag on empty canvas shows "To draw, pick the Brush." The photo is locked after Use it, so Select never moves it by accident |
-| pathEdit | Edit points | E | Fine-tune open | Tip: "Drag a point to reshape. Drag a round handle to bend the curve." |
-| newPath | Point pen | P | Fine-tune open | Caption under the icon: "click to place points". Tip: "Click to drop points. Hold and drag to bend the curve. Click the first point to finish." |
+| pathEdit | Edit points | E | Fine-tune open | Tip: "Drag a point to reshape it. Press Smooth to round a corner." (D-037: a clicked shape has no round handles) |
+| newPath | Point pen | P | Fine-tune open | Caption under the icon: "click to place points". Tip: "Click to drop points. Hold and drag to bend the curve. Click the first point to finish." (stays while the shape is open). A shape ended with 1 or 2 points ("Finish the shape", another tool, another letter or page) is taken away as one step: "A shape needs at least 3 points, so that one was taken away." Leaving the letter view or opening another letter mid-shape ends the shape on its own letter (D-037) |
 | newRectangle | Rectangle | R | Fine-tune open | Tip: "Drag to draw. Draw one inside another to cut a hole." |
 | newOval | Oval | O | Fine-tune open | Same tip |
 
@@ -1274,7 +1283,7 @@ gap fixes and a Bold copy.
 | 2 | "1 shape lies outside the glyph box", Replace greyed out | The part picked in the photo dialog replaces the glyph-box rule; Use it is never greyed | B9 |
 | 3 | An empty letter shows no guide lines | Lines span the canvas (all modes), labeled; guide letter | B1, B7 |
 | 4 | Dragging does nothing with Select or Edit points; Pen makes stray lines | Brush first and default; Pen renamed "Point pen" ("click to place points") and kept inside Fine-tune; a sentence on a dead drag | B7, B8 |
-| 5 | Holes need "winding" | In Simple only, a Rectangle, Oval or Point pen shape is made a hole or solid by how deep it sits inside others: odd depth = hole, even = solid. So a shape inside an o is a hole, a dot inside that hole is solid again, and a bullseye alternates. Toast "Made shape 2 a hole [Make it solid]"; Solid / Hole switch. Brush strokes are always ink | B7 |
+| 5 | Holes need "winding" | In Simple only, a Rectangle, Oval or Point pen shape is made a hole or solid by what shows under it: drawn on ink it is a hole, on paper solid. Where shapes nest neatly that is the depth rule (odd depth = hole, even = solid): a shape inside an o is a hole, a dot inside that hole is solid again, and a bullseye alternates. Where shapes overlap (D-036 fix, D-037): holes that overlap become one hole (an island they ring stays ink); a hole drawn where solid shapes overlap merges those shapes first when that changes nothing that shows elsewhere, else it stays solid with a toast that says so; shapes drawn first inside a new shape get their role again in the same step. Toast "Made shape 2 a hole [Make it solid]"; Solid / Hole switch. Brush strokes are always ink | B7 |
 | 6 | File / Presets menu text black on dark | Token fix | B1 |
 | 7 | "Real font" quietly shows a system font | The preview uses true widths; the font check runs on the whole font and names the letter | B1 |
 | 8 | Photo feature hidden behind "PANEL Attributes" | Use a photo on every empty letter; drop anywhere; rule 11 and the How card on a new font | B7, B9 |
@@ -1301,7 +1310,8 @@ gap fixes and a Bold copy.
   with a width of 0. It runs in both modes, 2 s after the last change.
 - **Spacing owner flag:** `glyph.anyink.spacing = 'auto' | 'manual'`. When absent it means "manual", so
   old and imported fonts are never re-spaced behind his back (D-002 style default). Letters first given
-  ink in Simple mode start as "auto". [Back to automatic] sets "auto".
+  a drawn shape (a Point pen click, before it has ink) or ink in Simple mode start as "auto" (D-037).
+  [Back to automatic] sets "auto".
 - **Who sets "manual":** an edge drag sets it inside `guides_layer.js` `finishDrag`, and an arrow-key
   side nudge inside `onKeyDown`, **before** their `addState` call, so the refit hook sees "manual" and
   leaves the drag alone. In More tools, any Undo step that changes a letter's left space or width
@@ -1515,7 +1525,9 @@ the build passes only if all of these hold:
 - T1 to T9 finished with **zero help requests**.
 - **3 or fewer wrong turns** in total (a click that leads away from the task and needs Back or Undo).
 - **No dead end:** at every pause the screen showed one green button, or a Next sentence naming one,
-  that moved the task forward (observer ticks per screen; the agent first-timer checks the same).
+  that moved the task forward (observer ticks per screen; the agent first-timer checks the same). With
+  a drawing tool picked on an empty letter, the Next sentence saying where to click or drag counts
+  (principle 1's exemption).
 - **No jargon:** zero banned words (2.3) seen on the main path (the automated scan, plus the observer).
 - **Correct result:** the Word text in T8 has no overlap (principle 5), and the letters sit on one line.
 - **Feeling:** Brennan answers "How lost did you feel, 1 (never) to 5 (totally)?" with **2 or lower**, and
@@ -1536,7 +1548,9 @@ Any failure becomes a fix item in B16 and the failed task is re-run.
   writing line; integer widths; stroke weights within 15% of their median; the photo still lines up
   under the ink after Use it, after an edge drag and after a letter-spacing change; the exported OTF
   loads, every letter in "Brennan Hand" has width > 0, letters with no shapes are absent, and there is no
-  overlap (principle 5); exactly one visible `.anyink-primary` in every screen state; zero banned words in
+  overlap (principle 5); exactly one visible green button (`.anyink-primary`, or a green
+  `fancy-button`) in every screen state, none with a drawing tool picked on an empty letter before its
+  first point (principle 1's exemption); zero banned words in
   visible text, canvas text and toasts; zero number inputs visible; no element with an uppercase text
   transform.
 - `src/anyink/words/tests/banned_words.test.js` (jsdom): every Simple screen state, canvas text through
@@ -1578,8 +1592,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B3 | Spacing and placement engine (**done 10/14/2026**) | `spacing/`, `placement/` | 3.5 | Traced and drawn letters type correctly |
 | B4 | House words and one toast voice (**done 10/14/2026**) | `words/`, `toast/` | 2.5 | No jargon on the main path |
 | B5 | Mode switch, gates and keys (**done 10/14/2026**) | `mode/` | 3 | Simple mode exists (behind `?ui=simple`) |
-| B6 | Top bar, Next line, tips, undo toasts, save status | `topbar/`, `coach/`, `history/undo_toast.js` | 3 | Always a next step |
-| B7 | Letter view | `letter/` | 4 | A calm editing screen |
+| B6 | Top bar, Next line, tips, undo toasts, save status (**done 10/14/2026**) | `topbar/`, `coach/`, `history/undo_toast.js` | 3 | Always a next step |
+| B7 | Letter view (**done 10/14/2026**) | `letter/` | 4 | A calm editing screen |
 | B8 | Brush (round) | `nib/` | 2.5 | Drag to draw |
 | B9 | Photos: How card, photo dialog, photo card | `photo/` | 4 | One photo makes many letters |
 | B10 | Letter board | `board/` | 3 | Home with progress |
@@ -1873,6 +1887,16 @@ changes before Gate 2, D-035).
 
 ### B6. Top bar, Next line, tips, undo toasts, save status
 
+**DONE 10/14/2026** (top bar and coach tracks, the B6 + B7 integration, which turned `coach` on,
+then the critic, fix and finalize passes the same day; choices in D-036 and D-037; numbers in
+TEST_LOG). Beyond the plan below: History names every press itself, Ctrl+Z included; app notices
+sit in the bar's gap; the strip's font-check line is gone in Simple; the tip sits beside the
+sentence in one row, so the page never moves; toasts sit above the canvas's zoom bar; one letter
+set (`board/letter_set.js`) and one rule for ink, Ready and empty for the rail, the Next line, the
+letter card and the overlay; an undo toast whose button no longer acts goes at the next step and
+never holds a destructive toast back; Delete and Clear letter say what they took, with [Undo]; the
+strip's Try-it text starts as the font name; Space presses a keyboard-focused top-bar button.
+
 - `src/anyink/topbar/simple_top_bar.js`: logo, font name, rail with the ready count, Undo / Redo
   buttons, status pill, More tools, Menu.
 - `src/anyink/coach/`: `rules.js` (pure: state in, `{ sentence, button, action, primary }` out, the 17
@@ -1894,6 +1918,18 @@ changes before Gate 2, D-035).
 - **Done when:** these pass and `journey.test.js` passes on fake state.
 
 ### B7. Letter view
+
+**DONE 10/14/2026** (letter card, letter canvas and letter tools tracks, the B6 + B7 integration,
+which turned `letterView` on, then the critic, fix and finalize passes the same day; choices in
+D-036 and D-037; numbers in TEST_LOG). Beyond the plan below: the edges lock while Fine-tune is
+closed or a drawing tool is picked; in Simple every Point pen point is an Undo step and closing a
+shape finishes it ("bent a curve" for a closing drag); the Point pen follows Undo and Redo, even
+mid-press; a shape of 1 or 2 points is taken away when it ends, and leaving the letter mid-shape
+ends it on its own letter; the font check waits while a shape is open in the letter view; holes
+are made by what shows under a shape (overlapping holes merge, overlapping solids under a new hole
+merge when safe); the Solid / Hole switch shows only when Hole would act; the Neighbors switch
+waits for his n or H; the dead `'components'` branch was removed rather than turned on (names
+unchanged).
 
 - `src/anyink/letter/`: `letter_header.js`, `letter_card.js` (sections per 4.3, Fine-tune closed by
   default), `empty_overlay.js`, `guide_lines.js`, `guide_letter.js`, `edges.js` (only while Fine-tune is

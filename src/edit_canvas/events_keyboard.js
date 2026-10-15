@@ -10,6 +10,7 @@ import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { withLandingCause } from '../anyink/mode/band.js';
 import { openFineTune, openUseInWord } from '../anyink/mode/doors.js';
 import { keyAction, keyOn, pressFromEvent, whereFor } from '../anyink/mode/keys.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
 import { toast } from '../anyink/toast/toast.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
@@ -58,6 +59,10 @@ import { selectTool } from './tools/tools.js';
 export function handleKeyPress(event) {
 	// log('handleKeyPress', 'start');
 	if (isFocusedOnInput()) return;
+	// ANY-INK (B6 + B7 finalize): in Simple, Space on a focused button or link (the top bar's
+	// "1 Letters", the logo, Undo, the letter view's "<- All letters") presses it, as on every
+	// other page; it is no "hold to pan" there. All tools keeps upstream's Space.
+	if (isSpaceForAControl(event)) return;
 
 	const editor = getCurrentProjectEditor();
 	const key = getKeyFromEvent(event);
@@ -213,6 +218,9 @@ export function handleKeyPress(event) {
 
 		if (editMode === 'pen') {
 			if (editor.multiSelect.points.length) deleteSelectedPoints();
+			// ANY-INK (B6 + B7 finalize): in Simple a shape picked with no point picked (the letter
+			// card's Shapes list, with Edit points picked) is the one Delete takes
+			else if (isSimpleMode() && editor.multiSelect.shapes.length) deleteSelectedPaths();
 		} else if (editMode === 'arrow') {
 			if (editor.multiSelect.shapes.length) deleteSelectedPaths();
 		}
@@ -633,4 +641,38 @@ function handleSpecialKeys(key, keyDirection) {
  */
 function isFocusedOnInput() {
 	return isTextEntryElement(document.activeElement);
+}
+
+/** What Space presses when it has the focus (UX-BEGINNER.md 4.0 Top bar, principle 7) */
+const PRESSABLE =
+	'button, a[href], summary, fancy-button, [role="button"], [role="link"], [role="menuitem"], [role="switch"], input[type="checkbox"], input[type="radio"]';
+
+/**
+ * ANY-INK (B6 + B7 finalize): Space with a button or a link focused from the keyboard, outside
+ * the edit canvas, in Simple: the browser presses it. A button focused by a mouse click (Chrome
+ * keeps the focus on it, with no focus ring) is left out, so Space-drag still pans right after
+ * a click on Undo or a tool, and never presses that button a second time.
+ * @param {KeyboardEvent} event
+ * @returns {Boolean}
+ */
+function isSpaceForAControl(event) {
+	if (!isSimpleMode() || getKeyFromEvent(event) !== 'Space') return false;
+	const focused = document.activeElement;
+	if (!focused || focused === document.body || typeof focused.closest !== 'function') return false;
+	if (focused.closest('edit-canvas, #editor-page__edit-canvas')) return false;
+	if (!focused.closest(PRESSABLE)) return false;
+	return focusedByKeyboard(focused);
+}
+
+/**
+ * @param {Element} element
+ * @returns {Boolean} it shows the keyboard's focus ring (:focus-visible); true where the browser
+ *   can't say (an older engine), so the press still reaches the button
+ */
+function focusedByKeyboard(element) {
+	try {
+		return element.matches(':focus-visible');
+	} catch {
+		return true;
+	}
 }

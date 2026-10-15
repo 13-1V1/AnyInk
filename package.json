@@ -38,7 +38,9 @@
 		"verify:toast": "node tests/toast.verify.mjs",
 		"verify:screens": "node tests/screens.verify.mjs",
 		"verify:b45": "node tests/b45.verify.mjs",
-		"verify:words-fix": "node tests/words-fix.verify.mjs"
+		"verify:words-fix": "node tests/words-fix.verify.mjs",
+		"verify:b67": "node tests/b67.verify.mjs",
+		"verify:b67-fixes": "node tests/b67-fixes.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

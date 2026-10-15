@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { notifyKernPairsChanged } from '../../kerning/kern_lookup.js';
+import { setModeForTests } from '../../mode/mode.js';
 import { FONT_REBUILD_TOPICS } from '../../preview/subscriptions.js';
 import {
 	CHANGE_TOPICS,
@@ -160,6 +161,53 @@ describe('runs 2 s after the last change', () => {
 		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS);
 		heard.length = 0;
 		window.dispatchEvent(new CustomEvent(PAGE_CHANGE, { detail: { page: 'Overview' } }));
+		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS);
+		expect(heard).toHaveLength(1);
+	});
+});
+
+// B6 + B7 integration (found in Chrome, tests/b67.verify.mjs): in Simple every Point pen click is
+// a step, so a check 2 s after one ran mid-shape and the Next line said "small a has ink but no
+// width" [Fix it] while he was still placing points. A shape being drawn is not judged: the check
+// waits until it is finished.
+describe('Simple: a shape still being drawn is never judged', () => {
+	const drawing = (editor, path) => {
+		editor.eventHandlers.tool_addPath = { newPath: path };
+	};
+
+	it('the check waits while the Point pen has a shape open, then runs', () => {
+		setModeForTests('simple');
+		current = openBroken();
+		current.nav.page = 'Characters'; // the letter view, where the Point pen draws
+		const heard = listen(current);
+		drawing(current, { name: 'Path 1' });
+		initFontCheck({ getEditor: () => current });
+		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS * 3);
+		expect(heard).toHaveLength(0);
+		drawing(current, false); // finished (closed, Finish the shape, another tool)
+		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS);
+		expect(heard).toHaveLength(1);
+	});
+
+	// B6 + B7 finalize (verdict: "Leaving the letter view in the middle of a shape stops the
+	// background font check until he returns"): only the letter view draws, so only there does an
+	// open shape hold the check back
+	it('off the letter view (the board) the check runs, open shape or not', () => {
+		setModeForTests('simple');
+		current = openBroken();
+		current.nav.page = 'Overview';
+		const heard = listen(current);
+		drawing(current, { name: 'Path 1' });
+		initFontCheck({ getEditor: () => current });
+		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS);
+		expect(heard).toHaveLength(1);
+	});
+
+	it('All tools: checks as before, open shape or not', () => {
+		current = openBroken();
+		const heard = listen(current);
+		drawing(current, { name: 'Path 1' });
+		initFontCheck({ getEditor: () => current });
 		vi.advanceTimersByTime(FONT_CHECK_DELAY_MS);
 		expect(heard).toHaveLength(1);
 	});

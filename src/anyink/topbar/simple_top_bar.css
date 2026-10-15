@@ -1,0 +1,324 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B6: the Simple top bar (UX-BEGINNER.md 4.0, 4.11). Tokens only (theme/tokens.css). Color jobs:
+	green outline = where you are (the current step); the solid green button belongs to the screen
+	and the Next line, never to the bar (principle 1), so every control here is quiet or outlined.
+	Amber and red only on the status dot, always beside its words. Sentence case: no uppercase
+	transform anywhere (2.2).
+
+	The bar is #app__top-bar, the first row of #app__wrapper's grid (app.css: a 40 px row, then the
+	page). The Simple bar is two rows (the bar, then the Next line), so while it is there the
+	wrapper's first row takes the bar's own height and the page the rest. Nothing in the bar is
+	positioned: the Menu (#context-menu) is placed in page coordinates, as the File menu is.
+*/
+
+#app__wrapper:has(> #app__top-bar.anyink-topbar) {
+	grid-template-rows: auto minmax(0, 1fr);
+}
+
+#app__wrapper:has(> #app__top-bar.anyink-topbar) > #app__main-content {
+	grid-row: 2;
+	min-height: 0;
+}
+
+#app__top-bar.anyink-topbar {
+	display: block;
+	padding: 0;
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	color: var(--chrome-text);
+	text-transform: none;
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	height: 44px;
+	padding: 0 var(--space-3) 0 var(--space-2);
+	box-sizing: border-box;
+	white-space: nowrap;
+}
+
+/* Every control: quiet until pointed at, a focus ring from the keyboard */
+#app__top-bar.anyink-topbar button {
+	font: inherit;
+	color: inherit;
+	background-color: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius);
+	padding: 4px var(--space-2);
+	margin: 0;
+	cursor: pointer;
+	text-transform: none;
+	box-shadow: none;
+	line-height: 1.3;
+}
+
+#app__top-bar.anyink-topbar button:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+#app__top-bar.anyink-topbar button:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__icon {
+	flex: 0 0 auto;
+	vertical-align: -3px;
+}
+
+/* Logo */
+#app__top-bar.anyink-topbar .anyink-topbar__logo {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 36px;
+	color: var(--chrome-text);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__logo svg {
+	display: block;
+	width: 120px;
+	height: auto;
+	color: var(--chrome-text);
+	fill: var(--chrome-text);
+}
+
+/* Font name */
+#app__top-bar.anyink-topbar .anyink-topbar__font-name {
+	flex: 0 1 auto;
+	min-width: 48px;
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-weight: 600;
+	color: var(--chrome-text);
+	padding: 4px var(--space-2);
+}
+
+/* The rail: 1 Letters 7/58 -- 2 Try it -- 3 Use in Word */
+#app__top-bar.anyink-topbar .anyink-topbar__rail {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	gap: var(--space-1);
+	margin-left: var(--space-2);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__step {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border-color: var(--chrome-border-strong);
+	border-radius: 999px;
+	padding: 3px var(--space-3) 3px 4px;
+	color: var(--chrome-text-muted);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__step:hover {
+	color: var(--chrome-text);
+}
+
+/* Where you are: a green outline (green = what you're touching; never a solid fill here) */
+#app__top-bar.anyink-topbar .anyink-topbar__step[aria-current='step'] {
+	border-color: var(--touch);
+	box-shadow: inset 0 0 0 1px var(--touch);
+	color: var(--chrome-text);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__step-number {
+	display: inline-grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	font-size: var(--text-sm);
+	font-weight: 600;
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-hover);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__step[aria-current='step'] .anyink-topbar__step-number {
+	color: var(--chrome-text);
+	background-color: var(--touch-soft-strong);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__step-count {
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__link {
+	display: inline-block;
+	width: 14px;
+	height: 1px;
+	background-color: var(--chrome-border-strong);
+}
+
+/* The Next chip's slot adds no box of its own: a hidden chip leaves no gap */
+#app__top-bar.anyink-topbar .anyink-topbar__next-chip {
+	display: contents;
+}
+
+/* The flexible gap: room for the app notices (data-anyink-slot="notices") */
+#app__top-bar.anyink-topbar .anyink-topbar__spacer {
+	flex: 1 1 auto;
+	min-width: var(--space-3);
+	align-self: stretch;
+}
+
+/* Undo, Redo */
+#app__top-bar.anyink-topbar .anyink-topbar__undo,
+#app__top-bar.anyink-topbar .anyink-topbar__redo {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	border-color: var(--chrome-border-strong);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__undo[aria-disabled='true'],
+#app__top-bar.anyink-topbar .anyink-topbar__redo[aria-disabled='true'] {
+	color: var(--chrome-text-faint);
+	border-color: var(--chrome-border);
+	cursor: default;
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__undo[aria-disabled='true']:hover,
+#app__top-bar.anyink-topbar .anyink-topbar__redo[aria-disabled='true']:hover {
+	background-color: transparent;
+}
+
+/* The status pill (4.11): a dot, the words, and a button when there is something to press */
+#app__top-bar.anyink-topbar .anyink-topbar__status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex: 0 0 auto;
+	height: 30px;
+	margin-left: var(--space-2);
+	padding: 0 4px 0 var(--space-3);
+	border-radius: 999px;
+	background-color: var(--chrome-bg-raised);
+	box-shadow: inset 0 0 0 1px var(--chrome-border);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status::before {
+	content: '';
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: var(--chrome-text-muted);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status[data-status='saved']::before {
+	background-color: var(--touch);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status[data-status='not-saved']::before {
+	background-color: var(--warning);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status[data-status='failed']::before {
+	background-color: var(--danger);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status:not(:has(> button:not([hidden]))) {
+	padding-right: var(--space-3);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status anyink-save-status {
+	padding: 0;
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	justify-self: auto;
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status anyink-save-status[data-failed='true'] {
+	color: var(--chrome-text);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__status-button {
+	font-size: var(--text-sm);
+	font-weight: 600;
+	padding: 2px var(--space-3);
+	border-radius: 999px;
+	border-color: var(--chrome-border-strong);
+}
+
+#app__top-bar.anyink-topbar
+	.anyink-topbar__status[data-status='not-saved']
+	.anyink-topbar__status-button {
+	border-color: var(--warning);
+}
+
+#app__top-bar.anyink-topbar
+	.anyink-topbar__status[data-status='failed']
+	.anyink-topbar__status-button {
+	border-color: var(--danger);
+}
+
+/* More tools, Menu */
+#app__top-bar.anyink-topbar .anyink-topbar__more-tools {
+	flex: 0 0 auto;
+	color: var(--chrome-text-muted);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__more-tools:hover {
+	color: var(--structure-strong);
+}
+
+#app__top-bar.anyink-topbar .anyink-topbar__menu {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	border-color: var(--chrome-border-strong);
+}
+
+/* The Menu: as tall as the window lets it be (a menu row is never hidden below a scroll) */
+#context-menu[data-anyink-menu='simple'] {
+	max-height: calc(100vh - 56px);
+}
+
+/* The Menu's group headings say their words as written (sentence case, 2.2) */
+#context-menu[data-anyink-menu='simple'] h2 {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* An error box (the pill's Fix, a save that failed) opens under the bar's row, over the Next
+   line (which says nothing while a box is open, 4.0 rule 1), never over Undo and Redo */
+body:has(#app__top-bar.anyink-topbar) > #error {
+	top: 44px;
+}
+
+/* Row 2: the Next line */
+#app__top-bar.anyink-topbar .anyink-topbar__next {
+	display: block;
+}
+
+/* Below 1440 px: "1 2 3" plus the current step's name (4.0) */
+@media (max-width: 1439px) {
+	#app__top-bar.anyink-topbar
+		.anyink-topbar__step:not([aria-current='step'])
+		.anyink-topbar__step-name,
+	#app__top-bar.anyink-topbar
+		.anyink-topbar__step:not([aria-current='step'])
+		.anyink-topbar__step-count {
+		display: none;
+	}
+
+	#app__top-bar.anyink-topbar .anyink-topbar__step:not([aria-current='step']) {
+		padding: 3px 4px;
+	}
+
+	#app__top-bar.anyink-topbar .anyink-topbar__font-name {
+		max-width: 180px;
+	}
+}

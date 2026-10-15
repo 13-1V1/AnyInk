@@ -25,7 +25,9 @@ import { letterSetName } from '../../words/letter_set.js';
 import { word } from '../../words/words.js';
 import { keysShown } from '../keys.js';
 import { setModeForTests } from '../mode.js';
+import { lettersPage } from '../../topbar/letters_page.js';
 import { sampleEditor } from './controls_probe.js';
+import { noFlags } from './no_flags.js';
 
 let quiet;
 beforeAll(() => {
@@ -60,12 +62,23 @@ const rightArea = () => document.querySelector('.content-page__right-area');
 const text = (element) => (element?.textContent || '').replace(/\s+/g, ' ').trim();
 
 describe.each(['Help', 'About'])('Simple %s: a way back to the letters', (page) => {
-	it('[Back to my letters] opens the letter page, with no Undo step', () => {
+	it('[Back to my letters] opens the letter page, with no Undo step (B5, no flags)', () => {
+		noFlags();
 		const editor = open(page, 'simple');
 		expect(back()?.textContent).toBe(word('mode.band.backToLetters'));
 		const steps = editor.history.queue.length;
 		back().click();
 		expect(editor.nav.page).toBe('Characters');
+		expect(editor.history.queue.length).toBe(steps);
+	});
+
+	// B6 + B7 finalize: with the Simple top bar on, its rail "1 Letters" sits beside the button
+	// on the same page; both doors to "my letters" lead to one place (topbar/letters_page.js)
+	it('with the top bar on, it goes where the rail "1 Letters" goes, with no Undo step', () => {
+		const editor = open(page, 'simple');
+		const steps = editor.history.queue.length;
+		back().click();
+		expect(editor.nav.page).toBe(lettersPage());
 		expect(editor.history.queue.length).toBe(steps);
 	});
 

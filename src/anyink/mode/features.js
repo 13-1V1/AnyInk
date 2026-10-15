@@ -49,8 +49,8 @@ export const FEATURE_NAMES = Object.freeze(FEATURE_LIST.map((feature) => feature
 
 /** What is on in the app. Each B changes only its own line. */
 export const FEATURES = Object.freeze({
-	coach: false,
-	letterView: false,
+	coach: true,
+	letterView: true,
 	brush: false,
 	photo: false,
 	board: false,

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK top bar (B6)</title>
+	<!-- the app's own order (src/index.html) -->
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<style>
+		html, body { margin: 0; background: var(--chrome-bg); color: var(--chrome-text); font-family: var(--font-ui); }
+		/* The bar sits where the app puts it: #app__wrapper at the page's top left (the Menu is
+		   placed in page coordinates), here only 300 px tall, with the controls under it */
+		#app__wrapper { height: 300px; min-height: 0; overflow: visible; }
+		#app__main-content { min-width: 0; }
+		.page-stand-in { height: 100%; display: grid; place-items: center; color: var(--chrome-text-muted); background: var(--chrome-bg-raised); }
+		.page-stand-in b { color: var(--chrome-text); }
+		#controls { position: absolute; top: 300px; left: 0; right: 0; padding: var(--space-4) var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-4) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+		label { display: inline-flex; gap: 4px; align-items: center; }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 140px; overflow-y: auto; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<div id="app__wrapper"></div>
+	<div id="controls">
+		<h1>Simple top bar (B6)</h1>
+		<p>
+			A bare editor on a font with two letters, Capital B and small r, in Simple with the
+			<b>coach</b> flag on. The bar above is the real one (<code>makeAppTopBar</code>): the logo
+			and step 1 go to the letters (the Overview, where the letter view's "&larr; All letters"
+			goes and B10 mounts the board, whatever the flags), Undo and Redo
+			name the step they act on (with its letter when it isn't the one open: "Undo: added a
+			rectangle on small r") and say why when greyed, the status pill shows its four states,
+			More tools switches to All tools with the purple band (its Back to simple returns), Menu
+			opens Simple's Menu. Every Undo and Redo press toasts (bottom right); a new change ends
+			that toast (its Redo does nothing, and a newer toast may take its place). Resize the
+			window under 1440 px to see the rail fold to "1 2 3". Steps 2 and 3 and the font name's
+			door show only with their flags.
+		</p>
+		<h2>Look around (never an Undo step)</h2>
+		<div class="row">
+			<button id="open-b">Open Capital B</button>
+			<button id="open-r">Open small r</button>
+			<button id="pick-b">Pick Capital B with no navigate (as "&lt; A" / "C &gt;" do)</button>
+			<button id="pick-r">Pick small r with no navigate</button>
+			<button id="board">The board (Overview)</button>
+			<button id="help">Help</button>
+		</div>
+		<h2>Change things</h2>
+		<div class="row">
+			<button id="trace">Trace a square into the open letter</button>
+			<button id="rect">Draw a rectangle on the open letter</button>
+			<button id="closer">Move all letters closer (whole-font step)</button>
+			<button id="numbers">Numbers &amp; symbols on / off</button>
+			<button id="clear">Clear the open letter ("Cleared ... [Undo]")</button>
+		</div>
+		<h2>Save status</h2>
+		<div class="row">
+			<label><input type="checkbox" id="workfile" /> has a work file</label>
+			<button data-status="saved">Saved</button>
+			<button data-status="saving">Saving...</button>
+			<button data-status="pending">Not saved yet</button>
+			<button data-status="failed">Couldn't save</button>
+		</div>
+		<h2>Later Bs (feature flags)</h2>
+		<div class="row" id="flags"></div>
+		<div class="row">
+			<button id="offer-install">Pretend Chrome offers the install</button>
+		</div>
+		<h2>Log</h2>
+		<div id="log"></div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { makeAppBand, makeAppTopBar } from '../src/app/menu.js';
+		import { CoachElement } from '../src/anyink/coach/coach_element.js';
+		import { FancyButton } from '../src/controls/fancy-button/fancy_button.js';
+		import { SaveStatusElement } from '../src/anyink/files/save_status_element.js';
+		import { setSaveStatus } from '../src/anyink/files/save_status.js';
+		import { B, R, square, traceInto, twoLetterEditor } from '../src/anyink/history/tests/two_letters.js';
+		import { arriveAt } from '../src/anyink/mode/band.js';
+		import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { getMode, setMode } from '../src/anyink/mode/mode.js';
+		import { showItem } from '../src/anyink/preview/show_item.js';
+		import { toast, toastLog } from '../src/anyink/toast/toast.js';
+		import { isFeatureOn } from '../src/anyink/mode/features.js';
+		import { word } from '../src/anyink/words/words.js';
+		import { setInstallEventForTests } from '../src/anyink/topbar/install_offer.js';
+		import { readyCount } from '../src/anyink/topbar/ready_count.js';
+
+		if (!customElements.get('anyink-save-status')) {
+			customElements.define('anyink-save-status', SaveStatusElement);
+		}
+		// The error box's buttons (Fix), as the app registers them
+		if (!customElements.get('fancy-button')) customElements.define('fancy-button', FancyButton);
+		// The Next line (the coach track's <anyink-coach>), the bar's second row
+		if (!customElements.get('anyink-coach')) customElements.define('anyink-coach', CoachElement);
+		if (getMode() !== 'simple') setMode('simple');
+		const flags = { coach: true };
+		setFeaturesForTests(flags);
+
+		const $ = (selector) => document.querySelector(selector);
+		const logEl = $('#log');
+		function logLine(text) {
+			logEl.textContent += `${text}\n`;
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		const editor = twoLetterEditor();
+		editor.project.settings.project.name = 'Brennan Hand';
+		editor.editCanvas = { redraw() {} };
+		window.anyinkTopbarPage = { editor };
+		const fileHandle = {
+			kind: 'file',
+			name: 'Brennan Hand.gs2',
+			getFile() {},
+			createWritable() {},
+			queryPermission: async () => 'granted',
+			requestPermission: async () => 'granted',
+		};
+
+		// The app's navigate, cut down: the landing rule, the top bar, the band, a page stand-in
+		editor.navigate = () => {
+			arriveAt(editor.nav.page);
+			const wrapper = $('#app__wrapper');
+			wrapper.innerHTML = '';
+			wrapper.appendChild(makeAppTopBar());
+			const band = makeAppBand();
+			if (band) wrapper.appendChild(band);
+			const page = document.createElement('div');
+			page.id = 'app__main-content';
+			const open = editor.nav.page === 'Characters' ? editor.selectedGlyphID : '';
+			const name = { [B]: 'Capital B', [R]: 'small r' }[open] || '';
+			page.innerHTML = `<div class="page-stand-in"><span>Page: <b>${editor.nav.page}</b>${
+				name ? ` (${name})` : ''
+			} · ${getMode() === 'simple' ? 'Simple' : 'All tools'} · ${
+				readyCount(editor.project).ready
+			} ready</span></div>`;
+			wrapper.appendChild(page);
+		};
+		// Save, Save as and Fix's buttons write nowhere here: they mark the file saved
+		editor.saveProjectFile = async (asCopy = false) => {
+			logLine(asCopy ? 'Save as... pressed' : 'Save pressed');
+			editor.loadedFileHandle = fileHandle;
+			$('#workfile').checked = true;
+			setSaveStatus(editor, { file: 'saved', error: '' });
+			return true;
+		};
+
+		showItem(editor, B);
+		editor.navigate();
+
+		$('#open-b').onclick = () => showItem(editor, B);
+		$('#open-r').onclick = () => showItem(editor, R);
+		// the letter view's "< A" / "C >" pick a letter with no navigate: hover Undo to see its
+		// tooltip name the letter the newest change is on
+		$('#pick-b').onclick = () => (editor.selectedGlyphID = B);
+		$('#pick-r').onclick = () => (editor.selectedGlyphID = R);
+		$('#board').onclick = () => {
+			editor.nav.page = 'Overview';
+			editor.navigate();
+		};
+		$('#help').onclick = () => {
+			editor.nav.page = 'Help';
+			editor.navigate();
+		};
+		let nextX = 80;
+		$('#trace').onclick = () => {
+			if (editor.nav.page !== 'Characters') return logLine('open a letter first');
+			traceInto(editor, nextX);
+			nextX = nextX === 80 ? 200 : 80;
+			logLine(`traced ${editor.selectedGlyphID}`);
+		};
+		$('#rect').onclick = () => {
+			if (editor.nav.page !== 'Characters') return logLine('open a letter first');
+			editor.selectedItem.addOneShape(square(60, 300));
+			editor.history.addState('Added path: Rectangle 1');
+			logLine(`rectangle on ${editor.selectedGlyphID}`);
+		};
+		$('#closer').onclick = () => {
+			editor.history.addWholeProjectChangePreState('moved all letters closer', { itemID: null });
+			Object.values(editor.project.glyphs).forEach((glyph) => {
+				glyph.advanceWidth = Math.max(0, (glyph.advanceWidth || 500) - 40);
+			});
+			editor.history.addWholeProjectChangePostState();
+		};
+		// as the letter card's Clear letter does (letter/letter_card.js): one step, then its toast
+		$('#clear').onclick = () => {
+			if (editor.nav.page !== 'Characters') return logLine('open a letter first');
+			const name = { [B]: 'Capital B', [R]: 'small r' }[editor.selectedGlyphID] || 'the letter';
+			editor.selectedItem.shapes = [];
+			editor.history.addState(word('letter.step.cleared', { name }));
+			toast(
+				'letter.toast.cleared',
+				{ name },
+				{
+					kind: 'destructive',
+					action: { key: 'letter.toast.undo', run: () => editor.history.restoreState() },
+				}
+			);
+		};
+		$('#numbers').onclick = () => {
+			const anyink = editor.project.settings.anyink;
+			const on = anyink.letterSet === 'quick+numbers';
+			anyink.letterSet = on ? 'quick' : 'quick+numbers';
+			editor.history.addSettingsState(on ? 'hid numbers & symbols' : 'added numbers & symbols');
+		};
+		$('#workfile').onchange = (event) => {
+			editor.loadedFileHandle = event.target.checked ? fileHandle : false;
+			setSaveStatus(editor, {});
+		};
+		document.querySelectorAll('[data-status]').forEach((button) => {
+			button.onclick = () => setSaveStatus(editor, { file: button.dataset.status, error: 'The disk is full' });
+		});
+		['letterView', 'tryIt', 'useInWord', 'fontDetails', 'board', 'help', 'startScreen', 'photo'].forEach((flag) => {
+			const label = document.createElement('label');
+			label.innerHTML = `<input type="checkbox" data-flag="${flag}" /> ${flag}`;
+			label.querySelector('input').checked = isFeatureOn(flag);
+			label.querySelector('input').onchange = (event) => {
+				flags[flag] = event.target.checked;
+				setFeaturesForTests(flags);
+				editor.navigate();
+			};
+			$('#flags').appendChild(label);
+		});
+		$('#offer-install').onclick = () => {
+			setInstallEventForTests({
+				prompt: async () => logLine('Chrome install box asked for'),
+				userChoice: Promise.resolve({ outcome: 'dismissed' }),
+			});
+			logLine('install offered: Menu > Help has the row now');
+		};
+		['anyink-open-try-it', 'anyink-open-use-in-word', 'anyink-open-font-details', 'anyink-open-help'].forEach(
+			(name) => window.addEventListener(name, (event) => logLine(`door: ${name} ${JSON.stringify(event.detail)}`))
+		);
+		let seen = 0;
+		setInterval(() => {
+			const log = toastLog();
+			log.slice(seen).forEach((record) => logLine(`toast: ${record.text || record.message}`));
+			seen = log.length;
+		}, 250);
+	</script>
+</body>
+</html>

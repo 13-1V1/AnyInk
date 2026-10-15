@@ -336,6 +336,14 @@ describe('each flag adds only its own controls', () => {
 		expect(lost('chooser', isOn, 'all')).toEqual([]);
 	});
 
+	// B6 + B7 integration: the letter view's own four switches (view_switches.js) replace the two
+	// view tools, so the zoom bar never shows Dark paper and Outline only twice
+	it('letterView: its switches replace the Outline only and Dark paper view tools', () => {
+		const isOn = flagsOn('letterView');
+		expect(lost('viewTool', isOn)).toEqual(['displayMode', 'canvasTheme']);
+		expect(lost('viewTool', isOn, 'all')).toEqual([]);
+	});
+
 	it('brush: the Brush tool, in both modes (one tool-key map, 7.6)', () => {
 		expect(gained('tool', flagsOn('brush'))).toEqual(['nib']);
 		expect(gained('tool', flagsOn('brush'), 'all')).toEqual(['nib']);
@@ -404,9 +412,10 @@ describe('queries', () => {
 		expect(isShown('panel', 'Attributes')).toBe(true);
 		setModeForTests('simple');
 		expect(isShown('panel', 'Attributes')).toBe(false);
-		expect(isShown('panel', 'letterCard')).toBe(false);
-		setFeaturesForTests({ letterView: true });
+		// B7 has landed: the letter card shows with the real flags, and not with the flag off
 		expect(isShown('panel', 'letterCard')).toBe(true);
+		setFeaturesForTests({ letterView: false });
+		expect(isShown('panel', 'letterCard')).toBe(false);
 	});
 
 	it('an id the table does not know shows in All tools and not in Simple', () => {

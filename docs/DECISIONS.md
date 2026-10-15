@@ -1124,3 +1124,196 @@ open finding with a test that failed on the old code first.
 grow past quotes and pro-word small print), upstream adds a toast or a control (the inventory and
 toast-map tests fail until it is classified), or B16 flips the launch default (the band's
 "only after Simple" rule and the All tools snapshot change then).
+
+## D-036: B6 and B7 build choices (top bar, Next line, undo toasts, the letter view)
+**Decided:** 10/14/2026, during B6 and B7 (UX-BEGINNER.md 4.0, 4.3, 4.11, 7.2, 7.3, section 10 B6
+and B7): five tracks (top bar, coach, letter card, letter canvas, letter tools) and their
+integration, which turned on `coach` (B6) and `letterView` (B7) and checked the seams in one Simple
+screen in real Chrome (`tests/b67.verify.mjs`). Where a choice goes past the spec's literal words it
+says so.
+**Chose (B6, the frame):**
+- Undo and Redo grey out with `aria-disabled` and a tooltip that says why ("Nothing to undo yet"),
+  not `disabled`, so the reason still shows on hover. History names every press itself
+  (`history.js` calls `sayUndone`), Ctrl+Z and the buttons alike, once per press; the Redo toast has
+  no button (on the board it has [Show me]); an undo toast takes the place of an automatic one
+  ("Made shape 2 a hole") at once, as 4.0's kinds say.
+- The Menu's stand-ins reuse the visibility ids of the rows they stand for (`file.font-otf`,
+  `file.font-folder`, `help.help-page`) until B14 and B15 land; error boxes open under the bar's
+  first row; the rail is a `div` with `role="navigation"` (upstream styles and reads every `<nav>`).
+- App notices sit inside the bar's flexible gap between the rail and Undo
+  (`data-anyink-slot="notices"`), centered on its row; next to the status pill they covered Undo.
+- Next line: rule 9 also speaks in the letter view once no letter is empty; rule 10 fires on "Not
+  saved yet" and "Couldn't save", not "Saving..."; rule 6 says the font check's own sentence (D-032);
+  rule 8 names only the ways to fill a letter that exist (before B8 and B9: "Draw it with points");
+  rule 15 never suggests the letter already open; a change counts only when the save status counts a
+  step and a letter changed. In Simple the strip's font-check line is gone (the Next line says it),
+  as 6.2 lists.
+- The Tip line keeps its room while no tip shows. A tip goes after his next press, and the page
+  moved 22 px under the pointer when it did, so the second Point pen click landed off; the line
+  under the sentence is now always one Tip line tall (an empty band when there is no tip).
+- `coach.css` gives its rules an id's weight (`anyink-coach:is(*, #anyink-coach-weight)`) so the
+  bar's button rule never takes the green off the line's button. Narrowing the bar's rule instead
+  was tried in integration and dropped: the line's buttons lost `margin: 0` and the row grew 1.6 px
+  when a button came, moving the page.
+- Simple's toasts sit just above the canvas's zoom bar on the letter page (CSS anchor positioning,
+  Chrome and Edge, D-001), and above the strip elsewhere; at the strip they covered the zoom bar
+  and, inside Fine-tune, the view switches for their 6 s.
+- One letter set for the app: `src/anyink/board/letter_set.js` (B10 owns it and adds the settings
+  step); the rail's count, the Next line's order and the header's ‹ A / C › read it. "Ready" is
+  "has ink" until B11.
+**Chose (B7, the letter view):**
+- Fine-tune is closed by default and stays as he left it for the session. On a letter with no
+  shapes its edges, neighbors and switches stay hidden even when open; its tools still show (they
+  are how ink gets there). The letter header's steps add no Undo step. The four switches replace
+  upstream's Outline and Dark paper view tools (`visibility.js` replacedBy 'letterView').
+- The side edges move only while they show: with Fine-tune closed they lock (`mode/locks.js`), and
+  with a drawing tool picked (Point pen, Rectangle, Oval, later the Brush) a press there draws. In
+  Chrome a Point pen click landed on the left edge, which automatic spacing had moved under the ink,
+  and dragged it.
+- The Point pen in Simple: every point placed is its own Undo step, a plain click too (upstream
+  records a point only when the pointer moves while pressed, so a clicked shape left no step: the
+  work file never showed changed, spacing never ran, Undo couldn't take it back). Closing the shape
+  on its first point finishes it as the button does (first width, "Finish the shape" goes); the
+  step a closing drag makes is "bent a curve" (upstream's "Added new path" would say "Undid: added a
+  shape" while the shape stays). While a shape is open "Finish the shape" is the screen's green
+  button, and the font check waits until it is finished (it said "small a has ink but no width"
+  with [Fix it] mid-shape). All tools keeps upstream's Point pen.
+- Auto-hole: odd nesting depth is a hole, even is solid; only the new shape is turned round, a
+  shape that only overlaps a solid takes its direction, brush strokes never change. A Point pen
+  shape is judged once finished, never mid-draw. The Solid / Hole switch shows on the picked shape
+  only when Hole would act (`canBeHole`): a shape with nothing around it can't be a hole.
+- Neighbors: his n beside small letters and marks, his H beside capitals and numbers (numbers stand
+  on the capitals line), drawn view-only in `letter/neighbors.js`, not by upstream's context
+  characters (they are saved in the font). The first-time label and the switch's tooltip name the
+  letter in full ("Your small n, shown for comparing"; 2.2), where the spec says "Your n". The
+  Neighbors switch isn't there until his n or H is made.
+- Upstream's lowercase `'components'` page check in the shape tools never ran; turned on as written
+  it would name a part's shapes after how many parts the font has, so the dead branch was removed
+  and names stay as they are in both modes (the spec said "fix"; Brennan to confirm).
+**Changes All tools gets on purpose (Brennan to confirm before Gate 2):** closing a Point pen shape
+on its first point with the pointer moving no longer throws in `path_edit.js` (it read a point it
+was never given); the handle bends as upstream meant.
+**Rejected:**
+- A Tip line that floats over the page: it would cover "← All letters".
+- Deferring the font check while drawing in All tools too: All tools stays as it is (6.1).
+- Leaving the B5 tests that describe Simple "with no flag" to fail: they now pin every flag off
+  (`mode/tests/no_flags.js`), so the stub path stays checked.
+**Why:** principle 1 (one green button), 6 (say what happened), 7.3 (every change one named step),
+4.3 ("the drawing never jumps"), 6.1 (All tools as it is today).
+**Affects:** `src/anyink/topbar`, `src/anyink/coach`, `src/anyink/letter`, `src/anyink/board`,
+`history/undo_toast.js`, `mode/locks.js`, `mode/visibility.js`, `fontcheck/font_check.js`,
+`pwa/notice_place.js`, `preview/preview_strip.js`, `toast/toast.css`; upstream `history.js`,
+`menu.js`, `characters.js`, `panels.js`, `edit_canvas.js`, `tools.js`, `new_basic_path.js`,
+`new_path.js`, `path_edit.js`; B8 (`shape.anyink.strokeId`, the Brush button, `nib` locks the
+edges), B9 (`anyink-trace-again`, Fine-tune > Photo, the overlay's photo buttons), B10 (the letter
+set's settings step, "← All letters" scrolls to the tile), B11 (Ready, "Needs a look"), B12 (the
+Try-it text starts as the font name), B14, B15 (the doors in `topbar/doors.js`).
+**Revisit if:** the Tip line's empty band reads as a gap in the Gate 2 walkthrough (then a fixed
+two-line Next line with the tip beside the sentence), a later B adds a drawing tool (add it to
+`DRAWING_TOOLS` in `locks.js`), or Chrome drops anchor positioning.
+
+## D-037: B6 and B7 finalize choices (one ink rule, the Point pen's edges, stale toasts)
+**Decided:** 10/14/2026, in the B6 + B7 finalize pass, after the critic pass and the four fix
+tracks (top bar, coach, letter card, letter tools) left 14 findings open and 7 new problems; each
+is fixed with a test seen failing first (UX-BEGINNER.md 4.0, 4.2, 4.3, 7.1 #5, 7.2, 7.3, 7.6,
+principles 1, 5 and 6). Where a choice goes past the spec's literal words it says so.
+**Chose:**
+- **One rule for ink, Ready and empty** (`board/letter_set.js`: `inkOf`, `hasInk`,
+  `finishedShapes`, `isEmptyLetter`), read by the rail's count, the Next line, the letter card's
+  chip and the empty overlay. Ink is finished shapes with an area; the shape the Point pen is still
+  drawing (`coach/open_shape.js openPathOf`) is no ink on any page. Empty is no finished shape, so
+  a letter whose only shape is a stray line is neither empty nor Ready: the card says "Empty" and
+  lists the shape, the overlay steps aside, and the Next line's rule 6 names the shape with the
+  one green [Fix it]. The coach leaves out the font check's "ink but no width" for a letter with
+  no ink (it is never true there); the check itself, and All tools, are unchanged. The rail's
+  count is said again when the Point pen lets go of a shape (`whichToolIsSelected`), since
+  "Finish the shape" records no step.
+- **Principle 1's one exemption:** a drawing tool picked on an empty letter, before its first
+  point, has no green button; the Next line says where to click or drag. Written into principle
+  1, 9.3 and 9.4. The screen probe counts upstream's green `fancy-button` as a green button
+  (Help's and About's "Back to my letters"); the Fix box's first button also carries
+  `.anyink-primary`.
+- **The Point pen's edges:** a shape that ends with 1 or 2 points and no curve (the font check's
+  stray rule) is taken away as one step ("removed a stray shape from small a") with the automatic
+  toast "A shape needs at least 3 points, so that one was taken away." ("... the one on small e
+  ..." when he is leaving it); the Point pen stays picked. Leaving the letter view, or opening
+  another letter, mid-shape ends the shape on its own letter before the view moves (finished from
+  3 points), from `Navigator.navigate` and `ProjectEditor.selectedGlyphID` (`leaveLetter`); the
+  step is the letter view's even when the page is already set to where he is going. The spec
+  said nothing about a shape too small to keep; leaving it made a stray line that the card, the
+  rail and the coach read three ways.
+- **The Point pen through Undo:** points measured from the first point match within 1.5 font
+  units (B3 rounds each point at the first step with an area, which moves an offset by up to 1);
+  an Undo during a press matches the shape without the unrecorded point and ends the press, so its
+  release records nothing; a press with no shape held starts one. "Finish the shape" on a shape
+  merged into the hole it crossed picks the merged hole.
+- **Stale toasts** (`toast/queue.js`): a toast whose stillGood says no keeps no place: the next
+  toast shows at once and the stale one is never put back in the line; `sweep()` takes it down at
+  the next step (`toast.js dropStaleToasts`, called by `undo_toast.js` on the save status event).
+  A toast with a button or a stillGood is drawn anew even when its words repeat, so two like Undo
+  presses each own their [Redo]. Destructive toasts' [Undo] (`undo_toast.js undoOffer`) takes back
+  their own step only while it is the newest change.
+- **Delete says what it took** in Simple (7.3): "Deleted a shape from small n." / "Deleted 2
+  points from small a." [Undo] (`letter/delete_toast.js`, called from upstream `actions.js`).
+  A Shapes row lets go of picked points, and with Edit points picked and a shape picked but no
+  point, Delete takes the shape (7.6 "a picked shape or point"); All tools as before.
+- **Space** on a button or link focused from the keyboard (`:focus-visible`), outside the edit
+  canvas, presses it in Simple ("1 Letters", the logo, Undo, "<- All letters"); a button focused
+  by a mouse click keeps Space as hold-to-pan, so Space right after a click on Undo never undoes
+  again. All tools keeps upstream's Space.
+- "Back to my letters" on Help and About goes where "1 Letters" goes once the Simple top bar is
+  on (`topbar/letters_page.js`); with every flag off it opens Simple home, as in B5.
+- **The Next line:** rule 6 shows the first font problem not skipped and every problem keeps its
+  own skip, so a skip lasts while another letter's problem shows first; while a Point pen shape is
+  open in the letter view the drawing line comes ahead of rule 6; rule 8's "empty" is no finished
+  shape.
+- **Tips:** the tip sits beside the sentence in one 41 px row (the coach fix track's choice,
+  which D-036 named as the alternative to the empty Tip band; it supersedes D-036's band). The
+  Edit points tip is "Drag a point to reshape it. Press Smooth to round a corner." (4.3 said "Drag
+  a round handle to bend the curve"; a clicked shape has none). The Point pen's tip stays while
+  its shape is open; any other tip goes after his next action.
+- **Spacing:** in Simple a letter starts automatic at its first drawn shape (a path with a point,
+  a Point pen click), not only at its first ink, so every step of the shape holds the flag (the
+  card never says "Set by you" on a letter he has just started; an Undo mid-shape keeps it); a part
+  made from another letter counts only once it brings ink (D-034); an old letter that had a shape
+  and no owner is never touched.
+- **Auto-hole** (supersedes D-036's "only the new shape is turned round"): the role comes from
+  what shows under the shape; a join that rings an island keeps the island as a shape of its own
+  running the other way (`unite_shapes.js`), so it shows what it showed; when no two of the solids
+  under a new hole can be joined, all of them are joined as one group when that is safe as a group.
+- **Font check:** it waits for an open shape only in the letter view (`font_check.js`), so it
+  runs on the board.
+- **The strip's Try-it text** starts as the font's name in Simple once the Next line is on (4.0
+  Preview strip; B12 owns the rest of Try it), by the coach's own rule (`defaultTryItText`), and is
+  not written to the prefs; All tools, and Simple before B6, keep the sample sentence.
+**Rejected:**
+- Counting a stray line as "no ink" in the font check itself: All tools' strip would change.
+- Leaving a 1- or 2-point shape as a stray line: the card, the rail and the coach disagreed about
+  it, and "Finish the shape" gave the letter a width with no step.
+- Taking a too-small shape away with no step: the next Undo would bring back a state that was
+  never on screen.
+- Space on any focused button: Chrome keeps the focus on a clicked button, so Space-drag right
+  after a click on Undo would have pressed it again.
+- Matching the Point pen's shape by its place in the list and its point count alone: a shape
+  another tool drew in that place could be taken for it.
+- A green button for "drawing tool picked on an empty letter": it would repeat what the paper
+  does, and two ways to begin is the confusion principle 1 is for.
+**Changes All tools gets:** none. Every change above is behind `isSimpleMode()` or on a
+Simple-only screen; `tests/b67.verify.mjs` F still finds the same controls and 0 of 1,440,000
+pixels changed.
+**Why:** principles 1, 5, 6 and 7; 7.2 (results that can't come out broken); 7.3 (destructive
+actions use an Undo toast; every change one named step).
+**Affects:** `board/letter_set.js`, `coach/open_shape.js`, `coach/font_facts.js`, `coach/rules.js`,
+`coach/tips.js`, `coach/coach_state.js`, `coach/dom_probe.js`, `topbar/ready_count.js`,
+`topbar/simple_top_bar.js`, `letter/letter_card.js`, `letter/empty_overlay.js`,
+`letter/pen_follow.js`, `letter/auto_hole.js`, `letter/unite_shapes.js`, `letter/delete_toast.js`
+(new), `history/undo_toast.js`, `toast/queue.js`, `toast/toast.js`, `mode/back_to_letters.js`,
+`fontcheck/font_check.js`, `spacing/history_hook.js`, `preview/preview_strip.js`,
+`words/error_box.js`, word sets `letter.js`, `letter_tools.js`, `coach.js`; upstream
+`new_path.js`, `navigator.js`, `project_editor.js`, `actions.js`, `events_keyboard.js`; B8 (keep
+brush strokes out of the drop rule: a stroke has curves, and `anyink.strokeId` marks it), B10 (the
+board replaces the Overview stand-in the rail and "Back to my letters" go to), B11
+(`readyCount(project, { isReady, open })`), B12 (Try it reads the same text).
+**Revisit if:** the drop toast reads as a scolding in the Gate 2 walkthrough (then keep the pen
+open and say "Click at least one more point"), B8's Brush makes 1- or 2-point strokes without
+curves, or the board replaces the Overview stand-in.

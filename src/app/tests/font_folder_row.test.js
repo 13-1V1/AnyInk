@@ -21,11 +21,14 @@ import { makeAppTopBar } from '../menu.js';
 
 if (!Element.prototype.animate) Element.prototype.animate = () => ({});
 
+/** The menu that holds the row: B6's Menu in Simple's top bar, the File menu otherwise */
 function openFileMenu() {
 	document.querySelectorAll('#app__top-bar').forEach((el) => el.remove());
 	const topBar = makeAppTopBar();
 	document.body.appendChild(topBar);
-	[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
+	const simpleMenu = topBar.querySelector('[data-anyink-control="menu"]');
+	if (simpleMenu) simpleMenu.click();
+	else [...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 	return document.querySelector('#context-menu');
 }
 const row = (id) =>

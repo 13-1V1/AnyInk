@@ -325,8 +325,16 @@ try {
 		await page.waitForTimeout(400);
 	};
 	const drawRectangle = async () => {
-		// B4 + B5 integration: tools by their id; Simple's tooltips say "Rectangle (R)"
-		await page.locator('button[data-anyink-tool="newRectangle"]').click();
+		// B4 + B5 integration: tools by their id; Simple's tooltips say "Rectangle (R)". B6 + B7
+		// finalize: in Simple's letter view the Rectangle sits inside Fine-tune, which an empty
+		// letter doesn't show yet: its key opens Fine-tune and picks it (UX-BEGINNER.md 7.6)
+		const rectangle = page.locator('button[data-anyink-tool="newRectangle"]');
+		if (await rectangle.isVisible()) {
+			await rectangle.click();
+		} else {
+			await page.evaluate(() => document.activeElement?.blur?.());
+			await page.keyboard.press('r');
+		}
 		await page.mouse.move(960, 330);
 		await page.mouse.down();
 		await page.mouse.move(1080, 515, { steps: 8 });

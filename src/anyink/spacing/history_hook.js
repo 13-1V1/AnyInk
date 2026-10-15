@@ -186,13 +186,29 @@ function refitIfAutomatic(history, editor, item) {
 /**
  * A letter with no owner that gets its first ink in this step starts automatic (D-034). Ink is
  * what the spacing measures (inkBounds): a part made from a letter with no ink is none.
+ * B6 + B7 finalize (D-037): its first shape does too, ink or not yet (a Point pen click), so
+ * every step of the shape holds the flag: the card never says "Set by you" on a letter he has
+ * only just started, an Undo mid-shape keeps it, and a Fix it on a letter with no ink yet keeps
+ * it. A letter that had a shape and no owner (an old or imported one) is never touched.
  * @param {Object} history
  * @param {Object} item
  * @param {Object} project - the live font (resolves letters a recorded copy is made from)
  */
 function startAutomaticOnFirstInk(history, item, project) {
-	if (hasSpacingOwner(item) || !hasInk(item, project)) return;
-	if (!hasInk(recordedState(history, item.id), project)) markAuto(item);
+	if (hasSpacingOwner(item)) return;
+	if (!hasAnyShape(item) && !hasInk(item, project)) return;
+	const before = recordedState(history, item.id);
+	if (!hasAnyShape(before) && !hasInk(before, project)) markAuto(item);
+}
+
+/**
+ * @returns {Boolean} the letter has a drawn shape (a path with a point), ink or not; a part made
+ *   from another letter only counts once it brings ink (D-034)
+ */
+function hasAnyShape(item) {
+	return (item?.shapes || []).some(
+		(shape) => shape?.objType === 'Path' && (shape.pathPoints?.length || 0) > 0
+	);
 }
 
 /**

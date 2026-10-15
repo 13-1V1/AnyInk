@@ -24,6 +24,24 @@
 	line-height: 1.4;
 }
 
+/* B6 + B7 integration: on the letter page the canvas's zoom bar (and, inside Fine-tune, the view
+   switches) sit in its bottom right corner, just above the strip, where a toast covered them for
+   its 6 s. There a Simple toast sits just above that corner instead; on a page without it the
+   fallback is the place above the strip. Chrome and Edge only (D-001), so anchor positioning;
+   a browser without it keeps the place above the strip. */
+@supports (anchor-name: --a) {
+	.editor-page__zoom-area {
+		anchor-name: --anyink-zoom-area;
+	}
+
+	#toast[data-anyink-toast='simple'] {
+		bottom: calc(
+			anchor(--anyink-zoom-area top, calc(var(--anyink-strip-height, 0px) + var(--space-2))) +
+				var(--space-2)
+		);
+	}
+}
+
 #toast[data-anyink-toast='simple'][data-tone='warning'] {
 	border-left-color: var(--warning);
 }

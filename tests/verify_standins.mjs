@@ -20,8 +20,24 @@
 	  nudgeWritingLine(page, step)   the writing line, locked in Simple even then: the step its
 	                         arrow key makes (guides_layer.js nudgeLine), for a step that came from
 	                         More tools
+	  pinB5Simple(page)      B6 + B7 finalize: the B5-era walkthroughs (b45, wiring, mode-fixes,
+	                         words-fix) check B5's Simple, the stub every later B builds on: once the
+	                         app's start page has loaded, every feature flag is turned off in the
+	                         page (mode/features.js setFeaturesForTests), so Simple draws as it did
+	                         before B6 and B7. B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs
 	Each takes the Playwright page of the dev app (served from src/, so modules are /app/...).
 */
+
+/**
+ * @param {import('@playwright/test').Page} page - on the app's start page (or about to be)
+ */
+export async function pinB5Simple(page) {
+	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
+	await page.evaluate(async () => {
+		const { FEATURE_NAMES, setFeaturesForTests } = await import('/anyink/mode/features.js');
+		setFeaturesForTests(Object.fromEntries(FEATURE_NAMES.map((name) => [name, false])));
+	});
+}
 
 /**
  * @param {import('@playwright/test').Page} page

@@ -12,12 +12,15 @@
 
 	  initFontCheck({ getEditor })  start (app boot, once); getEditor defaults to the app's
 	  stopFontCheck()               stop: lets go of the editor, cancels a waiting check
-	  scheduleFontCheck()           check 2 s from now (restarts the wait)
+	  scheduleFontCheck()           check 2 s from now (restarts the wait); in Simple, while the
+	                                Point pen has a shape open, it waits again until it's done
 	  runFontCheckNow(editor)       check now and publish; returns { problems } or null
 	  getLastFontCheck(editor)      the last result for that editor, or null
 	Subscriber id: anyink.fontCheck.change (no substring of any other id, D-024).
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
+import { openPathOf } from '../coach/open_shape.js';
+import { isSimpleMode } from '../mode/mode.js';
 import { makeTrailingDebounce } from '../preview/scheduling.js';
 import { FONT_REBUILD_TOPICS } from '../preview/subscriptions.js';
 import { validateFont } from './validate.js';
@@ -36,7 +39,10 @@ const state = {
 	/** @type {WeakMap<Object, {problems: Array}>} */
 	lastResults: new WeakMap(),
 	scheduled: makeTrailingDebounce(() => {
-		if (state.editor) runFontCheckNow(state.editor);
+		if (!state.editor) return;
+		// B6 + B7 integration: in Simple a shape still being drawn is not judged; wait again
+		if (isDrawingAShape(state.editor)) state.scheduled();
+		else runFontCheckNow(state.editor);
 	}, FONT_CHECK_DELAY_MS),
 };
 
@@ -60,6 +66,20 @@ export function stopFontCheck() {
 	letGo();
 	state.started = false;
 	state.getEditor = null;
+}
+
+/**
+ * B6 + B7 integration: in Simple every Point pen click is a step, so a check could run while a
+ * shape is half placed and the Next line would call its letter broken ("ink but no width", "a
+ * shape with only 2 points") while he is still drawing it. All tools checks as before.
+ * @param {Object} editor - ProjectEditor
+ * @returns {Boolean} true while the Point pen has a shape open (Simple only)
+ */
+function isDrawingAShape(editor) {
+	// B6 + B7 finalize: the Point pen's own signal, read the way the coach reads it, and only in
+	// the letter view, the one page it draws on (leaving it ends the shape: new_path.js
+	// leaveLetter), so the check never waits behind a page he has left
+	return isSimpleMode() && editor?.nav?.page === 'Characters' && !!openPathOf(editor);
 }
 
 /** Check 2 s from now; every call restarts the wait. */

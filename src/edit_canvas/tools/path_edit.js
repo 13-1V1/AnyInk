@@ -1,3 +1,7 @@
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isSimpleMode } from '../../anyink/mode/mode.js';
+import { word } from '../../anyink/words/words.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { calculateAngle, radiansToNiceAngle } from '../../common/functions.js';
 import { refreshPanel } from '../../panels/panels.js';
@@ -145,13 +149,22 @@ export class Tool_PathEdit {
 		if (ehd.toolHandoff) {
 			ehd.toolHandoff = false;
 			this.controlPoint = msPoints.singleton.h2;
+			// ANY-INK (B6 + B7 integration, both modes): the Point pen hands over its first point
+			// without a press on it here, so this.pathPoint was never set and the title below threw
+			// ("Cannot read properties of undefined") when the closing click moved at all
+			this.pathPoint = this.controlPoint.parent;
 
 			this.controlPoint.parent.h2.use = true;
 			this.controlPoint.parent.h2.x = cXsX(ehd.mousePosition.x, view);
 			this.controlPoint.parent.h2.y = cYsY(ehd.mousePosition.y, view);
 			msPoints.singleHandle = this.controlPoint.type;
 
-			this.historyTitle = `Added new path: ${this.pathPoint.parent.name}`;
+			// ANY-INK (B6 + B7 integration): in Simple each point was already its own step, so this
+			// step only bends the closing curve; say so (Undo would say "added a shape" while the
+			// shape stays). All tools keeps upstream's title: there it is the shape's own step.
+			this.historyTitle = isSimpleMode()
+				? word('history.curveBent')
+				: `Added new path: ${this.pathPoint.parent.name}`;
 			this.dragging = true;
 
 			// log('toolHandoff this.controlPoint = ');

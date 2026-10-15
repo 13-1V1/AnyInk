@@ -23,6 +23,7 @@ import {
 	fakeFileHandle,
 } from '../../anyink/files/tests/fakes.js';
 import { setModeForTests } from '../../anyink/mode/mode.js';
+import { noFlags } from '../../anyink/mode/tests/no_flags.js';
 import { kvClear } from '../../anyink/storage/kv.js';
 import { findUppercase, scanDom } from '../../anyink/words/banned.js';
 import { word, wordEntry, wordKeys } from '../../anyink/words/words.js';
@@ -164,6 +165,9 @@ describe('File menu rows, in house words (both modes)', () => {
 	['all', 'simple'].forEach((mode) => {
 		it(`says no banned word and nothing in capitals (${mode})`, () => {
 			setModeForTests(mode);
+			// B6 + B7 integration: Simple's File menu is the one from before B6's Menu (the Menu
+			// is scanned in topbar/tests/topbar_words.test.js)
+			if (mode === 'simple') noFlags();
 			setFileApi(fakeApi({ open: [], save: undefined }));
 			const menu = openFileMenu();
 			expect([...scanDom(menu), ...findUppercase(menu)]).toEqual([]);

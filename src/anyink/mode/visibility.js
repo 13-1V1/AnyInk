@@ -235,11 +235,17 @@ const VIEW_TOOLS = [
 	both('zoomOut'),
 	both('zoomSlider'),
 	both('zoomIn'),
+	// B6 + B7 integration: the letter view's own switches (letter/view_switches.js) replace them
 	both('displayMode', {
 		place: 'fineTune',
+		replacedBy: 'letterView',
 		why: '4.3: the "Outline only" switch, inside Fine-tune',
 	}),
-	both('canvasTheme', { place: 'fineTune', why: '4.3: the "Dark paper" switch, inside Fine-tune' }),
+	both('canvasTheme', {
+		place: 'fineTune',
+		replacedBy: 'letterView',
+		why: '4.3: the "Dark paper" switch, inside Fine-tune',
+	}),
 	allOnly('zoom1to1', `${WHY.tools}: Actual size`),
 	both('zoomEm', { why: '4.3: "Fit letter", always shown' }),
 	allOnly('livePreviewPopOut', `${WHY.tools}: the live-preview pop-out`),

@@ -2,7 +2,7 @@
 // brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration (UX-BEGINNER.md 4.0 Toasts, 7.7 "Font file can't be built"): in Simple
-	the File menu's font file (Ctrl+E until B14) ends with one toast in the one queue: "Exported
+	the Menu's font file row (B6's Menu; the File menu before B6; Ctrl+E until B14) ends with one toast in the one queue: "Exported
 	"X.otf" to "Fonts", but small a needs fixing. [Show me]", the names as quotes, the amber
 	edge, [Show me] the toast's own button. It takes the place of "Exported ..." (one group), so
 	[Show me] is never lost, and it lasts its own time: the export's 2.5 s close (font_export.js)
@@ -29,11 +29,14 @@ function openBroken() {
 	return openProject(json);
 }
 
+/** The font file row: in B6's Menu (Simple's top bar), or in the File menu before B6 */
 function clickFontFileRow() {
 	document.querySelectorAll('#app__top-bar').forEach((el) => el.remove());
 	const topBar = makeAppTopBar();
 	document.body.appendChild(topBar);
-	[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
+	const simpleMenu = topBar.querySelector('[data-anyink-control="menu"]');
+	if (simpleMenu) simpleMenu.click();
+	else [...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 	document
 		.querySelector('#context-menu [data-anyink-row="font-otf"]')
 		.closest('.context-menu-row')

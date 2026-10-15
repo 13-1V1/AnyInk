@@ -17,6 +17,8 @@
 //      tracks put words on (the Overview's letter-set switch, the start page, About, the error box)
 //      it is recorded, for their report
 //   9. All tools: the save status and the neighbor letters as before; the edge has one label too
+// B6 + B7 finalize: its Simple parts check B5's Simple, so every feature flag is turned off in
+// the page (verify_standins.mjs pinB5Simple); B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs.
 // Usage: node tests/words-fix.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -25,7 +27,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { toOverview } from './verify_standins.mjs';
+import { pinB5Simple, toOverview } from './verify_standins.mjs';
 
 const src = fileURLToPath(new URL('../src/', import.meta.url));
 const shots = resolve(process.argv[2] || resolve(tmpdir(), 'anyink-words-fix'));
@@ -119,6 +121,7 @@ const drag = async (from, to) => {
 const newFont = async (search) => {
 	await page.evaluate(() => (window.onbeforeunload = null)).catch(() => {});
 	await page.goto(`${origin}/${search}`);
+	if (String(search).includes('ui=simple')) await pinB5Simple(page);
 	const field = page.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill('Brennan Hand');

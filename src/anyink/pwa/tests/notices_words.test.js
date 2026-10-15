@@ -77,6 +77,8 @@ describe('app notices in house words', () => {
 		panel().querySelector('button').click();
 		await Promise.resolve();
 		expect(document.querySelector('.anyink-pwa-busy').textContent).toBe(word('notice.updating'));
+		// B6 + B7 integration: an ANY-INK dialog, so the Next line steps aside (coach rule 1)
+		expect(document.querySelector('.anyink-pwa-busy').dataset.anyinkDialog).toBe('updating');
 		expect(update).toHaveBeenCalledTimes(1);
 		finish();
 	});

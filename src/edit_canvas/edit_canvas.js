@@ -11,6 +11,10 @@ import { drawGuidesLayerOverlay, guidesLayerState } from '../anyink/metrics/guid
 import { onThemeChange, token, withAlpha } from '../anyink/theme/theme.js';
 import { onBitmapReady } from '../anyink/trace/bitmap_cache.js';
 import { drawTraceAffordances, drawTraceImage } from '../anyink/trace/trace_draw.js';
+import { drawEdges, hidesLayerOverlay } from '../anyink/letter/edges.js';
+import { drawGuideLetter } from '../anyink/letter/guide_letter.js';
+import { drawSimpleGuideLines, letterCanvasOn } from '../anyink/letter/guide_lines.js';
+import { drawNeighbors } from '../anyink/letter/neighbors.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
 import { labelCase, word } from '../anyink/words/words.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
@@ -229,14 +233,24 @@ export class EditCanvas extends HTMLElement {
 			// ANY-INK (M7): the trace image goes under everything else
 			drawTraceImage(ctx, view, currentItem, editor);
 			const ehd = eventHandlerData;
+			// ANY-INK (B7, UX-BEGINNER.md 4.3): Simple's letter view draws its own lines, edges,
+			// guide letter and neighbors (src/anyink/letter); All tools draws as before
+			const letterView = letterCanvasOn();
 
 			// Guides
 			const guidesSettings = editor.project.settings.app.guides;
 			if (!guidesSettings.drawGuidesOnTop) {
 				// if (guidesSettings.systemShowGuides) drawSystemGuidelines(!shouldDrawContextCharacters());
 				if (guidesSettings.gridShow) drawGrid();
-				if (guidesSettings.systemShowGuides) drawSystemGuidelines();
+				if (letterView) drawLetterViewGuides();
+				else if (guidesSettings.systemShowGuides) drawSystemGuidelines();
 				if (guidesSettings.customShowGuides) drawCustomGuidelines();
+			}
+
+			// ANY-INK (B7): the faint guide letter and his n or H, under the letter (view only)
+			if (letterView) {
+				drawGuideLetter(ctx, view, currentItem, project);
+				drawNeighbors(ctx, view, currentItem, project);
 			}
 
 			// Draw glyphs
@@ -288,7 +302,8 @@ export class EditCanvas extends HTMLElement {
 			if (guidesSettings.drawGuidesOnTop) {
 				// if (guidesSettings.systemShowGuides) drawSystemGuidelines(!shouldDrawContextCharacters());
 				if (guidesSettings.gridShow) drawGrid();
-				if (guidesSettings.systemShowGuides) drawSystemGuidelines();
+				if (letterView) drawLetterViewGuides();
+				else if (guidesSettings.systemShowGuides) drawSystemGuidelines();
 				if (guidesSettings.customShowGuides) drawCustomGuidelines();
 			}
 
@@ -306,7 +321,9 @@ export class EditCanvas extends HTMLElement {
 			}
 
 			// ANY-INK guides layer: hover / drag highlights and live metric labels
-			drawGuidesLayerOverlay(ctx, view, currentItem);
+			// B7: in the letter view an edge pointed at says its name with no number (edges.js),
+			// and an edge Fine-tune hides shows nothing at all
+			if (!hidesLayerOverlay(currentItem)) drawGuidesLayerOverlay(ctx, view, currentItem);
 
 			// ANY-INK (M7): trace image box and corner handles (Trace panel open only)
 			drawTraceAffordances(ctx, view, currentItem, editor);
@@ -485,6 +502,23 @@ export class EditCanvas extends HTMLElement {
 			}
 
 			// log(`drawSystemGuidelines`, 'end');
+		}
+
+		/**
+		 * ANY-INK (B7, UX-BEGINNER.md 4.3 Canvas): Simple's letter view. The five lines span the
+		 * canvas, labeled at the left in house words, the writing line heavier (guide_lines.js),
+		 * always: Simple has no switch to hide them. Then the edges with their shaded spaces, only
+		 * while Fine-tune is open (edges.js). Same strength as drawSystemGuidelines (B1's 3:1).
+		 */
+		function drawLetterViewGuides() {
+			const { alpha, thickness } = systemGuideStroke(
+				project.settings.app.guides.systemTransparency,
+				guideColorDark(),
+				token('--canvas-bg'),
+				globalThis.devicePixelRatio || 1
+			);
+			drawSimpleGuideLines(ctx, view, project.settings.font, { width, height, alpha, thickness });
+			drawEdges(ctx, view, currentItem, project, { alpha, thickness });
 		}
 
 		function setSystemGuideColor(level = 'medium', alpha) {

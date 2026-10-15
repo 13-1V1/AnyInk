@@ -438,4 +438,16 @@ describe('the toast stylesheet', () => {
 		expect(css).not.toMatch(/rgba?\(/);
 		expect(css).not.toMatch(/text-transform:\s*uppercase/);
 	});
+
+	// B6 + B7 integration (found in Chrome, tests/b67.verify.mjs): on the letter page the canvas's
+	// zoom bar and, inside Fine-tune, the view switches sit in its bottom right corner, where a
+	// toast covered them for its 6 s. A Simple toast sits just above that corner when it is there.
+	it('on a page with the canvas zoom bar, a Simple toast sits above it (anchored to it)', () => {
+		const css = readFileSync(join(here, '../toast.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+		expect(css).toMatch(/\.editor-page__zoom-area\s*\{[^}]*anchor-name:\s*--anyink-zoom-area/);
+		expect(css).toMatch(
+			/#toast\[data-anyink-toast='simple'\]\s*\{[^}]*bottom:\s*calc\(\s*anchor\(--anyink-zoom-area top,/
+		);
+		expect(css).toMatch(/@supports \(anchor-name: --a\)/);
+	});
 });

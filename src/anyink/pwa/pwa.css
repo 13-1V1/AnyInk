@@ -9,7 +9,8 @@
    (z-index 2000) and under toasts (#toast, 2010), which still show while they last. */
 #anyink-pwa-notices {
 	position: fixed;
-	top: 4px;
+	/* B6 + B7 integration: Simple's top bar centers it on its row (notice_place.js) */
+	top: var(--anyink-notice-top, 4px);
 	right: var(--anyink-notice-right, 16px);
 	z-index: 2005;
 	display: flex;

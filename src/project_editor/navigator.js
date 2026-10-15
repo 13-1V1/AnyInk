@@ -134,6 +134,14 @@ export class Navigator {
 		// ends the visit. It never blocks or redirects the page (band.js arriveAt).
 		arriveAt(this.page);
 		closeEveryTypeOfDialog();
+		// ANY-INK (B6 + B7 finalize): leaving the letter view mid-shape (Simple) ends the Point
+		// pen's shape on its letter, before the page goes (new_path.js leaveLetter); the button
+		// that would have ended it goes with the page. After the dialogs and toasts close, so the
+		// toast that says a shape was taken away stays
+		if (this.page !== 'Characters') {
+			const editor = getCurrentProjectEditor();
+			editor?.eventHandlers?.tool_addPath?.leaveLetter?.(editor);
+		}
 		// ANY-INK: undo and other code paths change the page without the page button, which is
 		// the only place upstream resets a panel the new page does not offer (Trace on Kerning)
 		this.panel = panelForPage(this.page, this.panel);

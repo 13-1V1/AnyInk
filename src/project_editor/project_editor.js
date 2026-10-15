@@ -521,6 +521,9 @@ export class ProjectEditor {
 	set selectedGlyphID(id) {
 		// log(`ProjectEditor SET selectedGlyphID`, 'start');
 		// log(`id: ${id}`);
+		// ANY-INK (B6 + B7 finalize): opening another letter mid-shape (Simple) ends the Point
+		// pen's shape on the letter it is in, before the view moves (new_path.js leaveLetter)
+		if (id !== this._selectedGlyphID) this.eventHandlers?.tool_addPath?.leaveLetter?.(this);
 		if (typeof id !== 'string' || !id.startsWith('glyph-')) {
 			this._selectedGlyphID = false;
 		} else if (this.project.glyphs[id]) {

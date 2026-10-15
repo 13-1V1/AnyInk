@@ -1,0 +1,84 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B7 (UX-BEGINNER.md 4.3 Tools): the Simple letter view's tool column, drawn by
+	edit_canvas/tools/tools.js. Each tool shows its icon, its word under it and its key in small
+	print; the Point pen adds "click to place points". The column widens to fit the words only
+	while it holds labeled tools, so All tools (40 px of icons) is untouched. Sentence case
+	everywhere (2.2): no text-transform. Colors are tokens; the picked tool keeps upstream's green
+	outline (.editor-page__tool-selected).
+*/
+
+html[data-ui-mode='simple'] .editor__page:has(.anyink-tool--labeled) {
+	grid-template-columns: 450px 74px 1fr;
+}
+
+/* The Point pen's "Finish the shape" button keeps its place at the canvas's top left, 10 px in
+   (editor-pages.css sets 530 px for the 40 px column; the canvas starts 34 px later here) */
+html[data-ui-mode='simple'] .editor__page:has(.anyink-tool--labeled) #done-creating-path-button {
+	left: 564px;
+}
+
+.editor-page__tool.anyink-tool--labeled,
+.editor-page__tool.anyink-tool--labeled:active,
+.editor-page__tool.anyink-tool--labeled:focus,
+.editor-page__tool.anyink-tool--labeled:hover {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	width: 64px;
+	height: auto;
+	min-height: 48px;
+	padding: 5px 2px 4px 2px;
+	margin: 0 0 4px 0;
+	color: var(--chrome-text);
+	text-align: center;
+	white-space: normal;
+}
+
+.editor-page__tool.anyink-tool--labeled[hidden] {
+	display: none;
+}
+
+.editor-page__tool.anyink-tool--labeled svg {
+	flex: none;
+	left: 0;
+	top: 0;
+}
+
+.anyink-tool__word {
+	font-family: var(--font-ui);
+	font-size: var(--text-xs);
+	line-height: 1.15;
+	color: var(--chrome-text);
+}
+
+.anyink-tool__caption {
+	font-family: var(--font-ui);
+	font-size: 10px;
+	line-height: 1.1;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-tool__key {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	line-height: 1.1;
+	color: var(--chrome-text-faint);
+}
+
+.editor-page__tool-selected .anyink-tool__key,
+.editor-page__tool-selected .anyink-tool__caption {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-tool-rail__rule {
+	width: 48px;
+	margin: 2px 8px 6px 8px;
+	border-top: var(--hairline);
+}
+
+.anyink-tool-rail__rule[hidden] {
+	display: none;
+}

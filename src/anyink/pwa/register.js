@@ -162,6 +162,8 @@ export function makeUpdateNotice(update) {
 		action: async () => {
 			const busy = document.createElement('dialog');
 			busy.className = 'anyink-pwa-busy';
+			// B6 + B7 integration: the Next line steps aside while it shows (coach rule 1)
+			busy.dataset.anyinkDialog = 'updating';
 			busy.textContent = word('notice.updating');
 			busy.addEventListener('cancel', (event) => event.preventDefault());
 			// The upstream editor has document keyboard shortcuts even with a dialog open.

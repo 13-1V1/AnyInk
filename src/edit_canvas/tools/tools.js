@@ -1,8 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import '../../anyink/letter/tool_labels.css';
+import { fineTuneShows, isLetterViewOn } from '../../anyink/letter/view_switches.js';
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from '../../anyink/metrics/hit_test.js';
+import { toolKey } from '../../anyink/mode/keys.js';
 import { toolTitle, viewToolTitle } from '../../anyink/mode/simple_labels.js';
-import { entryOf, isShown } from '../../anyink/mode/visibility.js';
+import { entryOf, isShown, simplePlace } from '../../anyink/mode/visibility.js';
+import { hasWord, word } from '../../anyink/words/words.js';
 import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
@@ -71,6 +77,10 @@ export function makeEditToolsButtons() {
 		toolButtonData.pathAddPoint.disabled = true;
 	}
 
+	// ANY-INK (B7, UX-BEGINNER 4.3 Tools): the Simple letter view labels each tool and groups
+	// the ones inside Fine-tune; everywhere else the column is drawn as upstream draws it
+	const labeled = isLabeledToolColumn(editor);
+
 	// Make all the new buttons
 	let toolButtonElements = {};
 
@@ -83,13 +93,16 @@ export function makeEditToolsButtons() {
 			tag: 'button',
 			// ANY-INK (B4 + B5 integration): Simple says the tool's house word and key
 			title: toolTitle(buttonName, toolButtonData[buttonName].title),
-			className: 'editor-page__tool',
+			className: labeled ? `editor-page__tool ${LABELED_CLASS}` : 'editor-page__tool',
 			// ANY-INK: found by its id, never by its words (which differ by mode)
-			attributes: { 'data-anyink-tool': buttonName },
-			innerHTML: makeToolButtonSVG({
-				name: buttonName,
+			attributes: {
+				'data-anyink-tool': buttonName,
+				...(labeled && isFineTuneTool(buttonName) ? { 'data-anyink-tool-group': 'fineTune' } : {}),
+			},
+			innerHTML: toolButtonContent(buttonName, {
 				selected: isSelected,
 				disabled: toolButtonData[buttonName].disabled,
+				labeled,
 			}),
 		});
 
@@ -103,12 +116,17 @@ export function makeEditToolsButtons() {
 			callback: (newSelectedTool) => {
 				let isSelected = newSelectedTool === buttonName;
 				newToolButton.classList.toggle('editor-page__tool-selected', isSelected);
-				newToolButton.innerHTML = makeToolButtonSVG({ name: buttonName, selected: isSelected });
+				newToolButton.innerHTML = toolButtonContent(buttonName, {
+					selected: isSelected,
+					labeled,
+				});
 			},
 		});
 
 		toolButtonElements[buttonName] = newToolButton;
 	});
+
+	if (labeled) return labeledToolColumn(editor, toolButtonElements);
 
 	// Put it all together
 	let content = [];
@@ -146,6 +164,114 @@ export function makeEditToolsButtons() {
 
 	// log('makeEditToolsButtons', 'end');
 	return content.filter((element) => !hidden.has(element));
+}
+
+// --------------------------------------------------------------
+// ANY-INK (B7): the Simple letter view's tool column
+// --------------------------------------------------------------
+/*
+	UX-BEGINNER.md 4.3 Tools: "icon with the word under it and the key in small print". The
+	Brush (B8) and Select always show; Edit points, Point pen, Rectangle and Oval (visibility.js
+	place 'fineTune') show while "Fine-tune this letter" is open (letter/view_switches.js
+	fineTuneShows('tools'), which publishes 'editCanvasView' when it opens or closes). The tool
+	that is picked always shows, so a key that picks a Fine-tune tool never picks something
+	hidden. The Point pen says how it works under its word: "click to place points". Words come
+	from words.js (tool.* and letterTools.caption.*), keys from keys.js; the look is
+	letter/tool_labels.css. Upstream's order and icons stay everywhere else.
+*/
+
+/** The class of a labeled tool button (letter/tool_labels.css) */
+const LABELED_CLASS = 'anyink-tool--labeled';
+/** The tools that always show in the letter view, in order (the Brush comes with B8) */
+const ALWAYS_TOOLS = Object.freeze(['nib', 'resize']);
+/** Fine-tune's tools, in the order 4.3 lists them */
+const FINE_TUNE_TOOLS = Object.freeze(['pathEdit', 'newPath', 'newRectangle', 'newOval']);
+
+/**
+ * @param {Object} editor - ProjectEditor
+ * @returns {Boolean} true on the Simple letter view (once 'letterView' has landed)
+ */
+function isLabeledToolColumn(editor) {
+	return isLetterViewOn() && editor?.nav?.page === 'Characters';
+}
+
+/**
+ * @param {String} tool
+ * @returns {Boolean} true for a tool Simple keeps inside Fine-tune
+ */
+function isFineTuneTool(tool) {
+	return simplePlace('tool', tool) === 'fineTune';
+}
+
+/**
+ * A tool button's inside: upstream's icon, and in the letter view its word, the Point pen's
+ * caption and its key.
+ * @param {String} tool
+ * @param {Object} options
+ * @param {Boolean} [options.selected]
+ * @param {Boolean} [options.disabled]
+ * @param {Boolean} [options.labeled]
+ * @returns {String} HTML
+ */
+function toolButtonContent(tool, { selected = false, disabled = false, labeled = false } = {}) {
+	const icon = makeToolButtonSVG({ name: tool, selected, disabled });
+	if (!labeled || !hasWord(`tool.${tool}`)) return icon;
+	const caption = hasWord(`letterTools.caption.${tool}`)
+		? `<span class="anyink-tool__caption">${escapeText(word(`letterTools.caption.${tool}`))}</span>`
+		: '';
+	const key = toolKey(tool);
+	const keyPrint = key ? `<span class="anyink-tool__key">${escapeText(key)}</span>` : '';
+	return `${icon}<span class="anyink-tool__word">${escapeText(word(`tool.${tool}`))}</span>${caption}${keyPrint}`;
+}
+
+/**
+ * @param {String} text
+ * @returns {String} safe inside HTML
+ */
+function escapeText(text) {
+	return String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+/**
+ * The letter view's column: the tools that always show, a rule, then Fine-tune's tools, each
+ * shown or hidden as Fine-tune opens and closes and as the picked tool changes.
+ * @param {Object} editor - ProjectEditor
+ * @param {Object<String, HTMLElement>} toolButtonElements - by tool name
+ * @returns {Array<HTMLElement>}
+ */
+function labeledToolColumn(editor, toolButtonElements) {
+	const pick = (list) =>
+		list.filter((tool) => toolButtonElements[tool] && isShown('tool', tool));
+	const always = pick(ALWAYS_TOOLS).map((tool) => toolButtonElements[tool]);
+	const fineTune = pick(FINE_TUNE_TOOLS.filter(isFineTuneTool)).map((tool) => [
+		tool,
+		toolButtonElements[tool],
+	]);
+	const rule = makeElement({
+		tag: 'div',
+		className: 'anyink-tool-rail__rule',
+		attributes: { 'aria-hidden': 'true' },
+	});
+
+	const update = () => {
+		const open = fineTuneShows('tools');
+		let anyShown = false;
+		fineTune.forEach(([tool, button]) => {
+			const shown = open || editor.selectedTool === tool;
+			button.hidden = !shown;
+			anyShown = anyShown || shown;
+		});
+		rule.hidden = !anyShown;
+	};
+	update();
+
+	editor.subscribe({
+		topic: ['editCanvasView', 'whichToolIsSelected'],
+		subscriberID: 'anyink.toolRail.fineTune',
+		callback: update,
+	});
+
+	return [...always, rule, ...fineTune.map(([, button]) => button)];
 }
 
 /**

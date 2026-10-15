@@ -35,6 +35,9 @@ const SPEC_FLAGS = [
 	'roughen',
 ];
 
+/** The flags the Bs that have landed turned on (B6 + B7 integration). */
+const LANDED = ['coach', 'letterView'];
+
 describe('feature flags', () => {
 	it("are the spec's flags, in its order", () => {
 		expect(FEATURE_NAMES).toEqual(SPEC_FLAGS);
@@ -43,10 +46,12 @@ describe('feature flags', () => {
 		expect(Object.isFrozen(FEATURE_NAMES)).toBe(true);
 	});
 
-	it('are all off at B5 (each later B turns on only its own)', () => {
+	// B6 + B7 integration: each B turned on only its own flag; every later one is still off
+	it('are on for the Bs that have landed (B6 coach, B7 letterView) and off for the rest', () => {
 		SPEC_FLAGS.forEach((name) => {
-			expect(FEATURES[name], name).toBe(false);
-			expect(isFeatureOn(name), name).toBe(false);
+			const on = LANDED.includes(name);
+			expect(FEATURES[name], name).toBe(on);
+			expect(isFeatureOn(name), name).toBe(on);
 		});
 	});
 
@@ -90,15 +95,24 @@ describe('feature flags', () => {
 
 describe('test overrides', () => {
 	it('turn a flag on for isFeatureOn until reset, and hand back what they replaced', () => {
-		expect(setFeaturesForTests({ letterView: true })).toEqual({});
-		expect(isFeatureOn('letterView')).toBe(true);
+		expect(setFeaturesForTests({ brush: true })).toEqual({});
+		expect(isFeatureOn('brush')).toBe(true);
 		expect(isFeatureOn('board')).toBe(false);
-		expect(setFeaturesForTests({ board: true })).toEqual({ letterView: true });
-		expect(isFeatureOn('letterView')).toBe(true);
+		expect(setFeaturesForTests({ board: true })).toEqual({ brush: true });
+		expect(isFeatureOn('brush')).toBe(true);
 		expect(isFeatureOn('board')).toBe(true);
 		resetFeaturesForTests();
-		expect(isFeatureOn('letterView')).toBe(false);
+		expect(isFeatureOn('brush')).toBe(false);
 		expect(isFeatureOn('board')).toBe(false);
+	});
+
+	it('turn a landed flag off for isFeatureOn until reset (a "before this B" guard)', () => {
+		expect(setFeaturesForTests({ coach: false, letterView: false })).toEqual({});
+		expect(isFeatureOn('coach')).toBe(false);
+		expect(isFeatureOn('letterView')).toBe(false);
+		resetFeaturesForTests();
+		expect(isFeatureOn('coach')).toBe(true);
+		expect(isFeatureOn('letterView')).toBe(true);
 	});
 
 	it('refuse a flag that does not exist, so a typo shows up', () => {
@@ -107,8 +121,9 @@ describe('test overrides', () => {
 	});
 
 	it('never change FEATURES itself', () => {
-		setFeaturesForTests({ coach: true });
-		expect(FEATURES.coach).toBe(false);
+		setFeaturesForTests({ board: true, coach: false });
+		expect(FEATURES.board).toBe(false);
+		expect(FEATURES.coach).toBe(true);
 		resetFeaturesForTests();
 	});
 });

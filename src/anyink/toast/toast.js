@@ -32,6 +32,8 @@
 	                     shows when its turn comes, and its button does nothing (B4 + B5
 	                     finalize)
 	  upstreamToast(message, { duration, fancy, context })   showToast's way in
+	  dropStaleToasts()   the toast showing goes when it is over (stillGood says no), and the next
+	                      one in line shows (B6 + B7 finalize: undo_toast.js, at every step)
 	  clearToasts()       closeAllToasts (a click on the canvas, Esc, every page change): the
 	                      toasts go, except, in Simple, an offer (an info toast with a button,
 	                      "Couldn't save a backup copy [Save]"), which stays showing or waiting
@@ -44,7 +46,8 @@
 	  resetToastsForTests()
 	The same words again in one stream (queue.js: one group, like the font file's progress once
 	per letter, or the same words with no group and no button) keep the toast showing and give it
-	its time again, rather than drawing a new one each time.
+	its time again, rather than drawing a new one each time; a toast with a button or a stillGood
+	is drawn anew, so its button speaks for the newest press (B6 + B7 finalize).
 */
 import './toast.css';
 import { getMode } from '../mode/mode.js';
@@ -168,8 +171,12 @@ function enqueue(entry) {
 	// The same words again in one stream (the font file's progress, once per letter; "That
 	// shape was too small" twice): the toast showing stays and gets its time again, instead of
 	// a new toast each time
+	// B6 + B7 finalize: not for a toast with a button or a stillGood: the newer press's button
+	// and its stillGood speak for the newest change (two Undo presses that read the same, "Undid:
+	// added a rectangle", each take back another step), so the new toast is drawn in its place
 	const current = queue.current;
-	if (current && isSameStream(current, entry) && current.text === entry.text) {
+	const ownsButton = !!entry.action || typeof entry.stillGood === 'function';
+	if (current && !ownsButton && isSameStream(current, entry) && current.text === entry.text) {
 		if (current.html === entry.html && current.refresh) {
 			current.refresh(entry.ms);
 			return;
@@ -288,6 +295,18 @@ export function clearToasts({ all = false } = {}) {
 	const keepOffers = !all && getMode() === 'simple';
 	const { hide, show, dropped: gone } = queue.clear({ keepOffers });
 	gone.forEach(hideSimple);
+	if (hide) hideSimple(hide);
+	if (show) draw(show);
+}
+
+/**
+ * B6 + B7 finalize: the toast showing goes now when it is over (its stillGood says no: a new
+ * change left an undo toast's [Redo] with nothing to do, or another font opened), and the next
+ * toast in line that is still good shows. history/undo_toast.js calls it at every step (the
+ * save status event), so a dead button never stays on screen for the rest of its 6 s.
+ */
+export function dropStaleToasts() {
+	const { hide, show } = queue.sweep();
 	if (hide) hideSimple(hide);
 	if (show) draw(show);
 }

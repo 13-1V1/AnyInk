@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com
+     B6 + B7 fix pass: the fix pass's states of rules 8 and 10 (a drawing tool picked, a Point
+     pen shape still open, a failed save), and the tip beside the sentence. -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK Next line (B6)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; }
+		main { padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-5) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		button.on { box-shadow: 0 0 0 2px var(--touch); }
+		label { font-size: var(--text-sm); color: var(--chrome-text-muted); display: inline-flex; gap: var(--space-1); align-items: center; }
+		/* A stand-in for Simple's top bar (B6's topbar track draws the real one) */
+		.bar { display: flex; align-items: center; gap: var(--space-4); height: 40px; padding: 0 var(--space-4); background: var(--chrome-bg-sunken); border-bottom: var(--hairline); font-size: var(--text-sm); }
+		.bar b { font-weight: 600; }
+		.bar .step { border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: 2px var(--space-2); color: var(--chrome-text-muted); }
+		.bar .grow { flex: 1; }
+		.card { background: var(--chrome-bg-raised); border-radius: var(--radius); padding: var(--space-4); margin-top: var(--space-3); box-shadow: 0 0 0 1px var(--chrome-border); }
+		.card .anyink-primary { background: var(--touch); color: var(--chrome-text-inverse); border-color: var(--touch); font-weight: 600; }
+		.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+		.readout { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); white-space: pre-wrap; background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); min-height: 120px; }
+		#rules button { min-width: 40px; }
+		ol { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); }
+		li { padding: 2px 0; color: var(--chrome-text-muted); }
+		li.now { color: var(--chrome-text); }
+		li .mark { font-family: var(--font-mono); font-size: var(--text-xs); margin-left: var(--space-2); }
+		li .mark.pass { color: var(--touch-hover); }
+		li .mark.fail { color: var(--danger); }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 100px; overflow-y: auto; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<div class="bar" aria-hidden="true">
+		<b>ANY-INK</b><span>Brennan Hand</span>
+		<span class="step">1 Letters</span><span class="step">2 Try it</span><span class="step">3 Use in Word</span>
+		<span class="grow"></span><span id="chip-slot"></span><span>Undo</span><span>Redo</span><span>Saved</span><span>More tools</span><span>Menu</span>
+	</div>
+	<anyink-coach id="coach"></anyink-coach>
+	<main>
+		<h1>The Next line (B6)</h1>
+		<p>
+			The real &lt;anyink-coach&gt; under a stand-in top bar, drawing a fake font. <b>Every rule</b>
+			steps the font through the 17 rules of UX-BEGINNER 4.0 (the first match wins); turn a feature
+			flag off and its rules are skipped. <b>Card holds the green button</b> puts a card with a
+			green button on the page: the line's button goes outlined (one green button per screen).
+			<b>Journey</b> walks section 3's table, from a new font to Word, with the coach's own memory of
+			changes, Try it and the font file. Something else, "x" (and the Next chip in the bar), the
+			button's action (logged below) and the tips all work.
+		</p>
+
+		<h2>Every rule</h2>
+		<div class="row" id="rules"></div>
+		<h2>Rules 8 and 10, more states</h2>
+		<div class="row" id="more"></div>
+		<h2>Feature flags</h2>
+		<div class="row" id="flags"></div>
+		<h2>Screen</h2>
+		<div class="row">
+			<label><input type="checkbox" id="card-toggle" /> Card holds the green button</label>
+			<label><input type="checkbox" id="dialog-toggle" /> A dialog is open</label>
+			<span>Tip:</span>
+			<button data-tip="photoStays">photo</button>
+			<button data-tip="brush">brush</button>
+			<button data-tip="editPoints">edit points</button>
+			<button data-tip="pointPen">point pen</button>
+			<button data-tip="shapes">shapes</button>
+			<button id="tips-again">Show tips again</button>
+		</div>
+		<div class="card" id="card" hidden>
+			<p>Capital B is empty.</p>
+			<button class="anyink-primary">Use the same photo</button>
+			<button>Draw with the brush</button>
+		</div>
+
+		<h2>Journey (section 3)</h2>
+		<div class="row">
+			<button id="journey-start">Start the journey</button>
+			<button id="journey-next">Next step</button>
+			<button id="journey-all">Run every step</button>
+			<button id="journey-tomorrow">Come back tomorrow</button>
+			<span id="journey-score"></span>
+		</div>
+		<ol id="journey"></ol>
+
+		<div class="grid">
+			<div>
+				<h2>The line</h2>
+				<div class="readout" id="line"></div>
+			</div>
+			<div>
+				<h2>Button presses</h2>
+				<div id="log"></div>
+			</div>
+		</div>
+	</main>
+
+	<script type="module">
+		window.log = () => {};
+		import { FEATURE_NAMES, setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { setModeForTests } from '../src/anyink/mode/mode.js';
+		import { CoachElement, makeNextChip } from '../src/anyink/coach/coach_element.js';
+		import { makeCoach } from '../src/anyink/coach/coach_state.js';
+		import { setCoachAction } from '../src/anyink/coach/actions.js';
+		import { probeScreen } from '../src/anyink/coach/dom_probe.js';
+		import { RULE_STATES, EXPECTED, MORE_STATES } from '../src/anyink/coach/tests/rule_states.js';
+		import { JOURNEY, TOMORROW, launch, makeWorld } from '../src/anyink/coach/tests/journey_steps.js';
+
+		setModeForTests('simple');
+		const flagState = Object.fromEntries(FEATURE_NAMES.map((name) => [name, true]));
+		setFeaturesForTests(flagState);
+		if (!customElements.get('anyink-coach')) customElements.define('anyink-coach', CoachElement);
+
+		const $ = (selector) => document.querySelector(selector);
+		const element = /** @type {CoachElement} */ ($('#coach'));
+		const frame = (fn) => requestAnimationFrame(fn);
+		const logEl = $('#log');
+		const logLine = (text) => {
+			logEl.textContent += `${text}\n`;
+			logEl.scrollTop = logEl.scrollHeight;
+		};
+		['save', 'fixSave', 'goToLetter', 'fixFontProblem', 'showFontProblem', 'how', 'nextPart', 'tryIt', 'useInWord', 'fixLetter', 'showNeedsLook', 'addNumbers'].forEach((name) =>
+			setCoachAction(name, (args) => logLine(`${name} ${JSON.stringify(args)}`))
+		);
+
+		// --------------------------------------------------------------
+		// Every rule: a coach over one rule's fake font
+		// --------------------------------------------------------------
+		let rule = 11;
+		const stateOfRule = (n) => (MORE_STATES[n] ? MORE_STATES[n].state() : RULE_STATES[n]());
+		const rulesCoach = makeCoach({
+			getEditor: () => null,
+			deriveState: () => ({ ...stateOfRule(rule), flags: { ...flagState } }),
+			probe: () => probeScreen(),
+			schedule: frame,
+		});
+		let chip = null;
+		const heard = new Set();
+		function use(coach) {
+			element.coach = coach;
+			chip?.remove();
+			chip = makeNextChip(coach);
+			$('#chip-slot').appendChild(chip);
+			if (!heard.has(coach)) coach.subscribe(showLine);
+			heard.add(coach);
+			showLine();
+		}
+		function showRule(n) {
+			rule = MORE_STATES[n] ? n : Number(n);
+			document.querySelectorAll('#rules button, #more button').forEach((b) => b.classList.toggle('on', b.dataset.rule === String(n)));
+			if (element.coach !== rulesCoach) use(rulesCoach);
+			rulesCoach.refresh();
+			rulesCoach.flush();
+			element.render();
+			showLine();
+		}
+		Object.keys(RULE_STATES).forEach((n) => {
+			const button = document.createElement('button');
+			button.textContent = n;
+			button.dataset.rule = n;
+			button.addEventListener('click', () => showRule(Number(n)));
+			$('#rules').appendChild(button);
+		});
+		Object.keys(MORE_STATES).forEach((name) => {
+			const button = document.createElement('button');
+			button.textContent = name;
+			button.dataset.rule = name;
+			button.addEventListener('click', () => showRule(name));
+			$('#more').appendChild(button);
+		});
+		FEATURE_NAMES.forEach((name) => {
+			const label = document.createElement('label');
+			label.innerHTML = `<input type="checkbox" data-flag="${name}" checked /> ${name}`;
+			label.querySelector('input').addEventListener('change', (event) => setFlag(name, event.target.checked));
+			$('#flags').appendChild(label);
+		});
+		function setFlag(name, on) {
+			flagState[name] = !!on;
+			setFeaturesForTests({ [name]: !!on });
+			const box = document.querySelector(`[data-flag="${name}"]`);
+			if (box) box.checked = !!on;
+			element.coach.refresh();
+			element.coach.flush();
+			element.render();
+			showLine();
+		}
+		$('#card-toggle').addEventListener('change', (event) => ($('#card').hidden = !event.target.checked));
+		$('#dialog-toggle').addEventListener('change', (event) => {
+			document.querySelector('[data-anyink-dialog]')?.remove();
+			if (event.target.checked) {
+				const dialog = document.createElement('div');
+				dialog.dataset.anyinkDialog = 'howCard';
+				dialog.className = 'card';
+				dialog.textContent = 'How to photograph your letters';
+				$('main').appendChild(dialog);
+			}
+		});
+		document.querySelectorAll('[data-tip]').forEach((button) =>
+			button.addEventListener('click', () => {
+				const shown = element.coach.tips.show(button.dataset.tip);
+				logLine(`tip ${button.dataset.tip}: ${shown ? 'shown' : 'not shown'}`);
+			})
+		);
+		$('#tips-again').addEventListener('click', () => element.coach.tips.reset());
+
+		// --------------------------------------------------------------
+		// The journey: a coach with its own memory over a fake font
+		// --------------------------------------------------------------
+		let world = null;
+		let journeyCoach = null;
+		let steps = [];
+		let at = 0;
+		const results = [];
+		function startJourney(list = JOURNEY, keepWorld = false) {
+			if (!keepWorld || !world) world = makeWorld();
+			journeyCoach = launch(world, { probe: () => probeScreen(), schedule: frame, listen: true });
+			journeyCoach.start();
+			steps = list;
+			at = 0;
+			results.length = 0;
+			use(journeyCoach);
+			drawSteps();
+		}
+		function nextStep() {
+			if (!journeyCoach || at >= steps.length) return null;
+			const step = steps[at];
+			step.run(world, journeyCoach);
+			journeyCoach.flush();
+			element.render();
+			const line = journeyCoach.line();
+			const pass =
+				line.rule === step.expect.rule &&
+				line.sentence === step.expect.sentence &&
+				line.button === step.expect.button &&
+				(step.expect.primary === undefined || line.primary === step.expect.primary);
+			results.push({ clock: step.clock, does: step.does, rule: line.rule, sentence: line.sentence, button: line.button, pass });
+			at++;
+			drawSteps();
+			showLine();
+			return results.at(-1);
+		}
+		function drawSteps() {
+			const list = $('#journey');
+			list.innerHTML = '';
+			steps.forEach((step, i) => {
+				const li = document.createElement('li');
+				li.className = i === at - 1 ? 'now' : '';
+				const done = results[i];
+				li.textContent = `${step.clock}  ${step.does}  ->  "${step.expect.sentence}"${step.expect.button ? ` [${step.expect.button}]` : ''}`;
+				if (done) {
+					const mark = document.createElement('span');
+					mark.className = `mark ${done.pass ? 'pass' : 'fail'}`;
+					mark.textContent = done.pass ? 'pass' : `fail: "${done.sentence}" [${done.button}]`;
+					li.appendChild(mark);
+				}
+				list.appendChild(li);
+			});
+			const passed = results.filter((r) => r.pass).length;
+			$('#journey-score').textContent = results.length ? `${passed} of ${results.length} steps pass` : '';
+		}
+		$('#journey-start').addEventListener('click', () => startJourney());
+		$('#journey-next').addEventListener('click', () => nextStep());
+		$('#journey-all').addEventListener('click', () => {
+			startJourney();
+			while (at < steps.length) nextStep();
+		});
+		$('#journey-tomorrow').addEventListener('click', () => {
+			if (!world) {
+				startJourney();
+				while (at < steps.length) nextStep();
+			}
+			startJourney(TOMORROW, true);
+			while (at < steps.length) nextStep();
+		});
+
+		function showLine() {
+			const line = element.coach.line();
+			$('#line').textContent = JSON.stringify(
+				{ rule: line.rule, name: line.name, sentence: line.sentence, button: line.button, action: line.action, args: line.args, primary: line.primary, somethingElse: line.somethingElse, hidden: element.coach.isHidden(), tip: element.coach.tips.current()?.text || '' },
+				null,
+				1
+			);
+		}
+
+		use(rulesCoach);
+		showRule(11);
+		window.anyinkCoachPage = {
+			element,
+			showRule,
+			setFlag,
+			expected: EXPECTED,
+			rules: Object.keys(RULE_STATES).map(Number),
+			more: MORE_STATES,
+			line: () => element.coach.line(),
+			coach: () => element.coach,
+			startJourney,
+			nextStep,
+			journeyLength: () => steps.length,
+			tomorrow: () => {
+				startJourney(TOMORROW, true);
+				const out = [];
+				while (at < steps.length) out.push(nextStep());
+				return out;
+			},
+			results,
+			useRules: () => use(rulesCoach),
+		};
+	</script>
+</body>
+</html>

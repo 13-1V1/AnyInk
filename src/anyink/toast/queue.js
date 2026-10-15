@@ -25,10 +25,14 @@
 	that one is dropped: a toast with no button and no warning first, then a warning, a toast
 	with a button last; among those the lowest kind, then the oldest.
 
-	  createQueue({ maxWaiting, isLive })   { current, waiting, add(entry), done(entry), clear() }
-	    isLive(entry)  false: the toast is over before its turn (an offer whose font is gone,
-	                 B4 + B5 finalize): it never shows from the line and a clear takes it
+	  createQueue({ maxWaiting, isLive })   { current, waiting, add(entry), done(entry), sweep(),
+	                 clear() }
+	    isLive(entry)  false: the toast is over (an offer whose font is gone, B4 + B5 finalize; an
+	                 undo toast whose [Redo] a new change left with nothing to do, B6 + B7
+	                 finalize): it never shows from the line, a clear takes it, and showing it
+	                 keeps no place: the next toast takes its place at once
 	    add(entry)   -> { show, hide, dropped }  show: draw it now; hide: take that one down
+	    sweep()      -> { hide, show }  the toast showing is over: it goes, the next live one shows
 	    done(entry)  -> { show }  its time ran out, its button was pressed, or it was closed
 	    clear({ keepOffers })  -> { hide, show, dropped }  closeAllToasts: everything goes, or,
 	                 with keepOffers (Simple), everything but the offers
@@ -161,15 +165,31 @@ export function createQueue({ maxWaiting = MAX_WAITING, isLive = () => true } = 
 				current = entry;
 				return { show: entry, hide: null, dropped };
 			}
-			if (keepsPlace(current, entry)) {
+			// B6 + B7 finalize: a toast that is over (its button no longer acts) keeps no place:
+			// the new one shows at once, and the old one is never put back in the line
+			const over = !isLive(current);
+			if (!over && keepsPlace(current, entry)) {
 				wait(entry, dropped);
 				return { show: null, hide: null, dropped };
 			}
 			const hide = current;
 			current = entry;
 			// An offer a higher kind pushed aside waits for its turn again
-			if (isOffer(hide) && !isSameStream(hide, entry)) wait(hide, dropped);
+			if (!over && isOffer(hide) && !isSameStream(hide, entry)) wait(hide, dropped);
 			return { show: entry, hide, dropped };
+		},
+
+		/**
+		 * B6 + B7 finalize: the toast showing is over (its stillGood said no: a new change left
+		 * its [Redo] with nothing to do): it goes now, not at the end of its time, and the next
+		 * toast in line that is still good shows.
+		 * @returns {{hide: Object | null, show: Object | null}}
+		 */
+		sweep() {
+			if (!current || isLive(current)) return { hide: null, show: null };
+			const hide = current;
+			current = nextLive();
+			return { hide, show: current };
 		},
 
 		/**

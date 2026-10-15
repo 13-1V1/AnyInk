@@ -33,6 +33,9 @@
 	the tool or the photo's corner); in both modes an edge drag or an arrow nudge stops at width 0
 	(UX-BEGINNER 7.2: the font file can't hold a width below zero), and a press that moves nothing
 	records nothing.
+	B6 + B7 integration: in the letter view the side edges move only while Fine-tune shows them,
+	and never while a drawing tool is picked (the press draws); both gates pass the tool to
+	mode/locks.js.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor } from '../../edit_canvas/cursors.js';
@@ -300,7 +303,8 @@ function onKeyDown(event) {
 
 	const line = state.line;
 	// B5: a line Simple locks never moves, even one hovered before Simple came on
-	if (isGuideLineLocked(line, { item: getCurrentProjectEditor()?.selectedItem })) return;
+	const current = getCurrentProjectEditor();
+	if (isGuideLineLocked(line, { item: current?.selectedItem, tool: current?.selectedTool })) return;
 	let step = 0;
 	if (line.orientation === 'h') {
 		if (event.key === 'ArrowUp') step = 1;
@@ -406,7 +410,7 @@ export function findLineAt(editor, pos) {
 		systemGuides: editor.systemGuides,
 		guides: editor.project.settings.app.guides,
 		item,
-	}).filter((line) => !isGuideLineLocked(line, { item }));
+	}).filter((line) => !isGuideLineLocked(line, { item, tool: editor.selectedTool }));
 	return hitTestLines(lines, pos.x, pos.y, editor.view, HIT_ZONE_PX);
 }
 

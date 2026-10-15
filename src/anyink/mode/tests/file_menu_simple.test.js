@@ -15,6 +15,7 @@ import { fakeApi } from '../../files/tests/fakes.js';
 import { setModeForTests } from '../mode.js';
 import { word } from '../../words/words.js';
 import { sampleEditor } from './controls_probe.js';
+import { noFlags } from './no_flags.js';
 
 let editor;
 let api;
@@ -47,6 +48,7 @@ beforeEach(() => {
 	editor = sampleEditor();
 	api = fakeApi({ open: [], save: undefined, directory: undefined });
 	setFileApi(api);
+	noFlags(); // B6's Menu replaced this one in Simple; this file pins the File menu before B6
 });
 afterEach(() => {
 	warn.mockRestore();

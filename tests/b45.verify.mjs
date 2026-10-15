@@ -24,6 +24,8 @@
 //      strip toggle with focus no longer swallows Ctrl+Z, and the strip redraws when a rectangle
 //      is drawn (its empty-sheet sentence goes)
 //   Simple scans are strict (UX-BEGINNER.md 2.4 E and G: no "project", no block names, no codes).
+//   B6 + B7 finalize: B and D check B5's Simple, so every feature flag is turned off in the page
+//   (verify_standins.mjs pinB5Simple); B6 and B7's Simple is b67.verify.mjs and b67-fixes.verify.mjs.
 // Usage: node tests/b45.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -35,7 +37,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { formatHit, scanTexts } from '../src/anyink/words/banned.js';
-import { pressInAllTools, toOverview } from './verify_standins.mjs';
+import { pinB5Simple, pressInAllTools, toOverview } from './verify_standins.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const src = resolve(repo, 'src');
@@ -316,6 +318,7 @@ const hover = async (point) => {
 const newFont = async (origin, name, search = '') => {
 	await page.evaluate(() => (window.onbeforeunload = null)).catch(() => {});
 	await page.goto(`${origin}/${search}`);
+	if (search.includes('ui=simple')) await pinB5Simple(page);
 	const field = page.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill(name);
@@ -447,8 +450,11 @@ try {
 		assert.deepEqual(a.fileMenu.length, b.fileMenu.length, 'the same number of File rows');
 		assert.deepEqual(a.headingFont, b.headingFont, 'File menu headings keep their font');
 		// 7.6, both modes: P picks the Point pen and E Edit points; every other key as before
-		const changed = Object.keys(a.keys).filter((key) => a.keys[key] !== b.keys[key]);
-		assert.deepEqual(changed.sort(), ['e', 'p'], JSON.stringify({ before: b.keys, after: a.keys }));
+		// (B6 + B7 finalize: the last commit has B5's keys already, so P and E match it too)
+		const changed = Object.keys(a.keys).filter(
+			(key) => !['e', 'p'].includes(key) && a.keys[key] !== b.keys[key]
+		);
+		assert.deepEqual(changed, [], JSON.stringify({ before: b.keys, after: a.keys }));
 		assert.deepEqual([a.keys.p, a.keys.e], ['newPath', 'pathEdit']);
 	}
 	assert.deepEqual(a.fileMenuHits, [], 'the File menu says no banned word');
@@ -493,6 +499,7 @@ try {
 	// ----------------------------------------------------------
 	await page.evaluate(() => (window.onbeforeunload = null)).catch(() => {});
 	await page.goto(`${after.origin}/?ui=simple`);
+	await pinB5Simple(page);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
 	const startHits = {};
 	for (const tab of ['new', 'load', 'recover', 'examples']) {
@@ -763,6 +770,7 @@ try {
 	// ----------------------------------------------------------
 	await page.evaluate(() => (window.onbeforeunload = null));
 	await page.goto(`${after.origin}/?ui=simple`);
+	await pinB5Simple(page);
 	await page.locator('#open-project__tab-examples').click();
 	await page.locator('#tab-content__examples fancy-button').nth(1).click();
 	await page.locator('glyph-tile').first().waitFor();
@@ -820,6 +828,7 @@ try {
 	// the start page: one green button on each tab (UX-BEGINNER.md 4.1, principle 1)
 	await page.evaluate(() => (window.onbeforeunload = null));
 	await page.goto(`${after.origin}/?ui=simple`);
+	await pinB5Simple(page);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
 	const greens = {};
 	for (const tab of ['new', 'load', 'examples']) {

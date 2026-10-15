@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	<preview-strip> (Milestone 5, D-011): the always-visible sample-text strip fixed
 	to the bottom of the window. It is mounted in index.html next to #app__wrapper,
@@ -29,6 +31,8 @@
 	  hidden, and what it turns on is off while it is hidden (the remembered pref is kept for
 	  All tools), so Simple never shows a real-font sheet or guide lines it has no switch for.
 	  The strip follows 'anyink-mode-change'.
+	- B6 + B7 finalize (4.0 Preview strip): in Simple with the Next line on, the text starts as the
+	  font's name until he types or picks a sample (followTryItText), as the coach reads it.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
@@ -36,10 +40,12 @@ import { makeCrisp } from '../../common/functions.js';
 import { closeAllContextMenus, makeContextMenu } from '../../controls/dialogs/dialogs.js';
 import { FontPreview } from '../../controls/font-preview/font_preview.js';
 import { DisplayCanvas } from '../../display_canvas/display_canvas.js';
+import { defaultTryItText } from '../coach/font_facts.js';
 import { SAVE_STATUS_EVENT } from '../files/save_status.js';
 import { getLastFontCheck, runFontCheckNow } from '../fontcheck/font_check.js';
+import { isFeatureOn } from '../mode/features.js';
 import { HIDDEN_ATTRIBUTE } from '../mode/hide.js';
-import { MODE_EVENT } from '../mode/mode.js';
+import { isSimpleMode, MODE_EVENT } from '../mode/mode.js';
 import { isShown } from '../mode/visibility.js';
 import { getPref, setPref } from '../prefs/prefs.js';
 import { onThemeChange, token } from '../theme/theme.js';
@@ -167,6 +173,7 @@ export class PreviewStrip extends HTMLElement {
 	 */
 	applyMode() {
 		if (!this.isBuilt) return;
+		this.followTryItText();
 		[
 			[this.realFontToggle, 'realFont'],
 			[this.metricsToggle, 'guideLines'],
@@ -175,6 +182,7 @@ export class PreviewStrip extends HTMLElement {
 			toggle.label.toggleAttribute('hidden', hidden);
 			toggle.label.toggleAttribute(HIDDEN_ATTRIBUTE, hidden);
 		});
+		this.updateCheckLine();
 		this.fontDirty = true;
 		this.needsResize = true;
 		this.scheduleRedraw();
@@ -396,6 +404,7 @@ export class PreviewStrip extends HTMLElement {
 	attachEditor(editor) {
 		const changed = this.tracker.sync(editor);
 		this.editor = this.tracker.current();
+		this.followTryItText();
 		if (changed) {
 			this.fontDirty = true;
 			// The old font's problems are not this font's: show this font's last check, if any.
@@ -403,6 +412,23 @@ export class PreviewStrip extends HTMLElement {
 			this.scheduleRedraw();
 		}
 		return changed;
+	}
+
+	/**
+	 * B6 + B7 finalize (UX-BEGINNER.md 4.0 Preview strip: the Try-it text "Starts as the font
+	 * name"): in Simple, once the Next line is on, the text is the font's name until he types or
+	 * picks a sample, the rule the coach's letter order reads too (coach/font_facts.js
+	 * defaultTryItText); it is not written to the prefs. All tools, and Simple before B6, keep
+	 * the sample sentence. What he typed is never replaced.
+	 */
+	followTryItText() {
+		if (!this.isBuilt) return;
+		const typed = getPref(PREF_KEYS.text, '');
+		if (typeof typed === 'string' && typed.trim()) return;
+		const project = this.editor?.project;
+		const byName = isSimpleMode() && isFeatureOn('coach') && !!project;
+		const next = (byName && defaultTryItText(project)) || DEFAULT_SAMPLE_TEXT;
+		if (next !== this.options.text) this.setText(next, { persist: false });
 	}
 
 	// --------------------------------------------------------------
@@ -426,7 +452,10 @@ export class PreviewStrip extends HTMLElement {
 
 	updateCheckLine() {
 		if (!this.checkLine) return;
-		const problem = this.sheetSaysCantShow ? null : this.checkProblem;
+		// B6 + B7 integration: in Simple the Next line says the problem (rule 6, 4.0), so the
+		// strip doesn't say it again (visibility.js strip.checkLine, replaced by 'coach')
+		const said = !this.sheetSaysCantShow && isShown('strip', 'checkLine');
+		const problem = said ? this.checkProblem : null;
 		if (problem) {
 			const fixable = canFixProblem(this.editor?.project, problem);
 			this.checkLine.show({

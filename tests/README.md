@@ -147,3 +147,38 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
   canvas, the empty preview's two sentences, the Overview's sample on paper, the strip's
   "Double-click to work on ..." tooltip, the start page's drawing line. Optional argument: a
   screenshot folder.
+- `b67.verify.mjs` (`npm run verify:b67`): B6 and B7 together in the dev app, with the flags as the
+  app has them (`coach`, `letterView` on). Simple, a new font, small a: the Simple top bar, the
+  Next line ("small a is empty. Draw it with points.", no button of its own) and the empty
+  overlay, one green button (the overlay's), 0 banned words (strict); an app notice inside the
+  bar's gap; "Draw it with points": plain clicks at fixed screen points (one Undo step a point,
+  the canvas never moves, "Finish the shape" the one green button while drawing), the closing
+  click moving (no error, the button goes), a second shape inside it a hole (paper in the middle,
+  "Made shape 2 a hole [Make it solid]" above the zoom bar, covering no switch); Fine-tune open:
+  the purple edges show and take the pointer, closed: hidden and the pointer passes; Ctrl+Z names
+  the press ("Undid: ..." [Redo]) in the hole toast's place; the status pill as he saves (Not
+  saved yet [Save] -> Saving... -> Saved; Couldn't save [Fix] and its box) with the leave warning
+  agreeing each time. Then All tools before (the last commit's `src/`) and after: the same
+  controls and the same pixels. Optional argument: a screenshot folder.
+
+- `b67-fixes.verify.mjs` (`npm run verify:b67-fixes`): the B6 + B7 finalize pass, every finding the
+  fix tracks' verifiers left open, with real mouse and keys in Simple: Space on a keyboard-focused
+  "1 Letters" goes to the letters and Space after a mouse click on Undo pans; the Point pen keeps
+  its shape through Ctrl+Z at points between whole units (five letters) and through Ctrl+Z with
+  the mouse held; three open points leave the rail's count alone and "Finish the shape" adds the
+  letter at once; "<- All letters" with 2 points takes the shape away with a toast and the font
+  check runs on the board, with 3 it finishes it; "Finish the shape" with 2 points; "Cleared ..."
+  [Undo] at once after Ctrl+Z; two like undos and the toast's [Redo]; Delete with [Undo] and a
+  Shapes row picked with Edit points; a hole where three rectangles overlap; Help and About with
+  one green button; the strip's Try-it text is the font name; the Fix box's one green; "Finish the
+  shape" merged into a hole leaves no ghost picked. Optional argument: a screenshot folder.
+
+Since B6 + B7 (10/14/2026) Simple has the top bar, the Menu and the letter view. The B5-era
+walkthroughs that step through Simple's page chooser, File menu or B5 letter page
+(`wiring.verify.mjs`, `b45.verify.mjs`, `mode-fixes.verify.mjs`, `words-fix.verify.mjs`) check B5's
+Simple, the stub later Bs build on: since the B6 + B7 finalize they turn every feature flag off in
+the page once its start page loads (`verify_standins.mjs` pinB5Simple); `b67.verify.mjs` and
+`b67-fixes.verify.mjs` check Simple from B6 on. `undo.verify.mjs` and `hooks.verify.mjs` pick the
+Rectangle by its key where Simple keeps it inside Fine-tune.
+The B6 and B7 test pages: `topbar.html` (the bar on a bare editor), `coach.html` (every Next line
+rule, flag toggles, the section 3 journey) and `letter.html` (the letter view on the sample font).

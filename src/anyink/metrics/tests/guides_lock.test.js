@@ -10,6 +10,8 @@ import { setCurrentProjectEditor } from '../../../app/main.js';
 import { importGlyphrProjectFromText } from '../../../project_editor/import_project.js';
 import { ProjectEditor } from '../../../project_editor/project_editor.js';
 import simpleExampleProject from '../../../samples/simpleExampleProject.json';
+import { setFineTuneOpen } from '../../letter/view_switches.js';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { setGuideLinesMoving } from '../../mode/locks.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { findLineAt, guidesLayerState, handleGuidesLayerEvent } from '../guides_layer.js';
@@ -77,7 +79,10 @@ beforeEach(() => {
 });
 
 describe('Simple: the horizontal lines are locked', () => {
-	beforeEach(() => setModeForTests('simple'));
+	beforeEach(() => {
+		setModeForTests('simple');
+		setFineTuneOpen(true, null); // B7's letter view shows (and moves) the edges in Fine-tune
+	});
 
 	it.each(Object.entries(HORIZONTAL))(
 		'%s: no hover, no drag; the press goes to the tool',
@@ -142,6 +147,56 @@ describe('Simple: the horizontal lines are locked', () => {
 		expect(handleGuidesLayerEvent(mouse('mousedown', 300, yOf(300)))).toBe(true);
 		expect(guidesLayerState.dragging).toBe('guide:0');
 		handleGuidesLayerEvent(mouse('mouseup', 300, yOf(300)));
+	});
+});
+
+// B6 + B7 integration: with Fine-tune closed the letter view draws no edges (letter/edges.js), so a
+// press, a hover or an arrow key there never reaches them (mode/locks.js)
+describe('Simple, the letter view with Fine-tune closed: the hidden edges never move', () => {
+	beforeEach(() => setModeForTests('simple'));
+
+	it('no hover, no drag, no arrow nudge, no Undo step; the press goes to the tool', () => {
+		const glyph = editor.selectedItem;
+		const { leftSideBearing: lsb, rightSideBearing: rsb } = glyph;
+		expect(findLineAt(editor, { x: xOf(530), y: 300 })).toBeFalsy();
+		expect(findLineAt(editor, { x: xOf(0), y: 300 })).toBeFalsy();
+		expect(handleGuidesLayerEvent(mouse('mousemove', xOf(530), 300))).toBe(false);
+		expect(guidesLayerState.hover).toBe(false);
+		expect(handleGuidesLayerEvent(mouse('mousedown', xOf(530), 300))).toBe(false);
+		expect(guidesLayerState.dragging).toBe(false);
+		handleGuidesLayerEvent(mouse('mousemove', xOf(530) + 10, 300, true));
+		handleGuidesLayerEvent(mouse('mouseup', xOf(530) + 10, 300));
+		const right = key('ArrowRight');
+		document.dispatchEvent(right);
+		expect(right.defaultPrevented).toBe(false);
+		expect(glyph.leftSideBearing).toBe(lsb);
+		expect(glyph.rightSideBearing).toBe(rsb);
+		expect(editor.history.titles).toEqual([]);
+	});
+
+	it('an edge pointed at before Fine-tune closed takes no arrow nudge', () => {
+		setFineTuneOpen(true, null);
+		handleGuidesLayerEvent(mouse('mousemove', xOf(530), 300));
+		expect(guidesLayerState.hover).toBe('rsb');
+		setFineTuneOpen(false, null);
+		const rsb = editor.selectedItem.rightSideBearing;
+		document.dispatchEvent(key('ArrowRight'));
+		expect(editor.selectedItem.rightSideBearing).toBe(rsb);
+		expect(editor.history.titles).toEqual([]);
+	});
+
+	it('Fine-tune open with the Point pen picked: a press on the edge goes to the pen', () => {
+		setFineTuneOpen(true, null);
+		editor.selectedTool = 'newPath';
+		expect(findLineAt(editor, { x: xOf(530), y: 300 })).toBeFalsy();
+		expect(handleGuidesLayerEvent(mouse('mousedown', xOf(530), 300))).toBe(false);
+		editor.selectedTool = 'resize';
+		expect(findLineAt(editor, { x: xOf(530), y: 300 }).id).toBe('rsb');
+	});
+
+	it('Simple before the letter view: the edges drag with Fine-tune closed, as B5 left them', () => {
+		setFeaturesForTests({ letterView: false });
+		expect(findLineAt(editor, { x: xOf(530), y: 300 }).id).toBe('rsb');
 	});
 });
 

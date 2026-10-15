@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { makeLetterCard } from '../anyink/letter/letter_card.js';
 import { isShown } from '../anyink/mode/visibility.js';
 import { makePanel_Trace } from '../anyink/trace/trace_panel.js';
 import { getCurrentProjectEditor } from '../app/main.js';
@@ -34,6 +37,17 @@ export function makePanel() {
 	if (panel !== 'Layers') {
 		document.removeEventListener('keydown', handlePanelsKeyPress, false);
 		document.removeEventListener('keyup', handlePanelsKeyUp, false);
+	}
+
+	// ANY-INK (B7, UX-BEGINNER 4.3): the Simple letter view's panel slot always shows the letter
+	// card (src/anyink/letter/letter_card.js), whichever panel nav.panel names ('Attributes' or
+	// 'Trace'); nav.panel itself never changes, so More tools opens the panel it had.
+	if (editor.nav.page === 'Characters' && isShown('panel', 'letterCard')) {
+		document.removeEventListener('keydown', handlePanelsKeyPress, false);
+		document.removeEventListener('keyup', handlePanelsKeyUp, false);
+		unsubscribeExcept('letterCard');
+		addAsChildren(content, makeLetterCard(editor));
+		return content;
 	}
 
 	// ANY-INK (B5, UX-BEGINNER 6.2 Panels): Simple shows none of the 9 panels (B7's letter card
@@ -114,6 +128,8 @@ const panelSubscriberIDs = {
 	qualityChecksPanel: ['qualityChecksPanel'],
 	// ANY-INK (M7, M8): the Trace panel and the Auto-trace card inside it
 	tracePanel: ['anyink.trace.panel', 'anyink.autotrace.panel'],
+	// ANY-INK (B7): the Simple letter view's letter card
+	letterCard: ['anyink.letter.card'],
 };
 
 function unsubscribeExcept(panelName = '') {

@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toggleNavDropdown } from '../../../project_editor/navigator.js';
 import { setFeaturesForTests } from '../features.js';
+import { noFlags } from './no_flags.js';
 import { getMode, setModeForTests } from '../mode.js';
 import { findBanned } from '../../words/banned.js';
 import { word } from '../../words/words.js';
@@ -47,7 +48,10 @@ afterEach(() => {
 });
 
 describe('Simple with no flag: the page chooser stays, in house words', () => {
-	beforeEach(() => setModeForTests('simple'));
+	beforeEach(() => {
+		setModeForTests('simple');
+		noFlags(); // B6 + B7 turned their flags on in the app; this pins B5's stub
+	});
 
 	it.each([
 		['Help', 'Help'],

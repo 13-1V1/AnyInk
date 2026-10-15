@@ -8,7 +8,9 @@
 // tools' controls, and the next page Simple shows brings Simple back.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { getMode, setModeForTests } from '../mode.js';
+import { resetFeaturesForTests } from '../features.js';
 import { probeControls } from './controls_probe.js';
+import { noFlags } from './no_flags.js';
 import today from './today_controls.json';
 
 /** One probe for the whole file (the vitest setup puts 'all' back before each test). */
@@ -20,9 +22,11 @@ beforeAll(() => {
 	const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 	const error = vi.spyOn(console, 'error').mockImplementation(() => {});
 	setModeForTests('simple');
+	noFlags(); // B6 + B7 turned 'coach' and 'letterView' on; this file pins B5's stub
 	simple = probeControls();
 	modeAfter = getMode();
 	setModeForTests('all');
+	resetFeaturesForTests();
 	warn.mockRestore();
 	error.mockRestore();
 });

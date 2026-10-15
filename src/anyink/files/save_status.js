@@ -11,6 +11,8 @@
 // Couldn't save, with no word about backup copies (they are silent), and "Saving..." while a
 // write is queued (markSaveQueued, set by the autosave) as well as while it runs; the tooltip is
 // the status.* hint, what to press (saveStatusWords). All tools keeps the words it had.
+// B6 (4.11 "Status pill"): simpleStatusPill adds each Simple state's dot and the button inside
+// the top bar's pill (Not saved yet [Save], Couldn't save [Fix]); SIMPLE_PILL lists the four.
 import { isSimpleMode } from '../mode/mode.js';
 import { word, wordEntry } from '../words/words.js';
 
@@ -94,6 +96,37 @@ export function saveStatusWords(
 	else if (state?.file === 'failed') key = 'status.couldntSave';
 	else if (workFile && state?.queued) key = 'status.saving';
 	return { key, status: SIMPLE_STATUS[key], text: word(key), hint: wordEntry(key).hint };
+}
+
+/**
+ * B6 (4.11 "Status pill"): each of Simple's four states, its dot (a token, so the color is the
+ * theme's) and what the button inside the pill does: 'save' (Not saved yet [Save]), 'fix'
+ * (Couldn't save [Fix]), or null. The words always say the state, so the dot is never alone.
+ */
+export const SIMPLE_PILL = Object.freeze({
+	saved: Object.freeze({ dot: '--touch', action: null, buttonKey: '' }),
+	saving: Object.freeze({ dot: '--chrome-text-muted', action: null, buttonKey: '' }),
+	'not-saved': Object.freeze({ dot: '--warning', action: 'save', buttonKey: 'term.save' }),
+	failed: Object.freeze({ dot: '--danger', action: 'fix', buttonKey: 'topbar.status.fix' }),
+});
+
+/**
+ * B6: the Simple top bar's status pill: saveStatusWords in Simple, plus its dot and button.
+ * @param {Object} state - getSaveStatus()
+ * @param {{workFile?: Boolean}} [context] - see saveStatusWords
+ * @returns {{key: String, status: String, text: String, hint: String, dot: String,
+ *   button: {key: String, action: 'save' | 'fix', text: String} | null}}
+ */
+export function simpleStatusPill(state, { workFile } = {}) {
+	const words = saveStatusWords(state, {
+		simple: true,
+		...(workFile === undefined ? {} : { workFile }),
+	});
+	const pill = SIMPLE_PILL[words.status];
+	const button = pill.action
+		? { key: pill.buttonKey, action: pill.action, text: word(pill.buttonKey) }
+		: null;
+	return { ...words, dot: pill.dot, button };
 }
 
 /**

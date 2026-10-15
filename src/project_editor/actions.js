@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { sayDeleted } from '../anyink/letter/delete_toast.js';
 import { noteShapeCopy } from '../anyink/trace/clipboard_note.js';
 import { addCrossProjectCopyShapeOptionControls } from '../app/cross_project_actions/action_copy_shapes.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../app/main.js';
@@ -38,9 +41,12 @@ export function deleteSelectedPaths() {
 		historyTitle = `Deleted path: ${msShapes.singleton.name}`;
 	}
 
+	const count = msShapes.length;
 	msShapes.deleteShapes();
 	editor.history.addState(historyTitle);
 	editor.publish('currentItem', editor.multiSelect.shapes.virtualGlyph);
+	// ANY-INK (B6 + B7 finalize, UX-BEGINNER 7.3): Simple says it, with [Undo]
+	sayDeleted(editor, { what: 'shape', count });
 }
 
 export function deleteSelectedPoints() {
@@ -54,8 +60,11 @@ export function deleteSelectedPoints() {
 		historyTitle = `Deleted path point: ${msPoints.singleton.pointNumber}`;
 	}
 
+	const count = msPoints.length;
 	let minDeletedPoint = msPoints.deleteShapesPoints();
 	editor.history.addState(historyTitle);
+	// ANY-INK (B6 + B7 finalize, UX-BEGINNER 7.3): Simple says it, with [Undo]
+	sayDeleted(editor, { what: 'point', count });
 	let pathSingleton = editor.multiSelect.shapes.singleton;
 	if (pathSingleton) {
 		msPoints.select(

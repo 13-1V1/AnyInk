@@ -1,5 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { makeEmptyOverlay } from '../anyink/letter/empty_overlay.js';
+import '../anyink/letter/letter.css';
+import { makeLetterHeader } from '../anyink/letter/letter_header.js';
+import {
+	isLetterViewOn,
+	makeViewSwitches,
+	noteLetterOpened,
+	refreshViewSwitches,
+} from '../anyink/letter/view_switches.js';
 import { navItemTitle } from '../anyink/mode/simple_labels.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
@@ -110,6 +119,11 @@ export function makePage_Characters() {
 	let viewButtons = makeViewToolsButtons();
 	if (viewButtons) addAsChildren(zoomArea, viewButtons);
 
+	// ANY-INK (B7, UX-BEGINNER 4.3): the Simple letter view: the letter header in the left area,
+	// the overlay on an empty letter's canvas, the view switches under it inside Fine-tune (the
+	// panel slot's letter card is panels.js's). All tools draws the page exactly as before.
+	if (isLetterViewOn()) addLetterView(content, editor);
+
 	// Canvas
 	editor.subscribe({
 		topic: 'whichGlyphIsSelected',
@@ -141,6 +155,50 @@ export function makePage_Characters() {
 
 	// log(`makePage_Characters`, 'end');
 	return content;
+}
+
+/**
+ * ANY-INK (B7, UX-BEGINNER 4.3): the Simple letter view's parts of the page. The left area's
+ * letter and panel buttons are hidden already (visibility.js: the 'item' chooser is replaced by
+ * 'letterView', the panel chooser is All tools only); the page button stays until B6's rail.
+ *  - the letter header ("<- All letters", the name, "< A" / "C >") under the nav buttons
+ *  - the empty-letter overlay, laid over the canvas's grid cell (letter.css)
+ *  - the four view switches in the zoom area, shown while Fine-tune is open; the upstream
+ *    outline and paper buttons go, since the switches do what they did
+ * Every subscriber id here is 'anyink.letter.<purpose>' (the header, card and overlay add
+ * their own).
+ * @param {Element} content - the page
+ * @param {ProjectEditor} editor
+ */
+function addLetterView(content, editor) {
+	const page = content.querySelector('.editor__page');
+	page.setAttribute('data-anyink-letter-view', '');
+
+	content.querySelector('.editor-page__nav-area').after(makeLetterHeader(editor));
+	page.appendChild(makeEmptyOverlay(editor));
+
+	// a letter opened: a visit of its own for the guide letter (view_switches.js)
+	noteLetterOpened(editor.project.getItem(editor.selectedGlyphID));
+	editor.subscribe({
+		topic: 'whichGlyphIsSelected',
+		subscriberID: 'anyink.letter.visit',
+		callback: (id) => noteLetterOpened(editor.project.getItem(id)),
+	});
+
+	const zoomArea = content.querySelector('.editor-page__zoom-area');
+	zoomArea
+		.querySelectorAll('[data-anyink-view-tool="displayMode"], [data-anyink-view-tool="canvasTheme"]')
+		.forEach((button) => button.remove());
+	const switches = makeViewSwitches(editor);
+	zoomArea.appendChild(switches);
+	editor.subscribe({
+		// a view change (Fine-tune, a switch), another letter, or a letter's first ink
+		topic: ['editCanvasView', 'whichGlyphIsSelected', 'currentItem'],
+		subscriberID: 'anyink.letter.switches',
+		callback: () => {
+			if (switches.isConnected) refreshViewSwitches(switches);
+		},
+	});
 }
 
 /**

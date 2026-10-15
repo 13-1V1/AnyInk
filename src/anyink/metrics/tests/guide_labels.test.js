@@ -14,6 +14,7 @@ import { EditCanvas } from '../../../edit_canvas/edit_canvas.js';
 import { importGlyphrProjectFromText } from '../../../project_editor/import_project.js';
 import { ProjectEditor } from '../../../project_editor/project_editor.js';
 import simpleExampleProject from '../../../samples/simpleExampleProject.json';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { findBanned } from '../../words/banned.js';
 import { labelCase, word } from '../../words/words.js';
@@ -73,6 +74,8 @@ describe('edit canvas guide labels', () => {
 	['all', 'simple'].forEach((mode) => {
 		it(`names the five lines and the two edges in house words (${mode})`, () => {
 			setModeForTests(mode);
+			// B7's letter view draws Simple's own lines and edges (letter/tests/guide_lines.test.js)
+			if (mode === 'simple') setFeaturesForTests({ letterView: false });
 			const editor = letterEditor();
 			editor.project.settings.app.guides.systemShowLabels = true;
 			const texts = drawnTexts(editor);
@@ -122,6 +125,7 @@ describe('edit canvas guide labels', () => {
 	['all', 'simple'].forEach((mode) => {
 		it(`pointing at a side edge draws one label: the readout by the pointer (${mode})`, () => {
 			setModeForTests(mode);
+			if (mode === 'simple') setFeaturesForTests({ letterView: false }); // B7: letter/edges.js
 			const editor = letterEditor();
 			editor.project.settings.app.guides.systemShowLabels = false;
 			const item = editor.selectedItem;

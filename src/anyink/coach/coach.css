@@ -1,0 +1,194 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B6: the Next line, <anyink-coach> (UX-BEGINNER.md 4.0), and the "Next" chip that brings it
+	back. Solid green fill only on the one primary button (.anyink-primary); the same button
+	outlined while a card, overlay or dialog holds the green one (principle 1). Sentence case: no
+	uppercase transform anywhere (2.2). Tokens only (theme/tokens.css).
+	Contrast on --chrome-bg-raised: --chrome-text 13:1, --chrome-text-muted 6:1; the primary's
+	--chrome-text-inverse on --touch 5:1.
+	The line sits inside the top bar, whose own rule for its buttons (#app__top-bar ... button)
+	carries an id's weight. So that rule never takes the green off the line's button, every rule
+	here starts with anyink-coach:is(*, #anyink-coach-weight): :is() matches any element (*) but
+	weighs as much as its heaviest part, an id (no element has that id); the buttons' rules add
+	the row's class, so they outweigh "#app__top-bar.anyink-topbar button" and its :hover.
+	B6 + B7 fix pass (D-036 "Revisit if"): one row of a fixed height, the tip beside the
+	sentence. The row is always 32 px, so a tip coming or going, or a dialog emptying the line,
+	never moves the page (4.3 "The drawing never jumps"), and there is no empty band under the
+	sentence when no tip shows. The tip takes the row's free room before the button (kept while
+	it is hidden, so the button never moves); a long one wraps to two short lines and is cut
+	with an ellipsis past them, its whole text in its tooltip.
+*/
+
+anyink-coach {
+	display: block;
+	box-sizing: border-box;
+	padding: var(--space-1) var(--space-4);
+	background-color: var(--chrome-bg-raised);
+	border-bottom: var(--hairline);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	line-height: 1.4;
+	text-transform: none;
+}
+
+anyink-coach[hidden],
+anyink-coach [hidden],
+.anyink-coach-chip[hidden] {
+	display: none !important;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	height: 32px;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__label {
+	flex: 0 0 auto;
+	color: var(--chrome-text-muted);
+	font-weight: 600;
+}
+
+/* The sentence keeps its whole width before the tip gets any; only a row too narrow for it
+   wraps it, to two lines at most */
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__sentence {
+	flex: 0 1 auto;
+	min-width: 0;
+	line-height: 16px;
+	max-height: 32px;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__button {
+	flex: 0 0 auto;
+	font: inherit;
+	font-weight: 600;
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--touch);
+	border-radius: var(--radius);
+	padding: 2px var(--space-3);
+	cursor: pointer;
+	text-transform: none;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__button.anyink-primary {
+	color: var(--chrome-text-inverse);
+	background-color: var(--touch);
+	border-color: var(--touch);
+}
+
+anyink-coach:is(*, #anyink-coach-weight)
+	.anyink-coach__row
+	> .anyink-coach__button.anyink-primary:hover {
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+anyink-coach:is(*, #anyink-coach-weight)
+	.anyink-coach__row
+	> .anyink-coach__button.anyink-primary:active {
+	background-color: var(--touch-active);
+	border-color: var(--touch-active);
+}
+
+anyink-coach:is(*, #anyink-coach-weight)
+	.anyink-coach__row
+	> .anyink-coach__button.anyink-coach__button--outlined:hover {
+	background-color: var(--touch-soft);
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else {
+	flex: 0 0 auto;
+	font: inherit;
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	background: none;
+	border: none;
+	padding: 2px var(--space-1);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else:hover {
+	color: var(--chrome-text);
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__hide {
+	flex: 0 0 auto;
+	font: inherit;
+	font-size: var(--text-lg);
+	line-height: 1;
+	color: var(--chrome-text-muted);
+	background: none;
+	border: none;
+	border-radius: var(--radius-sm);
+	padding: 0 var(--space-1);
+	cursor: pointer;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__hide:hover {
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-hover);
+}
+
+/* The tip, beside the sentence: the row's free room, two short lines at most */
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__tip {
+	flex: 1 1 0;
+	min-width: 0;
+	padding-left: var(--space-3);
+	border-left: var(--hairline);
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+	line-height: 15px;
+	max-height: 30px;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+/* B6 + B7 integration: the tip keeps its room while no tip shows, so a tip coming or going (it
+   goes after his next press) never moves anything under his pointer: a Point pen click right
+   after a tool's tip once landed 22 px off (4.3 "The drawing never jumps"). It is empty and
+   hidden then, and the button stays where it is. */
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__tip[hidden] {
+	display: -webkit-box !important;
+	visibility: hidden;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__tip-label {
+	font-weight: 600;
+}
+
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__button:focus-visible,
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else:focus-visible,
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__hide:focus-visible,
+button.anyink-coach-chip:is(*, #anyink-coach-weight):focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* The chip at the end of the rail, while the line is hidden */
+button.anyink-coach-chip:is(*, #anyink-coach-weight) {
+	font: inherit;
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	padding: 1px var(--space-2);
+	cursor: pointer;
+	text-transform: none;
+}
+
+button.anyink-coach-chip:is(*, #anyink-coach-weight):hover {
+	background-color: var(--chrome-bg-hover);
+}

@@ -12,6 +12,7 @@ import { handleKeyPress, handleKeyUp } from '../../../edit_canvas/events_keyboar
 import { toggleNavDropdown } from '../../../project_editor/navigator.js';
 import { turnOnMoreTools } from '../band.js';
 import { setFeaturesForTests } from '../features.js';
+import { noFlags } from './no_flags.js';
 import { getMode, getVisit, setModeForTests } from '../mode.js';
 import { word } from '../../words/words.js';
 import { sampleEditor } from './controls_probe.js';
@@ -146,8 +147,9 @@ describe('the choosers list what the mode shows (6.3)', () => {
 		expect(chooserRows('l3')).toHaveLength(9);
 	});
 
-	it("Simple: the page chooser lists only Simple's pages, in its words; the panel chooser is hidden and empty", () => {
+	it("Simple with no flag: the page chooser lists only Simple's pages, in its words; the panel chooser is hidden and empty", () => {
 		setModeForTests('simple');
+		noFlags(); // B5's stub; B6 + B7 replace the choosers with the rail and the letter header
 		openPage('Characters');
 		expect(visible('#nav-button-l1')).toBe(true);
 		expect(visible('#nav-button-l2')).toBe(true);
@@ -163,9 +165,22 @@ describe('the choosers list what the mode shows (6.3)', () => {
 		expect(visible('#nav-button-l2')).toBe(false);
 	});
 
-	it('Simple: the page draws with no panel in the panel area', () => {
+	it('Simple with no flag: the page draws with no panel in the panel area', () => {
 		setModeForTests('simple');
+		noFlags();
 		openPage('Characters');
 		expect(document.querySelector('#editor-page__panel').textContent.trim()).toBe('');
+	});
+
+	// B6 + B7 integration: the flags as the app has them
+	it('Simple (B6 + B7): no chooser shows; the panel area holds the letter card', () => {
+		setModeForTests('simple');
+		openPage('Characters');
+		['#nav-button-l1', '#nav-button-l2', '#nav-button-l3'].forEach((id) =>
+			expect(visible(id), id).toBe(false)
+		);
+		const panel = document.querySelector('#editor-page__panel');
+		expect(panel.querySelector('.anyink-letter-card')).not.toBeNull();
+		expect(editor.nav.panel === 'Attributes' || editor.nav.panel === 'Trace').toBe(true);
 	});
 });

@@ -14,6 +14,7 @@ import { setCurrentProjectEditor } from '../../../app/main.js';
 import { importGlyphrProjectFromText } from '../../../project_editor/import_project.js';
 import { ProjectEditor } from '../../../project_editor/project_editor.js';
 import simpleExampleProject from '../../../samples/simpleExampleProject.json';
+import { setFineTuneOpen } from '../../letter/view_switches.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { hasSpacingOwner } from '../../spacing/owner.js';
 import { findLineAt, guidesLayerState, handleGuidesLayerEvent } from '../guides_layer.js';
@@ -67,7 +68,10 @@ function drag(x, px) {
 }
 
 let editor;
-beforeEach(() => resetGuidesLayerState());
+beforeEach(() => {
+	resetGuidesLayerState();
+	setFineTuneOpen(true, null); // Simple: B7's letter view shows (and moves) the edges in Fine-tune
+});
 afterEach(() => resetGuidesLayerState());
 
 describe('Simple: a letter with no shapes has no edges to drag', () => {

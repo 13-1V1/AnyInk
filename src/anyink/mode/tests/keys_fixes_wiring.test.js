@@ -99,7 +99,34 @@ describe('Delete and Backspace act only on a picked shape or point (7.6)', () =>
 		expect(steps()).toEqual(before);
 	});
 
-	it.each(['simple', 'all'])('%s: a letter with an unpicked shape: the shape stays, no step', (mode) => {
+	it('simple: a letter with an unpicked shape: the shape stays, no step', () => {
+		setModeForTests('simple');
+		onLetter();
+		const shapes = editor.selectedItem.shapes.length;
+		expect(shapes).toBeGreaterThan(0);
+		const before = steps();
+		press('Delete');
+		editor.selectedTool = 'pathEdit';
+		press('Delete');
+		expect(editor.selectedItem.shapes).toHaveLength(shapes);
+		expect(steps()).toEqual(before);
+	});
+
+	// B6 + B7 finalize: with Edit points picked, a shape picked with no point picked (the letter
+	// card's Shapes list picks it so) is a picked shape: Simple's Delete takes it, as one step
+	it('simple: Edit points, a shape picked and no point: Delete takes that shape, one step', () => {
+		setModeForTests('simple');
+		onLetter();
+		const shapes = editor.selectedItem.shapes.length;
+		const before = steps().length;
+		editor.selectedTool = 'pathEdit';
+		editor.multiSelect.shapes.select(editor.selectedItem.shapes[0]);
+		press('Delete');
+		expect(editor.selectedItem.shapes).toHaveLength(shapes - 1);
+		expect(steps()).toHaveLength(before + 1);
+	});
+
+	it.each(['all'])('%s: a letter with an unpicked shape: the shape stays, no step', (mode) => {
 		setModeForTests(mode);
 		onLetter();
 		const shapes = editor.selectedItem.shapes.length;

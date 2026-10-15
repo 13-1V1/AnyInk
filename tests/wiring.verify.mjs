@@ -15,6 +15,8 @@
 //   C. The landing rule with real clicks and keys: an example font in Simple, More tools on, a
 //      gap nudged on the Kerning page, Back to simple, then Ctrl+Z lands on Kerning with the band
 //      "Undo took you to one of the More tools pages." and Back to my letters returns
+// B6 + B7 finalize: its Simple parts check B5's Simple, so every feature flag is turned off in
+// the page (verify_standins.mjs pinB5Simple); B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs.
 // Usage: node tests/wiring.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -23,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { pinB5Simple } from './verify_standins.mjs';
 
 const src = fileURLToPath(new URL('../src/', import.meta.url));
 const today = JSON.parse(
@@ -192,6 +195,7 @@ const toastText = () =>
 const newFont = async (name, search) => {
 	await page.evaluate(() => (window.onbeforeunload = null)).catch(() => {});
 	await page.goto(`${origin}/${search}`);
+	if (String(search).includes('ui=simple')) await pinB5Simple(page);
 	await page.locator('#input__new-project-name').fill(name);
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });
@@ -439,6 +443,7 @@ try {
 	// ----------------------------------------------------------
 	await page.evaluate(() => (window.onbeforeunload = null));
 	await page.goto(`${origin}/?ui=simple`);
+	await pinB5Simple(page);
 	await page.locator('#open-project__tab-examples').click();
 	await page.locator('#tab-content__examples fancy-button').nth(1).click(); // the simple example (its words differ per mode)
 	await page.locator('glyph-tile').first().waitFor();

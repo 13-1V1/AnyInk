@@ -17,6 +17,7 @@ import { makePanel_Transforms } from '../../../panels/transforms.js';
 import { Glyph } from '../../../project_data/glyph.js';
 import { applyAutoTrace } from '../../autotrace/apply.js';
 import { square, B, R, traceInto, twoLetterEditor } from '../../history/tests/two_letters.js';
+import { setFineTuneOpen } from '../../letter/view_switches.js';
 import { handleGuidesLayerEvent, nudgeLine } from '../../metrics/guides_layer.js';
 import { guidesLayerState, resetGuidesLayerState } from '../../metrics/state.js';
 import { setModeForTests } from '../../mode/mode.js';
@@ -304,7 +305,30 @@ describe('Simple: an automatic letter is refit inside the same Undo step', () =>
 // Simple: edge drags and side nudges never snap back
 // --------------------------------------------------------------
 
+// B6 + B7 finalize (letter card verdict: "Set by you" after the first point; letter tools: the
+// flag read null after a Ctrl+Z mid-shape): in Simple a letter starts automatic at its first
+// shape, a Point pen click included, so every step of the shape holds the flag
+describe('Simple: a letter starts automatic at its first shape, before it has ink', () => {
+	it('one point (no ink yet): automatic, in that step; an Undo back to it keeps the flag', () => {
+		setModeForTests('simple');
+		const editor = twoLetterEditor();
+		showItem(editor, B);
+		const glyph = glyphOf(editor, B);
+		const corner = (x, y) => ({ p: { coord: { x, y } } });
+		glyph.addOneShape({ name: 'Path 1', pathPoints: [corner(100, 0)] });
+		editor.history.addState('New path: added point 0');
+		expect(ownerOf(glyphOf(editor, B))).toBe('auto');
+		expect(ownerOf(editor.history.queue[0].itemState)).toBe('auto');
+		glyphOf(editor, B).shapes[0].addPathPoint({ p: { coord: { x: 400, y: 0 } } });
+		editor.history.addState('New path: added point 1');
+		editor.history.restoreState();
+		expect(ownerOf(glyphOf(editor, B))).toBe('auto');
+	});
+});
+
 describe('Simple: an edge drag or side nudge marks the letter set by you, so it never snaps back', () => {
+	beforeEach(() => setFineTuneOpen(true, null)); // B7: the edges show (and move) in Fine-tune
+
 	it('a left-edge drag stays where it was dropped, as one step; Undo brings back automatic', () => {
 		const editor = onCanvas(simpleB());
 		const glyph = editor.selectedItem;

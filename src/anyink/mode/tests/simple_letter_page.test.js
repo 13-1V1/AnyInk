@@ -19,6 +19,7 @@ import { fakeApi } from '../../files/tests/fakes.js';
 import { makeRecoverArea, makeRecoveryCard } from '../../recovery/recovery_ui.js';
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { sampleEditor } from './controls_probe.js';
+import { noFlags } from './no_flags.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = (path) => readFileSync(join(here, '../../..', path), 'utf8');
@@ -37,6 +38,7 @@ function addStyles() {
 
 /** Today's letter page, Capital A open, drawn by the real Navigator. */
 function letterPage() {
+	noFlags(); // B5's page: B6 + B7 (on in the app) are scanned in letter/tests/letter_page.test.js
 	addStyles();
 	const editor = sampleEditor();
 	document.body.innerHTML = '<div id="app__wrapper"></div>';

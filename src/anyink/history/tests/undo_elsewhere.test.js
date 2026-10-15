@@ -8,6 +8,7 @@
 // own page the view moves to it as before (B2), and B6 brings the general undo toasts. All
 // tools: as before (no toast from this).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { showItem } from '../../preview/show_item.js';
 import { resetToastsForTests, toastLog } from '../../toast/toast.js';
@@ -23,6 +24,9 @@ beforeEach(() => {
 	vi.spyOn(console, 'warn').mockImplementation(() => {});
 	resetToastsForTests();
 	document.body.innerHTML = '';
+	// B6 + B7 integration: B6's undo toast (undo_toast.js, on in the app) says every press; this
+	// file pins B5's toast, which it falls back to with 'coach' off
+	setFeaturesForTests({ coach: false });
 });
 afterEach(() => {
 	resetToastsForTests();

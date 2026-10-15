@@ -2,9 +2,12 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /* Web Components */
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
 import { SaveStatusElement } from '../anyink/files/save_status_element.js';
+import { CoachElement } from '../anyink/coach/coach_element.js';
 import { initRecovery } from '../anyink/recovery/recovery.js';
 import { initFontCheck } from '../anyink/fontcheck/font_check.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
@@ -99,6 +102,8 @@ function registerCustomComponents() {
 		{ fileName: 'edit-canvas', className: EditCanvas },
 		// ANY-INK: after display-canvas and font-preview, which it constructs
 		{ fileName: 'preview-strip', className: PreviewStrip },
+		// ANY-INK (B6): the Next line under Simple's top bar (src/anyink/coach)
+		{ fileName: 'anyink-coach', className: CoachElement },
 	];
 
 	data.forEach((control) => {

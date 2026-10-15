@@ -25,7 +25,7 @@ import {
 } from '../anyink/history/settings_snapshot.js';
 import { writeItemState } from '../anyink/history/item_state.js';
 import { previousItemState, redoNewest, undoNewest } from '../anyink/history/simple_undo.js';
-import { sayUndoneElsewhere } from '../anyink/history/undo_elsewhere.js';
+import { sayUndone } from '../anyink/history/undo_toast.js';
 import { MAX_UNDO_STEPS, capUndoQueue, countSteps } from '../anyink/history/undo_cap.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
@@ -560,8 +560,8 @@ export class History {
 		if (isSimpleMode()) {
 			const result = undoNewest(this, editor);
 			if (result?.done) this.undoRestOfStep(editor);
-			// B4 + B5 finalize: a letter changed away from its page says which (principle 6)
-			sayUndoneElsewhere(result, editor);
+			// B6: every press is named ("Undid: traced Capital B" [Redo]); with coach off, B5 as before
+			sayUndone(result, editor);
 			return result;
 		}
 		let q = this.queue;
@@ -838,7 +838,7 @@ export class History {
 			const entries = this.redoQueue[0];
 			const result = redoNewest(this, editor);
 			if (result?.done) this.redoRestOfStep(editor, entries);
-			sayUndoneElsewhere(result, editor, { redo: true });
+			sayUndone(result, editor, { redo: true });
 			return result;
 		}
 

@@ -18,6 +18,7 @@ import { fontFileKeyFormat } from '../anyink/mode/keys.js';
 import { toast } from '../anyink/toast/toast.js';
 import { heading, item, keepShown, rule } from '../anyink/mode/sections.js';
 import { isShown, menuRowId } from '../anyink/mode/visibility.js';
+import { makeSimpleTopBar, useSimpleTopBar } from '../anyink/topbar/simple_top_bar.js';
 import { QUOTE_CLASS } from '../anyink/words/banned.js';
 import { word } from '../anyink/words/words.js';
 import { addAsChildren, insertAfter, makeElement } from '../common/dom.js';
@@ -52,6 +53,9 @@ import { makePage_OpenProject } from './open_project.js';
  * @returns {Element}
  */
 export function makeAppTopBar() {
+	// ANY-INK (B6, UX-BEGINNER 4.0): Simple's own top bar once its flag ('coach') is on
+	// (src/anyink/topbar/simple_top_bar.js); All tools, and Simple before B6, keep this one.
+	if (useSimpleTopBar()) return makeSimpleTopBar();
 	let topBar = makeElement({ tag: 'div', id: 'app__top-bar' });
 
 	let logo = makeElement({ innerHTML: logoHorizontal, className: 'top-bar__logo' });

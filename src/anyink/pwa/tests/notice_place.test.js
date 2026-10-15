@@ -126,4 +126,49 @@ describe('placeNotices', () => {
 		placeNotices(container, document, { innerWidth: 1024 });
 		expect(parseInt(vars().room, 10)).toBeGreaterThanOrEqual(160);
 	});
+
+	// B6 + B7 integration (topbar track's hand-off): Simple's top bar (B6) has no menus, and
+	// just left of its status pill sit Undo and Redo. Its flexible gap between the rail and Undo
+	// is marked data-anyink-slot="notices": a notice sits inside it and covers no control.
+	/** Simple's top bar: the rail ends at 520, the gap runs to 980, Undo starts at 980 */
+	function simpleBar({ slotLeft = 520, slotRight = 980 } = {}) {
+		const bar = document.createElement('header');
+		bar.id = 'app__top-bar';
+		const slot = document.createElement('span');
+		slot.dataset.anyinkSlot = 'notices';
+		slot.getBoundingClientRect = rect(slotLeft, slotRight, 6, 46);
+		const undo = document.createElement('button');
+		undo.getBoundingClientRect = rect(slotRight, slotRight + 70, 6, 46);
+		const status = document.createElement('anyink-save-status');
+		status.getBoundingClientRect = rect(1150, 1240, 6, 46);
+		bar.append(slot, undo, status);
+		document.body.prepend(bar);
+	}
+
+	it('Simple (B6): inside the gap between the rail and Undo, centered on the row', () => {
+		simpleBar();
+		placeNotices(container, document, { innerWidth: 1280 });
+		expect(vars()).toEqual({
+			right: `${1280 - 980 + NOTICE_GAP}px`,
+			room: `${980 - 520 - 2 * NOTICE_GAP}px`,
+		});
+		// the 32 px notice in the middle of the 40 px row
+		expect(container.style.getPropertyValue('--anyink-notice-top')).toBe(`${6 + (40 - 32) / 2}px`);
+	});
+
+	it('Simple: a narrow gap still never puts the notice over Undo', () => {
+		simpleBar({ slotLeft: 900, slotRight: 980 });
+		placeNotices(container, document, { innerWidth: 1280 });
+		const right = parseInt(vars().right, 10);
+		expect(1280 - right).toBeLessThanOrEqual(980 - NOTICE_GAP);
+	});
+
+	it('All tools after Simple: the top is the CSS fallback again', () => {
+		simpleBar();
+		placeNotices(container, document, { innerWidth: 1280 });
+		document.querySelector('#app__top-bar').remove();
+		topBar();
+		placeNotices(container, document, { innerWidth: 1600 });
+		expect(container.style.getPropertyValue('--anyink-notice-top')).toBe('');
+	});
 });

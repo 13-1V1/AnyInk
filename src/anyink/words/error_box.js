@@ -56,8 +56,11 @@ export function showWordsError(words, actions = {}) {
 		addAsChildren(
 			row,
 			keys.map((key, index) => {
+				// B6 + B7 finalize: the first is the screen's green button, marked as every other
+				// one is, so the Next line and the empty overlay give way to it (principle 1)
 				const button = makeElement({
 					tag: 'fancy-button',
+					className: index === 0 ? 'anyink-primary' : '',
 					content: escapeWordHTML(word(key)),
 					attributes: {
 						'data-anyink-choice': key,

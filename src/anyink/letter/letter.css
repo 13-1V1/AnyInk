@@ -1,0 +1,456 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B7 (UX-BEGINNER.md 4.3): the Simple letter view's left area (the letter header and the letter
+	card), the empty-letter overlay over the canvas, and the view switches under it. Everything is
+	scoped to .editor__page[data-anyink-letter-view], which characters.js sets only in Simple with
+	the 'letterView' flag, so All tools is untouched. Colors are tokens only (4: one solid green
+	button, every other "touching" green an outline; purple is structure). Sentence case
+	everywhere (2.2): no text-transform. The tool column's own words are tool_labels.css.
+*/
+
+/* --------------------------------------------------------------
+   Left area: the page button (Simple keeps it until B6's rail) across the whole row, and no
+   empty nav row once every chooser is hidden
+-------------------------------------------------------------- */
+
+.editor__page[data-anyink-letter-view] .editor-page__nav-area {
+	grid-template-columns: 1fr;
+	grid-template-rows: auto;
+}
+
+.editor__page[data-anyink-letter-view] .editor-page__nav-area > #nav-button-l1 {
+	max-width: none;
+	border-radius: var(--radius);
+}
+
+.editor__page[data-anyink-letter-view] .editor-page__nav-area:not(:has(> :not([data-anyink-hidden]))) {
+	display: none;
+}
+
+/* --------------------------------------------------------------
+   The letter header: [<- All letters]  Capital B  [< A] [C >]
+-------------------------------------------------------------- */
+
+.anyink-letter-header {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: var(--space-3);
+	row-gap: var(--space-1);
+	padding: var(--space-3) var(--space-3) var(--space-2) var(--space-3);
+	background-color: var(--chrome-bg-raised);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-card);
+}
+
+/* scoped by the container and the part, so upstream's button:hover / :focus resets (resets.css,
+   linked after the bundled styles in a build) never win */
+.anyink-letter-header button[data-anyink-letter] {
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	padding: var(--space-1) var(--space-3);
+	cursor: pointer;
+}
+
+.anyink-letter-header button[data-anyink-letter]:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-letter-header button[data-anyink-letter]:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-letter-header__back {
+	grid-row: 1;
+	grid-column: 1;
+}
+
+.anyink-letter-header__name {
+	grid-row: 1;
+	grid-column: 2;
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--chrome-text);
+}
+
+.anyink-letter-header__steps {
+	grid-row: 2;
+	grid-column: 2;
+	display: flex;
+	gap: var(--space-2);
+}
+
+.anyink-letter-header .anyink-letter-header__steps button[data-anyink-letter] {
+	min-width: 56px;
+}
+
+/* --------------------------------------------------------------
+   The letter card
+-------------------------------------------------------------- */
+
+.anyink-letter-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	margin-top: var(--space-2);
+	padding: var(--space-3);
+	background-color: var(--chrome-bg-raised);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-card);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+}
+
+.anyink-letter-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.anyink-letter-card__name {
+	margin: 0;
+	font-size: var(--text-base);
+	font-weight: 600;
+}
+
+.anyink-letter-card__state {
+	font-size: var(--text-xs);
+	padding: 1px var(--space-2);
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--chrome-border-strong);
+	color: var(--chrome-text);
+}
+
+.anyink-letter-card__state[data-anyink-state='empty'] {
+	border-style: dashed;
+	color: var(--chrome-text-faint);
+}
+
+.anyink-letter-card__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.anyink-letter-card .anyink-letter-card__button,
+.anyink-letter-card .anyink-letter-card__shape-pick,
+.anyink-letter-card .anyink-segmented__option,
+.anyink-letter-card .anyink-disclosure {
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	padding: var(--space-1) var(--space-3);
+	cursor: pointer;
+}
+
+.anyink-letter-card .anyink-letter-card__button:hover,
+.anyink-letter-card .anyink-letter-card__shape-pick:hover,
+.anyink-letter-card .anyink-segmented__option:hover,
+.anyink-letter-card .anyink-disclosure:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-letter-card button:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* "> Fine-tune this letter": a quiet row that opens and closes */
+.anyink-letter-card .anyink-disclosure {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	border-color: transparent;
+	padding-left: var(--space-1);
+	text-align: left;
+	font-weight: 600;
+}
+
+.anyink-disclosure__chevron {
+	width: 0;
+	height: 0;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid var(--chrome-text-muted);
+	transition: transform 80ms ease;
+}
+
+.anyink-disclosure[aria-expanded='true'] .anyink-disclosure__chevron {
+	transform: rotate(90deg);
+}
+
+.anyink-letter-card__fine-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-2) 0 0 var(--space-4);
+}
+
+.anyink-letter-card__part {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.anyink-letter-card__part-title {
+	margin: 0;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-letter-card__text {
+	margin: 0;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-letter-card__shapes {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.anyink-letter-card__shape {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.anyink-letter-card .anyink-letter-card__shape-pick {
+	flex: 1;
+	text-align: left;
+	border-color: transparent;
+}
+
+/* the picked shape: a green outline, never a fill (4: what you touch) */
+.anyink-letter-card .anyink-letter-card__shape--picked .anyink-letter-card__shape-pick {
+	border-color: var(--touch);
+}
+
+.anyink-letter-card .anyink-letter-card__options .anyink-disclosure {
+	font-weight: normal;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-letter-card__options .anyink-letter-card__buttons {
+	padding: var(--space-2) 0 0 var(--space-4);
+}
+
+.anyink-segmented {
+	display: inline-flex;
+}
+
+.anyink-letter-card .anyink-segmented__option {
+	border-radius: 0;
+	margin: 0;
+}
+
+.anyink-letter-card .anyink-segmented__option:first-child {
+	border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.anyink-letter-card .anyink-segmented__option:last-child {
+	border-radius: 0 var(--radius) var(--radius) 0;
+	border-left-width: 0;
+}
+
+.anyink-letter-card .anyink-segmented__option[aria-pressed='true'] {
+	border-color: var(--touch);
+	box-shadow: inset 0 0 0 1px var(--touch);
+}
+
+.anyink-letter-card .anyink-segmented__option:last-child[aria-pressed='true'] {
+	border-left-width: 1px;
+}
+
+/* "Open in More tools": a link, quiet */
+.anyink-letter-card .anyink-letter-card__link {
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	background: none;
+	border: none;
+	padding: 0;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.anyink-letter-card .anyink-letter-card__link:hover {
+	color: var(--chrome-text);
+}
+
+/* --------------------------------------------------------------
+   The empty-letter overlay: laid over the canvas's grid cell, so the canvas and what it
+   positions never move. Only the box takes the pointer; the rest of the canvas still draws.
+   Both sit in row 1 by name: an auto-placed canvas would otherwise move down a row to make
+   room for the overlay.
+-------------------------------------------------------------- */
+
+.editor__page[data-anyink-letter-view] > .editor-page__edit-canvas-wrapper {
+	grid-row: 1;
+}
+
+.editor__page[data-anyink-letter-view] > .anyink-empty-overlay {
+	grid-column: 3;
+	grid-row: 1;
+	z-index: 2;
+	display: grid;
+	align-items: center;
+	justify-items: end;
+	padding: 0 var(--space-6);
+	pointer-events: none;
+}
+
+.editor__page[data-anyink-letter-view] > .anyink-empty-overlay[hidden] {
+	display: none;
+}
+
+.anyink-empty-overlay__box {
+	pointer-events: auto;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--space-2);
+	min-width: 240px;
+	max-width: 320px;
+	padding: var(--space-4);
+	background-color: var(--canvas-bg);
+	color: var(--canvas-ink);
+	border: 1px solid var(--canvas-ink-faint);
+	border-radius: var(--radius-lg);
+	box-shadow: 0 8px 24px var(--canvas-paper-edge);
+	font-family: var(--font-ui);
+}
+
+.anyink-empty-overlay__title {
+	margin: 0 0 var(--space-1) 0;
+	font-size: var(--text-base);
+	font-weight: 600;
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box button {
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	border-radius: var(--radius);
+	padding: var(--space-2) var(--space-4);
+	cursor: pointer;
+}
+
+/* the one green button (principle 1) */
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-primary {
+	background-color: var(--touch);
+	color: var(--chrome-text-inverse);
+	border: 1px solid var(--touch);
+	font-weight: 600;
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-primary:hover {
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-primary:active {
+	background-color: var(--touch-active);
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-outlined {
+	background-color: transparent;
+	color: var(--canvas-ink);
+	border: 1px solid var(--canvas-ink-faint);
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box button:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* --------------------------------------------------------------
+   The view switches, under the zoom row, inside Fine-tune
+-------------------------------------------------------------- */
+
+.editor__page[data-anyink-letter-view] .anyink-letter-switches {
+	grid-column: 1 / -1;
+	grid-row: 2;
+	justify-self: end;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-3);
+	margin-top: var(--space-2);
+}
+
+.editor__page[data-anyink-letter-view] .anyink-letter-switches[hidden] {
+	display: none;
+}
+
+.anyink-letter-switches .anyink-letter-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-family: var(--font-ui);
+	font-size: var(--text-xs);
+	color: var(--chrome-text);
+	background-color: var(--chrome-bg-raised);
+	border: 1px solid var(--chrome-border);
+	border-radius: var(--radius);
+	padding: 3px var(--space-2);
+	cursor: pointer;
+}
+
+/* B6 + B7 integration: a switch with nothing to show (Neighbors before his n or H is made) */
+.anyink-letter-switches .anyink-letter-switch[hidden] {
+	display: none;
+}
+
+.anyink-letter-switches .anyink-letter-switch:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-letter-switches .anyink-letter-switch:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-letter-switch__track {
+	position: relative;
+	width: 24px;
+	height: 14px;
+	border-radius: 7px;
+	border: 1px solid var(--chrome-border-strong);
+	box-sizing: border-box;
+}
+
+.anyink-letter-switch__track::after {
+	content: '';
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: var(--chrome-text-faint);
+	transition: left 80ms ease;
+}
+
+.anyink-letter-switch[aria-checked='true'] .anyink-letter-switch__track {
+	border-color: var(--touch);
+}
+
+.anyink-letter-switch[aria-checked='true'] .anyink-letter-switch__track::after {
+	left: 12px;
+	background-color: var(--touch);
+}

@@ -10,12 +10,18 @@
 	  --anyink-notice-room   how wide a notice may be: back to just right of the menus
 	With no top bar (the start page) both are cleared and the CSS fallbacks put the notice in the
 	top right corner, which is empty there.
+	B6 + B7 integration: Simple's top bar (B6) has no menus, and Undo and Redo sit just left of
+	its status pill, so there the notice goes inside the bar's flexible gap between the rail and
+	Undo (data-anyink-slot="notices"), centered on its row (--anyink-notice-top); its right end
+	never passes the gap, so it covers no control.
 */
 
 /** px kept clear between a notice and the menus or the save status. */
 export const NOTICE_GAP = 12;
 /** A notice never gets narrower than this; its sentence shortens with "...". */
 const MIN_ROOM = 160;
+/** A notice's height (pwa.css .anyink-pwa-notice), to center it on Simple's top bar row */
+const NOTICE_HEIGHT = 32;
 
 /**
  * @param {HTMLElement} container - the notices box (#anyink-pwa-notices)
@@ -24,6 +30,8 @@ const MIN_ROOM = 160;
  */
 export function placeNotices(container, doc = document, win = window) {
 	if (!container) return;
+	if (placeInSlot(container, doc, win)) return;
+	container.style.removeProperty('--anyink-notice-top');
 	const status = doc.querySelector('#app__top-bar anyink-save-status');
 	const menus = doc.querySelector('#app__top-bar .top-bar__menus');
 	const statusBox = status?.getBoundingClientRect();
@@ -39,6 +47,26 @@ export function placeNotices(container, doc = document, win = window) {
 	const room = Math.max(MIN_ROOM, Math.round(statusBox.left - NOTICE_GAP - left));
 	container.style.setProperty('--anyink-notice-right', `${right}px`);
 	container.style.setProperty('--anyink-notice-room', `${room}px`);
+}
+
+/**
+ * Simple's top bar (B6): inside its notices gap.
+ * @param {HTMLElement} container
+ * @param {Document} doc
+ * @param {{innerWidth: Number}} win
+ * @returns {Boolean} true when the bar has the gap and the notice was placed in it
+ */
+function placeInSlot(container, doc, win) {
+	const slot = doc.querySelector('#app__top-bar [data-anyink-slot="notices"]');
+	const box = slot?.getBoundingClientRect();
+	if (!box || !(box.width > 0)) return false;
+	const right = Math.round(win.innerWidth - box.right + NOTICE_GAP);
+	const room = Math.max(MIN_ROOM, Math.round(box.width - 2 * NOTICE_GAP));
+	const top = Math.max(0, Math.round(box.top + (box.height - NOTICE_HEIGHT) / 2));
+	container.style.setProperty('--anyink-notice-right', `${right}px`);
+	container.style.setProperty('--anyink-notice-room', `${room}px`);
+	container.style.setProperty('--anyink-notice-top', `${top}px`);
+	return true;
 }
 
 let watching = null;
@@ -62,7 +90,10 @@ export function watchNoticePlace(container) {
 	};
 	const observeStatus = () => {
 		if (typeof ResizeObserver !== 'function') return;
-		const status = document.querySelector('#app__top-bar anyink-save-status');
+		// Simple's top bar: the gap itself, which the pill and the rail both resize
+		const status =
+			document.querySelector('#app__top-bar [data-anyink-slot="notices"]') ||
+			document.querySelector('#app__top-bar anyink-save-status');
 		if (!status || status === watching.observed) return;
 		watching.observer?.disconnect();
 		watching.observer = new ResizeObserver(() => placeNotices(watching.container));
