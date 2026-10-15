@@ -144,7 +144,8 @@ describe('Simple with the letter view: the letter page', () => {
 		const tools = [...document.querySelectorAll('.editor-page__tools-area [data-anyink-tool]')]
 			.filter(visible)
 			.map((button) => button.dataset.anyinkTool);
-		expect(tools).toEqual(['resize']);
+		// B8 + B9 integration: the Brush always shows in the Simple letter view (4.3 Tools)
+		expect(tools).toEqual(['nib', 'resize']);
 	});
 
 	it('opening Fine-tune shows the switches and the extra tools', () => {

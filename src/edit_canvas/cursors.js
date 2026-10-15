@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../app/main.js';
 import { eventHandlerData } from './events.js';
 import { canResize } from './events_mouse.js';
@@ -36,6 +38,10 @@ export function updateCursor(tool) {
 		} else if (tool === 'kern') {
 			// log('setting cursor to col-resize');
 			setCursor('col-resize');
+		} else if (tool === 'nib') {
+			// ANY-INK (B8 + B9 integration): the Brush points with a crosshair from the moment it
+			// is picked, not only after the first mouse move (nib_tool.js's hover does the same)
+			setCursor('crosshair');
 		} else {
 			// log('defaulting cursor to pointer');
 			setCursor('arrow');

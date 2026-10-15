@@ -4,6 +4,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import {
 	SAVED_AT_EMPTY,
 	collectionNameFromID,
@@ -26,9 +28,16 @@ import {
 import { writeItemState } from '../anyink/history/item_state.js';
 import { previousItemState, redoNewest, undoNewest } from '../anyink/history/simple_undo.js';
 import { sayUndone } from '../anyink/history/undo_toast.js';
-import { MAX_UNDO_STEPS, capUndoQueue, countSteps } from '../anyink/history/undo_cap.js';
+import {
+	MAX_UNDO_POINTS,
+	MAX_UNDO_STEPS,
+	capUndoQueue,
+	countSteps,
+} from '../anyink/history/undo_cap.js';
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
+import { beforeStrokeStep } from '../anyink/nib/history_hook.js';
+import { carryPhotos } from '../anyink/photo/photo_registry.js';
 import { markDirty } from '../anyink/recovery/recovery.js';
 import { upstreamToast } from '../anyink/toast/toast.js';
 import {
@@ -275,6 +284,8 @@ export class History {
 		if (!itemWasDeleted && isSimpleMode() && isAutoNavigationTitle(title)) return;
 		// ANY-INK (B3): spacing, inside this step (Simple refits; All tools marks "set by you")
 		const editor = getCurrentProjectEditor();
+		// ANY-INK (B8 + B9 finalize): pasted brush strokes sorted out inside this step too
+		if (!itemWasDeleted) beforeStrokeStep(editor);
 		const spacing = beforeItemStep(this, editor, { itemWasDeleted });
 		const entry = makeHistoryEntry({ title: title, itemWasDeleted: itemWasDeleted });
 		// ANY-INK (B3 fix): letters refit with the open one are parts of this item step
@@ -305,7 +316,8 @@ export class History {
 		const dropped = [];
 		for (let tries = this.queue.length + 1; tries > 0; tries--) {
 			const maxSteps = MAX_UNDO_STEPS + countLaterParts(this.queue);
-			const taken = capUndoQueue(this, { maxSteps });
+			// ANY-INK (B8 + B9 finalize): and at most MAX_UNDO_POINTS points of shapes
+			const taken = capUndoQueue(this, { maxSteps, maxPoints: MAX_UNDO_POINTS });
 			if (!taken.length) break;
 			dropped.push(...taken);
 		}
@@ -516,6 +528,9 @@ export class History {
 			this.noteBurst(this.burstPending);
 			this.burstPending = undefined;
 		}
+		// ANY-INK (B8 + B9 finalize): the step is done; the save status hears of it now, not at
+		// the next change (only the pre-state told it, so the top bar showed the font before it)
+		markDirty(this);
 	}
 
 	discardLatestState() {
@@ -1125,8 +1140,12 @@ function refreshLettersWithParts(project) {
  * @param {Object | false} settingsOverride - newer settings snapshot to keep
  */
 export function swapProject(editor, snapshotProject, settingsOverride = false) {
+	const live = editor._project;
 	editor._project = new GlyphrStudioProject(snapshotProject.save());
 	if (settingsOverride) applySettingsSnapshot(editor._project.settings, settingsOverride);
+	// ANY-INK (B8 + B9 finalize): the photo list is outside Undo, like the images it names
+	// (photo_registry.js carryPhotos); the photo flow then lets the uses follow the letters
+	carryPhotos(live, editor._project);
 	syncSettingsToEditor(editor);
 	// Kern groups are new objects now; the lookup and the preview strip must follow.
 	notifyKernPairsChanged(editor);

@@ -173,6 +173,54 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
   one green button; the strip's Try-it text is the font name; the Fix box's one green; "Finish the
   shape" merged into a hole leaves no ghost picked. Optional argument: a screenshot folder.
 
+- `nib.verify.mjs` (`npm run verify:nib`): the B8 Brush. `tests/nib.html`: B picks the Brush; a
+  real mouse drag draws a stroke whose live picture and ink match within 2 % of the stroke width
+  (an S, an o with paper in its middle, a thick stroke), one Undo step a stroke, each stroke its own
+  tagged shape with whole-number points, Undo / Redo, the size slider, All tools draws too; then
+  the dev app in Simple (a stroke on small a: "drew a stroke on small a", Ready, automatic spacing,
+  0 banned words, Ctrl+Z / Ctrl+Y) and All tools' tool column. Optional argument: a screenshot
+  folder.
+- `b89.verify.mjs` (`npm run verify:b89`): B8 and B9 together in the dev app, with the flags as the
+  app has them (`brush`, `photo` on). The Brush: an empty letter opens with it picked while the
+  overlay offers [Use a photo] (the one green) and the brush; a closed loop keeps its hole, whole
+  numbers, automatic spacing, one Undo step a stroke, strokes never merged; [Draw with the brush].
+  The photo walk on the loose B r e n a H d fixture with real clicks and keys: Next line [How],
+  the How card, [I have my photo] (a stand-in for the Windows picker hands over the fixture; it
+  must start in Downloads), the dialog boxes each letter, the letter typed, Trace it, step C in
+  the letter card with [Use it] the one green, Use it, rule 12's [Do the next one]; seven letters
+  Ready on the writing line; "Brennan Hand" in the strip and in the real font (the exporter's own
+  build) with no letters touching, evenly spaced, on one line. A whole-alphabet phone photo for
+  small z from step A (the letter known, Phone photo picked); an iPhone HEIC photo's plain
+  sentence and [Choose another photo]; a one-part photo straight to step C. All tools before (the
+  last commit's `src/`, `B89_BEFORE=skip` for none) and after: the same controls but the Brush, the
+  same pixels outside the tool column. Optional argument: a screenshot folder.
+
+- `photo_ui.verify.mjs` (`npm run verify:photo-ui`): the B9 photo screens' fix pass in the dev app
+  (the first-timer's findings 1 to 5): the dialog's x closes it with a real mouse from all three
+  ways in; every button keeps its box under hover, focus and a press; a whole-alphabet page opens
+  close up at 1600 x 900 and 1280 x 720 with readable letters, scrolls only up and down, zooms with
+  [-] [+] and Ctrl + the wheel, and no name tag covers a letter; no ink at step C opens Adjust; step C
+  fits a tall result in view. Optional argument: a screenshot folder.
+
+- `b89_final.verify.mjs` (`npm run verify:b89-final`): the B8 + B9 finalize in the dev app. The
+  first-timer's notebook alphabet page in the photo dialog with every part named: no name tag on
+  another tag on the whole photo; a window resized while it is open keeps the letters their size;
+  [+] by the keyboard hands the focus on; "Two letters touch here." on a touching pair; Skip reads
+  "Not a letter, skip it". The Brush on small b after one stroke: "When small b looks right, go
+  to ..." with the button outlined. Fine-tune > Photo on a traced e: a real drag of Photo fade is
+  one step, Hide photo, Photo options, Remove photo and its [Undo]. Ctrl+Z / Ctrl+Y across a
+  whole-font step ([No tail]) keep the photo list. After "Done with this photo", an empty letter's
+  overlay leads with [Choose another photo...]. Optional argument: a screenshot folder.
+  `b23.verify.mjs` takes the photo screens' route off for its Trace-panel stand-in, and
+  `b45.verify.mjs` sends its photo to the photo screens (B9) instead of expecting it turned away.
+
+Since B8 + B9 (10/15/2026) the Brush and photos are on, and every check runs with the flags as the
+app ships them (B8 + B9 finalize: `b67.verify.mjs` no longer turns `brush` and `photo` off; its
+empty letter offers [Use a photo] and reaches the Point pen by its key, P).
+The B8 and B9 test pages: `nib.html` (the Brush on a bare letter) and `photo.html` (the photo flow
+on a new font in Simple, with stand-ins for the dialog and step C; "Walk the whole photo", "HEIC
+photo", "Box on bare paper").
+
 Since B6 + B7 (10/14/2026) Simple has the top bar, the Menu and the letter view. The B5-era
 walkthroughs that step through Simple's page chooser, File menu or B5 letter page
 (`wiring.verify.mjs`, `b45.verify.mjs`, `mode-fixes.verify.mjs`, `words-fix.verify.mjs`) check B5's

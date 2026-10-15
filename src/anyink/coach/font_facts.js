@@ -21,8 +21,8 @@
 	  fontNameOf(project)            the font's name
 	  defaultTryItText(project)      the Try-it text: what he typed in the strip, else the
 	                                 font's name (4.0: it starts as the font name)
-	  photoRecords(project)          [{ id, unused, done }] from settings.anyink.photos (B9's
-	                                 registry; B9 can give its own reader as sources.photos)
+	  photoRecords(project)          [{ id, unused, done }] from settings.anyink.photos: B9's
+	                                 registry's own reader (photo_registry.js photoSummaries)
 	  hasAnyPhoto(project)           a letter holds a photo, or a photo record exists
 	  firstProblem(editor, payload)  the font check's first problem: { itemId, problem, text,
 	                                 fixable } or null
@@ -47,6 +47,8 @@ import { getSaveStatus, saveStatusWords } from '../files/save_status.js';
 import { isProjectFileHandle } from '../files/write_file.js';
 import { getLastFontCheck } from '../fontcheck/font_check.js';
 import { isFeatureOn } from '../mode/features.js';
+import { isOpeningBrush } from '../nib/default_tool.js';
+import { photoSummaries } from '../photo/photo_registry.js';
 import { getPref } from '../prefs/prefs.js';
 import { canFixProblem } from '../preview/fix_it.js';
 import { firstCheckProblem } from '../preview/font_status.js';
@@ -142,33 +144,15 @@ export function defaultTryItText(project) {
 }
 
 /**
- * @param {*} value
- * @returns {Number} how many entries an array or object holds; a number as it is
- */
-function countOf(value) {
-	if (Array.isArray(value)) return value.length;
-	if (value && typeof value === 'object') return Object.keys(value).length;
-	const number = Number(value);
-	return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
-}
-
-/**
- * settings.anyink.photos[assetId]: { parts, used, done } (B9). Parts may say themselves which
- * letter used them ({ char } or { letter }).
+ * settings.anyink.photos[assetId] (B9's registry, photo/photo_registry.js): each photo with the
+ * parts still to name, as rule 12 counts them. B8 + B9 integration: the registry's own reader,
+ * so a part he skipped, or one under a box he drew, is never "more letters" (the reader here
+ * counted parts minus used ones).
  * @param {Object} project
  * @returns {Array<{id: String, unused: Number, done: Boolean}>}
  */
 export function photoRecords(project) {
-	const photos = project?.settings?.anyink?.photos;
-	if (!photos || typeof photos !== 'object') return [];
-	return Object.entries(photos).map(([id, record]) => {
-		const parts = countOf(record?.parts);
-		const usedInParts = Array.isArray(record?.parts)
-			? record.parts.filter((part) => part && (part.char || part.letter || part.used)).length
-			: 0;
-		const used = Math.max(countOf(record?.used), usedInParts);
-		return { id, unused: Math.max(0, parts - used), done: !!record?.done };
-	});
+	return photoSummaries(project);
 }
 
 /**
@@ -381,6 +365,9 @@ export function deriveEditorState(
 		const char = charOfItem(item || { id });
 		if (char) letter = letters.find((l) => l.char === char) || letterFacts(item, char, options);
 		tool = typeof editor.selectedTool === 'string' ? editor.selectedTool : '';
+		// B8 + B9 integration: the Brush an empty letter opens with is no pick of his, so rule 8
+		// still offers the photo and the brush (the overlay holds the green button)
+		if (isOpeningBrush(editor)) tool = '';
 		// B6 + B7 fix pass: a Point pen shape still open is ink, but no letter yet (the Point pen
 		// draws only in the letter view, on the open letter)
 		const open = openShapeOf(editor);

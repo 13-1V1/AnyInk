@@ -1,3 +1,5 @@
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import {
 	calculateDeltaAngle,
 	calculateDeltasFromTransform,
@@ -40,6 +42,8 @@ export class Path extends GlyphElement {
 	 * @param {String =} arg.transformOrigin - set the origin location for transforms
 	 * @param {Boolean =} arg.ratioLock - when scaling, keep the aspect ratio
 	 * @param {Object =} arg.parent - link to the parent Glyph object
+	 * @param {Object =} arg.anyink - ANY-INK per-shape data (B8: the brush stroke's id,
+	 *   anyink.strokeId), plain JSON; kept as a clone, and only when non-empty
 	 */
 	constructor({
 		name = 'Path',
@@ -52,6 +56,7 @@ export class Path extends GlyphElement {
 		transformOrigin = '',
 		ratioLock = false,
 		parent = false,
+		anyink = undefined,
 	} = {}) {
 		// log(`Path.constructor`, 'start');
 		super();
@@ -67,6 +72,10 @@ export class Path extends GlyphElement {
 		this.link = false;
 
 		this.objType = objType;
+		// ANY-INK (B8 + B9 integration): a shape's own ANY-INK data (a brush stroke's id) goes
+		// with it through every Undo step, crash snapshot and save; the property exists only when
+		// there is something in it, so every other shape is exactly as upstream makes it
+		if (isNonEmptyPlainObject(anyink)) this.anyink = clone(anyink);
 
 		// log(`Path.constructor - End\n`);
 	}
@@ -103,6 +112,9 @@ export class Path extends GlyphElement {
 		});
 
 		if (verbose) re.objType = this.objType;
+		// ANY-INK (B8 + B9 integration): saved only when non-empty, cloned so a snapshot never
+		// shares it with the live shape
+		if (isNonEmptyPlainObject(this.anyink)) re.anyink = clone(this.anyink);
 		// if (!verbose && this.__ID) delete this.__ID;
 
 		return re;
@@ -1404,4 +1416,18 @@ export class Path extends GlyphElement {
 		}
 		return false;
 	}
+}
+
+/**
+ * ANY-INK: a plain object with at least one key (Glyph's own rule for its anyink data).
+ * @param {*} value
+ * @returns {Boolean}
+ */
+function isNonEmptyPlainObject(value) {
+	return (
+		!!value &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		Object.keys(value).length > 0
+	);
 }

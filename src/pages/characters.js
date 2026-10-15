@@ -1,8 +1,11 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeEmptyOverlay } from '../anyink/letter/empty_overlay.js';
 import '../anyink/letter/letter.css';
 import { makeLetterHeader } from '../anyink/letter/letter_header.js';
+import { watchOpenTool } from '../anyink/letter/open_tool.js';
 import {
 	isLetterViewOn,
 	makeViewSwitches,
@@ -176,6 +179,9 @@ function addLetterView(content, editor) {
 
 	content.querySelector('.editor-page__nav-area').after(makeLetterHeader(editor));
 	page.appendChild(makeEmptyOverlay(editor));
+
+	// B8 + B9 integration: the Brush on an empty letter, Select on one with ink (open_tool.js)
+	watchOpenTool(editor);
 
 	// a letter opened: a visit of its own for the guide letter (view_switches.js)
 	noteLetterOpened(editor.project.getItem(editor.selectedGlyphID));

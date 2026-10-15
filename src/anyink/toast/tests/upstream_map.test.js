@@ -108,28 +108,30 @@ describe('the main-path toasts of B4', () => {
 describe('drops and pastes (fix track)', () => {
 	afterEach(() => resetFeaturesForTests());
 
-	// [message, Simple before B9's photo card (no photos yet), Simple with it]
+	// [message, what Simple says]. B8 + B9 integration: B9's photo card landed, so the
+	// drawings-only words Simple said until then (withoutPhoto) are gone, with or without the flag
 	// prettier-ignore
 	const HINTS = [
-		[DROP_HINT, 'toast.dropDrawingHint', 'toast.dropHint'],
-		[PASTE_TEXT_HINT, 'toast.pasteDrawingHint', 'toast.pasteTextHint'],
-		[PASTE_FILE_HINT, 'toast.pasteDrawingHint', 'toast.pasteFileHint'],
-		[NOT_TRACEABLE_HINT, 'toast.photoNotYet', 'toast.openLetterFirst'],
-		[CLIPBOARD_BLOCKED_HINT, 'toast.photoNotYet', 'toast.clipboardBlocked'],
+		[DROP_HINT, 'toast.dropHint'],
+		[PASTE_TEXT_HINT, 'toast.pasteTextHint'],
+		[PASTE_FILE_HINT, 'toast.pasteFileHint'],
+		[NOT_TRACEABLE_HINT, 'toast.openLetterFirst'],
+		[CLIPBOARD_BLOCKED_HINT, 'toast.clipboardBlocked'],
 	];
 
-	it.each(HINTS)(
-		'%s: Simple offers no photo until the photo card lands',
-		(message, before, after) => {
-			// principle 8: no door to an unbuilt room. A hint that invites a photo Simple turns away
-			// would send him round in a circle
-			expect(simple(message)).toMatchObject({ show: true, key: before, text: word(before) });
-			expect(word(before)).not.toMatch(/\bphoto (to|on)\b|PNG|JPEG/);
-			setFeaturesForTests({ photo: true });
-			expect(simple(message)).toMatchObject({ show: true, key: after, text: word(after) });
-			expect(all(message)).toMatchObject({ show: true, html: message, reason: 'all-tools' });
-		}
-	);
+	it.each(HINTS)('%s: Simple says it in house words; All tools as it came', (message, key) => {
+		expect(simple(message)).toMatchObject({ show: true, key, text: word(key) });
+		setFeaturesForTests({ photo: false });
+		expect(simple(message)).toMatchObject({ show: true, key });
+		expect(all(message)).toMatchObject({ show: true, html: message, reason: 'all-tools' });
+	});
+
+	it('the retired photo-free words are gone from the words and the map', () => {
+		['toast.photoNotYet', 'toast.dropDrawingHint', 'toast.pasteDrawingHint'].forEach((key) => {
+			expect(hasWord(key)).toBe(false);
+		});
+		expect(TOAST_RULES.some((rule) => 'withoutPhoto' in rule)).toBe(false);
+	});
 
 	it('the drag hint, what the drop or paste did, and the photo toasts are one stream', () => {
 		// "info toasts wait their turn" (4.0): the drag-over hint must give way to the drop's own

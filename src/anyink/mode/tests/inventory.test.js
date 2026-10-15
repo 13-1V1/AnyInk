@@ -50,7 +50,9 @@ describe("today's controls, read from the code", () => {
 			/toolButtonData = \{([\s\S]*?)\n\t\};/
 		)[1];
 		const tools = [...block.matchAll(/\n\t\t(\w+): \{/g)].map((m) => m[1]);
+		// B8 + B9 integration: the Brush (B8) is listed first; the column puts it after New path
 		expect(tools).toEqual([
+			'nib',
 			'newRectangle',
 			'newOval',
 			'newPath',
@@ -59,7 +61,10 @@ describe("today's controls, read from the code", () => {
 			'resize',
 		]);
 		expect(source('edit_canvas/tools/tools.js')).toMatch(/selectTool\('kern'\)/);
-		expect(sorted(todayIds('tool'))).toEqual(sorted([...tools, 'kern']));
+		// the snapshot of today's controls was taken before B8: the Brush is the one tool it lacks
+		expect(sorted(todayIds('tool'))).toEqual(
+			sorted([...tools.filter((tool) => tool !== 'nib'), 'kern'])
+		);
 	});
 
 	it('view tools: makeViewToolsButtons, its zoom slider and the live preview pop-out', () => {

@@ -6,7 +6,8 @@
 // Select (and the Brush, from B8) always show, while Edit points, Point pen, Rectangle and Oval
 // show only while Fine-tune is open (view_switches.js fineTuneShows('tools')), except the tool
 // that is picked, which never hides. All tools, and Simple before 'letterView', draw the column
-// exactly as today.
+// exactly as today. B8 + B9 integration: the Brush (B8, 'brush' on in the app) is in both modes'
+// columns: first in the Simple letter view, after New path in All tools (7.6, visibility.js).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeEditToolsButtons, selectTool } from '../../../edit_canvas/tools/tools.js';
 import { setFeaturesForTests } from '../../mode/features.js';
@@ -65,12 +66,13 @@ afterEach(() => {
 });
 
 describe('All tools and Simple before the letter view: the column as today', () => {
-	it('All tools: the six tools in upstream order, icons only, every one showing', () => {
+	it('All tools: the six tools in upstream order, then the Brush after New path, icons only', () => {
 		const area = drawColumn();
 		expect(ids(buttons(area))).toEqual([
 			'newRectangle',
 			'newOval',
 			'newPath',
+			'nib',
 			'pathAddPoint',
 			'pathEdit',
 			'resize',
@@ -78,22 +80,44 @@ describe('All tools and Simple before the letter view: the column as today', () 
 		expect(shownIds(area)).toEqual(ids(buttons(area)));
 		expect(area.querySelector('.anyink-tool__word, .anyink-tool--labeled')).toBeNull();
 		expect(button(area, 'newPath').title).toBe('New path');
+		expect(button(area, 'nib').title).toBe('Brush');
+	});
+
+	it('All tools before B8 (the brush flag off): the six tools as upstream has them', () => {
+		setFeaturesForTests({ brush: false });
+		const area = drawColumn();
+		expect(shownIds(area)).toEqual([
+			'newRectangle',
+			'newOval',
+			'newPath',
+			'pathAddPoint',
+			'pathEdit',
+			'resize',
+		]);
 	});
 
 	it('Simple without letterView: B5’s column (no Add a point), icons only', () => {
 		setModeForTests('simple');
 		setFeaturesForTests({ letterView: false }); // on in the app since B7
 		const area = drawColumn();
-		expect(shownIds(area)).toEqual(['newRectangle', 'newOval', 'newPath', 'pathEdit', 'resize']);
+		expect(shownIds(area)).toEqual([
+			'newRectangle',
+			'newOval',
+			'newPath',
+			'nib',
+			'pathEdit',
+			'resize',
+		]);
 		expect(area.querySelector('.anyink-tool__word')).toBeNull();
 	});
 });
 
 describe('Simple letter view', () => {
-	it('Select first, then the Fine-tune tools: Edit points, Point pen, Rectangle, Oval', () => {
+	it('the Brush, then Select, then the Fine-tune tools: Edit points, Point pen, Rectangle, Oval', () => {
 		simpleLetterView();
 		const area = drawColumn();
-		expect(ids(buttons(area))).toEqual(['resize', ...FINE_TUNE]);
+		expect(ids(buttons(area))).toEqual(['nib', 'resize', ...FINE_TUNE]);
+		expect(button(area, 'nib').dataset.anyinkToolGroup).toBeUndefined();
 		FINE_TUNE.forEach((tool) => {
 			expect(button(area, tool).dataset.anyinkToolGroup).toBe('fineTune');
 		});
@@ -126,30 +150,30 @@ describe('Simple letter view', () => {
 	it('Fine-tune closed hides the extra tools; opening it shows them; closing hides them again', () => {
 		simpleLetterView();
 		const area = drawColumn();
-		expect(shownIds(area)).toEqual(['resize']);
+		expect(shownIds(area)).toEqual(['nib', 'resize']);
 		setFineTuneOpen(true, editor);
-		expect(shownIds(area)).toEqual(['resize', ...FINE_TUNE]);
+		expect(shownIds(area)).toEqual(['nib', 'resize', ...FINE_TUNE]);
 		setFineTuneOpen(false, editor);
-		expect(shownIds(area)).toEqual(['resize']);
+		expect(shownIds(area)).toEqual(['nib', 'resize']);
 	});
 
 	it('a column drawn while Fine-tune is open shows them at once', () => {
 		simpleLetterView();
 		setFineTuneOpen(true, editor);
-		expect(shownIds(drawColumn())).toEqual(['resize', ...FINE_TUNE]);
+		expect(shownIds(drawColumn())).toEqual(['nib', 'resize', ...FINE_TUNE]);
 	});
 
 	it('the picked tool never hides, and keeps its words when the pick changes', () => {
 		simpleLetterView();
 		const area = drawColumn();
 		selectTool('newRectangle');
-		expect(shownIds(area)).toEqual(['resize', 'newRectangle']);
+		expect(shownIds(area)).toEqual(['nib', 'resize', 'newRectangle']);
 		const rectangle = button(area, 'newRectangle');
 		expect(rectangle.classList.contains('editor-page__tool-selected')).toBe(true);
 		expect(wordOf(rectangle)).toBe('Rectangle');
 		expect(keyOf(rectangle)).toBe('R');
 		selectTool('resize');
-		expect(shownIds(area)).toEqual(['resize']);
+		expect(shownIds(area)).toEqual(['nib', 'resize']);
 		expect(wordOf(rectangle)).toBe('Rectangle');
 		expect(wordOf(button(area, 'resize'))).toBe('Select');
 	});
@@ -157,7 +181,7 @@ describe('Simple letter view', () => {
 	it('a column drawn with a Fine-tune tool picked shows that one', () => {
 		simpleLetterView();
 		editor.selectedTool = 'newOval';
-		expect(shownIds(drawColumn())).toEqual(['resize', 'newOval']);
+		expect(shownIds(drawColumn())).toEqual(['nib', 'resize', 'newOval']);
 	});
 
 	it('the rule between Select and the Fine-tune tools shows only with them', () => {

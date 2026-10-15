@@ -14,7 +14,9 @@
 	                   'start' (the app's own page: no top bar, so the line says nothing)
 	  dialog           the open ANY-INK dialog ('howCard', 'photoDialog', 'useInWord',
 	                   'fontDetails', or any name), or null
-	  photoCard        { step: 'pick' | 'result', char } while the photo card runs (4.4 A, C)
+	  photoCard        { step: 'pick' | 'result', char, status, green } while the photo card
+	                   runs (4.4 A, C); status and green (its green button's words key) say
+	                   when step C has nothing to use (B8 + B9 integration)
 	  tryItOpen        Try it (4.6) is open
 	  otherPrimary     a card, overlay or dialog on screen already shows a green button
 	  letter           the open letter (page 'letter'): { char, ink, shapes, ready, needsLook,
@@ -42,13 +44,19 @@
 
 	The line: { rule, name, sentence, label, button, action, args, primary, somethingElse,
 	  skipKey, stamp, letter, fromTryIt }
-	  rule        1 to 17, or 0 when no rule matches (the line is empty)
+	  rule        1 to 18, or 0 when no rule matches (the line is empty). Rule 18 (B8 + B9
+	              finalize, second hostile pass: the line went blank once every letter was
+	              ready): "All 58 letters are ready." with no button, while rules 16 and 17
+	              (the board, Try it) aren't built
 	  sentence    one sentence ('' for rule 1: the dialog has its own green button)
 	  label       true when the line shows "Next:" before the sentence (rule 15's sentences
 	              carry their own "Next:")
 	  button      the button's words, '' for none; action and args say what it does
 	              (actions.js)
-	  primary     the button is the screen's one green button: true unless otherPrimary
+	  primary     the button is the screen's one green button: true unless otherPrimary, or the
+	              rule shows its button outlined (rule 15 while the Brush is picked on a letter
+	              with ink: he may still be drawing, so "looks done" and a green way on would
+	              hurry him; B8 + B9 finalize)
 	  somethingElse   "Something else" would show another suggestion
 	  skipKey, stamp  what "Something else" remembers (skips.js)
 	  letter, fromTryIt   rule 15's letter, and whether it came from the Try-it text
@@ -63,7 +71,7 @@
 */
 import { hexesToChars } from '../../common/character_ids.js';
 import { letterName, letterPhrase, sentenceStart } from '../words/letter_name.js';
-import { labelCase, word } from '../words/words.js';
+import { hasWord, labelCase, word } from '../words/words.js';
 import { buttonLetter, suggestionOrder, tryItLetters } from './letter_order.js';
 import { isSkippedIn } from './skips.js';
 
@@ -159,6 +167,9 @@ export const MIN_SHAPE_POINTS = 3;
 
 /** Rule 8: what a picked drawing tool does on an empty letter (B6 + B7 fix pass) */
 const TOOL_SENTENCES = Object.freeze({
+	// B8 + B9 integration: the Brush once he picked it (the Brush a letter opens with is no
+	// pick of his: coach_state.js gives no tool for it, so the line still offers the photo)
+	nib: 'brush.next.drag',
 	newPath: 'coach.rule.drawFirstPoint',
 	newRectangle: 'coach.rule.drawRectangle',
 	newOval: 'coach.rule.drawOval',
@@ -183,6 +194,21 @@ function emptyLine(state, on) {
 			? 'coach.rule.emptyBrush'
 			: 'coach.rule.emptyPoints';
 	return { key, stamp: '' };
+}
+
+/**
+ * Rule 3's sentence (B8 + B9 integration): "Look right? Press Use it..." while there is a result
+ * to use; with nothing to use (no ink in the part, or the trace failed) [Use it] is gone, so the
+ * sentence names the card's green button ({ status, green } from photo_card.js).
+ * @param {{status?: String, green?: String}} card
+ * @returns {String}
+ */
+function photoResultSentence(card) {
+	const stuck = card?.status === 'no-ink' || card?.status === 'error';
+	if (!stuck || typeof card.green !== 'string' || !hasWord(card.green)) {
+		return word('coach.rule.photoResult');
+	}
+	return word('coach.rule.photoStuck', { button: word(card.green) });
 }
 
 /** Rule 2's letter while the photo card is at step A, else null */
@@ -307,7 +333,7 @@ export const RULES = Object.freeze([
 		match: (s) =>
 			s.photoCard?.step === 'result'
 				? {
-						sentence: word('coach.rule.photoResult'),
+						sentence: photoResultSentence(s.photoCard),
 						skipKey: `photoResult:${s.photoCard.char || ''}`,
 				  }
 				: null,
@@ -547,14 +573,18 @@ export const RULES = Object.freeze([
 			);
 			if (!next) return null;
 			const letter = letterPhrase(next.char);
-			const sentence =
-				isReady(open) && s.page === 'letter'
-					? word('coach.rule.doneNextLetter', { done: startName(open.char), letter })
-					: word('coach.rule.nextLetter', { letter });
+			// the Brush picked on a letter with ink: he may still be drawing (B8 + B9 finalize)
+			const brushing = s.page === 'letter' && s.tool === 'nib' && !!open?.ink;
+			const sentence = brushing
+				? word('coach.rule.whenReadyNextLetter', { done: letterPhrase(open.char), letter })
+				: isReady(open) && s.page === 'letter'
+				? word('coach.rule.doneNextLetter', { done: startName(open.char), letter })
+				: word('coach.rule.nextLetter', { letter });
 			const name = buttonLetter(next.char);
 			return {
 				sentence,
 				label: false,
+				primary: !brushing,
 				button:
 					s.page === 'letter'
 						? button('action.goTo', { letter: name }, 'goToLetter', { char: next.char })
@@ -599,6 +629,18 @@ export const RULES = Object.freeze([
 				: null,
 		live: (s) => one(allReady(s), 'upToDate'),
 	},
+	{
+		// B8 + B9 finalize: every letter ready, and nothing after it built yet (16, 17 off)
+		id: 18,
+		name: 'allDone',
+		flags: ['coach'],
+		// only while rules 13, 14, 16 and 17 can't show (their screens aren't built)
+		match: (s, on) =>
+			allReady(s) && !['tryIt', 'useInWord', 'board'].some(on)
+				? { sentence: word('coach.rule.allLettersReady', { count: lettersOf(s).length }) }
+				: null,
+		live: () => [],
+	},
 ]);
 
 /**
@@ -625,7 +667,7 @@ function pick(state) {
 			button: found.button?.label || '',
 			action: found.button?.action || '',
 			args: found.button?.args ?? null,
-			primary: !!found.button && !state.otherPrimary,
+			primary: !!found.button && !state.otherPrimary && found.primary !== false,
 			skipKey: found.skipKey || '',
 			stamp,
 			letter: found.letter ?? null,

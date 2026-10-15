@@ -1,0 +1,27 @@
+{
+	"about": "Answer key for the photo of the same name (make_firsttimer.mjs). Stored image pixels, y down; box = [left, top, right, bottom], right and bottom exclusive.",
+	"width": 1500,
+	"height": 2000,
+	"kind": "phone",
+	"paper": "photo",
+	"rows": 1,
+	"letters": [
+		{
+			"char": "g",
+			"row": 0,
+			"box": [344, 533, 709, 1452],
+			"center": [528.3, 997.9]
+		}
+	],
+	"touching": [],
+	"crossedOut": null,
+	"smudges": [],
+	"holes": [],
+	"marginLine": null,
+	"shadow": [
+		[0, 1488.1],
+		[1500, 1736.1],
+		[1500, 2000],
+		[0, 2000]
+	]
+}

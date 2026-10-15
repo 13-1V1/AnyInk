@@ -18,6 +18,12 @@
 	  inkPieces(contours) -> each outline that adds ink with the holes cut in it: its outlines,
 	    area, perimeter and how far it reaches (xMin, xMax, yMin, yMax)
 	  pointInContour(point, contour) -> Boolean (even-odd test against one outline)
+	  B8 + B9 finalize (second hostile pass: a Simple brush step on a letter with 250 strokes took
+	  483 ms, with 500 two seconds; the spacing hook measured every outline again at every step
+	  and tested every outline against every other for holes): each path's outline is kept
+	  until the path changes (pathContour: a stamp of its points and handles), and inkPieces
+	  tests an outline only against the ones whose box holds it. The outlines are shared: no
+	  caller changes one.
 	  isStrayPath(path) -> the font check's stray-shape rule (fontcheck/validate.js
 	    isStrayShape), restated here: importing the font check would make it the first way into
 	    the app's module graph, where it meets an import loop (validate -> ... ->
@@ -95,6 +101,7 @@ export function inkPieces(contours) {
 			(other) =>
 				other !== contour &&
 				Math.abs(other.area) > Math.abs(contour.area) &&
+				inBox(sample, boxOfContour(other)) &&
 				pointInContour(sample, other)
 		);
 		const windingAround = around.reduce((sum, other) => sum + Math.sign(other.area), 0);
@@ -110,16 +117,15 @@ export function inkPieces(contours) {
 	const pieces = new Map();
 	info.forEach(({ contour, hole }) => {
 		if (hole) return;
-		const xs = contour.points.map(([x]) => x);
-		const ys = contour.points.map(([, y]) => y);
+		const box = boxOfContour(contour);
 		pieces.set(contour, {
 			area: Math.abs(contour.area),
 			perimeter: contour.perimeter,
 			contours: [contour],
-			xMin: Math.min(...xs),
-			xMax: Math.max(...xs),
-			yMin: Math.min(...ys),
-			yMax: Math.max(...ys),
+			xMin: box.xMin,
+			xMax: box.xMax,
+			yMin: box.yMin,
+			yMax: box.yMax,
 		});
 	});
 	info.forEach(({ contour, hole, parent }) => {
@@ -170,6 +176,48 @@ function sideCurves(point, next) {
  * @returns {{points: Array<Array<Number>>, area: Number, perimeter: Number} | null}
  */
 export function pathContour(path) {
+	if (!path || typeof path !== 'object') return flatContour(path);
+	const stamp = stampOf(path);
+	const known = contourCache.get(path);
+	if (known && known.stamp === stamp) return known.contour;
+	const contour = flatContour(path);
+	contourCache.set(path, { stamp, contour });
+	return contour;
+}
+
+/** Each path's outline, kept with a stamp of its points (B8 + B9 finalize) */
+const contourCache = new WeakMap();
+
+/** The points and handles of a path, as one string: any change to them changes it */
+function stampOf(path) {
+	const pathPoints = path.pathPoints || [];
+	let stamp = String(pathPoints.length);
+	for (const point of pathPoints) {
+		stamp += `|${point.p.x},${point.p.y},${point.h1.x},${point.h1.y},${point.h2.x},${point.h2.y}`;
+	}
+	return stamp;
+}
+
+/** The box round an outline's points, kept with it */
+const boxCache = new WeakMap();
+function boxOfContour(contour) {
+	let box = boxCache.get(contour);
+	if (box) return box;
+	box = { xMin: Infinity, xMax: -Infinity, yMin: Infinity, yMax: -Infinity };
+	for (const [x, y] of contour.points) {
+		if (x < box.xMin) box.xMin = x;
+		if (x > box.xMax) box.xMax = x;
+		if (y < box.yMin) box.yMin = y;
+		if (y > box.yMax) box.yMax = y;
+	}
+	boxCache.set(contour, box);
+	return box;
+}
+
+const inBox = ([x, y], box) => x >= box.xMin && x <= box.xMax && y >= box.yMin && y <= box.yMax;
+
+/** pathContour itself, with no keeping */
+function flatContour(path) {
 	const pathPoints = path?.pathPoints || [];
 	if (!pathPoints.length) return null;
 	const points = [[pathPoints[0].p.x, pathPoints[0].p.y]];

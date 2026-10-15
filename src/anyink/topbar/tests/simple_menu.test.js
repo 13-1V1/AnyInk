@@ -46,6 +46,8 @@ afterEach(() => {
 
 describe('the rows that show', () => {
 	it('with only the top bar landed: File, View and Help, and the two rows Simple keeps until B14 / B15', () => {
+		// B8 + B9 integration: before B9 (photos on in the app now; the next test)
+		setFeaturesForTests({ photo: false });
 		const editor = twoLetterEditor();
 		expect(rowIds(menuRows(editor))).toEqual([
 			'# File',
@@ -60,6 +62,18 @@ describe('the rows that show', () => {
 			'more-tools',
 			'---',
 			'# Help',
+			'help-page',
+			'tips-again',
+			'about',
+		]);
+	});
+
+	it('B9 landed (the flags as the app has them): Help gains How to photograph your letters', () => {
+		const editor = twoLetterEditor();
+		const ids = rowIds(menuRows(editor));
+		expect(ids.slice(ids.indexOf('# Help'))).toEqual([
+			'# Help',
+			'help-photo',
 			'help-page',
 			'tips-again',
 			'about',

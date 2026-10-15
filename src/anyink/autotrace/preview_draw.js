@@ -26,12 +26,33 @@
 	- Only while the Trace panel (where the Auto-trace card lives) is open: the session ends
 	  when the panel changes, and this check keeps a panel switch that skips navigate()
 	  from leaving a stale preview behind.
+	- B8 + B9 integration: in Simple the photo flow's step C draws here too (the green dashed
+	  traced outline over the photo, UX-BEGINNER.md 4.4 "Step C"): the photo screens register
+	  photo/photo_flow_state.js photoPreviewShapes with setPhotoPreview (photo_app.js, at boot),
+	  so this file never imports the photo flow (and through it the app). Simple has no Trace
+	  panel, so that check is All tools' own.
+	- setPhotoPreview(fn): fn(item, editor) -> the step C shapes for that letter, or null; null
+	  takes it off.
 */
+import { isSimpleMode } from '../mode/mode.js';
 import { token, withAlpha } from '../theme/theme.js';
 import { getSession } from './autotrace_session.js';
 
 /** How strong the light fill is (touch green at this alpha). */
 export const PREVIEW_FILL_ALPHA = 0.18;
+
+/** Simple's step C shapes (photo_flow_state.js photoPreviewShapes), registered at boot. */
+let photoPreview = null;
+
+/**
+ * @param {Function | null} fn - (item, editor) => Array | null
+ * @returns {Function | null} the one it replaced
+ */
+export function setPhotoPreview(fn) {
+	const previous = photoPreview;
+	photoPreview = typeof fn === 'function' ? fn : null;
+	return previous;
+}
 
 /** Outline width and dash pattern, in screen pixels. */
 export const PREVIEW_LINE_WIDTH = 1.5;
@@ -45,8 +66,7 @@ export const PREVIEW_DASH = Object.freeze([6, 4]);
  */
 export function drawAutoTracePreview(ctx, view, item, editor) {
 	if (!ctx || !view || !item) return;
-	if (editor?.nav && editor.nav.panel !== 'Trace') return;
-	const shapes = previewShapesFor(item, editor);
+	const shapes = shapesToDraw(item, editor);
 	if (!shapes) return;
 
 	const dx = Number(view.dx);
@@ -70,6 +90,25 @@ export function drawAutoTracePreview(ctx, view, item, editor) {
 		ctx.stroke();
 	}
 	ctx.restore();
+}
+
+/**
+ * Simple: the photo flow's step C; All tools: the Auto-trace card's session, while the Trace
+ * panel is open.
+ * @param {Object} item
+ * @param {Object} [editor]
+ * @returns {Array | null}
+ */
+function shapesToDraw(item, editor) {
+	if (isSimpleMode()) {
+		try {
+			return photoPreview?.(item, editor) || null;
+		} catch {
+			return null;
+		}
+	}
+	if (editor?.nav && editor.nav.panel !== 'Trace') return null;
+	return previewShapesFor(item, editor);
 }
 
 /**

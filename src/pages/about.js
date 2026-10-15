@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeBackToLettersButton } from '../anyink/mode/back_to_letters.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
 import { QUOTE_CLASS } from '../anyink/words/banned.js';
@@ -227,10 +229,77 @@ function makeCreditsInfo() {
 			<br>
 			Copyright © 2021, Thomas Steiner
 		</div>
+		${brushCredits()}
 	`,
 	});
 
 	return content;
+}
+
+/**
+ * ANY-INK (B8 + B9 integration): the Brush's libraries (src/anyink/nib, docs/FACTCHECK_LOG.md).
+ * Their license texts, in full, ship beside the app as THIRD-PARTY-NOTICES.txt (src/public), as
+ * the BSD licenses ask of a built app.
+ * @returns {String} HTML
+ */
+function brushCredits() {
+	const cards = [
+		{
+			name: 'Clipper2 (clipper2-ts)',
+			what: 'Joins the Brush’s round pen marks into one outline. Clipper2 by Angus Johnson; TypeScript port by Jeremy Tribby.',
+			link: 'https://github.com/countertype/clipper2-ts',
+			license: ['Boost Software License 1.0', 'https://www.boost.org/LICENSE_1_0.txt'],
+			copyright: 'Copyright © 2010 - 2025, Angus Johnson',
+		},
+		{
+			name: 'perfect-freehand',
+			what: 'Draws the Brush’s live line while the pen is down, by Steve Ruiz.',
+			link: 'https://github.com/steveruizok/perfect-freehand',
+			license: ['MIT License', 'https://opensource.org/license/mit'],
+			copyright: 'Copyright © 2021, Stephen Ruiz Ltd',
+		},
+		{
+			name: '1€ filter (1eurofilter)',
+			what: 'Smooths the shake out of a hand-drawn line, by Géry Casiez and Alix Goguey.',
+			link: 'https://gery.casiez.net/1euro/',
+			license: ['BSD 3-Clause License', 'https://opensource.org/license/bsd-3-clause'],
+			copyright: 'Copyright © 2019, Inria',
+		},
+		{
+			name: 'fit-curve',
+			what: 'Fits smooth curves through the Brush’s line (Philip J. Schneider’s method).',
+			link: 'https://github.com/soswow/fit-curve',
+			license: ['MIT License', 'https://opensource.org/license/mit'],
+			copyright: 'Copyright © 2014, Volker Poplawski',
+		},
+		{
+			name: 'Simplify.js',
+			what: 'Thins out the points of a hand-drawn line, by Vladimir Agafonkin.',
+			link: 'https://mourner.github.io/simplify-js/',
+			license: ['BSD 2-Clause License', 'https://opensource.org/license/bsd-2-clause'],
+			copyright: 'Copyright © 2017, Vladimir Agafonkin',
+		},
+	];
+	const html = cards
+		.map(
+			(card) => `
+		<div class="page__card">
+			<h3>${libraryName(card.name)}</h3>
+			${card.what}
+			<a href="${card.link}" target="_blank">${card.link.replace(/^https:\/\//, '')}</a>.
+			<br>
+			Licensed under the
+			<a href='${card.license[1]}' target='_blank'>${card.license[0]}</a>.
+			<br>
+			${card.copyright}
+		</div>`
+		)
+		.join('');
+	return `${html}
+		<p>
+			The full license texts of these five are in
+			<a href="THIRD-PARTY-NOTICES.txt" target="_blank">THIRD-PARTY-NOTICES.txt</a>.
+		</p>`;
 }
 
 /**

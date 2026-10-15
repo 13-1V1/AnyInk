@@ -98,12 +98,12 @@ afterEach(() => {
 
 describe('tool keys, both modes (7.6)', () => {
 	it.each(['all', 'simple'])(
-		'%s: P Point pen, E Edit points, B Edit points until the Brush (All tools only), V/A Select',
+		'%s: P Point pen, E Edit points, B and N the Brush (B8 landed), V/A Select',
 		(mode) => {
 			setModeForTests(mode);
 			onLetter();
 			const picks = {};
-			['p', 'h', 'w', 'e', 'b', 'v', 'a', 'r', 'm', 'o', 'q'].forEach((key) => {
+			['p', 'h', 'w', 'e', 'b', 'n', 'v', 'a', 'r', 'm', 'o', 'q'].forEach((key) => {
 				editor.selectedTool = 'none';
 				press(key);
 				release(key);
@@ -114,8 +114,9 @@ describe('tool keys, both modes (7.6)', () => {
 				h: 'newPath',
 				w: 'newPath',
 				e: 'pathEdit',
-				// fix track: Simple's B waits for the Brush
-				b: mode === 'all' ? 'pathEdit' : 'none',
+				// B8 + B9 integration: the Brush landed; B and N pick it in both modes (7.6)
+				b: 'nib',
+				n: 'nib',
 				v: 'resize',
 				a: 'resize',
 				r: 'newRectangle',
@@ -125,6 +126,16 @@ describe('tool keys, both modes (7.6)', () => {
 			});
 		}
 	);
+
+	it.each(['all', 'simple'])('%s, before B8 (the brush flag off): B as the fix track left it', (mode) => {
+		setModeForTests(mode);
+		setFeaturesForTests({ brush: false });
+		onLetter();
+		editor.selectedTool = 'none';
+		press('b');
+		release('b');
+		expect(editor.selectedTool).toBe(mode === 'all' ? 'pathEdit' : 'none');
+	});
 
 	it('All tools: U picks Add a point; Simple: U does nothing', () => {
 		onLetter();

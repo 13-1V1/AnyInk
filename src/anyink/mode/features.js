@@ -51,8 +51,8 @@ export const FEATURE_NAMES = Object.freeze(FEATURE_LIST.map((feature) => feature
 export const FEATURES = Object.freeze({
 	coach: true,
 	letterView: true,
-	brush: false,
-	photo: false,
+	brush: true,
+	photo: true,
 	board: false,
 	checks: false,
 	tryIt: false,

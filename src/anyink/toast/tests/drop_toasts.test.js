@@ -106,7 +106,8 @@ describe('Simple', () => {
 	it('the drag-over hint gives way at once to what the drop did', () => {
 		letterEditor();
 		showToast(DROP_HINT); // events.js, on drag enter
-		expect(shownText()).toBe(word('toast.dropDrawingHint'));
+		// B8 + B9 integration: photos are on, so the hint offers them (the drawings-only hint retired)
+		expect(shownText()).toBe(word('toast.dropHint'));
 		drop(workFile());
 		expect(shownText()).toBe(word('toast.dropWorkFile'));
 		expect(live()).toHaveLength(1);

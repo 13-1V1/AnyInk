@@ -17,7 +17,9 @@
 //     5. from another letter, Undo twice: each press undoes the newest change, with at most one
 //        view jump (the first moves to n)
 //   The Simple run turns B9's 'photo' flag on in the page (B4 + B5 finalize: until B9, Simple
-//   turns photos away and draws none), since it stands in for B9's photo flow.
+//   turns photos away and draws none), since it stands in for B9's photo flow; since B9 it also
+//   takes the photo screens' route off (trace/photo_gate.js), so a photo picked in the Trace panel
+//   stays the panel's (B8 + B9 finalize).
 //   All tools (no flag, a fresh profile): the same steps behave as before B3: no refit, width 0,
 //   the font check names the letter, "Navigated to" steps are kept.
 // Writes numbers.json (widths, side spaces, writing-line offsets) beside the screenshots.
@@ -98,10 +100,14 @@ try {
 	await withBrowser(async () => {
 		await newFont('B23 Simple', '?ui=simple');
 		// B4 + B5 finalize: this run stands in for B9's photo flow, so B9's 'photo' flag is on for
-		// it (Simple turns photos away, and draws none, until B9 lands)
-		await page.evaluate(async () =>
-			(await import('/anyink/mode/features.js')).setFeaturesForTests({ photo: true })
-		);
+		// it (Simple turns photos away, and draws none, until B9 lands). B8 + B9 finalize: 'photo'
+		// ships on, and a photo picked in Simple goes to the photo screens (trace/photo_gate.js);
+		// this check keeps to the Trace panel's own import, which its stand-in places by hand, so
+		// it takes that route off for the run (tests/b89.verify.mjs walks the real photo screens)
+		await page.evaluate(async () => {
+			(await import('/anyink/mode/features.js')).setFeaturesForTests({ photo: true });
+			(await import('/anyink/trace/photo_gate.js')).setPhotoRoute(null);
+		});
 		let s = await state();
 		assert.equal(s.mode, 'simple');
 		assert.equal(s.steps.length, 0);

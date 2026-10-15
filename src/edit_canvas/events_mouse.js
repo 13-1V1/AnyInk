@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { releaseFocus } from '../anyink/controls/focus_release.js';
 import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
 import { handleTraceLayerEvent } from '../anyink/trace/trace_layer.js';
@@ -101,6 +103,11 @@ export function handleMouseEvents(event) {
 				break;
 			case 'kern':
 				ehd.currentToolHandler = editor.eventHandlers.tool_kern;
+				break;
+			// ANY-INK (B8, D-014): the Brush draws from pointer events (nib_tool.js); its mouse
+			// side only points, so a hover never reaches the Resize tool's hover
+			case 'nib':
+				ehd.currentToolHandler = editor.eventHandlers.tool_nib || editor.eventHandlers.tool_resize;
 				break;
 			case editor.selectedTool:
 				ehd.currentToolHandler = editor.eventHandlers.tool_resize;

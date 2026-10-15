@@ -1317,3 +1317,347 @@ board replaces the Overview stand-in the rail and "Back to my letters" go to), B
 **Revisit if:** the drop toast reads as a scolding in the Gate 2 walkthrough (then keep the pen
 open and say "Click at least one more point"), B8's Brush makes 1- or 2-point strokes without
 curves, or the board replaces the Overview stand-in.
+
+## D-038: B8 build choices (the round Brush)
+**Decided:** 10/15/2026, by the B8 brush track, recorded by the B8 + B9 integration
+(UX-BEGINNER.md 4.3 Tools and Brush, 7.1 #4 and #5, 7.3, section 10 B8; D-014, D-015, D-024;
+RESEARCH 2.3). Every number below is measured in `src/anyink/nib/tests` and `tests/nib.verify.mjs`.
+**Chose:**
+- **Pointer events only** (D-014): main button or pen tip; nothing for the middle button, the
+  eraser, a second finger or Space-pan; a stroke is dropped when the press is cancelled or the
+  letter changes mid-press. Coalesced samples are all used.
+- **The center line:** the 1€ filter per channel in screen pixels (min cutoff 1.5 Hz, beta 0.02,
+  d-cutoff 1; it catches up when the pen stops, so the stroke ends where the pen did); simplify-js;
+  split where the pen turns more than 65 degrees at one point; fit-curve with the tolerance in
+  half-tolerances (that brings back Schneider's "refine within twice the tolerance" step: a round
+  dot went from 12 curves to 4); whole font units.
+- **The ink** (D-015): a 24-sided round nib swept along the center line, one hull per step, all
+  hulls united with clipper2-ts; ink runs counterclockwise and holes clockwise (D-024); the refit
+  keeps corners only at notches; a point is smooth only when its handles are exactly in line
+  (otherwise upstream adds fractions when the letter reloads). Inking an S stroke takes about 12 ms.
+- **The live picture:** perfect-freehand along the same center line, only while the button is down
+  (RESEARCH 2.3), on a see-through canvas over the edit canvas, cleared the frame after the ink is
+  drawn; cut into pieces with a round dot on each end where perfect-freehand leaves paper gaps
+  (sharp bends, curls tighter than the nib). Picture vs ink: within 2 % of the stroke width (1.0 to
+  1.9 % measured in Chrome, in font units). The older part of a stroke can still shift about 2 % of
+  the width as it refits while drawing (about 1 px at normal zoom); freezing it is left for M10.
+  *Amended 10/15/2026 (the B8 + B9 fix pass and finalize, D-041):* the samples are smoothed along
+  the line before the fit (smooth.js), the center line is built as the samples come in and its
+  settled front is frozen (skeleton.js), so the picture no longer shifts, and the nib pieces are
+  joined 8 at a time; a stroke record also keeps key and parts, each shape strokeKey and
+  strokePart, and pasted copies become strokes of their own.
+- **What a letter keeps:** each stroke is its own shape (two or more for a stroke with a hole),
+  tagged `shape.anyink.strokeId` and named "Brush stroke N"; its center line is kept in
+  `glyph.anyink.nib.strokes` `{ id, nib: 'round', size, skeleton, at }`, so M10 can ink it again.
+  Strokes never go through auto-hole and are never merged (Merge leaves them out, D-040); they
+  merge only at M10's "Turn into shapes".
+- **One Undo step per stroke:** "drew a stroke on small a", in both modes.
+- **Size:** 9 % of the small-letter height by default, 3 % to 24 % on "Size: thin --o-- thick";
+  an app pref, never an Undo step (it changes the pen, not the font).
+- **Both modes** (7.6, B5's `visibility.js` and `keys.js`): the Brush button in All tools sits
+  after New path; B and N pick it in both modes (B picked Edit points in All tools before B8).
+- **Libraries** (FACTCHECK_LOG, pinned exactly): clipper2-ts 2.0.1-18 (BSL-1.0), perfect-freehand
+  1.2.3 (MIT), 1eurofilter 1.3.0 (BSD-3-Clause); fit-curve 0.2.0 (MIT) and simplify-js 1.2.4
+  (BSD-2-Clause) vendored as ES modules under `src/anyink/nib/vendor/` with their license text.
+  Credited on About; their license texts ship as `src/public/THIRD-PARTY-NOTICES.txt` (D-040).
+**Rejected:**
+- perfect-freehand for the final ink: its outline is a picture, not whole-unit curves that M10
+  can re-ink (RESEARCH 2.3).
+- Merging a stroke into the shapes it crosses: a traced letter's shapes would change under a
+  brush stroke, and M10 could not re-ink the stroke alone.
+- Mouse events for the Brush: no pen pressure, tilt or coalesced samples later (D-014).
+**Why:** 7.1 #4 (dragging must draw), principle 5 (whole numbers, good defaults), 7.3.
+**Affects:** `src/anyink/nib/` (new), `words/sets/brush.js`, upstream `tools.js`, `events.js`,
+`events_mouse.js`; M10 (nibs, Edit strokes, Turn into shapes).
+**Revisit if:** the picture vs ink passes 2 % at a zoom Brennan uses, a pen tablet makes strokes
+the filter lags behind, or M10 needs the skeleton frozen while drawing.
+
+## D-039: B9 build choices (photos: parts, the registry, the paper, the screens, the flow)
+**Decided:** 10/15/2026, by the B9 photo-core, photo-ui and photo-flow tracks, recorded by the
+B8 + B9 integration (UX-BEGINNER.md 4.4, 4.5, 7.3, 7.7, section 10 B9; D-016, D-023, D-029,
+D-034).
+**Chose (photo-core):**
+- **Parts** (`photo/ink_parts.js`) follow B3's stand-in rule (`placement/tests/ink_parts_lite.js`)
+  with five changes, each caught by a test: a speck is a piece under a quarter of the stroke
+  squared that sits over or under no other piece (B11's rule; a share of the photo's area dropped
+  a felt-tip i dot on a big page and the periods of a scan); the typical letter height counts only
+  pieces at least 3 strokes tall; a piece touching the photo's edge is dropped when it is more
+  than 3 letter heights long, or a letter height long with a stroke unlike the pen's (a table or a
+  frame line); two dots join only when one is right over the other (". , ' ? ! - : ;" stay
+  apart); rows allow for a tilted page. Masks are never saved; `attachMasks` finds them again.
+- **The registry** `settings.anyink.photos[assetId]`: parts, which letter used which part (and in
+  what order), skipped parts, done, the one scale, the paper and light-ink settings, how the parts
+  were found (`find`, fixed when the photo came in) and a byte fingerprint (two FNV-1a passes), so
+  the same photo added twice keeps one image id. A box he draws and uses covers the parts with
+  60 % of their box inside it. The guess is the first part not used, skipped, drawn or covered; the
+  alphabet prefill follows two neighbours (a, b -> c).
+- **Paper** (`paper_kind.js`): a camera shot needs 2 of the 4 exposure fields in its EXIF (Make and
+  Model alone don't count); otherwise a paper brightness spread over 20 (`PHONE_SPREAD`; measured:
+  scans 7 to 8, an evenly lit photo 9 to 16, phone photos 32 to 37) means Phone photo; light ink
+  on dark paper is guessed too. EXIF is read from the picked file's own bytes (the stored copy is
+  re-encoded WebP and has none).
+- **Smooth --o-- Detailed** (`smooth_detail.js`): a frozen 5-row table from smoothing 0.95 /
+  detail 0.25 to smoothing 0.45 / detail 0.88, with auto-trace's own defaults (0.75 / 0.6) in the
+  middle; neither end reaches potrace's extremes.
+**Chose (photo-ui):**
+- **The How card** lists the Try-it text's letters once each ("Brennan Hand" -> B r e n a H d);
+  [I have my photo] calls the picker inside the press; the card stays open only when the picker
+  was cancelled.
+- **The photo dialog:** a click picks a part (6 px round it counts); a drag draws a box with a
+  crosshair (mouse events: the photo is never on the edit canvas, so the box can't move it), which
+  tightens to the ink inside it ("No ink found in that part..." over bare paper); arrow keys move
+  the green box in reading order; a letter key pressed anywhere in the dialog lands in the field;
+  Enter is Trace it; a box he drew is stored only at Trace it; Escape cancels; editor keys and
+  paste / copy / cut are stopped in the capture phase and a dropped file can't open in the tab;
+  with nothing left to trace, Done with this photo is the green button and a sentence says why.
+  The whole photo fills the dialog, as 4.4 says.
+- **The photo card:** steps A and C, Adjust closed at first and remembered for the session; one
+  green button (Use it; [Draw a box] when no ink was found; a failure's own fix; else Cancel).
+**Chose (photo-flow):**
+- **The part's region** is its rectangle with 25 % of its long side (at least 8 px) of paper round
+  it; other letters' ink inside it is painted with the paper's middle colour, grown 2 px, never
+  over the part; only the part's whole shapes are kept (Simple; All tools keeps the glyph box).
+- **Placement** (B3) comes before tracing, with the photo locked during step C; "as traced" is an
+  ink print (`photoFit.ink`) that any real edit breaks, so nothing has to remember to clear a flag.
+- **Use it** is one step "traced small r": the shapes rounded to whole units, spacing set to
+  automatic (even on a letter he had spaced himself) and fitted, the photo faded to 0.25 and
+  locked; when earlier letters follow the photo's new size the step is whole-font (applyAutoTrace
+  runs through a proxy editor with its Undo steps muted inside one before / after pair) and a toast
+  names them. The registry is read again after Undo and Redo (`watchPhotos`), since an item step
+  doesn't hold `settings.anyink`.
+- **Adjust** re-traces 120 ms after the last change, newest wins; his paper and light-ink picks
+  are kept with the photo. **Cancel** at A, B or C puts the letter's earlier photo back and takes
+  out photos the screens added that no letter uses, with no step. HEIC is caught by its type, its
+  name or its first bytes. Every change publishes 'autoTrace'.
+**Rejected:**
+- A share of the photo's area as the speck size (see above); joining any two nearby dots.
+- Re-reading EXIF from the stored image (it has none).
+- Storing a drawn box as soon as it is drawn: Cancel would leave a part behind.
+- A flag on a traced letter that edits must clear (the ink print can't be forgotten).
+**Why:** 4.4 (one photo makes many letters, one size per photo, plain results), 7.3, 7.7.
+**Affects:** `src/anyink/photo/` (new), `autotrace/trace_region.js` (regionFor, keepShapesFor),
+word sets `photo.js`, `photo_flow.js`; B10 (drops on the board), B11 (checks per letter), M9.
+**Revisit if:** real felt-tip photos (B0's `tests/fixtures/brenna-loose.jpg` and
+`brenna-tight.jpg`, still owed) split letters with pen lifts or join touching letters more than
+the synthetic fixtures do, ruled paper's lines become ink in Phone photo mode, or the dialog's
+whole-photo view makes letters too small to pick on a portrait page (D-040, open).
+
+## D-040: B8 and B9 integration choices (the opening Brush, the photo hub, the seams)
+**Decided:** 10/15/2026, in the B8 + B9 integration, which turned on `brush` and `photo` together
+and joined the four tracks' screens to the B6 Next line and the B7 letter view (UX-BEGINNER.md
+principles 1, 6, 8; 4.0, 4.3, 4.4, 7.2, 7.6, 7.7).
+**Chose:**
+- **The opening Brush** (`letter/open_tool.js`, `nib/default_tool.js`): in the Simple letter view
+  an empty letter opens with the Brush picked and a letter with ink with Select (4.3 Tools), after
+  the press that opened it (a microtask: Undo moving to another letter has undone by then); a tool
+  picked in between wins, a Point pen shape still open is never cut short, and step C's letter
+  opens with Select (when step C starts on the letter already open with a drawing tool picked,
+  Select is picked then: found in Chrome, the opening Brush stayed through step C). The Brush picked this way is no choice of his: the empty overlay stays with
+  [Use a photo] the one green button, the Next line still says "Use a photo of it, or draw it with
+  the brush" (the coach reads no tool for it), and its tip waits; a drag on the paper outside the
+  overlay draws at once. His own pick ([Draw with the brush], the tool button, B or N; told by
+  `tools.js switchToolTo`) puts the overlay away, the line says "Drag on the paper to draw. Each
+  drag is one stroke." and the tip shows. 4.3 asks for both the Brush as the empty letter's
+  default and the overlay's green [Use a photo]; this keeps both.
+- **The photo screens' hub** (`photo/photo_app.js`, started at boot): rule 11's [How] and Menu >
+  How to photograph your letters open the How card; [I have my photo] and [Choose a photo...] open
+  the picker in the press (id 'anyink-photo', in Downloads the first time; `trace_import.js
+  pickImageFile` is shared); a photo goes in with no step, then the dialog (letter unknown from
+  the How card and rule 12, known from a letter), or step C at once for a one-part photo opened
+  from a letter; the dialog's Trace it starts the flow; the flow's changes draw step C in the
+  photo card; rule 12's [Do the next one] opens the dialog on that photo; [Trace again] opens it on
+  the letter's own photo with its part boxed (step A when the photo isn't in the registry). A
+  photo that can't be used shows 7.7's words in Simple's error box with its fix ([Choose another
+  photo] opens the picker again). Skip, Done and a box he drew mark the work file behind
+  (`recovery.js markDirty`), with no step.
+- **Light modules for the letter view:** the overlay opens the photo screens through window
+  events (`photo/photo_doors.js`), reads the card through `photo/photo_card_slot.js` and draws
+  its thumbnail with `photo/paint_photo.js`; `autotrace/preview_draw.js` gets step C's shapes
+  registered at boot (`setPhotoPreview`); the hub loads `photo_flow.js` on first use. Importing
+  the hub or the card from the letter view made an import loop (the font check's `validate.js`
+  still loading when the Next line's actions read it), and the test setup, which loads the app
+  shell first, would have loaded the tracer before a test could put its stand-ins in place.
+- **The empty overlay** (4.3): [Use the same photo] with its thumbnail and [Choose another
+  photo...] when a photo of the font has parts not used yet (done or not), else [Use a photo];
+  then [Draw with the brush], "or drop a photo here" and "No photo yet? How to take one"; it hides
+  while the photo card runs or step C is on.
+- **The letter card:** the Photo card section holds the card's own element while it runs (main
+  buttons hidden); the Brush section ("Size: thin --o-- thick") shows while the Brush is picked,
+  except while the photo card shows; [Draw over it] goes while the Brush is picked (it would do
+  nothing); Merge leaves brush strokes out.
+- **Fine-tune > Tail** (4.3, 4.4; the photo-flow track's hand-off): on a letter traced from a part
+  of a photo in the photo list whose letter may hang a tail (g j p q y, Q J f), [It has a tail] /
+  [No tail], the one it is now pressed (his pick once he made one, else what the ink shows: a tail
+  when it reaches more than 5 % of the letter box below the writing line; `photo/letter_tail.js`);
+  a press re-places the part at the letter's own scale with his pick (B3 placePart) and moves the
+  shapes and the photo up or down together (applyFollow; the left ink edge and the spacing stay),
+  storing the pick with the photo, in one whole-font step ("said small g has no tail"), since the
+  pick lives in `settings.anyink`; a letter still as traced stays as traced
+  (`photo/photo_flow_tail.js`).
+- **One green button:** the photo card gives its green up, outlined, while a dialog is open over
+  it (the photo dialog from step A or Draw a box, the error box), as the overlay does.
+- **The Next line:** rule 3 with nothing to use names the card's green button ("Press Draw a box on
+  the card."; the card tells the coach its status and green button); rule 8 has the Brush's
+  sentence; rule 12 counts the registry's way (a skipped or covered part is no "more letters"),
+  only for photos whose image is in the font. The duplicate "No ink found..." word is one key
+  (`photoFlow.noInk`).
+- **Drops and pastes** in Simple go to the photo screens (`trace/photo_gate.js setPhotoRoute`):
+  a photo on a letter becomes that letter's photo (4.3), never the Trace panel Simple doesn't
+  have. The words Simple said before B9 ("can't use photos yet", the drawings-only hints,
+  `upstream_map.js withoutPhoto`, `trace_import.js turnPhotoAway`) are gone.
+- **Seams fixed:** `project_data/path.js` keeps a shape's `anyink` data (the stroke id) through
+  `save()` and the constructor, only when non-empty, so a stroke stays a stroke after Undo, a
+  crash snapshot and a save; the work file keeps the image of every photo in the photo list
+  (`trace_model.js collectReferencedAssetIds`), not only images a trace uses (D-028), so a photo
+  with letters still to name opens again tomorrow; `edit_canvas.js sXcX / sYcY` draw a point on
+  the canvas's left or top edge at 0 (upstream's `|| view.dx` drew it at the view's origin: the
+  Brush's spikes through the ink); the Brush's cursor is a crosshair from the moment it is picked;
+  All tools Help lists the Brush; the photo dialog draws the stored photo (the flow's pixels are
+  a plain object that neither createImageBitmap nor putImageData takes, so "Loading the photo..."
+  never went away in Chrome).
+- **Credits:** About > Credits names the Brush's five libraries; their license texts in full ship
+  beside the app as `src/public/THIRD-PARTY-NOTICES.txt` (the BSD licenses ask it of a built app).
+**Rejected:**
+- Select as the empty letter's tool: 4.3 says the Brush, and 7.1 #4 says a drag must draw.
+- Hiding the overlay whenever the Brush is picked: the opening Brush would hide the photo's way
+  in on every empty letter.
+- Keeping the "before B9" words behind the flag: principle 8 removes doors once the room is
+  built; the gate still reads the flag for the drawing, so a "before B9" test can turn it off.
+- Measuring the real font's spacing by each letter's shadow on the line: slanted handwriting
+  overlaps there; `tests/b89.verify.mjs` measures row by row.
+**Changes All tools gets:** the Brush button after New path and B / N picking it (7.6, D-038);
+the work file keeps photo-list images (no change unless a photo list exists, which only Simple
+makes); a point exactly on the canvas's left or top edge draws there. `tests/b89.verify.mjs` D
+finds the same controls but the Brush, and 0 changed pixels outside the tool column.
+**Open (not built in B8 + B9):** Fine-tune > Photo (Photo fade, Hide photo, Photo options: Lock,
+Light ink on dark paper, Fit, Remove photo; 4.3); the dialog's view of a portrait whole-alphabet
+page shows letters 20 to 45 px tall (cropping to the writing, or a zoom, would make them bigger;
+the spec's whole-photo view is kept). *Closed 10/15/2026:* the dialog opens close up (the photo-ui fix pass) and
+Fine-tune > Photo is built (D-041).
+**Why:** principles 1, 5, 6, 7, 8; 4.3, 4.4, 7.2, 7.7.
+**Affects:** `letter/open_tool.js` (new), `letter/empty_overlay.js`, `letter/letter_card.js`,
+`letter/letter.css`, `nib/default_tool.js`, `photo/photo_app.js`, `photo_doors.js`,
+`photo_card_slot.js`, `paint_photo.js`, `letter_tail.js`, `photo_flow_tail.js` (new),
+`photo/photo_card.js`, `photo_dialog.js`,
+`photo_flow.js` (photoPixels), `coach/rules.js`, `coach/font_facts.js`, `coach/coach_state.js`,
+`trace/photo_gate.js`, `trace/trace_import.js`, `trace/trace_model.js`, `toast/upstream_map.js`,
+`autotrace/preview_draw.js`, word sets `coach.js`, `letter.js`, `photo.js`, `toasts.js`; upstream
+`path.js`, `edit_canvas.js`, `cursors.js`, `tools.js`, `characters.js`, `help.js`, `about.js`,
+`main.js`; B10 (drops on the board go to the same hub), B16 (the 9.1 walkthrough).
+**Revisit if:** Brennan reads the opening Brush with the overlay as two ways at once in the Gate 2
+walkthrough (then open with Select and let [Draw with the brush] pick the Brush), or B13 picks the
+work file at Create (then rule 10 stops coming before rule 12 on a new font).
+
+## D-041: B8 and B9 finalize choices (the second hostile pass)
+**Decided:** 10/15/2026, in the B8 + B9 finalize, after the critic pass (four verifiers re-ran
+every finding plus variants in real Chrome and jsdom) and four fix tracks (brush, photo-core,
+photo-ui, photo-flow) whose verdicts left 17 findings open and 13 new problems. Every one below has
+a regression test seen failing on the code before this pass (UX-BEGINNER.md principles 1, 5, 6,
+7.2, 7.3, 4.0, 4.3, 4.4, 7.7; D-026, D-033, D-038, D-039, D-040).
+**Chose (photos, which ink is a letter's):**
+- **A letter written lighter** (`letter_ink.js` step 2b): a piece binarize found that is at least
+  LIGHT_SHARE (0.3) as dark as the page's ink, that the page cut kept under RESCUE_SHARE (half) of,
+  is cut again against its own darkness and goes back in whole when it is letter-shaped (its
+  stroke 0.5 to 2 pens, at least half a typical letter tall, at most 3 long); darkness alone never
+  drops it then.
+- **A second pen** (the felt-tip ran dry): when 3 or more letter-shaped pieces share one color
+  other than the page's ink, that color is a pen too; its letters and its dots stay. Ruled and
+  margin lines and punch holes still go (thin, or colored and no letter shape).
+- **A box he drags reads what he sees** (`ink_parts.js boxInk`): when the pen's mask holds under
+  BOX_INK_SHARE (0.35) of the ink binarize found in the box, the box reads all of it (in the
+  dialog and when the flow cuts its mask), so Draw a box always reaches a lighter or other-pen
+  letter.
+- **His stroke a box edge clips** (`photo_flow_ink.js clippedOwnStroke`): a cut end along one box
+  edge for more than ALONG_SHARE (2.5) pens is his own stroke when the ink across that edge goes on
+  for under CLIP_SHARE (0.3) of a pen, or under HALF_SHARE (0.5) when the rest of his letter joins
+  it within END_SHARE (1.5) pens of an end. The m's box at 486 and 488 keeps its first stem, the
+  n's at 1092 and 1095 its leg; the a's box at 1090, 1095 and 1100 still loses the n's leg.
+- **A pressed dot** (`keepPenPieces`): a round, full blob is a dot up to DOT_SHARE (3.1) pens across
+  on its own (a period; a punch hole is 3.4 and up) and up to DOT_BESIDE_SHARE (4.5) over or under
+  a stroke in the same part (i, j, !, ?).
+- **The pen in the record** (`photo_registry.js` record.pen, findInk's stroke): a letter's part is
+  at least LETTER_PENS (2.5) strokes long, so a lone dot is never the guess for a letter nor the
+  "only part" that skips the dialog (`onlyPart`, now what `photo_app.js choosePart` asks).
+**Chose (photos, the registry and the flow):**
+- **Two touching letters, one rule** (`mayBeTwoLetters`: at least 1.6 times the middle width of
+  the photo's other parts and 1.25 times as wide as tall), read by the step C note, the dialog's
+  "Two letters touch here. Drag a box around each one." and the prefill, which never fills in such
+  a part, the part after one named from it, a skipped part or one far smaller than a letter.
+- **Covered** is the union of the boxes he drew and used (60 % of the part), so "na" boxed as n
+  and a is not offered again.
+- **The photo list through Undo** (`history.js swapProject` calls `carryPhotos`, in both modes):
+  the live list goes onto the font a whole-font Undo or Redo brings back; only a use's tail pick
+  follows the font brought back (it is the Tail step's own change).
+- **No letter vs no ink** (flow code 'no-letter', status still 'no-ink'): a part with binarize's
+  ink but none of it a letter's, or a trace of only specks and ruled-line bits, says "No letter
+  found in that part. Draw the box again around the letter." and leaves Adjust shut; "No ink
+  found ..." now names "Ink cutoff", the control that shows. A cutoff he set by hand is kept for
+  the photo's next part only once a trace at it gave a letter.
+- **Cancel** that takes a photo's record out marks the work file behind (recovery `markDirty`):
+  a backup or save after a Skip may hold it.
+- **Done photos** (`photo_doors.js samePhoto`, the overlay): a photo not done comes first; a done
+  photo with parts left makes [Choose another photo...] the green button and [Use the same photo]
+  outlined.
+**Chose (photo screens):** name tags placed in reading order, each blocking the rest; a window
+resize keeps the letters' screen size (a ResizeObserver on the view, else the window's resize);
+a zoom button that hides with the focus hands it on; step C's notes show on the card as quiet
+lines; "Skip this part" reads "Not a letter, skip it".
+**Chose (Next line):** rule 18, "All 58 letters are ready." with no button while rules 13, 14, 16
+and 17 can't show; rule 15 with the Brush picked on a letter with ink says "When small b looks
+right, go to small i." with its button outlined; the Brush tip is only "Undo removes the last
+stroke."
+**Chose (the letter card):** Fine-tune > Photo (`letter/photo_part.js`): Photo fade (faint --o--
+strong, one step on release), [Hide photo] / [Show photo], Photo options (Lock the photo, Light ink
+on dark paper, Fit to letter box, Fit to capitals line, Remove photo with an Undo toast), each one
+step naming the letter; a fit works whether or not the photo is locked.
+**Chose (the Brush):**
+- **Progress, not travel** (`smooth.js`): the Gaussian and the corners read how far a point on a
+  rope ROPE_PX (1 px) long, pulled by the pen, has moved: shaking within the rope moves it nowhere,
+  a real turn as far as the pen goes. At 10 and 25 px/s with 2 px of shake the o's edge is as
+  smooth as a steady one's (ripple 0.04 to 0.05 px, 20 to 29 curves; was 0.13 and 109).
+- **A resting pen**: samples closer than MIN_STEP_PX (0.25 px) to the last kept one are left out
+  (the last comes back as the stroke's end), so frames stay at 1 ms through a 20 s hold (were 214
+  ms).
+- **Corners near either end** are judged on the chords there are (a third of the reach at least):
+  a 12 px flick after a sharp turn keeps its tip within 2 px (was 3.6).
+- **Freezes by distance**: a frozen piece covers at least CUT_PX (24) screen pixels of the line
+  forward unless MAX_TAIL_SAMPLES (256) wait, so a slow stroke isn't many tiny curves.
+- **Pasted strokes** (`stroke_record.js`): the shapes a letter held when its strokes were last
+  sorted out are the stroke; only shapes that came in since are copies, so a copy pasted after the
+  original lost its hole (or its ink) is its own stroke. History sorts the open letter out at the
+  top of every item step (`nib/history_hook.js`), so the step holds the sorted ids and keys and
+  Undo and Redo bring the same ones back.
+**Chose (cost):** each path's flat outline is kept until the path changes (`spacing/outline.js`, a
+stamp of its points and handles) and holes are found only among outlines whose box holds them;
+the Undo list keeps at most MAX_UNDO_POINTS (400,000) points of shapes, oldest steps leaving
+first into the undo floor, never the newest. 500 strokes on one letter: a stroke's step at the
+499th 250 ms (was 2,339), the crash copy 55.8 MB (was 191.7). A 58-letter traced font (about 5,000
+points) keeps all 200 steps and 30 whole-font steps.
+**Chose (tests):** every suite and real-browser check runs with the flags as the app ships them;
+flags are forced off only in tests of the flag gate itself (`b67.verify.mjs` reaches the Point pen
+by P, its overlay offers [Use a photo]).
+**Rejected:**
+- Trimming a box's cut end at the thinnest neck, or by geodesic distance to each letter's body:
+  on the real photos the m's stem, the n's leg and the a's touch are alike there; a box edge
+  through the middle of his stroke (the m's at 490 of a stem at 485..493) still loses the half
+  inside, as before.
+- A wider Gaussian by speed: a quick hand's long, gentle waves are his curve; what a slow shaky
+  hand needs is distance measured forward.
+- A worker for the release (D-038's numbers stand); tagging copies inside upstream's clipboard
+  code; seating a letter on its traced ink after tracing (placement comes before tracing, D-039,
+  and the part's mask now holds only the letter's ink, which is what is traced).
+**Open:** the board's drops (B10), faint stand-ins in the strip (B12), the "not saved" rule
+before rule 12 on a new font (B13), the real felt-tip photos (B0), the opening Brush beside the
+overlay's photo button (Gate 2, D-040), a turn 6 px from a stroke's start (0.3 px wider than
+before the fix pass).
+**Why:** principles 1, 5, 6, 7; 4.0, 4.3, 4.4, 7.2, 7.3, 7.7.
+**Affects:** `photo/letter_ink.js`, `ink_parts.js`, `photo_registry.js`, `photo_flow.js`,
+`photo_flow_data.js`, `photo_flow_ink.js`, `photo_flow_notes.js`, `photo_flow_state.js`,
+`photo_card.js`, `photo_dialog.js`, `photo_app.js`, `photo_doors.js`; `letter/photo_part.js`
+(new), `letter_card.js`, `empty_overlay.js`, `letter.css`; `coach/rules.js`; `nib/smooth.js`,
+`skeleton.js`, `stroke_record.js`, `history_hook.js` (new); `spacing/outline.js`;
+`history/undo_cap.js`; upstream `project_editor/history.js`; word sets `photo.js`,
+`photo_flow.js`, `coach.js`, `letter.js`.
+**Revisit if:** real felt-tip photos split letters at the rescue's darkness floor, a second pen's
+ruled-line bits come back as letters, Brennan finds the m@490 case in practice, or a font's
+whole-font steps run past 400,000 points.

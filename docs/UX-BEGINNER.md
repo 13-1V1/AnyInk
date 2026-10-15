@@ -470,9 +470,10 @@ font problem not skipped; each problem keeps its own skip (D-037).
 | 12 | A photo in this font has parts not used yet, and "Done with this photo" wasn't pressed | "This photo has 4 more letters." | [Do the next one] |
 | 13 | 3 or more letters of the Try-it text are ready, and Try it hasn't been opened since the last change to a ready letter | "Try your letters in a sentence." | [Try it] |
 | 14 | 3 or more letters are ready, letters changed since the last font file, and either Try it was opened since that change or 10 or more letters changed | "Make a font file and try your letters in Word." | [Use in Word] |
-| 15 | An empty letter is left in the set | Letter view: "Capital B looks done. Next: small c." Board: "Next: small c." | [Go to c] / [Make c] |
+| 15 | An empty letter is left in the set | Letter view: "Capital B looks done. Next: small c." Board: "Next: small c." While the Brush is picked on a letter with ink (he may still be drawing): "When Capital B looks right, go to small c." with the button outlined (B8 + B9 finalize) | [Go to c] / [Make c] |
 | 16 | Every letter in the set is ready and Numbers & symbols isn't added | "All 58 letters are ready. Add numbers & symbols next?" | [Add numbers & symbols] |
 | 17 | Otherwise (everything ready, font file up to date) | "Your font is up to date. Type something in Try it." | [Try it] |
+| 18 | Every letter ready, while rules 13, 14, 16 and 17 can't show (their flags are off; B8 + B9 finalize: the line went blank) | "All 58 letters are ready." | none |
 
 **Next empty letter (rule 15)**, in this order: letters of the Try-it text; then a to z; then A to Z;
 then punctuation; then numbers & symbols when added. Each Try-it letter gets **one turn**: once the
@@ -674,7 +675,9 @@ back button and the letter's name, and the panel slot always shows the **letter 
 The overlay's first button is the green one: **[Use the same photo]** (with a thumbnail) when a photo
 in this font has parts not used yet, otherwise **[Use a photo]**. The other buttons are outlined. The
 card has no buttons of its own on an empty letter, so nothing on the screen is repeated. The overlay
-hides while the photo card is running.
+hides while the photo card is running. A photo he pressed "Done with this photo" on never leads
+(B8 + B9 finalize): a photo not done comes first, and when only a done photo has parts left the
+order is [Choose another photo...] (green), [Use the same photo] (outlined), [Draw with the brush].
 
 **Ready letter (the normal state):**
 
@@ -736,7 +739,7 @@ hides while the photo card is running.
 
 | Tool | Label | Key | Shown | Notes |
 |---|---|---|---|---|
-| nib (B8) | Brush | B | Always | Default on an empty letter. Tip once: "Drag to draw. Each drag is one stroke; Undo removes the last one." |
+| nib (B8) | Brush | B | Always | Default on an empty letter. Tip once: "Undo removes the last stroke." (the Next line already says "Drag on the paper to draw. Each drag is one stroke."; B8 + B9 finalize) |
 | resize | Select | V | Always | Default on a letter with ink. A drag on empty canvas shows "To draw, pick the Brush." The photo is locked after Use it, so Select never moves it by accident |
 | pathEdit | Edit points | E | Fine-tune open | Tip: "Drag a point to reshape it. Press Smooth to round a corner." (D-037: a clicked shape has no round handles) |
 | newPath | Point pen | P | Fine-tune open | Caption under the icon: "click to place points". Tip: "Click to drop points. Hold and drag to bend the curve. Click the first point to finish." (stays while the shape is open). A shape ended with 1 or 2 points ("Finish the shape", another tool, another letter or page) is taken away as one step: "A shape needs at least 3 points, so that one was taken away." Leaving the letter view or opening another letter mid-shape ends the shape on its own letter (D-037) |
@@ -783,14 +786,15 @@ empty-letter overlay and step A, and from Help):
 ```
 +--------------------------------------------------------------------------+
 |  How to photograph your letters                                   [x]    |
-|  1. Use a black felt-tip pen (a Sharpie works) on plain white paper.     |
+|  1. Use a black felt-tip pen (a Sharpie works) on plain white printer   |
+|     paper, not lined notebook paper.                                     |
 |  2. Write every letter about 1 inch tall, all the same size, with a      |
 |     finger's width between letters, a thumb's width between rows.        |
 |  3. For a first try, write the letters in "Brennan Hand" once each:      |
-|     B r e n a H d. Or write the whole alphabet on one page: capitals     |
-|     on one line, small letters on the next, then . , ' ? ! -             |
+|     B r e n a H d. Or write the whole alphabet: capitals in rows, then   |
+|     small letters in rows, then . , ' ? ! -                              |
 |  4. Lay the page flat in even light. Hold the phone straight above it    |
-|     and take one photo.                                                  |
+|     and take one photo. More than one page? Take one photo of each.      |
 |  5. Get the photo onto this PC: email it to yourself, or use Phone Link, |
 |     and save it to Downloads.                                            |
 |  [ I have my photo ]  (green)                     [ Close ]              |
@@ -825,11 +829,23 @@ from a letter, skips it and goes straight to step C.
   every column one part). Pieces too small to be anything (a speck, B11's rule) are ignored. Parts are
   sorted into rows by vertical overlap: rows top to bottom, parts left to right. The reference is
   `src/anyink/placement/tests/ink_parts_lite.js`.
-- **The view.** The whole photo fills the dialog (about 1000 x 600 px). Each part has a thin purple
-  outline. Parts already used carry their letter's name tag ("B"). One part has a **green dashed box**:
-  the guess, which is the first unused part in reading order.
+- **The view.** The whole photo fills the dialog (about 1000 x 600 px), unless its letters would show
+  under 56 px tall there: then it opens close up (filling the width when that is enough, else about
+  80 px letters), scrolls up and down, and keeps the green box in view; [-] [+] under the photo and
+  Ctrl + the wheel zoom (B9 photo-ui fix). A window resized while it is open keeps the letters the size
+  they were (B8 + B9 finalize). Each part has a thin purple outline. Parts already used carry their
+  letter's name tag ("B"), placed where it covers no other letter and no other tag. One part has a
+  **green dashed box**: the guess, which is the first unused part in reading order. On a part that
+  may hold two letters written touching (twice a letter's width), the sentence under the photo says
+  "Two letters touch here. Drag a box around each one." Junk the finder can tell from a pen's ink
+  (ruled and margin lines, punch holes, a hand's shadow, a crossed-out letter) is never a part he is
+  asked about; a letter written lighter than the rest, or with a second pen, is still a letter
+  (B8 + B9 finalize).
 - **Picking.** Clicking a part picks it. Dragging anywhere draws a new box, with a crosshair cursor. The
-  photo is not on the edit canvas here, so a drag can never move the photo.
+  photo is not on the edit canvas here, so a drag can never move the photo. A box always reaches the
+  ink he sees, even ink the parts finder left out (a lighter letter, a second pen). Boxes he drew and
+  used round two touching letters together cover the part the finder made of them, so it isn't
+  offered again.
 
 Letter known (opened from a letter):
 
@@ -850,12 +866,17 @@ Letter unknown (a photo dropped on the board, "Use a photo..." on the board, the
 
 ```
 |  Which letter is in the green box?  [ r ]   That's: small r              |
-|  [ Trace it ]  (green)    Skip this part    Done with this photo         |
+|  [ Trace it ]  (green)    Not a letter, skip it    Done with this photo  |
 ```
 
 The field takes one character and says what it understood ("That's: small l" vs "That's: Capital I").
 When the last two letters named from this photo were next to each other in the alphabet (a, then b), the
-field starts filled with the next one (c), so a written-out alphabet goes by with Enter. Trace it opens
+field starts filled with the next one (c), so a written-out alphabet goes by with Enter, but only on the
+part right after the last one named, never on a part that may hold two touching letters or the part
+after one, a skipped part or one far smaller than a letter (B8 + B9 finalize: after j and k it put l on
+"lm", then m on the n). When the letter is known, the guess is never a lone dot of the pen (a photo
+whose letter the edge cut), and a photo opened from a letter skips the dialog only when its one part
+is letter-sized. Trace it opens
 that letter's view at step C. "Done with this photo" stops rule 12 for this photo; the unused parts
 stay available through "Use the same photo". After M9, a photo whose four corner marks are found starts
 the sheet import instead.
@@ -877,6 +898,12 @@ the sheet import instead.
 ```
 
 - **Wrong part? [Draw a box]** is always there. It reopens the photo dialog for this letter.
+- **Quiet notes** under the buttons, one line each: "This part may be two letters that touch. If so,
+  press Draw a box and drag a box around each one." and "small f reaches far above the top line, so
+  lines of text in your font will sit further apart." (B9 photo-flow fix; shown since the B8 + B9
+  finalize).
+- **The canvas** fits a tall result and every guide line in view when a part's result is first ready
+  (once per part; Adjust re-traces leave his view alone).
 - **Smooth --o-- Detailed** is one slider. It moves potrace's smoothing and detail settings together
   along one curve (the mapping table is part of B9); More tools keeps the two separate sliders.
 - **Paper** is picked by B9's detector: a JPEG with camera fields in its EXIF, or a page whose paper
@@ -920,8 +947,13 @@ photo and its position. The letter's shapes never change. No Undo step.
 **Never greyed out.** The old "Only inside the glyph box" rule is gone in Simple mode; the part picked
 in the photo dialog is the area traced.
 
-**No ink found:** "No ink found in that part. Try More ink, or draw the box again. [Draw a box]".
-Nothing changes in the letter. **Unsupported file:** see 7.7.
+**No ink found:** "No ink found in that part. Drag Ink cutoff toward more ink, or draw the box again.
+[Draw a box]" with Adjust opened so Ink cutoff shows. **No letter found** (the part holds only
+ruled-line bits, specks or a punch hole, where more ink can't help): "No letter found in that part.
+Draw the box again around the letter. [Draw a box]", Adjust left as it was. An ink cutoff he set by
+hand that never gave a letter starts on Auto again at the next part (B8 + B9 finalize: dragged to the
+"more ink" end on a part with nothing to find, it stayed, and the next letters traced as filled
+boxes). Nothing changes in the letter. **Unsupported file:** see 7.7.
 
 ### 4.5 A photo dropped on the board
 
@@ -1413,7 +1445,8 @@ gap fixes and a Bold copy.
 | File changed by another window or app | "Brennan Hand.gs2 was changed somewhere else. Save your work as a new file so nothing is lost." | [Save as a new file] |
 | HEIC photo | "That's an iPhone HEIC photo, which Chrome can't open. Send it as a JPEG instead: on the iPhone, Settings > Camera > Formats > Most Compatible." | [Choose another photo] |
 | Other unsupported file | "ANY-INK takes photos (PNG, JPEG, WebP) and ANY-INK work files (.gs2)." | |
-| No ink in the picked part | "No ink found in that part. Try More ink, or draw the box again." | [Draw a box] |
+| No ink in the picked part | "No ink found in that part. Drag Ink cutoff toward more ink, or draw the box again." | [Draw a box] |
+| No letter in the picked part (only specks or ruled-line bits) | "No letter found in that part. Draw the box again around the letter." | [Draw a box] |
 | Font file can't be built | "small a has a problem the font file can't hold." | [Fix it] (rounds and refits that letter, one Undo step) |
 | Export folder not writable | "Couldn't write to "My Fonts". Chrome may need your OK." | [Try again] [Pick a different folder] |
 | Backups unavailable | "Backups don't work in this window. Press Save before closing." | [Save] |
@@ -1594,8 +1627,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B5 | Mode switch, gates and keys (**done 10/14/2026**) | `mode/` | 3 | Simple mode exists (behind `?ui=simple`) |
 | B6 | Top bar, Next line, tips, undo toasts, save status (**done 10/14/2026**) | `topbar/`, `coach/`, `history/undo_toast.js` | 3 | Always a next step |
 | B7 | Letter view (**done 10/14/2026**) | `letter/` | 4 | A calm editing screen |
-| B8 | Brush (round) | `nib/` | 2.5 | Drag to draw |
-| B9 | Photos: How card, photo dialog, photo card | `photo/` | 4 | One photo makes many letters |
+| B8 | Brush (round) (**done 10/15/2026**) | `nib/` | 2.5 | Drag to draw |
+| B9 | Photos: How card, photo dialog, photo card (**done 10/15/2026**) | `photo/` | 4 | One photo makes many letters |
 | B10 | Letter board | `board/` | 3 | Home with progress |
 | B11 | Checks and fixes | `checks/` | 2.5 | Needs a look, with one-click fixes |
 | B12 | Try it and gap fixes | `tryit/` | 3 | Test and fix gaps visually |
@@ -1952,6 +1985,16 @@ unchanged).
 
 ### B8. Brush (round), the first half of M10
 
+**DONE 10/15/2026** (brush track, then the B8 + B9 integration, which turned `brush` on, a critic
+and fix pass, and the B8 + B9 finalize; choices in D-038, D-040 and D-041; numbers in TEST_LOG).
+The finalize made a slow shaky hand as smooth as a quick one, a pen resting mid-stroke cheap, a
+turn just before a stroke's end sharp, pasted strokes keep their own ids through Undo, and a letter
+with hundreds of strokes quick to change. Beyond the plan below: the Brush is in both modes (B / N,
+after New path in All tools, 7.6); an empty letter opens with the Brush picked while its overlay
+still offers [Use a photo] and the brush (the opening Brush), and his own pick of it puts the
+overlay away; the card's Brush section shows while it is picked; [Draw over it] goes while it is
+picked; `path.js` keeps a stroke's tag through Undo, snapshots and saves.
+
 - `src/anyink/nib/` (the folder DESIGN_DOC already reserves): pointer capture with `setPointerCapture`
   and coalesced events (D-014); the 1€ filter; simplify; fit-curve; inking by D-015's path (a round nib
   swept along the stroke, the hulls unioned with clipper2-ts, then refit); perfect-freehand **only** for
@@ -1972,6 +2015,19 @@ unchanged).
 - **Done when:** these pass; `brush` flag on.
 
 ### B9. Photos: How card, photo dialog, photo card
+
+**DONE 10/15/2026** (photo-core, photo-ui and photo-flow tracks, then the B8 + B9 integration,
+which turned `photo` on and wired the screens to the flow, the Next line and the letter card;
+choices in D-039 and D-040; numbers in TEST_LOG). Beyond the plan below: `photo_app.js` is the hub
+(rule 11's How, rule 12's Do the next one, Menu > How to photograph, the overlay's buttons, Trace
+again, drops and pastes on a letter); step C's outline draws on the app canvas; rule 3 names the
+card's green button when there is nothing to use; the card gives its green up while a dialog is
+open over it; the work file keeps the images of the photo list; Fine-tune > Tail re-seats a
+traced letter in one step. The finalize built Fine-tune > Photo (4.3: Photo fade, Hide photo,
+Photo options) and fixed the second hostile pass: lighter letters and a second pen, the m's stem and
+the n's leg a box edge clips, bold dots, touching letters in the prefill and the dialog, Done photos,
+the photo list through Undo, Cancel after a save, the no-ink advice, and the dialog's tags, resize and
+keys (D-041).
 
 - `src/anyink/photo/`: `how_card.js`, `photo_card.js` (steps A and C), `photo_dialog.js` (step B: the
   parts view, click to pick, drag a box with a crosshair, the letter field with its guess, Skip this part,

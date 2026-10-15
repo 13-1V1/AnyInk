@@ -379,6 +379,44 @@
 	box-shadow: var(--focus-ring);
 }
 
+/* B8 + B9 integration: [Use the same photo] with the photo's thumbnail, the drop line and the
+   How link (4.3 "Empty letter") */
+.anyink-empty-overlay__same {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.anyink-empty-overlay__same > button {
+	flex: 1 1 auto;
+}
+
+.anyink-empty-overlay__thumb {
+	flex: 0 0 auto;
+	width: 48px;
+	height: 36px;
+	border: 1px solid var(--canvas-ink-faint);
+	border-radius: var(--radius);
+	background-color: var(--canvas-bg);
+}
+
+.anyink-empty-overlay__note {
+	margin: 0;
+	font-size: var(--text-sm);
+	color: var(--canvas-ink-outline);
+	text-align: center;
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-empty-overlay__link {
+	background: none;
+	border: none;
+	padding: 0;
+	font-size: var(--text-sm);
+	color: var(--canvas-ink);
+	text-decoration: underline;
+	text-align: center;
+}
+
 /* --------------------------------------------------------------
    The view switches, under the zoom row, inside Fine-tune
 -------------------------------------------------------------- */
@@ -453,4 +491,34 @@
 .anyink-letter-switch[aria-checked='true'] .anyink-letter-switch__track::after {
 	left: 12px;
 	background-color: var(--touch);
+}
+
+/* B8 + B9 finalize: Fine-tune > Photo (photo_part.js). Tokens only. */
+.anyink-photo-fade {
+	display: grid;
+	grid-template-columns: max-content max-content minmax(80px, 1fr) max-content;
+	align-items: center;
+	column-gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+}
+
+.anyink-photo-fade__end {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-xs);
+}
+
+.anyink-photo-fade__slider {
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	accent-color: var(--touch);
+}
+
+.anyink-letter-card__check {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
 }

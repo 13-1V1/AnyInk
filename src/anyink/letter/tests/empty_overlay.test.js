@@ -3,9 +3,12 @@
 /**
 	B7 empty-letter overlay (UX-BEGINNER.md 4.3 "Empty letter"): one box in the middle of an empty
 	letter's canvas says the letter is empty and holds the screen's one green button (principle 1;
-	the card has no buttons of its own then). Until B8 and B9 turn on 'brush' and 'photo' it offers
-	only "Draw it with points", which picks the Point pen (a Fine-tune tool, so Fine-tune opens,
-	7.6). It goes once the letter has a shape, and while a shape tool is picked.
+	the card has no buttons of its own then). It goes once the letter has a shape, and while a
+	shape tool is picked. B8 + B9 finalize: the suite runs with the flags as the app ships them
+	('brush' and 'photo' on: [Use a photo] or [Use the same photo] first); only the B7 button
+	"Draw it with points" (shown while 'brush' is off) pins the flags off, as the gate it tests.
+	A photo he said he is done with never makes [Use the same photo] the green button (second
+	hostile pass: after Done with this photo it still led on to trace another of its parts).
 */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Path } from '../../../project_data/path.js';
@@ -14,6 +17,8 @@ import { flagsOn, setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { showWordsError } from '../../words/error_box.js';
 import { word } from '../../words/words.js';
+import { addPhoto, getPhoto, markDone } from '../../photo/photo_registry.js';
+import { ROW } from '../../photo/tests/photo_dialog_fixture.js';
 import { makeEmptyOverlay, overlayButtons, overlayShows } from '../empty_overlay.js';
 import { makeLetterCard, resetLetterCardForTests } from '../letter_card.js';
 import { isFineTuneOpen, resetLetterViewForTests } from '../view_switches.js';
@@ -29,9 +34,13 @@ const square = () =>
 		],
 	});
 
-function openB({ simple = true, letterView = true } = {}) {
+function openB({ simple = true, letterView = true, beforeBrush = false } = {}) {
 	setModeForTests(simple ? 'simple' : 'all');
-	setFeaturesForTests({ letterView });
+	// the flags as the app ships them; beforeBrush: the B7 overlay ("Draw it with points")
+	setFeaturesForTests({
+		letterView,
+		...(beforeBrush ? { brush: false, photo: false } : {}),
+	});
 	const editor = twoLetterEditor();
 	editor.selectedGlyphID = B;
 	editor.selectedGlyph;
@@ -59,6 +68,17 @@ describe('what the overlay offers', () => {
 	it('the brush, once B8 lands, takes its place', () => {
 		expect(overlayButtons(flagsOn('brush'))).toEqual(['drawBrush']);
 	});
+
+	// B8 + B9 integration (4.3 "Empty letter"): the photo buttons come first, the first green
+	it('photos, once B9 lands: [Use a photo], or [Use the same photo] and [Choose another photo...]', () => {
+		expect(overlayButtons(flagsOn('brush', 'photo'))).toEqual(['usePhoto', 'drawBrush']);
+		expect(overlayButtons(flagsOn('brush', 'photo'), { samePhoto: true })).toEqual([
+			'useSamePhoto',
+			'chooseAnother',
+			'drawBrush',
+		]);
+		expect(overlayButtons(flagsOn('photo'))).toEqual(['usePhoto', 'drawPoints']);
+	});
 });
 
 describe('the overlay on an empty letter', () => {
@@ -69,12 +89,12 @@ describe('the overlay on an empty letter', () => {
 		expect(shown()).toBe(true);
 		expect(overlay().textContent).toContain(word('letter.overlay.empty', { name: 'Capital B' }));
 		expect(greens().map((button) => button.textContent.trim())).toEqual([
-			word('letter.overlay.drawPoints'),
+			word('letter.overlay.usePhoto'),
 		]);
 	});
 
-	it('"Draw it with points" picks the Point pen and opens Fine-tune; the overlay steps aside', () => {
-		const editor = openB();
+	it('before the Brush: "Draw it with points" picks the Point pen and opens Fine-tune; the overlay steps aside', () => {
+		const editor = openB({ beforeBrush: true });
 		document.body.appendChild(makeEmptyOverlay(editor));
 		document.querySelector('[data-anyink-overlay-action="drawPoints"]').click();
 		expect(editor.selectedTool).toBe('newPath');
@@ -120,7 +140,11 @@ describe('one green button, even with a dialog open (fix: two showed under the F
 		expect(overlayButton().classList.contains('anyink-primary')).toBe(true);
 		// the save pill's [Fix] opens Simple's error box (#error) with its own first button
 		const box = showWordsError(
-			{ key: 'error.saveFailed', vars: { file: 'Brennan Hand.gs2' }, buttons: ['error.button.tryAgain'] },
+			{
+				key: 'error.saveFailed',
+				vars: { file: 'Brennan Hand.gs2' },
+				buttons: ['error.button.tryAgain'],
+			},
 			{}
 		);
 		await settle();
@@ -172,5 +196,43 @@ describe('the overlay follows the ink, as the card does (fix: one Point pen clic
 		editor.selectedTool = 'newPath';
 		document.body.appendChild(makeEmptyOverlay(editor));
 		expect(shown()).toBe(false);
+	});
+});
+
+// B8 + B9 finalize (second hostile pass): after "Done with this photo" the overlay's green button
+// was still [Use the same photo], and it led on to trace another of that photo's parts
+describe('a photo he is done with', () => {
+	function withPhoto(editor, { done }) {
+		const blob = new Blob([new Uint8Array(16)], { type: 'image/webp' });
+		const asset = editor.assets.add(blob, { type: 'image/webp' });
+		addPhoto(editor.project, { asset, width: 1500, height: 520, parts: ROW, paper: 'photo' });
+		if (done) markDone(getPhoto(editor.project, asset));
+		return asset;
+	}
+	const actions = () =>
+		[...document.querySelectorAll('[data-anyink-overlay-action]')].map((b) =>
+			b.getAttribute('data-anyink-overlay-action')
+		);
+
+	it('[Choose another photo...] is the green button, and [Use the same photo] stays outlined', () => {
+		const editor = openB();
+		withPhoto(editor, { done: true });
+		document.body.appendChild(makeEmptyOverlay(editor));
+		expect(actions()).toEqual(['chooseAnother', 'useSamePhoto', 'drawBrush']);
+		expect(greens().map((button) => button.textContent.trim())).toEqual([
+			word('letter.overlay.chooseAnother'),
+		]);
+	});
+
+	it('a photo not done yet keeps [Use the same photo] first and green', () => {
+		const editor = openB();
+		withPhoto(editor, { done: false });
+		document.body.appendChild(makeEmptyOverlay(editor));
+		expect(actions()).toEqual(['useSamePhoto', 'chooseAnother', 'drawBrush']);
+		expect(overlayButtons(flagsOn('brush', 'photo'), { samePhoto: true, done: true })).toEqual([
+			'chooseAnother',
+			'useSamePhoto',
+			'drawBrush',
+		]);
 	});
 });

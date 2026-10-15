@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { drawAutoTracePreview } from '../anyink/autotrace/preview_draw.js';
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
 import { onDisplayScaleChange } from '../anyink/metrics/display_scale.js';
@@ -681,7 +683,10 @@ export function drawEmVerticalLine(ctx, emX = 0, view, tall = false, thickness =
 export function sXcX(sx, view = getCurrentProjectEditor().view) {
 	let canvasX = view.dx;
 	canvasX += sx * view.dz;
-	return canvasX || view.dx;
+	// ANY-INK (B8 + B9 integration): a point that lands exactly on the canvas's left edge is at
+	// 0, not at the view's origin (upstream's "|| view.dx" drew it there: the Brush's whole-unit
+	// points on the edge drew as spikes through the ink); only a value that isn't a number is
+	return Number.isFinite(canvasX) ? canvasX : view.dx;
 }
 
 /**
@@ -694,7 +699,8 @@ export function sXcX(sx, view = getCurrentProjectEditor().view) {
 export function sYcY(sy, view = getCurrentProjectEditor().view) {
 	let canvasY = view.dy;
 	canvasY -= sy * view.dz;
-	return canvasY || view.dy;
+	// ANY-INK (B8 + B9 integration): exactly 0 is the canvas's top edge (see sXcX)
+	return Number.isFinite(canvasY) ? canvasY : view.dy;
 }
 
 /**

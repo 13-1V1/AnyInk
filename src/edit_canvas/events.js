@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { attachNib, Tool_Nib } from '../anyink/nib/nib_tool.js';
 import { DROP_HINT } from '../anyink/trace/paste_drop.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { showToast } from '../controls/dialogs/dialogs.js';
@@ -67,6 +70,8 @@ export function initEventHandlers(canvas) {
 	editor.eventHandlers.tool_pathEdit = new Tool_PathEdit();
 	editor.eventHandlers.tool_pathAddPoint = new Tool_PathAddPoint();
 	editor.eventHandlers.tool_kern = new Tool_Kern();
+	// ANY-INK (B8, D-014): the Brush is the one pointer-event tool; its mouse side stays quiet
+	editor.eventHandlers.tool_nib = new Tool_Nib();
 
 	// Mouse Event Listeners
 	canvas.addEventListener('mousedown', handleMouseEvents, false);
@@ -79,6 +84,9 @@ export function initEventHandlers(canvas) {
 	canvas.addEventListener('dragenter', handleDragEnterCanvas, false);
 	canvas.addEventListener('dragover', cancelDefaultEventActions, false);
 	canvas.addEventListener('drag', cancelDefaultEventActions, false);
+	// ANY-INK (B8, D-014): pointer listeners for the Brush only (src/anyink/nib/nib_tool.js); a
+	// Brush press cancels its pointerdown, so the mouse events above never see it
+	attachNib(canvas);
 
 	// Document Key Listeners
 	document.addEventListener('keydown', handleKeyPress, false);

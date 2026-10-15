@@ -35,8 +35,8 @@ const SPEC_FLAGS = [
 	'roughen',
 ];
 
-/** The flags the Bs that have landed turned on (B6 + B7 integration). */
-const LANDED = ['coach', 'letterView'];
+/** The flags the Bs that have landed turned on (B6 + B7 integration; B8 brush, B9 photo). */
+const LANDED = ['coach', 'letterView', 'brush', 'photo'];
 
 describe('feature flags', () => {
 	it("are the spec's flags, in its order", () => {
@@ -47,7 +47,7 @@ describe('feature flags', () => {
 	});
 
 	// B6 + B7 integration: each B turned on only its own flag; every later one is still off
-	it('are on for the Bs that have landed (B6 coach, B7 letterView) and off for the rest', () => {
+	it('are on for the Bs that have landed (B6 coach, B7 letterView, B8 brush, B9 photo) and off for the rest', () => {
 		SPEC_FLAGS.forEach((name) => {
 			const on = LANDED.includes(name);
 			expect(FEATURES[name], name).toBe(on);
@@ -95,14 +95,15 @@ describe('feature flags', () => {
 
 describe('test overrides', () => {
 	it('turn a flag on for isFeatureOn until reset, and hand back what they replaced', () => {
-		expect(setFeaturesForTests({ brush: true })).toEqual({});
-		expect(isFeatureOn('brush')).toBe(true);
+		// B9: board and checks are flags that haven't landed (brush and photo have)
+		expect(setFeaturesForTests({ checks: true })).toEqual({});
+		expect(isFeatureOn('checks')).toBe(true);
 		expect(isFeatureOn('board')).toBe(false);
-		expect(setFeaturesForTests({ board: true })).toEqual({ brush: true });
-		expect(isFeatureOn('brush')).toBe(true);
+		expect(setFeaturesForTests({ board: true })).toEqual({ checks: true });
+		expect(isFeatureOn('checks')).toBe(true);
 		expect(isFeatureOn('board')).toBe(true);
 		resetFeaturesForTests();
-		expect(isFeatureOn('brush')).toBe(false);
+		expect(isFeatureOn('checks')).toBe(false);
 		expect(isFeatureOn('board')).toBe(false);
 	});
 

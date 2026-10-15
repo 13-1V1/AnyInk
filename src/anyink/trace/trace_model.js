@@ -327,6 +327,9 @@ export function scaleTraceFromCorner(trace, corner, point, { fromCenter = false 
  * Every asset id used by a trace on any glyph, ligature, or component (and, from
  * Milestone 11, alternate). Reads raw item.anyink.trace.asset, not normalized
  * traces, so an image stays in the saved file even when its trace is damaged.
+ * B8 + B9 integration: and every photo in the font's photo list (settings.anyink.photos, B9's
+ * registry, read as plain data), so a photo whose letters aren't all named yet keeps its image
+ * in the work file ("Use the same photo" and rule 12 come back to it tomorrow).
  * @param {Object} project - GlyphrStudioProject (or its save() object)
  * @returns {Set<String>}
  */
@@ -338,6 +341,13 @@ export function collectReferencedAssetIds(project) {
 		if (!isPlainObjectLike(collection)) continue;
 		for (const item of Object.values(collection)) {
 			const asset = item?.anyink?.trace?.asset;
+			if (typeof asset === 'string' && asset.trim()) ids.add(asset.trim());
+		}
+	}
+	const photos = project.settings?.anyink?.photos;
+	if (isPlainObjectLike(photos)) {
+		for (const [key, record] of Object.entries(photos)) {
+			const asset = typeof record?.asset === 'string' ? record.asset : key;
 			if (typeof asset === 'string' && asset.trim()) ids.add(asset.trim());
 		}
 	}

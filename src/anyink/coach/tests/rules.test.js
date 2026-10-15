@@ -32,11 +32,13 @@ const RULE_FLAGS = {
 	15: ['coach'],
 	16: ['board'],
 	17: ['tryIt'],
+	// B8 + B9 finalize: every letter ready, before rules 13, 14, 16 and 17 can show
+	18: ['coach'],
 };
 
 describe('the 17 rules', () => {
-	it('are 17, numbered 1 to 17 in order, each naming its feature flags', () => {
-		expect(RULES.map((rule) => rule.id)).toEqual([...Array(17)].map((_, i) => i + 1));
+	it('are 18, numbered 1 to 18 in order, each naming its feature flags', () => {
+		expect(RULES.map((rule) => rule.id)).toEqual([...Array(18)].map((_, i) => i + 1));
 		RULES.forEach((rule) => expect(rule.flags, `rule ${rule.id}`).toEqual(RULE_FLAGS[rule.id]));
 	});
 

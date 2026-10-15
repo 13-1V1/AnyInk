@@ -7,7 +7,7 @@
 // the drawing tools, and tells its listeners once per batch of changes.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setSaveStatus } from '../../files/save_status.js';
-import { setFeaturesForTests } from '../../mode/features.js';
+import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { getPref, resetPrefsCache } from '../../prefs/prefs.js';
 import { runFontCheckNow } from '../../fontcheck/font_check.js';
@@ -23,6 +23,7 @@ import { KernGroup } from '../../../project_data/kern_group.js';
 import { Path } from '../../../project_data/path.js';
 import { COACH_SUBSCRIBER_ID, COACH_TOPICS, makeCoach, makeEditorTracker } from '../coach_state.js';
 import { TIPS_PREF } from '../tips.js';
+import { word } from '../../words/words.js';
 import { fakeState, flags } from './fake_state.js';
 
 /** A schedule the test runs by hand */
@@ -100,12 +101,18 @@ beforeEach(() => {
 	localStorage.clear();
 	resetPrefsCache();
 	setModeForTests('simple');
+	// B8 + B9 finalize: the flags as the app ships them ('photo' on). The tests that follow the
+	// Try-it letters (rule 15) on a new font call rule15First(): with photos on, a new font's line
+	// is rule 11 ("First, write your letters...") before any of that (tested below)
 	setFeaturesForTests({ coach: true });
 });
 afterEach(() => {
 	coach?.stop();
 	coach = null;
 });
+
+/** Rule 15's tests on a new font: photos off, so rule 11 doesn't take the line first */
+const rule15First = () => setFeaturesForTests({ photo: false });
 
 describe('makeEditorTracker', () => {
 	it("subscribes to the spec's topics with one id, and moves with the editor", () => {
@@ -159,11 +166,19 @@ describe('makeEditorTracker', () => {
 
 describe('the coach on a real font', () => {
 	it('a new font names the first Try-it letter (the font name) on the board', () => {
+		rule15First();
 		twoLetterEditor({ page: 'Overview' });
 		const line = startCoach().line();
 		expect(line.rule).toBe(15);
 		expect(line.sentence).toBe('Next: Capital T.');
 		expect(line.button).toBe('Make T');
+	});
+
+	it('with the flags as shipped, a new font starts before the computer: rule 11', () => {
+		twoLetterEditor({ page: 'Overview' });
+		const line = startCoach().line();
+		expect(line.rule).toBe(11);
+		expect(line.sentence).toBe(word('coach.rule.firstPhoto'));
 	});
 
 	it('ink with no work file asks for Save; a font with a work file that saves does not', () => {
@@ -343,6 +358,7 @@ describe("this session's changes", () => {
 
 describe('one turn per Try-it letter', () => {
 	it('suggested, then he opens another letter: it drops back into the normal order', () => {
+		rule15First();
 		// B6 alone: with the letter view on (B7), the empty z's own rule 8 would speak instead
 		setFeaturesForTests({ letterView: false });
 		const editor = twoLetterEditor({ page: 'Overview' });
@@ -356,6 +372,7 @@ describe('one turn per Try-it letter', () => {
 	});
 
 	it('a suggestion he never saw (the line hidden) uses no turn', () => {
+		rule15First();
 		const editor = twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		coach.hide();
@@ -365,6 +382,7 @@ describe('one turn per Try-it letter', () => {
 	});
 
 	it('following the suggestion keeps its turn', () => {
+		rule15First();
 		const editor = twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		expect(coach.line().letter).toBe('T');
@@ -487,6 +505,7 @@ describe('a Point pen shape still open', () => {
 // B6 + B7 fix pass (hostile probe_coach, probe_coach2): Ctrl+O loads a font into the same editor
 describe('a font opened into the same editor', () => {
 	it("starts fresh: none of the last font's skips, turns or changes", () => {
+		rule15First();
 		const editor = twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		expect(coach.line().letter).toBe('T');
@@ -508,6 +527,7 @@ describe('a font opened into the same editor', () => {
 	});
 
 	it('a whole-font Undo (the same font) keeps its memory', () => {
+		rule15First();
 		const editor = twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		coach.skip();
@@ -560,6 +580,7 @@ describe('a skip ends once the state behind it changes', () => {
 
 describe('Something else, hide, facts and sources', () => {
 	it('Something else moves on, and a Try-it letter loses its turn', () => {
+		rule15First();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		expect(coach.line().letter).toBe('T');
@@ -581,6 +602,7 @@ describe('Something else, hide, facts and sources', () => {
 	});
 
 	it('an open dialog (a fact or the screen) empties the line: rule 1', () => {
+		rule15First();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		coach.setFact('dialog', 'howCard');
@@ -594,6 +616,7 @@ describe('Something else, hide, facts and sources', () => {
 	});
 
 	it('a green button elsewhere on screen makes the line outlined', () => {
+		rule15First();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach({ probe: () => ({ dialog: '', otherPrimary: true }) });
 		const line = coach.line();
@@ -626,10 +649,17 @@ describe('Something else, hide, facts and sources', () => {
 	});
 
 	it('B6 + B7 (the flags as the app has them): rules whose flags are off never speak', () => {
-		setFeaturesForTests({ photo: false });
+		// B8 + B9 integration: the app has the Brush and photos on too; a new font with no ink
+		// and no photo says rule 11, the photo's way in
+		resetFeaturesForTests();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
-		expect(coach.state().flags).toEqual(flags('letterView'));
+		expect(coach.state().flags).toEqual(flags('letterView', 'brush', 'photo'));
+		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
+		// before B9 (photo off) the same font says rule 15, as it did
+		setFeaturesForTests({ photo: false });
+		coach.refresh();
+		coach.flush?.();
 		expect(coach.line().rule).toBe(15);
 	});
 });

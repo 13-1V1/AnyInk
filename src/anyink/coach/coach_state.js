@@ -65,6 +65,7 @@ import {
 	letterItem,
 } from './font_facts.js';
 import { lettersInSet } from './letter_order.js';
+import { isOpeningBrush } from '../nib/default_tool.js';
 import { openPathOf } from './open_shape.js';
 import { liveSkips, pickLine } from './rules.js';
 import { makeSkips } from './skips.js';
@@ -363,7 +364,9 @@ export function makeCoach({
 		// after markDirty: a tool's tip is checked against the line as it is now, with the
 		// tool's own sentence (rule 8)
 		if (topic === 'whichToolIsSelected' && isSimpleMode() && Object.hasOwn(TOOL_TIPS, data)) {
-			tips.show(TOOL_TIPS[data]);
+			// B8 + B9 integration: the Brush an empty letter opens with is no pick of his; its tip
+			// waits for the Brush he picks himself
+			if (!(data === 'nib' && isOpeningBrush(getEditor()))) tips.show(TOOL_TIPS[data]);
 		}
 	}
 

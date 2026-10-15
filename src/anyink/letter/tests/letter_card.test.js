@@ -44,9 +44,12 @@ function squarePath(x0, y0, size, { reversed = false } = {}) {
 }
 
 /** Capital B open in Simple with the letter view, with these shapes. */
-function openB(shapes = []) {
+function openB(shapes = [], { beforeB8 = false } = {}) {
 	setModeForTests('simple');
-	setFeaturesForTests({ letterView: true });
+	// B8 + B9 finalize: the flags as the app ships them ('brush' and 'photo' on); the Brush and
+	// photo sections themselves are tested in photo/tests/b89_seams.test.js. beforeB8: the B7
+	// card, for the one test of the flag gate itself
+	setFeaturesForTests({ letterView: true, ...(beforeB8 ? { brush: false, photo: false } : {}) });
 	const editor = twoLetterEditor();
 	editor.selectedGlyphID = B;
 	const item = editor.selectedGlyph;
@@ -66,7 +69,8 @@ const qa = (selector) => [...document.querySelectorAll(selector)];
 const sections = () => qa('[data-anyink-card]').map((el) => el.dataset.anyinkCard);
 const fine = () => qa('[data-anyink-fine]').map((el) => el.dataset.anyinkFine);
 const press = (selector) => q(selector).click();
-const rows = () => qa('[data-anyink-shape-row]').map((row) => row.textContent.replace(/\s+/g, ' ').trim());
+const rows = () =>
+	qa('[data-anyink-shape-row]').map((row) => row.textContent.replace(/\s+/g, ' ').trim());
 const steps = (editor) => editor.history.queue.length;
 const newestTitle = (editor) => editor.history.queue[0]?.title;
 
@@ -109,9 +113,30 @@ describe('card sections per state (pure)', () => {
 		expect(cardSections(state(), flagsOn('brush'))).toEqual(['header', 'main', 'fineTune']);
 	});
 
-	it('no main buttons while the photo card runs', () => {
+	it('no main buttons while the photo card runs; the card shows in their place', () => {
 		const running = state({ hasPhoto: true, photoCardOpen: true });
-		expect(cardSections(running, flagsOn('photo', 'brush'))).toEqual(['header', 'fineTune']);
+		// B8 + B9 integration: the photo card's own section, between the header and Fine-tune
+		expect(cardSections(running, flagsOn('photo', 'brush'))).toEqual([
+			'header',
+			'photo',
+			'fineTune',
+		]);
+	});
+
+	it('the Brush section while the Brush is picked (B8, 4.3), only once the Brush landed', () => {
+		const brush = state({ tool: 'nib' });
+		// [Draw over it] picks the Brush: with the Brush picked it has nothing to do, so it goes
+		expect(mainButtons(brush, flagsOn('brush'))).toEqual([]);
+		expect(cardSections(brush, flagsOn('brush'))).toEqual(['header', 'brush', 'fineTune']);
+		expect(cardSections(brush, flagsOn())).toEqual(['header', 'fineTune']);
+		expect(cardSections(state({ tool: 'nib', hasShapes: false }), flagsOn('brush'))).toEqual([
+			'header',
+			'brush',
+		]);
+		// the photo card is the one thing to do while it shows
+		expect(
+			cardSections(state({ tool: 'nib', photoCardOpen: true }), flagsOn('brush', 'photo'))
+		).toEqual(['header', 'photo', 'fineTune']);
 	});
 
 	it('Fine-tune holds Shapes, Spacing and the way to More tools; This point only with one point picked in Edit points', () => {
@@ -177,7 +202,8 @@ describe('the card on screen', () => {
 		const { editor } = openB([squarePath(100, 0, 400)]);
 		mount(editor);
 		expect(q('[data-anyink-state]').textContent.trim()).toBe(word('letter.state.ready'));
-		expect(sections()).toEqual(['header', 'fineTune']);
+		// [Draw over it] on a ready letter (the Brush, B8); [Trace again] only with a photo
+		expect(sections()).toEqual(['header', 'main', 'fineTune']);
 		const toggle = q('[data-anyink-toggle="fineTune"]');
 		expect(toggle.textContent).toContain(word('letter.fineTune'));
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
@@ -185,7 +211,7 @@ describe('the card on screen', () => {
 	});
 
 	it('[Draw over it] and [Trace again] are not on the card before B8 and B9', () => {
-		const { editor } = openB([squarePath(100, 0, 400)]);
+		const { editor } = openB([squarePath(100, 0, 400)], { beforeB8: true });
 		mount(editor);
 		expect(q('[data-anyink-action="drawOver"]')).toBeNull();
 		expect(q('[data-anyink-action="traceAgain"]')).toBeNull();
@@ -198,7 +224,9 @@ describe('the card on screen', () => {
 		expect(isFineTuneOpen()).toBe(true);
 		expect(q('[data-anyink-toggle="fineTune"]').getAttribute('aria-expanded')).toBe('true');
 		expect(fine()).toEqual(['shapes', 'spacing', 'moreTools']);
-		expect(rows()).toEqual([`${word('letter.shape.row', { number: 1 })} · ${word('letterTools.role.solid')}`]);
+		expect(rows()).toEqual([
+			`${word('letter.shape.row', { number: 1 })} · ${word('letterTools.role.solid')}`,
+		]);
 		document.body.innerHTML = '';
 		mount(editor);
 		expect(fine()).toEqual(['shapes', 'spacing', 'moreTools']);
@@ -281,7 +309,10 @@ describe('Fine-tune changes, each one Undo step', () => {
 		// spacing set by him, so the step's refit (B3) doesn't move the ink sideways
 		editor.selectedItem.anyink = { ...(editor.selectedItem.anyink || {}), spacing: 'manual' };
 		press('[data-anyink-toggle="shapeOptions"]');
-		const was = editor.selectedItem.shapes[0].pathPoints.map((point) => ({ x: point.p.x, y: point.p.y }));
+		const was = editor.selectedItem.shapes[0].pathPoints.map((point) => ({
+			x: point.p.x,
+			y: point.p.y,
+		}));
 		const left = Math.min(...was.map((p) => p.x));
 		const right = Math.max(...was.map((p) => p.x));
 		const topX = was.find((p) => p.y === 400).x;
@@ -360,7 +391,7 @@ describe('the card follows the letter', () => {
 		editor.publish('currentItem', item);
 		expect(card.isConnected).toBe(true);
 		expect(q('[data-anyink-state]').textContent.trim()).toBe(word('letter.state.ready'));
-		expect(sections()).toEqual(['header', 'fineTune']);
+		expect(sections()).toEqual(['header', 'main', 'fineTune']);
 	});
 
 	it('a tool key that opens Fine-tune opens it on the card', () => {
@@ -485,7 +516,10 @@ describe('Merge overlapping shapes (fix: the card said "Empty" and a merge that 
 	});
 
 	it('shapes side by side, whichever way round: nothing changes and no step', () => {
-		const { editor } = openFine([squarePath(0, 0, 100), squarePath(300, 0, 100, { reversed: true })]);
+		const { editor } = openFine([
+			squarePath(0, 0, 100),
+			squarePath(300, 0, 100, { reversed: true }),
+		]);
 		const before = editor.history.queue[0];
 		press('[data-anyink-action="merge"]');
 		expect(editor.history.queue[0]).toBe(before);
@@ -533,7 +567,11 @@ describe('Ready waits for a finished shape with ink (fix: one Point pen click ma
 		mount(editor);
 		expect(stateChip()).toBe(word('letter.state.empty'));
 		expect(sections()).toEqual(['header']);
-		expect(letterCardState(editor)).toMatchObject({ status: 'empty', hasShapes: false, shapes: [] });
+		expect(letterCardState(editor)).toMatchObject({
+			status: 'empty',
+			hasShapes: false,
+			shapes: [],
+		});
 	});
 
 	it('a second shape being drawn is not listed until it is finished', () => {
@@ -560,7 +598,7 @@ describe('Ready waits for a finished shape with ink (fix: one Point pen click ma
 		setFineTuneOpen(true, editor);
 		mount(editor);
 		expect(stateChip()).toBe(word('letter.state.empty'));
-		expect(sections()).toEqual(['header', 'fineTune']);
+		expect(sections()).toEqual(['header', 'main', 'fineTune']);
 		expect(rows()).toHaveLength(1);
 	});
 });

@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { makeBackToLettersButton } from '../anyink/mode/back_to_letters.js';
 import { keysShown } from '../anyink/mode/keys.js';
 import { makeElement, textToNode } from '../common/dom.js';
@@ -300,6 +302,8 @@ const TOOL_ROWS = {
 	newRectangle: 'Select the New Rectangle tool',
 	newOval: 'Select the New Oval tool',
 	newPath: 'Select the New Path tool',
+	// ANY-INK (B8 + B9 integration): the Brush, after New path as in the tool column
+	nib: 'Select the Brush tool',
 	pathAddPoint: 'Select the Path Add Point tool',
 };
 const TOOL_ORDER = Object.keys(TOOL_ROWS);

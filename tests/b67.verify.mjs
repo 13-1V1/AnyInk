@@ -1,13 +1,18 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B6 + B7 integration real-browser check (docs/UX-BEGINNER.md 4.0, 4.3, 4.11, 7.3, section 10 B6
 // and B7), in the real app on Vite dev servers, Chrome with throwaway profiles, 1600 x 900, the
-// feature flags as the app has them ('coach' and 'letterView' on):
+// feature flags as the app ships them ('coach', 'letterView', 'brush' and 'photo' on; B8 + B9
+// finalize: this check ran with the Brush and photos forced off, a set of screens that no longer
+// ships):
 //   A. Simple (?ui=simple), a new font, small a: the Simple top bar, the Next line and the empty
-//      overlay say what to do in plain words, one green button on screen (the overlay's), the
-//      whole page says no banned word (strict); an app notice sits in the bar's gap, over no
-//      control
-//   B. "Draw it with points": the Point pen draws a shape by plain clicks (each click one Undo
+//      overlay say what to do in plain words, one green button on screen (the overlay's [Use a
+//      photo]), the whole page says no banned word (strict); an app notice sits in the bar's
+//      gap, over no control
+//   B. The Point pen, by its own key (P; the overlay offers the photo and the Brush now): it
+//      draws a shape by plain clicks (each click one Undo
 //      step, the pill says "Not saved yet"), closes it on its first point with the pointer moving
 //      (no error), and a second shape drawn inside it becomes a hole (paper in its middle) with
 //      "Made shape 2 a hole [Make it solid]"
@@ -19,7 +24,8 @@
 //      Saved; Couldn't save [Fix]; the leave warning agrees with each (4.11)
 //   F. All tools, before and after: the last commit's src/ (git archive; B67_BEFORE=<src folder>
 //      for another, B67_BEFORE=skip for none) and today's, each a new font with small a open:
-//      the same controls and the same pixels
+//      the same controls and the same pixels, but for the Brush B8 added to the tool column
+//      (tests/b89.verify.mjs D checks it)
 // Usage: node tests/b67.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -296,11 +302,11 @@ const fineTune = async (open) => {
 };
 
 /** Pixels that differ between two screenshots, counted in Chrome */
-const pixelDiff = async (a, b) => {
+const pixelDiff = async (a, b, boxes = null) => {
 	const p = await freshPage('diff');
 	const data = (file) => `data:image/png;base64,${readFileSync(file).toString('base64')}`;
 	const result = await p.evaluate(
-		async ([one, two]) => {
+		async ([one, two, areas]) => {
 			const load = (url) =>
 				new Promise((done) => {
 					const img = new Image();
@@ -320,12 +326,20 @@ const pixelDiff = async (a, b) => {
 			const d1 = read(i1);
 			const d2 = read(i2);
 			let differ = 0;
-			for (let i = 0; i < d1.length; i += 4) {
-				if (d1[i] !== d2[i] || d1[i + 1] !== d2[i + 1] || d1[i + 2] !== d2[i + 2]) differ++;
+			let total = 0;
+			const boxes = areas || [{ x: 0, y: 0, width: i1.width, height: i1.height }];
+			for (const box of boxes) {
+				for (let y = Math.max(0, Math.floor(box.y)); y < Math.min(i1.height, Math.ceil(box.y + box.height)); y++) {
+					for (let x = Math.max(0, Math.floor(box.x)); x < Math.min(i1.width, Math.ceil(box.x + box.width)); x++) {
+						const i = (y * i1.width + x) * 4;
+						total++;
+						if (d1[i] !== d2[i] || d1[i + 1] !== d2[i + 1] || d1[i + 2] !== d2[i + 2]) differ++;
+					}
+				}
 			}
-			return { size: true, differ, total: d1.length / 4 };
+			return { size: true, differ, total };
 		},
-		[data(a), data(b)]
+		[data(a), data(b), boxes]
 	);
 	await p.context().close();
 	return result;
@@ -336,12 +350,19 @@ try {
 	// A. Simple, a new font, small a
 	// ----------------------------------------------------------
 	await newFont(page, after.origin, 'Brennan Hand', '?ui=simple');
+	// the flags as the app ships them (B8 + B9 finalize: no flag is forced here any more)
 	const flags = await page.evaluate(async () => {
 		const { isFeatureOn } = await import('/anyink/mode/features.js');
 		const { getMode } = await import('/anyink/mode/mode.js');
-		return { mode: getMode(), coach: isFeatureOn('coach'), letterView: isFeatureOn('letterView') };
+		return {
+			mode: getMode(),
+			coach: isFeatureOn('coach'),
+			letterView: isFeatureOn('letterView'),
+			brush: isFeatureOn('brush'),
+			photo: isFeatureOn('photo'),
+		};
 	});
-	assert.deepEqual(flags, { mode: 'simple', coach: true, letterView: true });
+	assert.deepEqual(flags, { mode: 'simple', coach: true, letterView: true, brush: true, photo: true });
 	await shot('A0-simple-new-font');
 	await openLetter(page, 'glyph-0x61');
 	let s = await screen();
@@ -350,7 +371,8 @@ try {
 	assert.match(s.sentence, /^small a is empty\./);
 	assert.equal(s.coachButton, null, 'rule 8: the Next line has no button (the overlay holds it)');
 	assert.match(s.overlay, /^small a is empty\./);
-	assert.deepEqual(s.greens, [{ text: 'Draw it with points', where: 'overlay' }]);
+	assert.equal(s.sentence, 'small a is empty. Use a photo of it, or draw it with the brush.');
+	assert.deepEqual(s.greens, [{ text: 'Use a photo', where: 'overlay' }]);
 	assert.match(s.header, /small a/);
 	assert.equal(s.cardState, 'empty');
 	assert.equal(s.pill, 'Not saved yet');
@@ -389,9 +411,10 @@ try {
 	pass(`an app notice sits in the bar's gap (${Math.round(notice.left)}..${Math.round(notice.right)} px), over no control`);
 
 	// ----------------------------------------------------------
-	// B. Draw it with points: plain clicks, a closing click that moves, a hole inside
+	// B. The Point pen (its key, P): plain clicks, a closing click that moves, a hole inside
 	// ----------------------------------------------------------
-	await page.locator('[data-anyink-overlay] .anyink-primary').click();
+	await offCanvas();
+	await page.keyboard.press('p');
 	await offCanvas();
 	await settle(400);
 	let e = await editorState();
@@ -623,6 +646,18 @@ try {
 				viewTools: titles('.editor-page__zoom-area button, .editor-page__zoom-area input'),
 				panel: document.querySelector('#editor-page__panel')?.innerText.replace(/\s+/g, ' ').trim().slice(0, 400),
 				status: document.querySelector('#app__top-bar anyink-save-status')?.textContent.trim(),
+				// B8 + B9 finalize: the page areas outside the tool column (the Brush, B8, joined it)
+				areas: Object.fromEntries(
+					[
+						['top', '#app__top-bar'],
+						['left', '.editor-page__left-area'],
+						['canvas', '.editor-page__edit-canvas-wrapper'],
+						['zoom', '.editor-page__zoom-area'],
+					].map(([name, selector]) => {
+						const r = document.querySelector(selector)?.getBoundingClientRect();
+						return [name, r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null];
+					})
+				),
 			};
 		});
 		const path = await shot(`F-${label}-all-tools-small-a`, null, p2);
@@ -638,11 +673,18 @@ try {
 	assert.deepEqual(now.errorsHere, []);
 	if (before) {
 		const was = await allTools(before.origin, 'before');
-		assert.deepEqual(now.facts, was.facts, 'All tools controls changed');
-		const diff = await pixelDiff(was.path, now.path);
+		// B8 (D-038, 7.6): the tool column has the Brush after New path; everything else as it was
+		const { tools: toolsNow, areas: areasNow, ...restNow } = now.facts;
+		const { tools: toolsWas, areas: areasWas, ...restWas } = was.facts;
+		assert.deepEqual(restNow, restWas, 'All tools controls changed');
+		const expected = [...toolsWas];
+		if (!toolsWas.includes('Brush')) expected.splice(expected.indexOf('New path') + 1, 0, 'Brush');
+		assert.deepEqual(toolsNow, expected, 'the tool column changed beyond the Brush');
+		assert.deepEqual(areasNow, areasWas, 'the page areas moved');
+		const diff = await pixelDiff(was.path, now.path, Object.values(areasNow).filter(Boolean));
 		assert.equal(diff.size, true);
-		assert.equal(diff.differ, 0, `All tools pixels differ: ${diff.differ} of ${diff.total}`);
-		pass(`All tools, before (last commit) and after: the same controls (${now.facts.menus.join(', ')}; ${now.facts.tools.length} tools; ${now.facts.viewTools.length} view tools) and the same pixels (0 of ${diff.total} differ)`);
+		assert.equal(diff.differ, 0, `All tools pixels differ outside the tool column: ${diff.differ} of ${diff.total}`);
+		pass(`All tools, before (last commit) and after: the same controls (${now.facts.menus.join(', ')}; ${toolsNow.length} tools, the Brush after New path as B8 added it; ${now.facts.viewTools.length} view tools) and the same pixels outside the tool column (0 of ${diff.total} differ)`);
 	} else {
 		pass(`All tools today: ${now.facts.menus.join(', ')}; no Simple bar, Next line, card or overlay`);
 	}

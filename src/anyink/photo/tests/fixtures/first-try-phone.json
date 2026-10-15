@@ -1,0 +1,68 @@
+{
+	"about": "Answer key for the photo of the same name (make_firsttimer.mjs). Stored image pixels, y down; box = [left, top, right, bottom], right and bottom exclusive.",
+	"width": 2000,
+	"height": 1500,
+	"kind": "phone",
+	"paper": "photo",
+	"rows": 1,
+	"letters": [
+		{
+			"char": "B",
+			"row": 0,
+			"box": [252, 169, 488, 403],
+			"center": [371, 285.6]
+		},
+		{
+			"char": "r",
+			"row": 0,
+			"box": [590, 314, 670, 425],
+			"center": [629.8, 369]
+		},
+		{
+			"char": "e",
+			"row": 0,
+			"box": [755, 272, 887, 433],
+			"center": [821.2, 352.5]
+		},
+		{
+			"char": "n",
+			"row": 0,
+			"box": [983, 259, 1103, 430],
+			"center": [1043.1, 344.2]
+		},
+		{
+			"char": "a",
+			"row": 0,
+			"box": [1094, 288, 1225, 428],
+			"center": [1159.4, 357.8]
+		},
+		{
+			"char": "H",
+			"row": 0,
+			"box": [1406, 151, 1649, 500],
+			"center": [1526.5, 324.4]
+		},
+		{
+			"char": "d",
+			"row": 0,
+			"box": [1747, 233, 1879, 450],
+			"center": [1812.5, 341.3]
+		}
+	],
+	"touching": ["na"],
+	"crossedOut": null,
+	"smudges": [
+		{
+			"center": [848.1, 485.7],
+			"radius": 59.2
+		}
+	],
+	"holes": [],
+	"marginLine": null,
+	"shadow": [
+		[0, 942.5],
+		[446.4, 1140.9],
+		[744, 1500],
+		[0, 1500]
+	]
+}

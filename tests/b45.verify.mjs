@@ -14,8 +14,9 @@
 //      chooser, Help and About say no banned word and nothing in capitals; the hidden pages,
 //      panels, tools, actions, menu rows and settings rows are gone; the keys follow the map (R
 //      "Switched to Rectangle (R)", U / Ctrl+Space / Ctrl+G nothing); the writing lines don't move
-//      but the edges do; Merge, Ctrl+R, a photo, Ctrl+S, Ctrl+E (a letter that needs fixing) and
-//      Undo past the start speak in plain words, none dropped; then the landing rule: More tools,
+//      but the edges do; Merge, Ctrl+R, Ctrl+S, Ctrl+E (a letter that needs fixing) and Undo
+//      past the start speak in plain words, none dropped (a photo goes to the photo screens:
+//      B8 + B9 finalize, 'photo' on for that step); then the landing rule: More tools,
 //      a gap nudged on Kerning, Back to simple, Ctrl+Z lands on Kerning with the purple band (the
 //      page takes the band's height off), Back to my letters returns
 //   D. B4 + B5 finalize: the Simple start page has one green button on each tab; a font file
@@ -440,7 +441,14 @@ try {
 	if (shared.before) {
 		const b = shared.before;
 		assert.deepEqual(a.controls.nav, b.controls.nav);
-		assert.deepEqual(a.controls.tools, b.controls.tools, 'tool tooltips unchanged in All tools');
+		// B8 (D-038, 7.6): the Brush joined the tool column after New path; the rest as before
+		const toolsBefore = [...b.controls.tools];
+		if (!toolsBefore.some((t) => /^Brush/.test(t))) {
+			const at = toolsBefore.findIndex((t) => /^New path/.test(t));
+			toolsBefore.splice(at + 1, 0, a.controls.tools[at + 1]);
+		}
+		assert.match(a.controls.tools[toolsBefore.findIndex((t) => /^New path/.test(t)) + 1], /^Brush/);
+		assert.deepEqual(a.controls.tools, toolsBefore, 'tool tooltips unchanged in All tools');
 		assert.deepEqual(a.controls.viewTools, b.controls.viewTools);
 		assert.deepEqual(a.controls.menus, b.controls.menus);
 		assert.equal(a.controls.panelIcons, b.controls.panelIcons, 'the same panel icons');
@@ -451,11 +459,13 @@ try {
 		assert.deepEqual(a.headingFont, b.headingFont, 'File menu headings keep their font');
 		// 7.6, both modes: P picks the Point pen and E Edit points; every other key as before
 		// (B6 + B7 finalize: the last commit has B5's keys already, so P and E match it too)
+		// B8: B and N pick the Brush in both modes (7.6; B picked Edit points before)
 		const changed = Object.keys(a.keys).filter(
-			(key) => !['e', 'p'].includes(key) && a.keys[key] !== b.keys[key]
+			(key) => !['e', 'p', 'b', 'n'].includes(key) && a.keys[key] !== b.keys[key]
 		);
 		assert.deepEqual(changed, [], JSON.stringify({ before: b.keys, after: a.keys }));
 		assert.deepEqual([a.keys.p, a.keys.e], ['newPath', 'pathEdit']);
+		if ('b' in a.keys) assert.equal(a.keys.b, 'nib');
 	}
 	assert.deepEqual(a.fileMenuHits, [], 'the File menu says no banned word');
 	assert.deepEqual(a.stripHits, [], 'the strip says no banned word');
@@ -658,7 +668,11 @@ try {
 	await page.locator(CANVAS).hover();
 	// B5 fix track: Ctrl+R is off in Simple (Chrome keeps its reload key), so it is not pressed
 	// here; the fix track's own check presses it
+	// B8 + B9 finalize: Simple turned a photo away ("... photos yet") only until B9; the words are
+	// gone (D-040) and 'photo' ships on, so for this one step the flag is as shipped: the photo
+	// goes to the photo screens (tests/b89.verify.mjs walks them), and Cancel takes it out again
 	await page.evaluate(async () => {
+		(await import('/anyink/mode/features.js')).setFeaturesForTests({ photo: true });
 		const canvas = new OffscreenCanvas(300, 400);
 		const ctx = canvas.getContext('2d');
 		ctx.fillStyle = 'white';
@@ -669,9 +683,26 @@ try {
 		const { importTraceImage } = await import('/anyink/trace/trace_import.js');
 		await importTraceImage(new File([blob], 'a-photo.png', { type: 'image/png' }));
 	});
-	// toast track: until B9's photo card, Simple turns a photo away with what to do instead
-	await waitUntil(async () => /photos yet/.test((await toastNow()) ?? ''), 'the photo turned away');
-	await shot('B-simple-09-photo-turned-away');
+	// (a one-part photo opened from a letter goes straight to step C, the photo flow's; the
+	// B5 letter page has no letter card to show the photo card in)
+	await waitUntil(
+		() =>
+			page.evaluate(async () => {
+				const editor = (await import('/app/main.js')).getCurrentProjectEditor();
+				const { getFlow } = await import('/anyink/photo/photo_flow_state.js');
+				return !!getFlow(editor) || !!document.querySelector('[data-anyink-dialog="photoDialog"]');
+			}),
+		'the photo went to the photo screens'
+	);
+	await shot('B-simple-09-photo-to-the-photo-screens');
+	await page.evaluate(async () => {
+		const editor = (await import('/app/main.js')).getCurrentProjectEditor();
+		(await import('/anyink/photo/photo_dialog.js')).closePhotoDialog();
+		(await import('/anyink/photo/photo_flow.js')).cancelPart(editor);
+		(await import('/anyink/photo/photo_card.js')).closePhotoCard();
+		(await import('/anyink/mode/features.js')).setFeaturesForTests({ photo: false });
+	});
+	await settle(300);
 	await page.evaluate(async () => {
 		const folder = await navigator.storage.getDirectory();
 		const handle = await folder.getFileHandle('B45 Simple.gs2', { create: true });

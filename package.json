@@ -40,7 +40,11 @@
 		"verify:b45": "node tests/b45.verify.mjs",
 		"verify:words-fix": "node tests/words-fix.verify.mjs",
 		"verify:b67": "node tests/b67.verify.mjs",
-		"verify:b67-fixes": "node tests/b67-fixes.verify.mjs"
+		"verify:b67-fixes": "node tests/b67-fixes.verify.mjs",
+		"verify:nib": "node tests/nib.verify.mjs",
+		"verify:b89": "node tests/b89.verify.mjs",
+		"verify:photo-ui": "node tests/photo_ui.verify.mjs",
+		"verify:b89-final": "node tests/b89_final.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",
@@ -73,11 +77,14 @@
 	},
 	"dependencies": {
 		"@mattlag/xmltojson": "^2.0.2",
+		"1eurofilter": "1.3.0",
 		"bezier-boolean": "^1.0.6",
+		"clipper2-ts": "2.0.1-18",
 		"eslint": "^10.8.0",
 		"esm-potrace-wasm": "0.5.1",
 		"font-flux-js": "^2.9.0",
 		"idb-keyval": "6.3.0",
+		"perfect-freehand": "1.2.3",
 		"svg-to-bezier": "^2.3.0"
 	},
 	"contributors": [

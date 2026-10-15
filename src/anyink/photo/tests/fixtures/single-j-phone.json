@@ -1,0 +1,17 @@
+{
+	"about": "Answer key for the photo of the same name (src/anyink/photo/tests/fixtures/make_fixtures.mjs). Image pixels, y down; box = [left, top, right, bottom], right and bottom exclusive, from the strokes and the pen width.",
+	"width": 900,
+	"height": 1200,
+	"kind": "phone",
+	"paper": "photo",
+	"penPx": 39.47,
+	"rows": 1,
+	"letters": [
+		{
+			"char": "j",
+			"row": 0,
+			"box": [313, 203, 632, 1026],
+			"center": [472.5, 614.5]
+		}
+	]
+}

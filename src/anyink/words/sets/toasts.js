@@ -80,15 +80,9 @@ const TOASTS = {
 		text: 'To bring in a drawing, drop its .svg file on the letter. Paste a photo to trace over it.',
 	},
 	'toast.pasteFileHint': { text: 'Paste a PNG, JPEG or WebP photo to trace over it.' },
-	// fix track: until B9's photo card (feature 'photo'), Simple has no way to use a photo
-	// (principle 8: no doors to unbuilt rooms), so a photo is turned away with what to do
-	// instead, and the drop and paste hints offer drawings only (toast/upstream_map.js
-	// withoutPhoto). B9 retires these when it turns 'photo' on.
-	'toast.photoNotYet': {
-		text: "ANY-INK can't use photos yet. Draw the letter with the Rectangle, Oval or Point pen for now.",
-	},
-	'toast.dropDrawingHint': { text: 'Drop a drawing (.svg) on a letter to bring in its shapes.' },
-	'toast.pasteDrawingHint': { text: 'To bring in a drawing, drop its .svg file on the letter.' },
+	// B8 + B9 integration: the words Simple said while it had no way to use a photo (the "can't
+	// use photos yet" toast and the drawings-only drop and paste hints) are gone: B9's photo card
+	// turned 'photo' on, and a photo dropped or pasted on a letter goes to the photo flow
 	// fix track: his own work file dropped on a letter (7.7 names work files); Ctrl+O opens a
 	// saved font in both modes (7.6). All tools keeps its drop hint.
 	'toast.dropWorkFile': { text: "That's an ANY-INK work file. To open it, press Ctrl+O." },

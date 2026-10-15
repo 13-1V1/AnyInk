@@ -42,6 +42,7 @@ import { fakeLocks } from '../../recovery/tests/fake_locks.js';
 import { recClear, recSet, setStorageDriver } from '../../storage/kv.js';
 import { fakeDriver } from '../../storage/tests/fake_driver.js';
 import { setDecoderForTests } from '../../trace/bitmap_cache.js';
+import { setPhotoRoute } from '../../trace/photo_gate.js';
 import { ADDED_MESSAGE, importTraceImage, removeTrace } from '../../trace/trace_import.js';
 import { word } from '../../words/words.js';
 import { resetToastsForTests, toastLog, upstreamToast } from '../toast.js';
@@ -212,28 +213,36 @@ describe('trace_import.js (the photo toasts)', () => {
 	});
 	afterEach(() => setDecoderForTests(null));
 
-	it("Simple, before B9's photo card: a photo is turned away with what to do instead", async () => {
-		// fix track: Simple has no Trace panel, auto-trace, fade, hide or remove (principle 8),
-		// so a photo dropped on a letter used to sit there, a dead end
+	// B8 + B9 integration: the "can't use photos yet" toast is retired with the photo gate. In
+	// Simple a photo dropped or pasted on a letter goes to the photo screens' route (photo_app.js:
+	// the photo dialog, then the photo card), never to the Trace panel Simple doesn't have
+	it('Simple: a photo on a letter goes to the photo route, with no Undo step and no toast of its own', async () => {
 		setModeForTests('simple');
-		const editor = letterEditor();
-		const steps = editor.history.queue.length;
-		expect(await importTraceImage(jpeg(), { editor })).toBe(false);
-		expect(lastLog()).toMatchObject({ key: 'toast.photoNotYet', shown: true });
-		expect(shownText()).toBe(
-			"ANY-INK can't use photos yet. Draw the letter with the Rectangle, Oval or Point pen for now."
-		);
-		expect(editor.selectedItem.anyink?.trace).toBeFalsy();
-		expect(editor.history.queue.length).toBe(steps);
-		// the drop on the canvas goes the same way, and so does a photo with no letter open
-		const drop = new Event('drop', { cancelable: true });
-		drop.dataTransfer = { files: [jpeg()] };
-		handleDropSVGonEditCanvas(drop);
-		await vi.waitFor(() => expect(lastLog()).toMatchObject({ key: 'toast.photoNotYet' }));
-		expect(editor.selectedItem.anyink?.trace).toBeFalsy();
-		// All tools is as it was
-		setModeForTests('all');
-		expect(await importTraceImage(jpeg(), { editor })).toBe(true);
+		const route = vi.fn(async () => true);
+		setPhotoRoute(route);
+		try {
+			const editor = letterEditor();
+			const steps = editor.history.queue.length;
+			const before = toastLog().length;
+			const photo = jpeg();
+			expect(await importTraceImage(photo, { editor })).toBe(true);
+			expect(route).toHaveBeenCalledWith(photo, { editor, item: undefined });
+			expect(editor.selectedItem.anyink?.trace).toBeFalsy();
+			expect(editor.history.queue.length).toBe(steps);
+			expect(toastLog().slice(before).map((entry) => entry.key)).not.toContain('toast.photoNotYet');
+			// the drop on the canvas goes the same way
+			const drop = new Event('drop', { cancelable: true });
+			drop.dataTransfer = { files: [jpeg()] };
+			handleDropSVGonEditCanvas(drop);
+			await vi.waitFor(() => expect(route).toHaveBeenCalledTimes(2));
+			expect(editor.selectedItem.anyink?.trace).toBeFalsy();
+			// All tools is as it was: the Trace panel's own import
+			setModeForTests('all');
+			expect(await importTraceImage(jpeg(), { editor })).toBe(true);
+			expect(route).toHaveBeenCalledTimes(2);
+		} finally {
+			setPhotoRoute(null);
+		}
 	});
 
 	it('Simple: added, replaced, taken off, each by its key', async () => {

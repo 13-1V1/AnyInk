@@ -106,6 +106,91 @@ const LETTER = {
 	},
 	'letter.spacing.manual': { text: 'Set by you.', feature: 'letterView' },
 
+	// B8 + B9 integration: Fine-tune > Tail (4.3; g j p q y, Q J f traced from a photo)
+	'letter.fineTune.tail': {
+		text: 'Tail',
+		hint: 'Whether this letter hangs below the writing line, like the tail of a g.',
+		feature: 'photo',
+	},
+	'letter.tail.has': {
+		text: 'It has a tail',
+		hint: 'Sits the body of the letter on the writing line, with its tail hanging below.',
+		feature: 'photo',
+	},
+	'letter.tail.none': {
+		text: 'No tail',
+		hint: 'Sits the bottom of the letter on the writing line.',
+		feature: 'photo',
+	},
+	'letter.step.tailOn': { text: 'said {name} has a tail', feature: 'photo' },
+	'letter.step.tailOff': { text: 'said {name} has no tail', feature: 'photo' },
+
+	// B8 + B9 finalize: Fine-tune > Photo (4.3; letter/photo_part.js)
+	'letter.fineTune.photo': {
+		text: 'Photo',
+		hint: 'The photo under this letter. It never goes in your font file.',
+		feature: 'photo',
+	},
+	'letter.photo.fade': {
+		text: 'Photo fade',
+		hint: 'How strongly the photo shows under your ink.',
+		feature: 'photo',
+	},
+	'letter.photo.faint': { text: 'faint', feature: 'photo' },
+	'letter.photo.strong': { text: 'strong', feature: 'photo' },
+	'letter.photo.hide': {
+		text: 'Hide photo',
+		hint: 'Hides the photo under this letter.',
+		feature: 'photo',
+	},
+	'letter.photo.show': {
+		text: 'Show photo',
+		hint: 'Shows the photo under this letter again.',
+		feature: 'photo',
+	},
+	'letter.photoOptions': { text: 'Photo options', feature: 'photo' },
+	'letter.photo.lock': {
+		text: 'Lock the photo',
+		hint: 'Keeps the photo where it is when you drag on the letter.',
+		feature: 'photo',
+	},
+	'letter.photo.lightInk': {
+		text: 'Light ink on dark paper',
+		hint: 'For a photo of light writing on dark paper.',
+		feature: 'photo',
+	},
+	'letter.photo.fitBox': {
+		text: 'Fit to letter box',
+		hint: 'Sizes the photo to run from the top line to the tail line.',
+		feature: 'photo',
+	},
+	'letter.photo.fitCaps': {
+		text: 'Fit to capitals line',
+		hint: 'Sizes the photo to run from the writing line to the capitals line.',
+		feature: 'photo',
+	},
+	'letter.photo.remove': {
+		text: 'Remove photo',
+		hint: 'Takes the photo off this letter. Your shapes stay.',
+		feature: 'photo',
+	},
+	'letter.step.photoFade': { text: 'set the photo fade of {name}', feature: 'photo' },
+	'letter.step.photoHidden': { text: 'hid the photo of {name}', feature: 'photo' },
+	'letter.step.photoShown': { text: 'showed the photo of {name}', feature: 'photo' },
+	'letter.step.photoLocked': { text: 'locked the photo of {name}', feature: 'photo' },
+	'letter.step.photoUnlocked': { text: 'unlocked the photo of {name}', feature: 'photo' },
+	'letter.step.photoLightInk': { text: 'set light ink on dark paper for {name}', feature: 'photo' },
+	'letter.step.photoDarkInk': { text: 'set dark ink on light paper for {name}', feature: 'photo' },
+	'letter.step.photoFitBox': {
+		text: 'fit the photo of {name} to the letter box',
+		feature: 'photo',
+	},
+	'letter.step.photoFitCaps': {
+		text: 'fit the photo of {name} to the capitals line',
+		feature: 'photo',
+	},
+	'letter.step.photoRemoved': { text: 'took the photo off {name}', feature: 'photo' },
+	'letter.toast.photoRemoved': { text: 'Took the photo off {name}.', feature: 'photo' },
 
 	// --------------------------------------------------------------
 	// The empty-letter overlay (4.3 "Empty letter")
@@ -121,6 +206,24 @@ const LETTER = {
 		hint: 'Picks the Brush. Drag to draw.',
 		feature: 'brush',
 	},
+	// B8 + B9 integration: the photo buttons (4.3 "Empty letter"); the first is the green one
+	'letter.overlay.useSamePhoto': {
+		text: 'Use the same photo',
+		hint: 'Pick this letter in the photo you already added.',
+		feature: 'photo',
+	},
+	'letter.overlay.usePhoto': {
+		text: 'Use a photo',
+		hint: 'Trace this letter from a photo of your writing.',
+		feature: 'photo',
+	},
+	'letter.overlay.chooseAnother': {
+		text: 'Choose another photo...',
+		hint: 'Trace this letter from a different photo.',
+		feature: 'photo',
+	},
+	'letter.overlay.dropHere': { text: 'or drop a photo here', feature: 'photo' },
+	'letter.overlay.how': { text: 'No photo yet? How to take one', feature: 'photo' },
 
 	// --------------------------------------------------------------
 	// View switches, inside Fine-tune (4.3 Canvas, "View controls")
@@ -166,7 +269,10 @@ const LETTER = {
 	'letter.toast.undo': { text: 'Undo', feature: 'letterView' },
 	// Merge overlapping shapes (fix pass): said only after a real merge; a merge that would
 	// change nothing says so instead, and records no step (principle 6)
-	'letter.toast.merged': { text: 'Merged the overlapping shapes of {name}.', feature: 'letterView' },
+	'letter.toast.merged': {
+		text: 'Merged the overlapping shapes of {name}.',
+		feature: 'letterView',
+	},
 	'letter.toast.nothingToMerge': {
 		text: 'No shapes overlap, so nothing changed.',
 		feature: 'letterView',

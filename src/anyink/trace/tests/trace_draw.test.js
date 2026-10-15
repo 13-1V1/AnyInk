@@ -397,6 +397,8 @@ describe('drawTraceImage in Simple before the photo card (B9)', () => {
 	it('Simple, photo flag off: draws nothing', async () => {
 		await warmBitmap();
 		setModeForTests('simple');
+		// B8 + B9 integration: 'photo' is on in the app now; this is Simple before B9
+		setFeaturesForTests({ photo: false });
 		drawTraceImage(ctx, VIEW, item, editor);
 		expect(drawCalls('drawImage')).toHaveLength(0);
 	});

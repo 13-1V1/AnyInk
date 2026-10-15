@@ -1,0 +1,257 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* B9 photo-ui: the photo card in the letter card, steps A and C (UX-BEGINNER.md 4.4). It sits in
+   the letter card's panel, on the chrome. Tokens only. Solid green only on the one primary
+   button (.anyink-primary); a picked choice gets a green outline, never a fill. */
+
+.anyink-photo-card {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-2);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+}
+
+.anyink-photo-card__title {
+	margin: 0;
+	font-size: var(--text-base);
+	font-weight: 600;
+}
+
+.anyink-photo-card__row,
+.anyink-photo-card__wrong {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.anyink-photo-card .anyink-photo-card__button,
+.anyink-photo-card .anyink-photo-card__auto,
+.anyink-photo-card .anyink-photo-card__choice,
+.anyink-photo-card .anyink-photo-card__disclosure {
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	padding: var(--space-1) var(--space-3);
+	cursor: pointer;
+}
+
+.anyink-photo-card .anyink-photo-card__button[hidden],
+.anyink-photo-card .anyink-photo-card__link[hidden],
+.anyink-photo-card .anyink-photo-card__note[hidden],
+.anyink-photo-card .anyink-photo-card__adjust[hidden],
+.anyink-photo-card .anyink-photo-card__picked[hidden] {
+	display: none;
+}
+
+.anyink-photo-card .anyink-photo-card__button:hover,
+.anyink-photo-card .anyink-photo-card__auto:hover,
+.anyink-photo-card .anyink-photo-card__choice:hover,
+.anyink-photo-card .anyink-photo-card__disclosure:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+/* the one green button (principle 1) */
+.anyink-photo-card .anyink-photo-card__button.anyink-primary {
+	background-color: var(--touch);
+	color: var(--chrome-text-inverse);
+	border-color: var(--touch);
+	font-weight: 600;
+	padding: var(--space-2) var(--space-4);
+}
+
+.anyink-photo-card .anyink-photo-card__button.anyink-primary:hover {
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+.anyink-photo-card .anyink-photo-card__button.anyink-primary:active {
+	background-color: var(--touch-active);
+}
+
+.anyink-photo-card button:focus-visible,
+.anyink-photo-card input:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-photo-card__label,
+.anyink-photo-card__status,
+.anyink-photo-card__note {
+	margin: 0;
+}
+
+.anyink-photo-card__label,
+.anyink-photo-card__text,
+.anyink-photo-card__note {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-photo-card__status:empty {
+	display: none;
+}
+
+/* Photos in this font: newest first, up to 6 */
+.anyink-photo-card__thumbs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.anyink-photo-card .anyink-photo-card__thumb {
+	padding: 2px;
+	background-color: var(--chrome-bg-sunken);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+.anyink-photo-card .anyink-photo-card__thumb:hover {
+	border-color: var(--touch);
+}
+
+.anyink-photo-card__thumb-picture {
+	display: block;
+	width: 64px;
+	height: 48px;
+}
+
+/* "No photo yet? How to take one >", "Add to my shapes instead": quiet links */
+.anyink-photo-card .anyink-photo-card__link {
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+	background: none;
+	border: none;
+	padding: 0;
+	text-align: left;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.anyink-photo-card .anyink-photo-card__link:hover {
+	color: var(--chrome-text);
+}
+
+/* "> Adjust": a quiet row that opens and closes */
+.anyink-photo-card .anyink-photo-card__disclosure {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	border-color: transparent;
+	padding-left: var(--space-1);
+	font-weight: 600;
+}
+
+.anyink-photo-card__chevron {
+	width: 0;
+	height: 0;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid var(--chrome-text-muted);
+	transition: transform 80ms ease;
+}
+
+.anyink-photo-card__disclosure[aria-expanded='true'] .anyink-photo-card__chevron {
+	transform: rotate(90deg);
+}
+
+.anyink-photo-card__adjust {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding-left: var(--space-4);
+}
+
+.anyink-photo-card__setting {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+}
+
+.anyink-photo-card__setting-name {
+	color: var(--chrome-text);
+}
+
+.anyink-photo-card__slider {
+	display: grid;
+	grid-template-columns: max-content minmax(70px, 1fr) max-content;
+	align-items: center;
+	column-gap: var(--space-2);
+	flex: 1;
+	min-width: 180px;
+}
+
+.anyink-photo-card__end {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-xs);
+}
+
+.anyink-photo-card__range {
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	accent-color: var(--touch);
+}
+
+/* [Auto]: pressed while ANY-INK picks the cutoff */
+.anyink-photo-card .anyink-photo-card__auto[aria-pressed='true'],
+.anyink-photo-card .anyink-photo-card__choice[aria-pressed='true'] {
+	border-color: var(--touch);
+	box-shadow: inset 0 0 0 1px var(--touch);
+}
+
+.anyink-photo-card__check {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	cursor: pointer;
+}
+
+.anyink-photo-card__check input {
+	margin: 0;
+	accent-color: var(--touch);
+}
+
+.anyink-photo-card__paper {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.anyink-photo-card__segmented {
+	display: inline-flex;
+}
+
+.anyink-photo-card .anyink-photo-card__choice {
+	border-radius: 0;
+	margin: 0;
+}
+
+.anyink-photo-card .anyink-photo-card__choice:first-child {
+	border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.anyink-photo-card .anyink-photo-card__choice:last-child {
+	border-radius: 0 var(--radius) var(--radius) 0;
+	border-left-width: 0;
+}
+
+.anyink-photo-card .anyink-photo-card__choice:last-child[aria-pressed='true'] {
+	border-left-width: 1px;
+}
+
+.anyink-photo-card__picked {
+	color: var(--chrome-text-faint);
+	font-size: var(--text-xs);
+}

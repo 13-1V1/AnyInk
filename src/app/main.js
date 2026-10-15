@@ -4,12 +4,15 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /* Web Components */
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
 import { SaveStatusElement } from '../anyink/files/save_status_element.js';
 import { CoachElement } from '../anyink/coach/coach_element.js';
 import { initRecovery } from '../anyink/recovery/recovery.js';
 import { initFontCheck } from '../anyink/fontcheck/font_check.js';
+import { initPhotos } from '../anyink/photo/photo_app.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -56,6 +59,9 @@ export function glyphrStudioOnLoad() {
 			initRecovery();
 			// ANY-INK (B1): the font check follows the current project from here on
 			initFontCheck();
+			// ANY-INK (B8 + B9 integration): the photo screens follow the current project, the Next
+			// line's photo buttons work, and a photo dropped on a letter in Simple goes to them
+			initPhotos();
 			// ANY-INK (B1): the leave-site check decides when the page closes, so it is set once,
 			// here, for every way a font gets opened (the open page, a dropped font file, an SVG)
 			updateWindowUnloadEvent();

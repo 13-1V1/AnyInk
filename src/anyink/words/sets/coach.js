@@ -54,6 +54,9 @@ const COACH = {
 		text: 'Look right? Press Use it. Wrong part? Press Draw a box.',
 		feature: 'photo',
 	},
+	// 3, B8 + B9 integration: step C with nothing to use (no ink in the part, or the trace
+	// failed): [Use it] is gone, so the line names the card's green button instead
+	'coach.rule.photoStuck': { text: 'Press {button} on the card.', feature: 'photo' },
 	// 4, 5: Try it is open
 	'coach.rule.tryItHappy': {
 		text: 'Happy with how it looks? Make a font file for Word.',
@@ -131,6 +134,11 @@ const COACH = {
 	// 15: the next empty letter, on the board and in the letter view
 	'coach.rule.nextLetter': { text: 'Next: {letter}.', feature: 'coach' },
 	'coach.rule.doneNextLetter': { text: '{done} looks done. Next: {letter}.', feature: 'coach' },
+	// B8 + B9 finalize: the Brush picked on a letter with ink (he may still be drawing)
+	'coach.rule.whenReadyNextLetter': {
+		text: 'When {done} looks right, go to {letter}.',
+		feature: 'coach',
+	},
 	// 16
 	'coach.rule.allReady': {
 		text: 'All {count} letters are ready. Add numbers & symbols next?',
@@ -140,6 +148,11 @@ const COACH = {
 	'coach.rule.upToDate': {
 		text: 'Your font is up to date. Type something in Try it.',
 		feature: 'tryIt',
+	},
+	// 18 (B8 + B9 finalize): every letter ready, before the board and Try it are built
+	'coach.rule.allLettersReady': {
+		text: 'All {count} letters are ready.',
+		feature: 'coach',
 	},
 
 	// --------------------------------------------------------------
@@ -180,8 +193,10 @@ const COACH = {
 		text: 'The faint photo stays under the letter for comparing. It never goes in the font file.',
 		feature: 'photo',
 	},
+	// B8 + B9 finalize: the line already says "Drag on the paper to draw. Each drag is one
+	// stroke." (brush.next.drag), so the tip adds only Undo
 	'coach.tip.brush': {
-		text: 'Drag to draw. Each drag is one stroke; Undo removes the last one.',
+		text: 'Undo removes the last stroke.',
 		feature: 'brush',
 	},
 	// B6 + B7 finalize: a shape placed by clicks has no round handles; Smooth (This point, in

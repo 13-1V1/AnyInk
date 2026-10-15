@@ -1,0 +1,40 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* B8 brush: the "Size: thin --o-- thick" control and the card's Brush section. Tokens only. */
+
+.anyink-brush-section {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.anyink-brush-section__heading {
+	margin: 0;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-brush-size {
+	display: grid;
+	grid-template-columns: max-content max-content minmax(80px, 1fr) max-content;
+	align-items: center;
+	column-gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+}
+
+.anyink-brush-size__label {
+	color: var(--chrome-text);
+}
+
+.anyink-brush-size__end {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-xs);
+}
+
+.anyink-brush-size__slider {
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	accent-color: var(--touch);
+}

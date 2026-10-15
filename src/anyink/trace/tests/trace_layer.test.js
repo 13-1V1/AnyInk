@@ -949,6 +949,8 @@ describe('the photo layer in Simple before the photo card (B9)', () => {
 	it('Simple, photo flag off: nothing to grab', () => {
 		const editor = makeEditor();
 		setModeForTests('simple');
+		// B8 + B9 integration: 'photo' is on in the app now; this is Simple before B9
+		setFeaturesForTests({ photo: false });
 		expect(traceLayerTarget(editor)).toBe(null);
 	});
 

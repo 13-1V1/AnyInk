@@ -4,8 +4,7 @@
 	B4: what each message given to upstream's showToast says (UX-BEGINNER.md 2.2 "Toasts, one
 	voice", 2.4 G, section 10 B4). Every showToast goes through toast.js, which asks this table.
 
-	A rule: { from, match, example, key, vars, quotes, kind, group, shared, why, asIs, matchHTML,
-	          withoutPhoto }
+	A rule: { from, match, example, key, vars, quotes, kind, group, shared, why, asIs, matchHTML }
 	  from     where the message is raised (for review and the inventory test)
 	  match    a RegExp against the message read as text (toastText: tags out, spaces collapsed);
 	           matchHTML, when given, against the HTML as it came instead (the export check
@@ -19,9 +18,8 @@
 	  kind     the queue kind (queue.js), default 'info'; group: one group never queues twice
 	           (queue.js: info toasts wait their turn, so toasts that follow one another, like
 	           the drag-over hint and what the drop did, share a group: DROP_GROUP, 'file')
-	  withoutPhoto  the key Simple shows instead while it has no way to use a photo (until B9's
-	           photo card turns feature 'photo' on; principle 8): the drop and paste hints
-	           offer drawings only, and a photo gets "ANY-INK can't use photos yet" 
+	  (B8 + B9 integration: withoutPhoto, the photo-free words Simple said until B9's photo card
+	  turned 'photo' on, is gone with them)
 	  shared   the toast shows in both modes, so All tools says the house words too (2.2: the
 	           display points More tools shares with Simple always use the house word);
 	           without it All tools keeps the message as it came, Glyphr Studio's words
@@ -51,7 +49,6 @@ import {
 	PASTE_FILE_HINT,
 	PASTE_TEXT_HINT,
 } from '../trace/paste_drop.js';
-import { isFeatureOn } from '../mode/features.js';
 import { letterPhrase } from '../words/letter_name.js';
 import { word, wordEntry, wordKeys } from '../words/words.js';
 
@@ -171,15 +168,15 @@ export const TOAST_RULES = Object.freeze([
 	keyed('edit_canvas/tools/new_basic_path.js', /^New shape was too small\.$/, 'New shape was too small.',
 		'toast.shapeTooSmall'),
 	keyed('edit_canvas/events.js, events_drag_drop_paste.js, trace/trace_drop.js', exactly(DROP_HINT), DROP_HINT,
-		'toast.dropHint', { ...DROP, withoutPhoto: 'toast.dropDrawingHint' }),
+		'toast.dropHint', { ...DROP }),
 	keyed('edit_canvas/events_drag_drop_paste.js', exactly(PASTE_TEXT_HINT), PASTE_TEXT_HINT, 'toast.pasteTextHint',
-		{ ...DROP, withoutPhoto: 'toast.pasteDrawingHint' }),
+		DROP),
 	keyed('edit_canvas/events_drag_drop_paste.js', exactly(PASTE_FILE_HINT), PASTE_FILE_HINT, 'toast.pasteFileHint',
-		{ ...DROP, withoutPhoto: 'toast.pasteDrawingHint' }),
+		DROP),
 	keyed('edit_canvas/events_drag_drop_paste.js, trace/trace_drop.js', exactly(NOT_TRACEABLE_HINT), NOT_TRACEABLE_HINT,
-		'toast.openLetterFirst', { ...DROP, withoutPhoto: 'toast.photoNotYet' }),
+		'toast.openLetterFirst', { ...DROP }),
 	keyed('edit_canvas/events_drag_drop_paste.js', exactly(CLIPBOARD_BLOCKED_HINT), CLIPBOARD_BLOCKED_HINT,
-		'toast.clipboardBlocked', { ...DROP, withoutPhoto: 'toast.photoNotYet' }),
+		'toast.clipboardBlocked', { ...DROP }),
 	keyed('anyink/trace/trace_panel.js', /^The image already fits the (em|cap height)\.$/, 'The image already fits the em.',
 		'toast.photoAlreadyFits'),
 	keyed('anyink/files/project_files.js', /^Click Open again to choose a project file\.$/,
@@ -330,11 +327,8 @@ export function findWordsKey(message) {
 export function mapUpstreamToast(message, { mode = 'all', context = null } = {}) {
 	const found = findToastRule(message);
 	const rule = found?.rule || null;
-	// Simple with no way to use a photo yet says the rule's photo-free words (principle 8)
-	const key =
-		mode === 'simple' && rule?.withoutPhoto && !isFeatureOn('photo')
-			? rule.withoutPhoto
-			: rule?.key;
+	// B8 + B9 integration: the photo-free words Simple said before B9 (withoutPhoto) are gone
+	const key = rule?.key;
 	const base = { key: key ?? null, kind: rule?.kind || 'info', group: rule?.group || '' };
 	const words = () => {
 		const vars = rule.vars ? rule.vars(found.match, context) : {};

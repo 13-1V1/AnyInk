@@ -18,6 +18,21 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** 7.6, both modes: P picks the Point pen and E picks Edit points (upstream: Edit points, Add a point) */
 const KEY_CHANGES = { p: 'newPath', e: 'pathEdit' };
 
+/**
+ * B8 + B9 integration: the Brush (B8, 'brush' on in the app) is in both modes (4.3, 7.6): its
+ * button after New path on every page with the drawing tools, and B and N pick it. Nothing else
+ * in All tools changed.
+ */
+const BRUSH_KEYS = { b: 'nib', n: 'nib' };
+function withBrush(snapshot) {
+	const copy = structuredClone(snapshot);
+	Object.values(copy.pages || {}).forEach((page) => {
+		const at = Array.isArray(page?.tools) ? page.tools.indexOf('New path') : -1;
+		if (at >= 0) page.tools.splice(at + 1, 0, 'Brush');
+	});
+	return copy;
+}
+
 let warn;
 let error;
 beforeEach(() => {
@@ -42,8 +57,8 @@ describe("All tools with no flag shows today's controls", () => {
 		}
 		const { toolKeys, ...rest } = now;
 		const { toolKeys: todayKeys, ...todayRest } = today;
-		expect(rest).toEqual(todayRest);
-		expect(toolKeys).toEqual({ ...todayKeys, ...KEY_CHANGES });
+		expect(rest).toEqual(withBrush(todayRest));
+		expect(toolKeys).toEqual({ ...todayKeys, ...KEY_CHANGES, ...BRUSH_KEYS });
 	});
 
 	it('the snapshot is not empty: it holds the controls 6.2 talks about', () => {

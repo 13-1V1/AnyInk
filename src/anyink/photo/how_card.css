@@ -1,0 +1,26 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* B9 photo-ui: the How card (UX-BEGINNER.md 4.4). The shell (title, x, buttons, the green button)
+   is the shared modal's, in photo_dialog.css. Tokens only. */
+
+.anyink-how-card {
+	width: min(640px, calc(100vw - 48px));
+}
+
+.anyink-how-card__steps {
+	margin: 0;
+	padding-left: 1.6em;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	line-height: 1.5;
+}
+
+.anyink-how-card__step::marker {
+	color: var(--chrome-text-muted);
+	font-weight: 600;
+}
+
+.anyink-how-card .anyink-modal__buttons {
+	margin-top: var(--space-2);
+}

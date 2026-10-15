@@ -29,7 +29,30 @@
 	green button, so the box's first button is outlined until it closes. The box watches the page
 	for dialogs coming and going while it is on screen, and lets go once its page is gone.
 
-	  overlayButtons(isOn)     ['drawBrush'?] or ['drawPoints']
+	B8 + B9 integration (both flags on):
+	  +-------------------------------------------+
+	  |  Capital B is empty.                      |
+	  |  [ Use the same photo ] [thumb]           |   <- green: a photo of the font has parts
+	  |  [ Choose another photo... ]              |      not used yet (else [Use a photo])
+	  |  [ Draw with the brush ]                  |
+	  |  or drop a photo here                     |
+	  |  No photo yet? How to take one            |
+	  +-------------------------------------------+
+	  The buttons open the photo screens through photo/photo_doors.js (photo_app.js answers;
+	  the letter view never imports that hub): the photo dialog on that photo
+	  with this letter known, or the photo card's step A, or the How card. The box hides while
+	  the photo card runs or the photo flow is at step C (PHOTO_CARD_EVENT, the flow's
+	  'autoTrace'), so the card's green button is the only one.
+	  The Brush an empty letter opens with (letter/open_tool.js) is no choice of his: the box
+	  stays and a drag on the paper outside it draws. [Draw with the brush], or picking the Brush
+	  himself (its button, B or N), puts the box away, as any other drawing tool does.
+
+	  overlayButtons(isOn, { samePhoto, done })   ['useSamePhoto', 'chooseAnother', 'drawBrush'] /
+	                           ['usePhoto', 'drawBrush'] with photos, ['drawBrush'], or
+	                           ['drawPoints'] before B8; done (B8 + B9 finalize): the same photo
+	                           is one he said he is done with, so ['chooseAnother',
+	                           'useSamePhoto', 'drawBrush']: [Use the same photo] stays, outlined
+	                           (its other parts may still be his letters), and never leads
 	  overlayShows(editor)     true while the box shows
 	  makeEmptyOverlay(editor) the box; follows the editor (subscriber 'anyink.letter.overlay')
 */
@@ -38,6 +61,11 @@ import { makeElement } from '../../common/dom.js';
 import { selectTool } from '../../edit_canvas/tools/tools.js';
 import { openDialogName } from '../coach/dom_probe.js';
 import { isFeatureOn } from '../mode/features.js';
+import { isOpeningBrush } from '../nib/default_tool.js';
+import { openPhotoDoor, samePhoto } from '../photo/photo_doors.js';
+import { PHOTO_CARD_EVENT, isPhotoCardOpen } from '../photo/photo_card_slot.js';
+import { paintPhoto } from '../photo/paint_photo.js';
+import { getFlow } from '../photo/photo_flow_state.js';
 import { letterName } from '../words/letter_name.js';
 import { word, wordEntry } from '../words/words.js';
 import { isEmptyLetter } from '../board/letter_set.js';
@@ -46,10 +74,20 @@ import { isLetterViewOn, setFineTuneOpen } from './view_switches.js';
 
 export const OVERLAY_SUBSCRIBER = 'anyink.letter.overlay';
 
-/** Shape tools: picking one means he has chosen how to draw */
-const SHAPE_TOOLS = Object.freeze(['newPath', 'newRectangle', 'newOval', 'pathAddPoint']);
+/** Shape tools: picking one means he has chosen how to draw (the Brush: his own pick of it) */
+const SHAPE_TOOLS = Object.freeze(['newPath', 'newRectangle', 'newOval', 'pathAddPoint', 'nib']);
 
-const TOPICS = ['currentItem', 'whichGlyphIsSelected', 'whichToolIsSelected', 'traceLayer'];
+/** 'autoTrace': the photo flow (B9) says every change of step C on it */
+const TOPICS = [
+	'currentItem',
+	'whichGlyphIsSelected',
+	'whichToolIsSelected',
+	'traceLayer',
+	'autoTrace',
+];
+
+/** The photo thumbnail beside [Use the same photo], drawn at twice its shown size */
+const THUMB = Object.freeze({ width: 96, height: 72 });
 
 /** Each button: its words and what it does */
 const BUTTONS = Object.freeze({
@@ -60,17 +98,37 @@ const BUTTONS = Object.freeze({
 			selectTool('newPath');
 		},
 	},
+	// his own pick of the Brush (tools.js tells nib/default_tool.js), so the box steps aside
 	drawBrush: { key: 'letter.overlay.drawBrush', run: () => selectTool('nib') },
+	// B8 + B9 integration: the photo screens (photo/photo_doors.js, answered by photo_app.js)
+	useSamePhoto: {
+		key: 'letter.overlay.useSamePhoto',
+		run: (editor) => openPhotoDoor('samePhoto', letterContext(editor)),
+	},
+	usePhoto: {
+		key: 'letter.overlay.usePhoto',
+		run: (editor) => openPhotoDoor('pick', letterContext(editor)),
+	},
+	chooseAnother: {
+		key: 'letter.overlay.chooseAnother',
+		run: (editor) => openPhotoDoor('pick', letterContext(editor)),
+	},
 });
 
 /**
  * @param {(flag: String) => Boolean} [isOn]
- * @returns {Array<'drawPoints' | 'drawBrush'>}
+ * @param {{samePhoto?: Boolean}} [options] - a photo of the font has parts not used yet
+ * @returns {Array<'useSamePhoto' | 'usePhoto' | 'chooseAnother' | 'drawBrush' | 'drawPoints'>}
  */
-export function overlayButtons(isOn = isFeatureOn) {
+export function overlayButtons(isOn = isFeatureOn, { samePhoto: same = false, done = false } = {}) {
 	const buttons = [];
+	if (isOn('photo')) {
+		if (!same) buttons.push('usePhoto');
+		else if (done) buttons.push('chooseAnother', 'useSamePhoto');
+		else buttons.push('useSamePhoto', 'chooseAnother');
+	}
 	if (isOn('brush')) buttons.push('drawBrush');
-	if (!buttons.length) buttons.push('drawPoints');
+	else buttons.push('drawPoints');
 	return buttons;
 }
 
@@ -82,6 +140,9 @@ export function overlayShows(editor = getCurrentProjectEditor()) {
 	if (!isLetterViewOn() || editor?.nav?.page !== 'Characters') return false;
 	const item = openLetter(editor);
 	if (!item || !isEmptyLetter(item, { open: openPathOf(editor) })) return false;
+	// B8 + B9 integration: the photo card holds the screen's green button while it runs
+	if (isFeatureOn('photo') && (isPhotoCardOpen() || getFlow(editor))) return false;
+	if (editor.selectedTool === 'nib' && isOpeningBrush(editor)) return true;
 	return !SHAPE_TOOLS.includes(editor.selectedTool);
 }
 
@@ -103,7 +164,21 @@ export function makeEmptyOverlay(editor = getCurrentProjectEditor()) {
 		callback: () => follow(view),
 	});
 	watchForDialogs(view);
+	listenForPhotoCard(view);
 	return overlay;
+}
+
+/** The photo card opening or closing shows or hides the box (one listener per box). */
+function listenForPhotoCard(view) {
+	if (typeof globalThis.addEventListener !== 'function') return;
+	const onCard = () => {
+		if (!view.overlay.isConnected) {
+			if (view.placed) globalThis.removeEventListener(PHOTO_CARD_EVENT, onCard);
+			return;
+		}
+		update(view);
+	};
+	globalThis.addEventListener(PHOTO_CARD_EVENT, onCard);
 }
 
 /**
@@ -164,8 +239,9 @@ function update(view) {
 	overlay.hidden = !shows;
 	if (overlay.isConnected) view.placed = true;
 	const name = letterName(charOf(editor)) || word('check.aLetter');
-	const buttons = overlayButtons();
-	const signature = JSON.stringify([name, buttons]);
+	const same = isFeatureOn('photo') ? samePhoto(editor) : null;
+	const buttons = overlayButtons(isFeatureOn, { samePhoto: !!same, done: !!same?.done });
+	const signature = JSON.stringify([name, buttons, same?.asset || '']);
 	if (signature === view.signature) {
 		if (shows) markGreen(view);
 		return;
@@ -190,10 +266,49 @@ function update(view) {
 		const hint = wordEntry(key)?.hint;
 		if (hint) button.title = hint;
 		button.addEventListener('click', () => run(editor));
-		box.appendChild(button);
+		if (id === 'useSamePhoto' && same) {
+			box.appendChild(withThumb(button, editor.assets?.get?.(same.asset)?.blob));
+		} else {
+			box.appendChild(button);
+		}
 	});
+	if (isFeatureOn('photo')) addPhotoLines(box, editor);
 	overlay.appendChild(box);
 	if (shows) markGreen(view);
+}
+
+/** [Use the same photo] with the photo's thumbnail beside it */
+function withThumb(button, blob) {
+	const row = makeElement({ tag: 'div', className: 'anyink-empty-overlay__same' });
+	const canvas = makeElement({
+		tag: 'canvas',
+		className: 'anyink-empty-overlay__thumb',
+		attributes: { 'aria-hidden': 'true' },
+	});
+	canvas.width = THUMB.width;
+	canvas.height = THUMB.height;
+	if (blob) paintPhoto(canvas, blob, { fit: 'contain' });
+	row.append(button, canvas);
+	return row;
+}
+
+/** "or drop a photo here" and "No photo yet? How to take one" (4.3) */
+function addPhotoLines(box, editor) {
+	const drop = makeElement({ tag: 'p', className: 'anyink-empty-overlay__note' });
+	drop.textContent = word('letter.overlay.dropHere');
+	const how = makeElement({
+		tag: 'button',
+		className: 'anyink-empty-overlay__link',
+		attributes: { type: 'button', 'data-anyink-overlay-link': 'how' },
+	});
+	how.textContent = word('letter.overlay.how');
+	how.addEventListener('click', () => openPhotoDoor('how', letterContext(editor)));
+	box.append(drop, how);
+}
+
+/** The open letter, as the photo screens take it */
+function letterContext(editor) {
+	return { char: charOf(editor), itemId: editor?.selectedGlyphID || '' };
 }
 
 /** The open letter, looked up without making one */

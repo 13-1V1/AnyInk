@@ -27,6 +27,21 @@
 	    This point   Edit points with one point picked: [Smooth] [Corner]
 	    "Open in More tools" (a link)
 	  B9 adds Fine-tune > Photo and Tail, and the photo card; B8 the Brush section.
+	    Photo        (B8 + B9 finalize; photo_part.js) first in Fine-tune on a letter with a photo:
+	                 Photo fade, [Hide photo] / [Show photo], Photo options (Lock the photo, Light
+	                 ink on dark paper, Fit to letter box, Fit to capitals line, Remove photo)
+	B8 + B9 integration:
+	  Photo card     while it runs (photo/photo_card.js isPhotoCardOpen): its steps A and C, the
+	                 card's own element (photoCardElement); the main buttons hide meanwhile, and
+	                 the card is drawn again when it opens or closes (PHOTO_CARD_EVENT)
+	  Brush          while he has the Brush picked: "Size: thin --o-- thick" (nib/size_control.js
+	                 makeBrushSection); the size is the pen's, never an Undo step
+	  Merge          leaves brush strokes out: a stroke is always its own shape until M10's "Turn
+	                 into shapes" (D-031)
+	  Tail           Fine-tune > Tail on a letter traced from a photo that may hang one (g j p q
+	                 y, Q J f; photo/letter_tail.js): [It has a tail] / [No tail], the one it is
+	                 now pressed; a press goes out as TAIL_EVENT and the photo flow re-seats the
+	                 letter in one step (photo/photo_flow_tail.js)
 	Every change is one Undo step with a plain title (2.2): Merge, Flip, Clear letter and Back to
 	automatic name the letter (7.3); Solid / Hole and Smooth / Corner write the letter-tools
 	track's titles. Clear letter says so in a toast with [Undo] (7.3: destructive actions use an
@@ -44,9 +59,9 @@
 
 	Pure:
 	  letterCardState(editor)      what the card shows, read from the editor
-	  cardSections(state, isOn)    ['header', 'main'?, 'fineTune'?]
+	  cardSections(state, isOn)    ['header', 'main'?, 'photo'?, 'brush'?, 'fineTune'?]
 	  mainButtons(state, isOn)     ['traceAgain'?, 'drawOver'?]
-	  fineTuneParts(state)         ['shapes', 'spacing', 'point'?, 'moreTools']
+	  fineTuneParts(state)         ['photo'?, 'shapes', 'spacing', 'tail'?, 'point'?, 'moreTools']
 	  shapeOptions(state)          ['merge'?, 'flipLeftRight', 'flipUpsideDown', 'clear']
 	  shapeKinds(item)             'solid' | 'hole' | 'part' per shape (auto_hole.js shapeRole;
 	                               'part' for a reusable part, More tools only)
@@ -68,6 +83,10 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
 import { inkOf } from '../board/letter_set.js';
+import { makeBrushSection } from '../nib/size_control.js';
+import { PHOTO_CARD_EVENT, isPhotoCardOpen, photoCardElement } from '../photo/photo_card_slot.js';
+import { TAIL_EVENT, letterTail } from '../photo/letter_tail.js';
+import { makePhotoPart, photoPartState } from './photo_part.js';
 import { openPathOf } from '../coach/open_shape.js';
 import { selectTool } from '../../edit_canvas/tools/tools.js';
 import { combinePaths } from '../../project_editor/boolean_combine.js';
@@ -101,6 +120,9 @@ const CARD_TOPICS = [
 
 /** The drawing tools whose picked point gets This point */
 const POINT_TOOL = 'pathEdit';
+
+/** The Brush (B8): its section shows while it is picked */
+const BRUSH_TOOL = 'nib';
 
 /** Shape options: closed by default, as he left it for the session */
 let shapeOptionsOpen = false;
@@ -165,11 +187,16 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 		status: letterInk(item, editor).length ? 'ready' : 'empty',
 		hasShapes: shapes.length > 0,
 		hasPhoto: !!getTrace(item),
-		// B9's photo card says when one of its steps is open
-		photoCardOpen: false,
+		// B9's photo card says when one of its steps is open (B8 + B9 integration)
+		photoCardOpen: isPhotoCardOpen(),
 		shapes,
 		mergeable: mergeablePaths(item, editor).length,
 		spacing: spacingShown(item),
+		// B8 + B9 integration: Fine-tune > Tail, on a letter traced from a photo (4.3); read only
+		// while Fine-tune is open, where it shows (it measures the ink)
+		tail: isFeatureOn('photo') && isFineTuneOpen() ? tailOf(editor, item) : null,
+		// B8 + B9 finalize: Fine-tune > Photo (photo_part.js), read only while Fine-tune is open
+		photo: isFeatureOn('photo') && isFineTuneOpen() ? photoPartState(item) : null,
 		tool: editor?.selectedTool || '',
 		point: point ? { kind: pointKind(point) } : null,
 		fineTuneOpen: isFineTuneOpen(),
@@ -223,6 +250,10 @@ export function cardSections(state, isOn = isFeatureOn) {
 	if (state.hasShapes && !state.photoCardOpen && mainButtons(state, isOn).length) {
 		sections.push('main');
 	}
+	// B8 + B9 integration: the photo card while it runs; otherwise the Brush's size while it is
+	// picked (the photo card is the one thing to do while it shows)
+	if (state.photoCardOpen && isOn('photo')) sections.push('photo');
+	else if (state.tool === BRUSH_TOOL && isOn('brush')) sections.push('brush');
 	if (state.hasShapes) sections.push('fineTune');
 	return sections;
 }
@@ -236,7 +267,8 @@ export function mainButtons(state, isOn = isFeatureOn) {
 	if (!state.hasShapes || state.photoCardOpen) return [];
 	const buttons = [];
 	if (isOn('photo') && state.hasPhoto) buttons.push('traceAgain');
-	if (isOn('brush')) buttons.push('drawOver');
+	// B8 + B9 integration: [Draw over it] picks the Brush, so it goes while the Brush is picked
+	if (isOn('brush') && state.tool !== BRUSH_TOOL) buttons.push('drawOver');
 	return buttons;
 }
 
@@ -245,7 +277,8 @@ export function mainButtons(state, isOn = isFeatureOn) {
  * @returns {Array<'shapes' | 'spacing' | 'point' | 'moreTools'>}
  */
 export function fineTuneParts(state) {
-	const parts = ['shapes', 'spacing'];
+	const parts = state.photo ? ['photo', 'shapes', 'spacing'] : ['shapes', 'spacing'];
+	if (state.tail) parts.push('tail');
 	if (state.tool === POINT_TOOL && state.point) parts.push('point');
 	parts.push('moreTools');
 	return parts;
@@ -334,7 +367,11 @@ function sameMembers(a, b) {
 function mergeablePaths(item, editor) {
 	if (!item) return [];
 	const ink = new Set(letterInk(item, editor));
-	return (item.shapes || []).filter((shape) => isPath(shape) && ink.has(shape));
+	// B8 + B9 integration: a brush stroke stays its own shape (M10 re-inks it by its stroke id);
+	// strokes merge only at M10's "Turn into shapes"
+	return (item.shapes || []).filter(
+		(shape) => isPath(shape) && ink.has(shape) && !isBrushStroke(shape)
+	);
 }
 
 /**
@@ -387,6 +424,7 @@ export function makeLetterCard(editor = getCurrentProjectEditor()) {
 		callback: () => follow(view),
 	});
 	listenForSteps();
+	listenForPhotoCard();
 	return card;
 }
 
@@ -422,6 +460,21 @@ function listenForSteps() {
 	});
 }
 
+/**
+ * The photo card opening, changing step or closing (B8 + B9 integration): the card on screen
+ * draws again, so its Photo card section and main buttons follow at once. One listener for the
+ * app, as for the steps.
+ */
+let listeningForPhotoCard = false;
+function listenForPhotoCard() {
+	if (listeningForPhotoCard || typeof globalThis.addEventListener !== 'function') return;
+	listeningForPhotoCard = true;
+	globalThis.addEventListener(PHOTO_CARD_EVENT, () => {
+		const view = liveView;
+		if (view?.card.isConnected) render(view);
+	});
+}
+
 /** Draws the card again when what it shows changed. */
 function render(view) {
 	const state = letterCardState(view.editor);
@@ -435,10 +488,13 @@ function render(view) {
 	const builders = {
 		header: () => makeHeader(state),
 		main: () => makeMainButtons(state),
+		photo: () => makePhotoSection(),
+		brush: () => makeBrushSection(),
 		fineTune: () => makeFineTune(state, editor, view),
 	};
 	cardSections(state).forEach((section) => {
 		const element = builders[section]();
+		if (!element) return;
 		element.dataset.anyinkCard = section;
 		card.appendChild(element);
 	});
@@ -481,6 +537,11 @@ function makeMainButtons(state) {
 	return row;
 }
 
+/** The photo card's own element (photo_card.js), moved into the card; null when it closed */
+function makePhotoSection() {
+	return photoCardElement();
+}
+
 function makeFineTune(state, editor, view) {
 	const section = makeElement({ tag: 'div', className: 'anyink-letter-card__fine-tune' });
 	const toggle = disclosure('fineTune', word('letter.fineTune'), state.fineTuneOpen, () => {
@@ -494,8 +555,10 @@ function makeFineTune(state, editor, view) {
 
 	const body = makeElement({ tag: 'div', className: 'anyink-letter-card__fine-body' });
 	const parts = {
+		photo: () => makePhotoPart(state.photo, editor, { redraw: () => render(view) }),
 		shapes: () => makeShapes(state, editor, view),
 		spacing: () => makeSpacing(state, editor),
+		tail: () => makeTail(state),
 		point: () => makePoint(state, editor),
 		moreTools: () => makeMoreTools(editor),
 	};
@@ -607,6 +670,43 @@ function makeSpacing(state, editor) {
 			actionButton('backToAuto', 'letter.action.backToAuto', () => backToAutomatic(editor))
 		);
 	}
+	return part;
+}
+
+/** Fine-tune > Tail: [It has a tail] / [No tail], the one it is now pressed (4.3). */
+function makeTail(state) {
+	const part = fineTunePart('letter.fineTune.tail');
+	part.title = hintOf('letter.fineTune.tail');
+	const group = makeElement({
+		tag: 'div',
+		className: 'anyink-segmented',
+		attributes: { role: 'group', 'aria-label': word('letter.fineTune.tail') },
+	});
+	[
+		['has', true],
+		['none', false],
+	].forEach(([name, tail]) => {
+		const key = `letter.tail.${name}`;
+		const button = makeElement({
+			tag: 'button',
+			className: 'anyink-segmented__option',
+			attributes: {
+				type: 'button',
+				'data-anyink-tail': name,
+				'aria-pressed': String(state.tail.tail === tail),
+				title: hintOf(key),
+			},
+		});
+		button.textContent = word(key);
+		button.addEventListener('click', () => {
+			if (state.tail.tail === tail && state.tail.chosen) return;
+			globalThis.dispatchEvent?.(
+				new CustomEvent(TAIL_EVENT, { detail: { itemId: state.itemId, tail } })
+			);
+		});
+		group.appendChild(button);
+	});
+	part.appendChild(group);
 	return part;
 }
 
@@ -833,6 +933,16 @@ function fineTunePart(titleKey) {
 /** @param {String} key */
 function hintOf(key) {
 	return wordEntry(key)?.hint || '';
+}
+
+/** { tail, chosen } for Fine-tune > Tail, or null when it doesn't show */
+function tailOf(editor, item) {
+	try {
+		const facts = letterTail(editor?.project, item);
+		return facts ? { tail: facts.tail, chosen: facts.chosen } : null;
+	} catch {
+		return null;
+	}
 }
 
 /** The open letter, looked up without making one */

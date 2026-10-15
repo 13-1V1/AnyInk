@@ -2,7 +2,10 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import '../../anyink/letter/tool_labels.css';
+import { notePickedTool } from '../../anyink/nib/default_tool.js';
 import { fineTuneShows, isLetterViewOn } from '../../anyink/letter/view_switches.js';
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from '../../anyink/metrics/hit_test.js';
 import { toolKey } from '../../anyink/mode/keys.js';
@@ -54,6 +57,8 @@ export function makeEditToolsButtons() {
 
 	// Button data
 	let toolButtonData = {
+		// ANY-INK (B8): the Brush, shown in both modes once 'brush' is on (visibility.js, 7.6)
+		nib: { title: 'Brush', disabled: false },
 		newRectangle: { title: 'New rectangle', disabled: false },
 		newOval: { title: 'New oval', disabled: false },
 		newPath: { title: 'New path', disabled: false },
@@ -140,12 +145,16 @@ export function makeEditToolsButtons() {
 		content.push(toolButtonElements.newRectangle);
 		content.push(toolButtonElements.newOval);
 		content.push(toolButtonElements.newPath);
+		// ANY-INK (B8): the Brush after upstream's drawing tools, so theirs keep their places
+		// (hidden below while 'brush' is off)
+		content.push(toolButtonElements.nib);
 	}
 
 	if (onComponentPage && selectedItem && !selectedItem.pathPoints) {
 		content.push(toolButtonElements.newRectangle);
 		content.push(toolButtonElements.newOval);
 		content.push(toolButtonElements.newPath);
+		content.push(toolButtonElements.nib);
 	}
 
 	if (onGlyphEditPage || onComponentPage || onLigaturesPage) {
@@ -551,6 +560,9 @@ export function switchToolTo(newTool) {
 
 	const editor = getCurrentProjectEditor();
 	editor.selectedTool = newTool;
+	// ANY-INK (B8 + B9 integration): a pick of his own; the Brush a letter opened with is his
+	// from now on (nib/default_tool.js), told before anyone hears the pick
+	notePickedTool(editor);
 	editor.publish('whichToolIsSelected', newTool);
 	// log(`switchToolTo`, 'end');
 }
@@ -926,6 +938,37 @@ icons.resize = {
 		<rect x="11" y="12" width="1" height="2"></rect>
 		<rect x="12" y="14" width="1" height="2"></rect>
 		<rect x="13" y="16" width="1" height="2"></rect>
+	`,
+};
+
+// ANY-INK (B8): Brush, a felt-tip pen drawn on the same 20 px grid as upstream's icons
+icons.nib = {
+	fill: `
+		<rect x="10" y="3" width="3" height="2"></rect>
+		<rect x="9" y="5" width="4" height="2"></rect>
+		<rect x="8" y="7" width="4" height="2"></rect>
+		<rect x="7" y="9" width="4" height="2"></rect>
+		<rect x="6" y="11" width="3" height="2"></rect>
+	`,
+	outline: `
+		<rect x="11" y="1" width="3" height="1"></rect>
+		<rect x="14" y="2" width="1" height="2"></rect>
+		<rect x="13" y="4" width="1" height="3"></rect>
+		<rect x="12" y="7" width="1" height="2"></rect>
+		<rect x="11" y="9" width="1" height="2"></rect>
+		<rect x="10" y="11" width="1" height="2"></rect>
+		<rect x="9" y="13" width="1" height="1"></rect>
+		<rect x="10" y="2" width="1" height="1"></rect>
+		<rect x="9" y="3" width="1" height="2"></rect>
+		<rect x="8" y="5" width="1" height="2"></rect>
+		<rect x="7" y="7" width="1" height="2"></rect>
+		<rect x="6" y="9" width="1" height="2"></rect>
+		<rect x="5" y="11" width="1" height="2"></rect>
+		<rect x="5" y="13" width="4" height="1"></rect>
+		<rect x="4" y="14" width="2" height="2"></rect>
+		<rect x="2" y="16" width="3" height="2"></rect>
+		<rect x="1" y="17" width="2" height="2"></rect>
+		<rect x="7" y="17" width="12" height="2"></rect>
 	`,
 };
 

@@ -29,10 +29,18 @@
 	the newest dropped step left, an empty list is now that state (SAVED_AT_EMPTY); if it holds an
 	older one, no undo can reach it any more (null).
 
-	  capUndoQueue(history, limits?)  drop from the old end until both limits hold, then thin out
+	B8 + B9 finalize (second hostile pass: 500 brush strokes on one letter made a crash copy of
+	191.6 MB, each of the 200 steps holding the whole letter): the list also keeps at most
+	MAX_UNDO_POINTS points of shapes in its entries (entryPoints), the oldest steps leaving first
+	the same way, never the newest step. A 58-letter traced font holds about 5,000 points, so its
+	30 whole-font steps and 200 steps stay well under it.
+
+	  capUndoQueue(history, limits?)  drop from the old end until every limit holds, then thin out
 	                                  "Navigated to" entries past their limit; returns the entries
 	                                  dropped from the old end, oldest first
 	  countSteps(queue)               { steps, wholeProject }: looking around left out
+	  entryPoints(entry)              the points of shapes an entry holds (its letter's, or the
+	                                  whole font's for a whole-font entry; worked out once)
 */
 import { GlyphrStudioProject } from '../../project_data/glyphr_studio_project.js';
 import {
@@ -53,6 +61,8 @@ export const MAX_WHOLE_PROJECT_STEPS = 30;
  * Each holds a copy of one letter, and upstream's undo reads them only to move the view.
  */
 export const MAX_NAVIGATION_ENTRIES = 30;
+/** The most points of shapes the list's entries hold together (B8 + B9 finalize) */
+export const MAX_UNDO_POINTS = 400000;
 
 /**
  * @param {Array} queue - History.queue
@@ -85,21 +95,61 @@ export function capUndoQueue(
 		maxSteps = MAX_UNDO_STEPS,
 		maxWholeProject = MAX_WHOLE_PROJECT_STEPS,
 		maxNavigation = MAX_NAVIGATION_ENTRIES,
+		maxPoints = Infinity,
 	} = {}
 ) {
 	const queue = history?.queue;
 	if (!Array.isArray(queue)) return [];
 	const dropped = [];
 	let count = countSteps(queue);
-	while (queue.length && (count.steps > maxSteps || count.wholeProject > maxWholeProject)) {
+	let points = Number.isFinite(maxPoints) ? queuePoints(queue) : 0;
+	const tooBig = () => points > maxPoints && count.steps > 1;
+	while (
+		queue.length &&
+		(count.steps > maxSteps || count.wholeProject > maxWholeProject || tooBig())
+	) {
 		const step = takeOldestStep(queue);
 		step.forEach((entry) => foldIntoFloor(history, entry));
 		dropped.push(...step);
 		count = countSteps(queue);
+		if (Number.isFinite(maxPoints)) points = queuePoints(queue);
 	}
 	if (dropped.length) moveSavedMarker(history, dropped);
 	thinNavigation(history, maxNavigation);
 	return dropped;
+}
+
+/** Points of shapes kept per entry, worked out once (an entry's copy never changes) */
+const pointsOf = new WeakMap();
+
+/**
+ * @param {Object} entry - a History entry
+ * @returns {Number} the points of shapes its copy holds (0 for a settings entry)
+ */
+export function entryPoints(entry) {
+	if (!entry || typeof entry !== 'object') return 0;
+	if (pointsOf.has(entry)) return pointsOf.get(entry);
+	const state = entry.itemState;
+	let points = 0;
+	if (state && typeof state === 'object') {
+		const items = state.glyphs
+			? [state.glyphs, state.ligatures, state.components].flatMap((group) =>
+					Object.values(group || {})
+			  )
+			: [state];
+		items.forEach((item) =>
+			(item?.shapes || []).forEach((shape) => {
+				points += Array.isArray(shape?.pathPoints) ? shape.pathPoints.length : 1;
+			})
+		);
+	}
+	pointsOf.set(entry, points);
+	return points;
+}
+
+/** @returns {Number} the points every entry of the list holds */
+function queuePoints(queue) {
+	return queue.reduce((sum, entry) => sum + entryPoints(entry), 0);
 }
 
 /**

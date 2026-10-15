@@ -18,6 +18,8 @@ vi.mock('../autotrace_session.js', () => ({
 
 let drawAutoTracePreview;
 let previewShapesFor;
+let setPhotoPreview;
+let setModeForTests;
 let PREVIEW_DASH;
 let PREVIEW_FILL_ALPHA;
 let PREVIEW_LINE_WIDTH;
@@ -30,12 +32,14 @@ beforeAll(async () => {
 	({
 		drawAutoTracePreview,
 		previewShapesFor,
+		setPhotoPreview,
 		PREVIEW_DASH,
 		PREVIEW_FILL_ALPHA,
 		PREVIEW_LINE_WIDTH,
 	} = await import('../preview_draw.js'));
 	({ potraceSvgToShapes } = await import('../svg_to_shapes.js'));
 	({ clearTokenCache, withAlpha } = await import('../../theme/theme.js'));
+	({ setModeForTests } = await import('../../mode/mode.js'));
 });
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -78,6 +82,42 @@ afterEach(() => {
 	document.documentElement.style.removeProperty('--canvas-selection');
 	clearTokenCache();
 	sessionState.current = null;
+	setPhotoPreview(null);
+	setModeForTests('all');
+});
+
+// B8 + B9 integration: Simple has no Trace panel; the photo flow's step C draws its green dashed
+// outline here through the shapes the photo screens register (photo_app.js at boot)
+describe("drawAutoTracePreview in Simple: the photo flow's step C", () => {
+	it('draws the shapes the photo flow gives for this letter, whatever panel is open', () => {
+		setModeForTests('simple');
+		const seen = [];
+		setPhotoPreview((forItem, forEditor) => {
+			seen.push([forItem, forEditor]);
+			return shapes;
+		});
+		drawAutoTracePreview(ctx, VIEW, item, { nav: { panel: 'Attributes' } });
+		expect(calls('fill')).toHaveLength(1);
+		expect(calls('stroke')).toHaveLength(1);
+		expect(calls('setLineDash')[0].props.segments).toEqual([...PREVIEW_DASH]);
+		expect(seen[0][0]).toBe(item);
+	});
+
+	it('draws nothing in Simple without a step C, even with a Trace session', () => {
+		setModeForTests('simple');
+		sessionState.current = session();
+		setPhotoPreview(() => null);
+		drawAutoTracePreview(ctx, VIEW, item, editor);
+		expect(ctx.__getEvents()).toHaveLength(0);
+	});
+
+	it('All tools never asks the photo flow (the Trace panel session draws, as before)', () => {
+		const photo = vi.fn(() => shapes);
+		setPhotoPreview(photo);
+		drawAutoTracePreview(ctx, VIEW, item, { nav: { panel: 'Attributes' } });
+		expect(ctx.__getEvents()).toHaveLength(0);
+		expect(photo).not.toHaveBeenCalled();
+	});
 });
 
 describe('drawAutoTracePreview', () => {

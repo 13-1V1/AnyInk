@@ -38,17 +38,19 @@
 	again" names the panel's "Choose an image..." button. The photo toasts share the drop
 	group (toast/upstream_map.js DROP_GROUP): the drag-over hint gives way to them at once.
 
-	Simple, until B9's photo card turns feature 'photo' on (fix track, 10/14/2026): Simple has
-	no Trace panel, auto-trace, fade, hide or remove, so a photo on a letter would be a dead
-	end (UX-BEGINNER principle 8, no doors to unbuilt rooms). importTraceImage and
-	pickTraceImage add nothing and say "ANY-INK can't use photos yet. Draw the letter with the
-	Rectangle, Oval or Point pen for now." All tools is unchanged.
+	Simple, until B9's photo card turned feature 'photo' on (fix track, 10/14/2026), turned a
+	photo away with "ANY-INK can't use photos yet". B8 + B9 integration: that is gone. In Simple
+	with photos on, a photo dropped or pasted on a letter goes to the photo flow (photo_gate.js
+	photoRoute, set by photo/photo_app.js: the photo dialog, then the photo card), never to the
+	Trace panel Simple doesn't have. All tools is unchanged.
+	- pickImageFile(): the picker on its own (the photo screens' [Choose a photo...] and [I have
+	  my photo]): resolves the File, or null when he cancelled or it failed (its toast said so).
 
 	Test seams: bitmap_cache's setDecoderForTests (jsdom has no createImageBitmap) and
 	file_api.js's setFileApi (jsdom has no showOpenFilePicker). Nothing here touches a
 	browser API at import time.
 */
-import { photosClosed } from './photo_gate.js';
+import { photoRoute, photosClosed } from './photo_gate.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { isImageType, normalizeType } from '../assets/asset_store.js';
@@ -198,12 +200,6 @@ export function isTraceImageFile(file) {
 // B4 + B5 finalize: the gate lives in photo_gate.js, so the drawing (trace_draw.js) shares it
 export { photosClosed };
 
-/** Simple before the photo card: no photo comes in; the toast says what to do instead. */
-function turnPhotoAway() {
-	toast('toast.photoNotYet', {}, PHOTO);
-	return false;
-}
-
 /**
  * @param {File | Blob} fileOrBlob
  * @param {{editor?: Object, item?: Object}} [options] - default: current editor, the item
@@ -222,7 +218,9 @@ export async function importTraceImage(fileOrBlob, { editor, item } = {}) {
 
 async function runImport(file, editor, item) {
 	if (!editor?.project) return false;
-	if (photosClosed()) return turnPhotoAway();
+	// B8 + B9 integration: Simple's photo goes to the photo flow (photo_gate.js)
+	const route = photoRoute();
+	if (route) return (await route(file, { editor, item })) === true;
 
 	const page = editor.nav?.page;
 	const itemID = editor.selectedItemID;
@@ -353,31 +351,46 @@ function showPanelTop() {
  * @returns {Promise<Boolean>} true when an image was added or replaced
  */
 export function pickTraceImage({ editor, item } = {}) {
-	if (photosClosed()) return Promise.resolve(turnPhotoAway());
 	editor = editor || getCurrentProjectEditor();
 	const options = { editor, item };
+	return pickImageFile().then((file) => (file ? importTraceImage(file, options) : false));
+}
+
+/**
+ * Opens the image picker and resolves the picked File (B8 + B9 integration: shared with the
+ * photo screens). Call directly from a click handler: the picker is requested before anything
+ * is awaited.
+ * @param {{id?: String, startIn?: String}} [options] - the picker's id (Chrome remembers its
+ *   last folder per id) and where it starts the first time (the photo screens: 'downloads',
+ *   where the How card tells him to save the photo, 4.4)
+ * @returns {Promise<File | null>} null when he cancelled, or the picker failed (a toast says)
+ */
+export function pickImageFile({ id = TRACE_PICKER_ID, startIn = 'pictures' } = {}) {
 	const picker = getFileApi().showOpenFilePicker;
-	if (typeof picker !== 'function') return pickWithInput(options);
+	if (typeof picker !== 'function') return pickWithInput();
 
 	let request;
 	try {
 		request = picker({
-			id: TRACE_PICKER_ID,
-			startIn: 'pictures',
+			id,
+			startIn,
 			multiple: false,
 			types: TRACE_PICKER_TYPES,
 		});
 	} catch (error) {
-		return Promise.resolve(pickerFailed(error));
+		pickerFailed(error);
+		return Promise.resolve(null);
 	}
 	return Promise.resolve(request)
 		.then(async (handles) => {
 			const handle = Array.isArray(handles) ? handles[0] : handles;
-			if (!handle || typeof handle.getFile !== 'function') return false;
-			const file = await handle.getFile();
-			return importTraceImage(file, options);
+			if (!handle || typeof handle.getFile !== 'function') return null;
+			return (await handle.getFile()) || null;
 		})
-		.catch(pickerFailed);
+		.catch((error) => {
+			pickerFailed(error);
+			return null;
+		});
 }
 
 function pickerFailed(error) {
@@ -393,11 +406,10 @@ function pickerFailed(error) {
 
 /**
  * Fallback for browsers without showOpenFilePicker: a hidden file input, clicked now.
- * @param {{editor?: Object, item?: Object}} options
- * @returns {Promise<Boolean>}
+ * @returns {Promise<File | null>}
  */
-function pickWithInput(options) {
-	if (typeof document === 'undefined') return Promise.resolve(false);
+function pickWithInput() {
+	if (typeof document === 'undefined') return Promise.resolve(null);
 	document.getElementById(INPUT_ID)?.remove();
 	const input = document.createElement('input');
 	input.type = 'file';
@@ -410,16 +422,8 @@ function pickWithInput(options) {
 			input.remove();
 			resolve(result);
 		};
-		input.addEventListener(
-			'change',
-			() => {
-				const file = input.files?.[0];
-				if (!file) finish(false);
-				else importTraceImage(file, options).then(finish);
-			},
-			{ once: true }
-		);
-		input.addEventListener('cancel', () => finish(false), { once: true });
+		input.addEventListener('change', () => finish(input.files?.[0] || null), { once: true });
+		input.addEventListener('cancel', () => finish(null), { once: true });
 		input.click();
 	});
 }

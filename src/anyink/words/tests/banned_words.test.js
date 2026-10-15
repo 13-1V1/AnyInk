@@ -380,14 +380,13 @@ describe('toasts', () => {
 		});
 		const editor = letterEditor();
 		const photo = new File([new Uint8Array(16)], 'handwriting.jpg', { type: 'image/jpeg' });
-		// B4 fix track: until B9's photo card, Simple turns a photo away with what to do instead
-		expect(await importTraceImage(photo, { editor })).toBe(false);
-		expect(toasts.flush()).toHaveLength(1);
-		setFeaturesForTests({ photo: true }); // B9's photo card lets photos in
+		// B8 + B9 integration: the "can't use photos yet" toast retired with B9; the app sends a
+		// photo on a letter to the photo screens (their own scans: photo/tests), and with no route
+		// set the trace layer's own toasts speak
 		expect(await importTraceImage(photo, { editor })).toBe(true);
 		expect(await importTraceImage(photo, { editor })).toBe(true);
 		expect(removeTrace({ editor })).toBe(true);
-		expect(toasts.flush()).toHaveLength(4); // turned away, then added, replaced, taken off
+		expect(toasts.flush()).toHaveLength(3); // added, replaced, taken off
 		return null;
 	});
 
