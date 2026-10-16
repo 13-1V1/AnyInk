@@ -319,11 +319,12 @@ describe('the guess and the alphabet prefill', () => {
 		// on the part right after the d: e (by id or as the part itself)
 		expect(prefillChar(record, 'p5')).toBe('e');
 		expect(prefillChar(record, record.parts[4])).toBe('e');
-		// a part he skipped between them is passed over
+		// B10 + B11 finalize: a letter-sized part he skipped between them breaks the run (it may be
+		// a letter he passed over: the critic's U, VW skipped, X filled in as "V"); no guess then
 		usePart(record, 'p5', { char: 'e', itemId: 'glyph-0x65' });
 		usePart(record, 'p6', { char: 'f', itemId: 'glyph-0x66' });
 		skipPart(record, 'p7');
-		expect(prefillChar(record, 'p8')).toBe('g');
+		expect(prefillChar(record, 'p8')).toBe('');
 		// at the end of a row, the next row's first part follows it
 		const wrap = twoRows('img-rows0002');
 		usePart(wrap, 'p4', { char: 'h', itemId: 'glyph-0x68' });

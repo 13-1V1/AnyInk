@@ -8,7 +8,9 @@
 	  same libjpeg-turbo family Chrome decodes with; PNGs through placement's decodePng; the
 	  first-timer photos are the WebP images the app stored, which sharp's libwebp decodes to the
 	  same pixels Chrome does) and the answer key written by fixtures/make_fixtures.mjs or
-	  fixtures/make_firsttimer.mjs (placement's own key for brennan-hand).
+	  fixtures/make_firsttimer.mjs (placement's own key for brennan-hand). stray-dot-phone is the
+	  B10 + B11 critic's IMG_5012 (B r e n a H d, e written 1.62 times too big, a dipping, a
+	  stray pen dot under the row between r and e), stored by Chrome the same way.
 	- keyHolder(parts, key) -> for each key letter, the parts whose box holds its center.
 */
 import { readFileSync } from 'node:fs';
@@ -30,6 +32,7 @@ const FILES = {
 	'first-try-phone': join(here, 'fixtures', 'first-try-phone'),
 	'notebook-alphabet-phone': join(here, 'fixtures', 'notebook-alphabet-phone'),
 	'single-g-phone': join(here, 'fixtures', 'single-g-phone'),
+	'stray-dot-phone': join(here, 'fixtures', 'stray-dot-phone'),
 };
 
 /** The file kind of each fixture that is not a JPEG. */
@@ -38,6 +41,7 @@ const EXTENSION = {
 	'first-try-phone': 'webp',
 	'notebook-alphabet-phone': 'webp',
 	'single-g-phone': 'webp',
+	'stray-dot-phone': 'webp',
 };
 
 /**

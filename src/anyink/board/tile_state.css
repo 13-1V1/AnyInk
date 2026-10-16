@@ -1,0 +1,158 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B10: the letter board's tile (UX-BEGINNER.md 4.2 Tiles), inside GlyphTile's shadow root, after
+	glyph-tile.css. Only tiles with the "board" attribute get these parts. 96 x 112 px.
+	Colors are tokens only: green (--touch) is what he is touching (the last touched ring, a file
+	held over the tile), amber (--warning) is "Needs a look", always with "!" and a word.
+*/
+
+:host([board]) {
+	width: 96px;
+	height: 112px;
+	overflow: visible;
+	background-color: transparent;
+	border-radius: var(--radius);
+	outline: none;
+}
+
+:host([board]) .wrapper {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	width: 96px;
+	height: 112px;
+	padding: 18px 4px 4px 4px;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: var(--chrome-bg-raised);
+	cursor: pointer;
+}
+
+:host([board]) .wrapper:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+/* The letter's name, small, in the corner */
+:host([board]) .name {
+	position: absolute;
+	top: 3px;
+	left: 7px;
+	width: auto;
+	height: auto;
+	padding: 0;
+	font-size: var(--text-sm);
+	line-height: 14px;
+	color: var(--chrome-text-muted);
+}
+
+:host([board]) .thumbnail {
+	width: 72px;
+	height: 72px;
+	padding: 0;
+	font-size: 0;
+	background-color: transparent;
+	overflow: hidden;
+}
+
+:host([board]) .thumbnail svg {
+	width: 72px;
+	height: 72px;
+	fill: var(--chrome-text);
+}
+
+/* Empty: a faint outlined system-font letter (about 15 % ink), dashed border */
+:host([board]) .stand-in {
+	display: block;
+	width: 72px;
+	height: 72px;
+	font-family: 'Segoe UI', system-ui, sans-serif;
+	font-size: 54px;
+	line-height: 72px;
+	text-align: center;
+	color: transparent;
+	-webkit-text-stroke: 1px var(--chrome-text-faint);
+	opacity: 0.55;
+}
+
+:host([board]) .wrapper[session-state='empty'] {
+	border-style: dashed;
+	background-color: transparent;
+}
+
+:host([board]) .caption {
+	display: block;
+	margin-top: 1px;
+	font-size: var(--text-xs);
+	line-height: 16px;
+	color: var(--chrome-text-muted);
+	white-space: nowrap;
+}
+
+:host([board]) .wrapper[session-state='empty'] .caption {
+	color: var(--chrome-text-faint);
+}
+
+/* Needs a look: amber border, "!" and its words */
+:host([board]) .mark {
+	display: none;
+	position: absolute;
+	top: 2px;
+	right: 7px;
+	font-size: var(--text-base);
+	font-weight: 700;
+	line-height: 16px;
+	color: var(--warning);
+}
+
+:host([board]) .wrapper[session-state='needsLook'] {
+	border: 2px solid var(--warning);
+	background-color: var(--warning-soft);
+}
+
+:host([board]) .wrapper[session-state='needsLook'] .mark {
+	display: block;
+}
+
+:host([board]) .wrapper[session-state='needsLook'] .caption {
+	color: var(--warning);
+}
+
+/* After M11: "x3" */
+:host([board]) .badge {
+	position: absolute;
+	right: 6px;
+	bottom: 22px;
+	padding: 0 4px;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-xs);
+	line-height: 14px;
+	color: var(--structure);
+	background-color: var(--structure-soft);
+}
+
+:host([board]) .badge[hidden] {
+	display: none;
+}
+
+/* Last touched: a green outline ring */
+:host([board][last-touched]) .wrapper {
+	outline: 2px solid var(--touch);
+	outline-offset: 2px;
+}
+
+/* The tile the arrow keys are on: the same green ring (board_keys.js moves last-touched with it) */
+:host([board]:focus-visible) .wrapper {
+	outline: 2px solid var(--touch);
+	outline-offset: 2px;
+	box-shadow: var(--focus-ring);
+}
+
+/* A photo held over the tile goes to this letter */
+:host([board][drop-target]) .wrapper {
+	border-color: var(--touch);
+	border-style: solid;
+	background-color: var(--touch-soft);
+}

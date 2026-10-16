@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B6: the Next line's 17 rules (UX-BEGINNER.md 4.0): each rule, their order (the first match
 // wins), each rule skipped while its feature flag is off, the one-green rule, Something else,
 // and rule 15's next-letter order with one turn per Try-it letter.
@@ -180,6 +182,43 @@ describe('rule details', () => {
 	it('rule 9 says one letter in the singular', () => {
 		const line = pickLine(fakeState({ needsLook: { e: floats } }));
 		expect(line.sentence).toBe('1 letter needs a look.');
+	});
+
+	// B10 + B11 integration: once the board shows Needs a look, [Show me] would do nothing (the
+	// tiles are on screen, each with its fixes, outlined). The line goes through them one at a
+	// time in rule 7's words, its green button the first one's fix (principle 1: one green that
+	// does something); Something else moves on to the next letter
+	it("rule 9 on a board already showing Needs a look: the first letter's reason and fix", () => {
+		const sinks = { ...floats, id: 'offLine', reason: 'small n sinks below the writing line.' };
+		const state = fakeState({ needsLook: { B: floats, n: sinks }, boardFilter: 'needsLook' });
+		const first = pickLine(state);
+		expect(first).toMatchObject({
+			rule: 9,
+			sentence: 'Capital B floats above the writing line.',
+			button: 'Sit on the line',
+			action: 'fixLetter',
+			skipKey: 'needsLook:B:seat',
+			somethingElse: true,
+		});
+		expect(first.args).toMatchObject({ char: 'B', check: 'seat' });
+		const next = pickLine({ ...state, skips: { [first.skipKey]: first.stamp } });
+		expect(next).toMatchObject({ rule: 9, sentence: 'small n sinks below the writing line.' });
+		expect(next.args).toMatchObject({ char: 'n', check: 'offLine' });
+		// both skipped: never the count's [Show me] there (it would do nothing), and (B10 + B11
+		// finalize) never a green way on to a letter not on screen: the count, with no button
+		const done = pickLine({
+			...state,
+			skips: { [first.skipKey]: first.stamp, [next.skipKey]: next.stamp },
+		});
+		expect(done).toMatchObject({ rule: 9, sentence: '2 letters need a look.', button: '' });
+		// on All, the count and [Show me], as before
+		const all = pickLine(fakeState({ needsLook: { B: floats, n: sinks }, boardFilter: 'all' }));
+		expect(all).toMatchObject({
+			rule: 9,
+			sentence: '2 letters need a look.',
+			button: 'Show me',
+			action: 'showNeedsLook',
+		});
 	});
 
 	it('rule 10 waits while the work file is saving, and also asks when a save failed', () => {

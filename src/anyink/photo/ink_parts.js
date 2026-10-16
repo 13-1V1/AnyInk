@@ -135,6 +135,15 @@ export const DOT_GAP_SHARE = 0.6;
 /** ...with its middle no further to the side of that piece than this share of the height. */
 export const DOT_REACH_SHARE = 0.3;
 
+/** A dot under a piece joins it only within this share of the typical height under it (! ?)... */
+export const DOT_UNDER_GAP = 0.4;
+
+/** ...and the dot's middle is under the ink of its bottom this share of its height... */
+export const DOT_UNDER_BAND = 0.2;
+
+/** ...give or take a stroke, or this share of the typical height when that is more. */
+export const DOT_UNDER_REACH = 0.15;
+
 /** Neighbors for the slope overlap up and down by this share of the shorter one... */
 export const ROW_SHARE = 0.5;
 
@@ -228,15 +237,16 @@ export function findInk(mask, width, height) {
 	const typical = typicalHeight(solid, stroke);
 	// A small piece directly over or under a solid one stays (a dot); the rest are specks
 	let specks = 0;
+	const under = { labels, width, stroke, spans: new Map() };
 	pieces = pieces.filter((p) => {
 		if (!small(p)) return true;
-		const keep = solid.some((other) => dotReach(p, other, typical) !== null);
+		const keep = solid.some((other) => dotReach(p, other, typical, under) !== null);
 		if (!keep) specks++;
 		return keep;
 	});
 
 	// 6. Join the pieces of one letter
-	const groups = joinPieces(pieces, typical);
+	const groups = joinPieces(pieces, typical, under);
 	const parts = groups.map((group) => cutPart(group, labels, width));
 
 	// 7. Rows and reading order
@@ -287,15 +297,50 @@ function isEdge(p, stroke, typical) {
 /**
  * How far a dot sits from another piece, when it is wholly above or below it, close and nearly
  * over it (null otherwise): the gap up or down plus the distance to the side.
+ * B10 + B11 finalize (the critic's stray pen dot under the row joined the r above it; the r was
+ * then seated on the dot and floated, and the row split in two): a dot under a piece is only the
+ * dot of ! or ?, so it joins a piece above it only within DOT_UNDER_GAP typical heights under
+ * it (the ! and ? dots of the fixtures sit 0.16 to 0.24 under; the stray dot 0.48) and with its
+ * middle under the piece's lowest ink (its bottom
+ * DOT_UNDER_BAND, give or take a stroke or DOT_UNDER_REACH typical heights). Dots above (i, j,
+ * the upper dot of a colon) are as before.
  */
-function dotReach(dot, other, typical) {
+function dotReach(dot, other, typical, under = null) {
 	if (other === dot) return null;
 	const gap = -upDown(dot, other);
 	if (gap < 0 || gap > DOT_GAP_SHARE * typical) return null;
 	const middle = (dot.left + dot.right) / 2;
+	if (under && dot.top > other.bottom) {
+		if (gap > DOT_UNDER_GAP * typical) return null;
+		const span = lowSpan(other, under);
+		const reach = Math.max(under.stroke || 0, DOT_UNDER_REACH * typical);
+		const aside = Math.max(0, span.left - middle, middle - span.right);
+		return aside > reach ? null : gap + aside;
+	}
 	const aside = Math.max(0, other.left - middle, middle - other.right);
 	if (aside > DOT_REACH_SHARE * typical) return null;
 	return gap + aside;
+}
+
+/** The left-to-right span of a piece's ink in its bottom DOT_UNDER_BAND (kept per piece) */
+function lowSpan(piece, under) {
+	const known = under.spans.get(piece);
+	if (known) return known;
+	const { labels, width } = under;
+	const from = Math.max(piece.top, Math.floor(piece.bottom - DOT_UNDER_BAND * heightOf(piece)));
+	let left = Infinity;
+	let right = -Infinity;
+	for (let y = from; y <= piece.bottom; y++) {
+		const row = y * width;
+		for (let x = piece.left; x <= piece.right; x++) {
+			if (labels[row + x] !== piece.label) continue;
+			if (x < left) left = x;
+			if (x > right) right = x;
+		}
+	}
+	const span = left <= right ? { left, right } : { left: piece.left, right: piece.right };
+	under.spans.set(piece, span);
+	return span;
 }
 
 /** Up and down: how much two boxes overlap (negative: the gap between them), inclusive boxes. */
@@ -304,7 +349,7 @@ function upDown(a, b) {
 }
 
 /** Groups of pieces, one per letter (step 6). */
-function joinPieces(pieces, typical) {
+function joinPieces(pieces, typical, under = null) {
 	const parent = pieces.map((_, i) => i);
 	const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
 	const across = (a, b) =>
@@ -326,7 +371,7 @@ function joinPieces(pieces, typical) {
 		if (!isDot(dot)) return;
 		let best = null;
 		pieces.forEach((other, j) => {
-			const reach = dotReach(dot, other, typical);
+			const reach = dotReach(dot, other, typical, under);
 			if (reach === null) return;
 			// Two dots join only one right over the other (the dots of a colon), never a mark
 			// written beside a dot (a tight ". , ' -" row: the comma under the apostrophe's

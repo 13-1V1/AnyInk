@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Milestone 7 fix (panel track): a photo dropped anywhere but the canvas no longer gets
 // Chrome's own file drop (the image opening in the tab behind a "Leave site?" prompt).
 // src/anyink/trace/trace_drop.js against a real ProjectEditor; the decoder goes through
@@ -23,6 +25,7 @@ import {
 import { HISTORY_ADDED } from '../trace_import.js';
 import { getTrace } from '../trace_model.js';
 import { setModeForTests } from '../../mode/mode.js';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { word } from '../../words/words.js';
 
 function dragEvent(type, files = [], { types } = {}) {
@@ -192,6 +195,9 @@ describe('routeStrayDrop: a work file', () => {
 
 	it('Simple: off a letter page, says to press Ctrl+O', () => {
 		setModeForTests('simple');
+		// B10 + B11 integration: B5's Overview; on the letter board a work file opens
+		// (board/tests/board_drop.test.js, files/tests/open_dropped_font.test.js)
+		setFeaturesForTests({ board: false });
 		editor.nav.page = 'Overview';
 		routeStrayDrop(dragEvent('drop', [project()]), { editor, dropOnCanvas: vi.fn() });
 		expect(document.querySelector('#toast[data-anyink-toast]')?.textContent).toBe(

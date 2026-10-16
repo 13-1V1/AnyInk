@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration: the banned-word scan (UX-BEGINNER.md 2.3) on the letter page as Simple
 	shows it today, before B7's letter view replaces it: the real Characters page drawn by the
@@ -20,6 +22,7 @@ import { makeRecoverArea, makeRecoveryCard } from '../../recovery/recovery_ui.js
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { sampleEditor } from './controls_probe.js';
 import { noFlags } from './no_flags.js';
+import { setFeaturesForTests } from '../features.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = (path) => readFileSync(join(here, '../../..', path), 'utf8');
@@ -114,6 +117,9 @@ function simplePage(page) {
 describe('Simple: the other pages it shows today say no banned word', () => {
 	scanSimpleScreen('the Overview: the welcome and the letter tiles (before B10)', () => {
 		hush();
+		// B10 + B11 integration: B5's Overview, with the board off (the board's own scan is
+		// board/tests/board_words.test.js)
+		setFeaturesForTests({ board: false });
 		simplePage('Overview');
 		const tiles = [...document.querySelectorAll('glyph-tile')];
 		expect(tiles.length).toBeGreaterThan(50);

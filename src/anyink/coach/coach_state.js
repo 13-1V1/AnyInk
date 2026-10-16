@@ -44,7 +44,7 @@
 	  makeEditorTracker(onTopic)   { sync(editor), detach(), current() }
 	  makeCoach(options)           one coach: { start, stop, isStarted, editor, state, line,
 	                               subscribe, refresh, flush, setFact, facts, setSource, note,
-	                               skip, hide, show, isHidden, tips }
+	                               skip, forgetLookSkips, hide, show, isHidden, tips }
 	    options: getEditor, isOn, deriveState(editor, { isOn, sources, appLevel }), probe(),
 	    schedule(fn), listen (window and document listeners; default true)
 	  getCoach()                   the app's coach (made on first use, started by the element)
@@ -593,6 +593,25 @@ export function makeCoach({
 			dirty = true;
 			notifyNow();
 			return true;
+		},
+		/**
+		 * B10 + B11 finalize: ends the "Something else" skips of a letter's look (rules 7 and 9:
+		 * 'needsLook:<char>:<check>'), or of every letter and rule 9's count with no char. The
+		 * board calls it when he opens an amber tile and on [Show me]: asking to see it again.
+		 * @param {String} [char]
+		 */
+		forgetLookSkips(char) {
+			const memory = memoryFor(getEditor());
+			const prefix = typeof char === 'string' && char ? `needsLook:${char}:` : 'needsLook:';
+			let forgot = false;
+			Object.keys(memory.skips.toObject()).forEach((key) => {
+				if (!key.startsWith(prefix) && !(prefix === 'needsLook:' && key === 'needsLook')) return;
+				memory.skips.forget(key);
+				forgot = true;
+			});
+			if (!forgot) return;
+			dirty = true;
+			notifyNow();
 		},
 		/** "x": hidden for this session */
 		hide() {

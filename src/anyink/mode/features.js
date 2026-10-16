@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Feature flags for the Simple screens (UX-BEGINNER.md principle 8 and section 10): one flag per
 	feature. Every button, menu row, coach rule, tip, key and Help entry names its flag and stays
@@ -53,8 +55,8 @@ export const FEATURES = Object.freeze({
 	letterView: true,
 	brush: true,
 	photo: true,
-	board: false,
-	checks: false,
+	board: true,
+	checks: true,
 	tryIt: false,
 	startScreen: false,
 	useInWord: false,

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: what the coach reads from the open font (UX-BEGINNER.md 4.0, 4.2). Pure functions over an
 	editor and its font; reading never changes the font (a letter's record is looked up, never
@@ -54,6 +56,7 @@ import { canFixProblem } from '../preview/fix_it.js';
 import { firstCheckProblem } from '../preview/font_status.js';
 import { collectReferencedAssetIds } from '../trace/trace_model.js';
 import { hasInk, isEmptyLetter } from '../board/letter_set.js';
+import { getBoardFilter } from '../board/filters.js';
 import { lettersInSet } from './letter_order.js';
 import { openPathOf, openShapeOf } from './open_shape.js';
 
@@ -367,7 +370,10 @@ export function deriveEditorState(
 		tool = typeof editor.selectedTool === 'string' ? editor.selectedTool : '';
 		// B8 + B9 integration: the Brush an empty letter opens with is no pick of his, so rule 8
 		// still offers the photo and the brush (the overlay holds the green button)
-		if (isOpeningBrush(editor)) tool = '';
+		// B10 + B11 finalize: only while the letter is empty; once it has ink he is drawing with
+		// it, so rule 15 says "When ... looks right" with its button outlined and rule 7 holds
+		// its green fix (rules.js brushingOpen)
+		if (isOpeningBrush(editor) && !letter?.ink) tool = '';
 		// B6 + B7 fix pass: a Point pen shape still open is ink, but no letter yet (the Point pen
 		// draws only in the letter view, on the open letter)
 		const open = openShapeOf(editor);
@@ -397,6 +403,9 @@ export function deriveEditorState(
 		tool,
 		letter,
 		letters,
+		// B10 + B11 integration: what the board shows (on Needs a look rule 9 takes the letters one
+		// at a time)
+		boardFilter: page === 'board' ? getBoardFilter(editor) : 'all',
 		numbersAdded: letterSet === 'quick+numbers',
 		fontProblem: firstProblem(editor),
 		fontProblems: allProblems(editor),

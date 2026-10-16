@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: the letter view's header row (UX-BEGINNER.md 4.3): it takes the place of the left area's
 	PAGE / EDITING / PANEL buttons in Simple.
@@ -17,8 +19,8 @@
 
 	  boardOrder(project)          the board's letters in order (4.2): the Quick font, A to Z,
 	                               a to z, . , ' ? ! -, then the numbers and symbols when
-	                               settings.anyink.letterSet is 'quick+numbers'. B10's board
-	                               should own this list; the header then imports it from there
+	                               settings.anyink.letterSet is 'quick+numbers'. B10: the
+	                               board owns it (board/letter_set.js); re-exported here
 	  stepLetter(project, char, step)   the letter step places away (-1, 1), or null
 	  letterIdOf(char)             'glyph-0x42'
 	  makeLetterHeader(editor)     the header; it follows the open letter ('whichGlyphIsSelected',
@@ -27,7 +29,7 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { charToHex } from '../../common/character_ids.js';
 import { makeElement } from '../../common/dom.js';
-import { boardLetters, NUMBERS_SET, QUICK_SET } from '../board/letter_set.js';
+import { boardOrder, NUMBERS_SET, QUICK_SET } from '../board/letter_set.js';
 import { goToLetters } from '../topbar/letters_page.js';
 import { letterName } from '../words/letter_name.js';
 import { word, wordEntry } from '../words/words.js';
@@ -40,13 +42,8 @@ export const NUMBERS_AND_SYMBOLS = NUMBERS_SET;
 
 export const HEADER_SUBSCRIBER = 'anyink.letter.header';
 
-/**
- * @param {Object} project - reads settings.anyink.letterSet
- * @returns {Array<String>}
- */
-export function boardOrder(project) {
-	return boardLetters(project);
-}
+// B10: the board's order lives with the board's letter set (board/letter_set.js)
+export { boardOrder };
 
 /**
  * @param {Object} project

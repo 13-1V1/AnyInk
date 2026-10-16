@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: the Next line's 17 rules (UX-BEGINNER.md 4.0), checked in order; the first match wins.
 	Pure: a state in, one line out. coach_state.js builds the state from the editor; tests and
@@ -29,6 +31,10 @@
 	                   until it is finished
 	  tool             the picked tool's internal name in the letter view ('newPath', ...)
 	  numbersAdded     "+ Numbers & symbols" is on
+	  boardFilter      the board's filter in effect ('all', 'needsLook', 'empty'; B10 + B11
+	                   integration): on Needs a look, where [Show me] would do nothing, rule 9
+	                   goes through the letters one at a time in rule 7's words with the fix as
+	                   its button (Something else moves to the next letter)
 	  fontProblem      the font check's first problem: { itemId, problem, text, fixable }
 	  fontProblems     every problem it found, in order (B6 + B7 finalize); rule 6 shows the
 	                   first one not skipped
@@ -120,6 +126,12 @@ const openLetter = (state) =>
 	state?.page === 'letter' && state.letter?.char ? state.letter : null;
 /** The open letter has a Point pen shape still open (B6 + B7 fix pass) */
 const drawingOpen = (state) => !!openLetter(state)?.drawing;
+/**
+ * B10 + B11 finalize: the Brush is the tool on an open letter with ink (picked, or the one the
+ * letter opened with once it has ink: font_facts.js). He may still be drawing, so the line never
+ * gives a green button for that letter's check (rule 15's outlined variant, B8 + B9 finalize)
+ */
+const brushingOpen = (state) => state?.tool === 'nib' && !!openLetter(state)?.ink;
 /** No finished shape (B6 + B7 finalize); a state that gives no shapes says it by its ink */
 const isEmpty = (letter) => !(letter?.shapes ?? letter?.ink);
 
@@ -141,6 +153,35 @@ function tryItReady(state) {
  * @returns {{label: String, action: String, args: Object | null}}
  */
 const button = (key, vars, action, args = null) => ({ label: word(key, vars), action, args });
+
+/**
+ * B10 + B11 integration: the board on Needs a look (rule 9): the first letter in board order
+ * whose look he hasn't skipped, in rule 7's words, with its fix; null once every one is skipped.
+ * @param {Object} s - the state
+ * @returns {Object | null} a rule match
+ */
+function nextLookOnBoard(s) {
+	for (const letter of lettersOf(s)) {
+		const look = letter.needsLook;
+		if (!look || letter.drawing) continue;
+		const skipKey = `needsLook:${letter.char}:${look.id ?? ''}`;
+		const sentence = String(look.reason || '');
+		if (isSkippedIn(s.skips, skipKey, sentence)) continue;
+		return {
+			sentence,
+			button: look.fixLabel
+				? {
+						label: String(look.fixLabel),
+						action: look.action || 'fixLetter',
+						args: { char: letter.char, check: look.id ?? null, ...(look.args || {}) },
+				  }
+				: null,
+			skipKey,
+			stamp: sentence,
+		};
+	}
+	return null;
+}
 
 /** 'Capital B', 'The period': a letter at the start of a sentence */
 const startName = (char) => sentenceStart(letterPhrase(char));
@@ -398,6 +439,8 @@ export const RULES = Object.freeze([
 					: null,
 				skipKey: `needsLook:${letter.char}:${look.id ?? ''}`,
 				stamp: sentence,
+				// B10 + B11 finalize: said, never pushed, while the Brush may still be drawing
+				primary: !brushingOpen(s),
 			};
 		},
 		live: (s) =>
@@ -451,11 +494,21 @@ export const RULES = Object.freeze([
 			const count = needsLookCount(s);
 			if (!count) return null;
 			if (s.page !== 'board' && !(s.page === 'letter' && noEmptyLeft(s))) return null;
+			// B10 + B11 integration: the board already shows them, each tile with its fixes; the
+			// line takes them one at a time, the fix its green button, so it always does something
+			// B10 + B11 finalize: once he skipped every one, the line stays on the board's letters
+			// (their fixes are on the tiles), never a green way on to a letter not on screen
+			if (s.page === 'board' && s.boardFilter === 'needsLook') {
+				return (
+					nextLookOnBoard(s) || { sentence: word('coach.rule.needsLook', { count }), skipKey: '' }
+				);
+			}
 			return {
 				sentence: word('coach.rule.needsLook', { count }),
 				button: button('check.showMe', {}, 'showNeedsLook'),
 				skipKey: 'needsLook',
 				stamp: String(count),
+				primary: !brushingOpen(s),
 			};
 		},
 		live: (s) => one(needsLookCount(s) > 0, 'needsLook', String(needsLookCount(s))),
@@ -574,7 +627,7 @@ export const RULES = Object.freeze([
 			if (!next) return null;
 			const letter = letterPhrase(next.char);
 			// the Brush picked on a letter with ink: he may still be drawing (B8 + B9 finalize)
-			const brushing = s.page === 'letter' && s.tool === 'nib' && !!open?.ink;
+			const brushing = brushingOpen(s);
 			const sentence = brushing
 				? word('coach.rule.whenReadyNextLetter', { done: letterPhrase(open.char), letter })
 				: isReady(open) && s.page === 'letter'

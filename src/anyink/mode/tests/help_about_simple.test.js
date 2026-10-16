@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 finalize, the Help and About pages and the letter sets (verdicts: "Simple: Help and
 	About have no way back to the letters", "Simple Help page: one tab named 'Overview' and only a
@@ -28,6 +30,7 @@ import { setModeForTests } from '../mode.js';
 import { lettersPage } from '../../topbar/letters_page.js';
 import { sampleEditor } from './controls_probe.js';
 import { noFlags } from './no_flags.js';
+import { setFeaturesForTests } from '../features.js';
 
 let quiet;
 beforeAll(() => {
@@ -143,6 +146,9 @@ describe('Simple About', () => {
 
 describe('letter sets in Simple', () => {
 	it('the Overview and the letter chooser name Basic Latin in house words', () => {
+		// B10 + B11 integration: the Overview before the board (B5's page); the board names no
+		// letter set at all (board/tests/board_words.test.js)
+		setFeaturesForTests({ board: false });
 		open('Overview', 'simple');
 		const chooser = document.querySelector('option-chooser');
 		expect(chooser.getAttribute('selected-name')).toBe(

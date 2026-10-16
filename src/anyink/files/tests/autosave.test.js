@@ -1,11 +1,14 @@
 // Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCurrentProjectEditor } from '../../../app/main.js';
 import { GlyphrStudioProject } from '../../../project_data/glyphr_studio_project.js';
 import { ProjectEditor } from '../../../project_editor/project_editor.js';
 import * as recovery from '../../recovery/recovery.js';
-import { recEntries, setStorageDriver } from '../../storage/kv.js';
+import { isSessionKey } from '../../recovery/snapshot.js';
+import { recEntries as storeEntries, setStorageDriver } from '../../storage/kv.js';
 import { fakeDriver } from '../../storage/tests/fake_driver.js';
 import { autosaveNow } from '../autosave.js';
 import { resetFileApi, setFileApi } from '../file_api.js';
@@ -18,6 +21,10 @@ import {
 import { adoptFileVersion, rememberFileVersion, savedFileVersion } from '../save_queue.js';
 import { getSaveStatus } from '../save_status.js';
 import { clearDialogs } from './fakes.js';
+
+// B10 + B11 integration (D-042): the Undo list's saved copies are records of their own beside
+// each session's record; these checks read the session records
+const recEntries = async () => (await storeEntries()).filter(([key]) => isSessionKey(key));
 
 const A = 'glyph-0x41';
 let editors, resetStorage, resetRecovery, api;

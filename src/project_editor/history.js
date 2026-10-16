@@ -171,20 +171,31 @@ export class History {
 
 	/**
 	 * Plain, structured-cloneable copy of the undo state for a crash-recovery snapshot.
+	 * ANY-INK (B10 + B11 integration, D-042): stateRef(state) may name a step's saved letter or
+	 * font copy (and the font as opened) instead of copying it: the backup keeps each one as a
+	 * record of its own, written once (recovery/step_states.js), since those copies never change
+	 * once made. A named one is left out here ({ itemState: false, itemStateRef: name } and
+	 * initialProjectRef), and recovery puts it back before adoptSnapshot. The undo floor changes
+	 * as steps fall off the old end, so it is always copied.
+	 * @param {{stateRef?: (state: Object) => String | null}} [options]
 	 * @returns {Object} { projectID, version, initialTimeStamp, initialProject, undoFloor, queue,
-	 *   redoQueue }
+	 *   redoQueue } (and initialProjectRef when named)
 	 */
-	serializeForStorage() {
+	serializeForStorage({ stateRef = null } = {}) {
 		const hasInitial = typeof this.initialProject?.save === 'function';
 		const hasFloor = typeof this.undoFloor?.save === 'function';
+		const initialRef =
+			hasInitial && typeof stateRef === 'function' ? stateRef(this.initialProject) : null;
+		const wire = (entry) => serializeHistoryEntry(entry, { stateRef });
 		return {
 			projectID: this.projectID,
 			version: HISTORY_FORMAT_VERSION,
 			initialTimeStamp: this.initialTimeStamp,
-			initialProject: hasInitial ? this.initialProject.save() : null,
+			initialProject: hasInitial && !initialRef ? this.initialProject.save() : null,
+			...(initialRef ? { initialProjectRef: initialRef } : {}),
 			undoFloor: hasFloor ? this.undoFloor.save() : null,
-			queue: this.queue.map(serializeHistoryEntry),
-			redoQueue: this.redoQueue.map((entries) => entries.map(serializeHistoryEntry)),
+			queue: this.queue.map(wire),
+			redoQueue: this.redoQueue.map((entries) => entries.map(wire)),
 		};
 	}
 
@@ -209,8 +220,10 @@ export class History {
 				? new GlyphrStudioProject(snapshot.initialProject)
 				: this.initialProject;
 			undoFloor = snapshot.undoFloor ? new GlyphrStudioProject(snapshot.undoFloor) : null;
-			queue = (snapshot.queue || []).map(deserializeHistoryEntry);
-			redoQueue = (snapshot.redoQueue || []).map((entries) => entries.map(deserializeHistoryEntry));
+			queue = (snapshot.queue || []).map((entry) => deserializeHistoryEntry(entry));
+			redoQueue = (snapshot.redoQueue || []).map((entries) =>
+				entries.map((entry) => deserializeHistoryEntry(entry))
+			);
 		} catch (error) {
 			console.warn('ANY-INK history: could not adopt the recovered undo queue', error);
 			return false;
@@ -1253,12 +1266,19 @@ export function publishCurrentItem(editor) {
 // Serializing entries
 // --------------------------------------------------------------
 
-export function serializeHistoryEntry(entry) {
+/**
+ * @param {Object} entry - a queue entry
+ * @param {{stateRef?: (state: Object) => String | null}} [options] - ANY-INK (B10 + B11
+ *   integration): names the entry's saved copy instead of copying it (serializeForStorage)
+ * @returns {Object} the plain entry
+ */
+export function serializeHistoryEntry(entry, { stateRef = null } = {}) {
 	const hasItem = entry.itemState && typeof entry.itemState.save === 'function';
+	const ref = hasItem && typeof stateRef === 'function' ? stateRef(entry.itemState) : null;
 	const wire = {
 		timeStamp: entry.timeStamp,
 		itemID: entry.itemID,
-		itemState: hasItem ? entry.itemState.save() : false,
+		itemState: hasItem && !ref ? entry.itemState.save() : false,
 		title: entry.title,
 		page: entry.page,
 		itemWasDeleted: !!entry.itemWasDeleted,
@@ -1271,6 +1291,7 @@ export function serializeHistoryEntry(entry) {
 	if (entry.creationOnly) wire.creationOnly = true;
 	// ANY-INK (B3 fix): a step with parts stays one press after a crash restore
 	if (entry.step) wire.step = entry.step;
+	if (ref) wire.itemStateRef = ref;
 	return wire;
 }
 

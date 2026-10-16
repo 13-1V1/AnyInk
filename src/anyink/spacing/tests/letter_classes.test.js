@@ -86,7 +86,7 @@ describe('line heights', () => {
 
 describe('width limits (B11 uses them)', () => {
 	it('gives naturally narrow letters no lower limit', () => {
-		expect(NARROW_LETTERS).toBe("ijl!.,':;-|");
+		expect(NARROW_LETTERS).toBe("ijlI1!.,':;-|");
 		[...NARROW_LETTERS, 'í'].forEach((char) => {
 			expect(isNaturallyNarrow(char), char).toBe(true);
 			expect(widthLimits(char, GRIDS[2048]).min, char).toBeNull();

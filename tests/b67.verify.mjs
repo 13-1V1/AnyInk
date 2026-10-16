@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { pinBeforeChecks } from './verify_standins.mjs';
 import { formatHit, scanTexts } from '../src/anyink/words/banned.js';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
@@ -119,6 +120,8 @@ const waitUntil = async (check, what, timeout = 15000) => {
 
 const newFont = async (p, origin, name, search = '') => {
 	await p.goto(`${origin}/${search}`);
+	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
+	await pinBeforeChecks(p);
 	const field = p.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill(name);

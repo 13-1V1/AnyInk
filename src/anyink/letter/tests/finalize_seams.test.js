@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6 + B7 finalize: the seams the fix tracks' verifiers found still open, each on one Simple
 	screen as the app draws it (UX-BEGINNER.md 4.0, 4.2, 4.3, 7.2, 7.3, principles 1 and 6):
@@ -16,6 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { removeStopCreatingNewPathButton } from '../../../edit_canvas/tools/new_path.js';
 import { deriveEditorState } from '../../coach/font_facts.js';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { runFontCheckNow } from '../../fontcheck/font_check.js';
 import { word } from '../../words/words.js';
 import { goToLetters } from '../../topbar/letters_page.js';
@@ -215,6 +218,9 @@ describe('one green button on Help and About (principle 1)', () => {
 
 describe('every square counts once its shape is finished (a guard)', () => {
 	it('a square added in a step: Ready, rail 1, no overlay', async () => {
+		// B10 + B11 integration: the guard is about ink; a 400-unit square on small a is also too
+		// short for the checks, which this test leaves out
+		setFeaturesForTests({ checks: false });
 		const editor = letterPage();
 		await settle();
 		const before = ready();

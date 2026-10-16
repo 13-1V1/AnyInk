@@ -1,0 +1,143 @@
+{
+	"about": "Answer key for stray-dot-phone.webp (the B10 + B11 critic's IMG_5012, stored by Chrome as the app stores a photo). Stored image pixels, y down; box = [left, top, right, bottom].",
+	"width": 2000,
+	"height": 1500,
+	"kind": "phone",
+	"paper": "photo",
+	"rows": 1,
+	"letters": [
+		{
+			"char": "B",
+			"row": 0,
+			"box": [
+				203,
+				215,
+				426,
+				435
+			],
+			"center": [
+				315.1,
+				324.5
+			]
+		},
+		{
+			"char": "r",
+			"row": 0,
+			"box": [
+				492,
+				296,
+				593,
+				437
+			],
+			"center": [
+				542.7,
+				366.1
+			]
+		},
+		{
+			"char": "e",
+			"row": 0,
+			"box": [
+				661,
+				192,
+				856,
+				421
+			],
+			"center": [
+				758.9,
+				306.1
+			]
+		},
+		{
+			"char": "n",
+			"row": 0,
+			"box": [
+				930,
+				303,
+				1049,
+				448
+			],
+			"center": [
+				989.7,
+				375.2
+			]
+		},
+		{
+			"char": "a",
+			"row": 0,
+			"box": [
+				1118,
+				350,
+				1254,
+				494
+			],
+			"center": [
+				1186.1,
+				421.5
+			]
+		},
+		{
+			"char": "H",
+			"row": 0,
+			"box": [
+				1398,
+				166,
+				1616,
+				462
+			],
+			"center": [
+				1506.6,
+				313.3
+			]
+		},
+		{
+			"char": "d",
+			"row": 0,
+			"box": [
+				1686,
+				235,
+				1805,
+				446
+			],
+			"center": [
+				1745.1,
+				340.3
+			]
+		}
+	],
+	"written": {
+		"B": 1.08,
+		"r": 0.92,
+		"e": 1.62,
+		"n": 1,
+		"a": 0.98,
+		"H": 1.1,
+		"d": 0.94
+	},
+	"dips": {
+		"a": 0.3
+	},
+	"specks": [
+		{
+			"where": "inside H",
+			"center": [
+				1505.5,
+				232.3
+			]
+		},
+		{
+			"where": "inside r",
+			"center": [
+				572.8,
+				411.3
+			]
+		},
+		{
+			"where": "under the row",
+			"center": [
+				623.3,
+				536.4
+			]
+		}
+	]
+}

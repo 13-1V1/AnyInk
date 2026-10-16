@@ -35,6 +35,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { pinBeforeChecks } from './verify_standins.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const src = resolve(repo, 'src');
@@ -142,6 +143,8 @@ const photoDrawn = () =>
 	);
 const newFont = async (p, origin, name, search = '') => {
 	await p.goto(`${origin}/${search}`);
+	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
+	await pinBeforeChecks(p);
 	const field = p.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill(name);
@@ -992,13 +995,15 @@ try {
 		const { tools: toolsWas, areas: areasWas, ...restWas } = was.facts;
 		assert.deepEqual(restNow, restWas, 'All tools controls changed');
 		const expected = [...toolsWas];
-		expected.splice(expected.indexOf('New path') + 1, 0, 'Brush');
+		// B10 + B11 integration: the last commit (B8 + B9) has the Brush already, as b67 allows
+		if (!toolsWas.includes('Brush')) expected.splice(expected.indexOf('New path') + 1, 0, 'Brush');
 		assert.deepEqual(toolsNow, expected, 'the tool column gains only the Brush, after New path');
 		assert.deepEqual(areasNow, areasWas, 'the page areas moved');
 		const diff = await pixelDiff(was.path, now.path, Object.values(areasNow));
 		assert.equal(diff.size, true);
 		assert.equal(diff.differ, 0, `All tools pixels differ outside the tool column: ${diff.differ} of ${diff.total}`);
-		assert.equal(was.bTool, 'pathEdit');
+		// before B8, B picked Edit points (7.6); the last commit has the Brush already
+		assert.equal(was.bTool, toolsWas.includes('Brush') ? 'nib' : 'pathEdit');
 		pass(`D All tools, before (last commit) and after: the same menus (${now.facts.menus.join(', ')}), panel and ${now.facts.viewTools.length} view tools; the tool column gains only "Brush" after "New path" (${toolsNow.length} tools); the same pixels outside the tool column (0 of ${diff.total} differ); B picks the Brush (was Edit points, 7.6)`);
 	} else {
 		pass(`D All tools today: ${now.facts.menus.join(', ')}; no Simple bar, Next line, card or overlay; B picks the Brush`);

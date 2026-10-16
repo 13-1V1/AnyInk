@@ -208,7 +208,9 @@ describe('letterInk: only the pen ink stays', () => {
 		// at most the soft edge's last pixel goes
 		expect(same / total).toBeGreaterThan(0.93);
 		expect(out.mask).not.toBe(mask);
-	});
+		// B10 + B11 integration: the file's first photo takes 1.7 s alone and over 5 s (the
+		// default limit) when the whole suite runs at once
+	}, 30000);
 
 	it('a gray finger smudge under a letter is cut off it: the letter ends where its own ink does', () => {
 		const { image, letters } = lettersPhoto();

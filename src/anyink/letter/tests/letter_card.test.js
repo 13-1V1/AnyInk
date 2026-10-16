@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 letter card (UX-BEGINNER.md 4.3 "Letter card sections"): a section shows only when it
 	applies, nothing is greyed out. An empty letter shows its name and "Empty" and no buttons
@@ -49,7 +51,14 @@ function openB(shapes = [], { beforeB8 = false } = {}) {
 	// B8 + B9 finalize: the flags as the app ships them ('brush' and 'photo' on); the Brush and
 	// photo sections themselves are tested in photo/tests/b89_seams.test.js. beforeB8: the B7
 	// card, for the one test of the flag gate itself
-	setFeaturesForTests({ letterView: true, ...(beforeB8 ? { brush: false, photo: false } : {}) });
+	// B10 + B11 integration: 'checks' off: these are B7's card on toy letters (a 400-unit square
+	// for B), which the checks would call too short; the card with the checks is
+	// checks/tests/card_checks.test.js
+	setFeaturesForTests({
+		letterView: true,
+		checks: false,
+		...(beforeB8 ? { brush: false, photo: false } : {}),
+	});
 	const editor = twoLetterEditor();
 	editor.selectedGlyphID = B;
 	const item = editor.selectedGlyph;

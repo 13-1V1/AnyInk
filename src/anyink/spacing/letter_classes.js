@@ -13,7 +13,8 @@
 	ink (measure.js measuredSides).
 
 	Width limits (B11's "Width outside the limits for its type"): naturally narrow letters
-	(i j l ! . , ' : ; - |) have no lower limit; any other letter is too narrow under 25% of its
+	(i j l I 1 ! . , ' : ; - |) have no lower limit (B10 + B11 finalize: a Capital I or a 1
+	written as one stroke is as narrow as an l, and was always "too narrow"); any other letter is too narrow under 25% of its
 	own line height; every letter is too wide over 150% of the letter box.
 */
 
@@ -38,7 +39,7 @@ SIDE_ROWS.forEach(([left, right, chars]) => {
 });
 
 /** Letters that are naturally narrow: no lower width limit. */
-export const NARROW_LETTERS = "ijl!.,':;-|";
+export const NARROW_LETTERS = "ijlI1!.,':;-|";
 
 /** Lower width limit: this share of the letter's own line height. */
 export const MIN_WIDTH_SHARE = 0.25;

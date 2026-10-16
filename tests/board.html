@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK letter board (B10)</title>
+	<!-- the app's own order (src/index.html) -->
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<link rel="stylesheet" href="../src/controls/tabs/tab-control.css" />
+	<link rel="stylesheet" href="../src/project_editor/nav.css" />
+	<link rel="stylesheet" href="../src/pages/editor-pages.css" />
+	<link rel="stylesheet" href="../src/pages/content-pages.css" />
+	<link rel="stylesheet" href="../src/app/app-pages.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: 0; overflow: auto; }
+		main { padding: var(--space-3) var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: var(--space-2) 0; }
+		p { color: var(--chrome-text-muted); max-width: 120ch; margin: 0 0 var(--space-2); }
+		code { font-family: var(--font-mono); font-size: var(--text-xs); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; margin-bottom: var(--space-2); font-size: var(--text-sm); }
+		.row label { display: inline-flex; gap: var(--space-1); align-items: center; }
+		.readout { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); }
+		.readout b { color: var(--structure); font-weight: 600; }
+		/* the app's frame at 1600 x 900, the spec's window (4: "Window target: 1600 x 900") */
+		#stage { position: relative; width: 1600px; height: 900px; border: var(--hairline); border-radius: var(--radius); overflow: hidden; }
+		#app__wrapper { position: absolute; inset: 0; }
+		#log { height: 90px; overflow-y: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Letter board (B10)</h1>
+		<p>
+			The real Overview page in <b>Simple</b>, drawn by the real Navigator with the <code>board</code> flag on
+			(this page only, until the integration turns it on in <code>features.js</code>): the board of the Quick font,
+			58 letters in board order, one progress line and its bar, each section's count once it has a ready letter, a
+			check mark once it is done, the toolbar. The font, "Brennan Hand", has letters in every state: <b>B H r n o</b>
+			from a photo, <b>a</b> drawn with the brush, <b>c</b> only a stray line (Empty, as the letter card says),
+			<b>e</b> with ink that B11's check (a stand-in here) says floats above the writing line, and every other letter
+			empty. The rail's "1 Letters 7/58" and the Next line read the same letters.
+		</p>
+		<p>
+			Turn <b>checks</b> on: small e turns amber, the count drops to 6 and the filters show (All / Needs a look /
+			Empty); Needs a look shows e's reason and its outlined fixes (they only log here). The filter he picks lasts
+			only while he stays on the board: open a letter and come back, and the board is on All again; turn checks off
+			and on, and it is on All (the filters hid). On Needs a look, "+ Numbers &amp; symbols" goes back to All and
+			brings the new section into view, washed green for a moment. Click a tile to open the
+			letter; "&larr; All letters" brings you back with that tile ringed green and in view. Type a letter, use the
+			arrows and Enter (board_keys.js). "+ Numbers &amp; symbols" adds the section as one Undo step; Undo and Redo
+			are on the top bar. <i>Finish the small letters</i> fills every empty small letter in one step: "All small letters
+			done. Your font can type words now." shows once.
+		</p>
+		<div class="row">
+			<button type="button" id="drawM">Draw a square on small m (one step)</button>
+			<button type="button" id="finishSmall">Finish the small letters (one step)</button>
+			<button type="button" id="newFont">A new font (every letter empty)</button>
+			<button type="button" id="seeded">The seeded font again</button>
+			<button type="button" id="timeAll">Draw all 58 tiles anew, 20 times</button>
+			<button type="button" id="timeOne">Draw again after a change, 20 times</button>
+		</div>
+		<div class="row">
+			<label><input type="checkbox" id="simple" checked /> Simple (off: All tools)</label>
+			<label><input type="checkbox" data-flag="board" checked /> board</label>
+			<label><input type="checkbox" data-flag="checks" /> checks (B11 stand-in: small e floats)</label>
+			<label><input type="checkbox" data-flag="tryIt" /> tryIt (B12 preview: Letter spacing...)</label>
+		</div>
+		<p class="readout" id="readout"></p>
+		<div id="stage"><div id="app__wrapper"></div></div>
+		<div id="log"></div>
+	</main>
+
+	<script type="module">
+		window.log = () => {};
+		import oblegg from '../src/samples/oblegg.gs2?raw';
+		import { initTheme } from '../src/anyink/theme/theme.js';
+		import { setCurrentProjectEditor } from '../src/app/main.js';
+		import { SaveStatusElement } from '../src/anyink/files/save_status_element.js';
+		import { CoachElement } from '../src/anyink/coach/coach_element.js';
+		import { getCoach, setCoachSource } from '../src/anyink/coach/coach_state.js';
+		import { setCoachAction } from '../src/anyink/coach/actions.js';
+		import { FancyButton } from '../src/controls/fancy-button/fancy_button.js';
+		import { GlyphTile } from '../src/controls/glyph-tile/glyph_tile.js';
+		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
+		import { FontPreview } from '../src/controls/font-preview/font_preview.js';
+		import { EditCanvas } from '../src/edit_canvas/edit_canvas.js';
+		import { InfoBubble } from '../src/controls/info-bubble/info_bubble.js';
+		import { InputNumber } from '../src/controls/input-number/input_number.js';
+		import { OptionChooser } from '../src/controls/option-chooser/option_chooser.js';
+		import { OptionToggle } from '../src/controls/option-toggle/option_toggle.js';
+		import { PreviewStrip } from '../src/anyink/preview/preview_strip.js';
+		import { handleKeyPress, handleKeyUp } from '../src/edit_canvas/events_keyboard.js';
+		import { importGlyphrProjectFromText } from '../src/project_editor/import_project.js';
+		import { ProjectEditor } from '../src/project_editor/project_editor.js';
+		import { Path } from '../src/project_data/path.js';
+		import { Glyph } from '../src/project_data/glyph.js';
+		import { setFeaturesForTests, isFeatureOn } from '../src/anyink/mode/features.js';
+		import { getMode, setMode } from '../src/anyink/mode/mode.js';
+		import { tagStroke } from '../src/anyink/nib/stroke_record.js';
+		import { charToHex } from '../src/common/character_ids.js';
+		import { readyCount } from '../src/anyink/topbar/ready_count.js';
+		import { boardState, installBoard, updateBoard } from '../src/anyink/board/board_page.js';
+		import { toastLog } from '../src/anyink/toast/toast.js';
+
+		initTheme();
+		[
+			['anyink-save-status', SaveStatusElement],
+			['option-chooser', OptionChooser],
+			['option-toggle', OptionToggle],
+			['display-canvas', DisplayCanvas],
+			['fancy-button', FancyButton],
+			['font-preview', FontPreview],
+			['glyph-tile', GlyphTile],
+			['info-bubble', InfoBubble],
+			['input-number', InputNumber],
+			['edit-canvas', EditCanvas],
+			['preview-strip', PreviewStrip],
+			['anyink-coach', CoachElement],
+		].forEach(([name, element]) => customElements.get(name) || customElements.define(name, element));
+		document.addEventListener('keydown', handleKeyPress, false);
+		document.addEventListener('keyup', handleKeyUp, false);
+
+		const $ = (selector) => document.querySelector(selector);
+		const say = (message) => ($('#log').textContent = `${new Date().toLocaleTimeString()}  ${message}\n` + $('#log').textContent);
+		window.addEventListener('error', (event) => say(`ERROR ${event.message}`));
+
+		setMode('simple');
+		setFeaturesForTests({ board: true });
+
+		// B11's checks, stood in: small e floats above the writing line
+		const LOOK = {
+			id: 'line',
+			reason: 'small e floats above the writing line.',
+			short: 'floats above the writing line',
+			fixLabel: 'Sit on the line',
+			action: 'fixLetter',
+		};
+		setCoachSource('checks', (_item, { char }) => (char === 'e' ? LOOK : null));
+		setCoachAction('fixLetter', (args) => say(`fix pressed: ${JSON.stringify(args)} (B11 does it)`));
+		setCoachAction('looksFine', (args) => say(`Looks fine to me pressed: ${JSON.stringify(args)} (B11 does it)`));
+		setCoachAction('tryIt', (args) => say(`Try it asked: ${JSON.stringify(args)} (B12 opens it)`));
+
+		const idOf = (char) => `glyph-${charToHex(char)}`;
+		const PHOTO = 'img-board-0001';
+
+		/** A small photo of handwriting (drawn here), so a traced letter's photo shows in its view */
+		async function photoBlob() {
+			const canvas = document.createElement('canvas');
+			canvas.width = 600;
+			canvas.height = 200;
+			const pen = canvas.getContext('2d');
+			pen.fillStyle = '#fff';
+			pen.fillRect(0, 0, 600, 200);
+			pen.fillStyle = '#111';
+			pen.font = 'italic 120px Segoe Print, cursive';
+			pen.fillText('B r n o', 20, 150);
+			return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+		}
+
+		/** "Brennan Hand": Oblegg's letters in every state the board knows */
+		function seededFont({ empty = false } = {}) {
+			const project = importGlyphrProjectFromText(oblegg);
+			project.settings.project.name = 'Brennan Hand';
+			project.settings.font.family = 'Brennan Hand';
+			const keep = empty ? [] : [...'BHrnoeac'];
+			Object.keys(project.glyphs).forEach((id) => {
+				if (!keep.some((char) => idOf(char) === id)) delete project.glyphs[id];
+			});
+			if (empty) return project;
+			const trace = { asset: PHOTO, width: 600, height: 200, x: -40, y: 1600, scale: 3.2, opacity: 0.25, locked: true };
+			[...'BHrnoe'].forEach((char) => {
+				const item = project.getItem(idOf(char));
+				item.anyink = { ...(item.anyink || {}), trace: { ...trace }, spacing: 'auto' };
+			});
+			// a: drawn with the brush
+			project.getItem(idOf('a')).shapes.forEach((shape, index) => shape.objType === 'Path' && tagStroke(shape, index + 1));
+			// c: only a stray line of two points
+			const c = project.getItem(idOf('c'));
+			c.shapes = [];
+			c.addOneShape(new Path({ name: 'Line', pathPoints: [{ p: { coord: { x: 100, y: 0 } } }, { p: { coord: { x: 600, y: 0 } } }] }));
+			return project;
+		}
+
+		const editor = new ProjectEditor();
+		setCurrentProjectEditor(editor);
+		window.anyinkBoardPage = { editor, boardState, updateBoard, readyCount, getCoach, toastLog };
+
+		async function load(options = {}) {
+			editor.project = seededFont(options);
+			editor.history.queue = [];
+			editor.history.redoQueue = [];
+			if (!editor.assets.has(PHOTO)) editor.assets.add(await photoBlob(), { id: PHOTO, type: 'image/png' });
+			editor.nav.page = 'Overview';
+			editor.navigate();
+			readout();
+		}
+
+		const board = () => document.querySelector('[data-anyink-board]');
+
+		$('#drawM').addEventListener('click', () => {
+			const back = editor.nav.page;
+			editor.nav.page = 'Characters';
+			editor.selectedGlyphID = idOf('m');
+			const corner = (x, y) => ({ p: { coord: { x, y } } });
+			editor.selectedGlyph.addOneShape(new Path({ name: 'Square', pathPoints: [corner(100, 0), corner(900, 0), corner(900, 1020), corner(100, 1020)] }));
+			editor.history.addState('drew a square on small m');
+			editor.nav.page = back;
+			editor.navigate();
+			say('drew a square on small m (one step)');
+		});
+		$('#finishSmall').addEventListener('click', () => {
+			editor.history.addWholeProjectChangePreState('finished the small letters');
+			const model = editor.project.getItem(idOf('e'));
+			[...'abcdefghijklmnopqrstuvwxyz'].forEach((char) => {
+				const item = editor.project.getItem(idOf(char));
+				if (item?.shapes?.length && char !== 'c') return;
+				const copy = new Glyph({ ...model.save(), id: idOf(char), parent: editor.project });
+				copy.anyink = { spacing: 'auto' };
+				editor.project.glyphs[idOf(char)] = copy;
+			});
+			editor.history.addWholeProjectChangePostState();
+			editor.navigate();
+			say('finished the small letters (one whole-font step)');
+		});
+		$('#newFont').addEventListener('click', () => load({ empty: true }).then(() => say('a new font: every letter empty')));
+		$('#seeded').addEventListener('click', () => load().then(() => say('the seeded font')));
+
+		function median(times) {
+			const sorted = [...times].sort((a, b) => a - b);
+			return sorted[Math.floor(sorted.length / 2)];
+		}
+		$('#timeAll').addEventListener('click', () => {
+			const times = [];
+			for (let i = 0; i < 20; i++) {
+				const keep = editor.project;
+				// another copy of the font (as a whole-font Undo brings back): every tile is made anew
+				editor.project = importGlyphrProjectFromText(JSON.stringify(keep.save()));
+				times.push(updateBoard(board()));
+			}
+			window.anyinkBoardPage.fullTimes = times;
+			say(`all 58 tiles anew: median ${median(times).toFixed(2)} ms, worst ${Math.max(...times).toFixed(2)} ms`);
+			readout();
+		});
+		$('#timeOne').addEventListener('click', () => {
+			const times = [];
+			const char = 'm';
+			for (let i = 0; i < 20; i++) {
+				const item = editor.project.getItem(idOf(char)) || (editor.project.glyphs[idOf(char)] = new Glyph({ id: idOf(char), parent: editor.project }));
+				const corner = (x, y) => ({ p: { coord: { x, y } } });
+				item.shapes = i % 2 ? [] : [new Path({ name: 'Square', pathPoints: [corner(100 + i, 0), corner(900, 0), corner(900, 1020), corner(100, 1020)] })];
+				times.push(updateBoard(board()));
+			}
+			window.anyinkBoardPage.oneTimes = times;
+			say(`after one letter's change: median ${median(times).toFixed(2)} ms, worst ${Math.max(...times).toFixed(2)} ms`);
+			readout();
+		});
+
+		$('#simple').addEventListener('change', () => {
+			setMode($('#simple').checked ? 'simple' : 'all');
+			editor.navigate();
+		});
+		document.querySelectorAll('[data-flag]').forEach((box) => {
+			box.checked = isFeatureOn(box.dataset.flag);
+			box.addEventListener('change', () => {
+				setFeaturesForTests({ [box.dataset.flag]: box.checked });
+				getCoach().refresh();
+				say(`${box.dataset.flag} ${box.checked ? 'on' : 'off'}`);
+				editor.navigate();
+			});
+		});
+
+		function readout() {
+			const state = board() ? boardState(board()) : null;
+			const rail = document.querySelector('.anyink-topbar__step-count')?.textContent || '-';
+			const line = getCoach().line();
+			$('#readout').innerHTML =
+				`mode <b>${getMode()}</b> &middot; page <b>${editor.nav.page}</b> &middot; rail <b>${rail}</b>` +
+				` &middot; board <b>${state ? `${state.summary.ready} of ${state.summary.total} ready, ${state.summary.needsLook} need a look` : '-'}</b>` +
+				` &middot; filter <b>${state?.filter || '-'}</b> &middot; last drawing <b>${state ? state.ms.toFixed(2) : '-'} ms</b>` +
+				`<br>Next: <b>${line.sentence || '(empty)'}</b>${line.button ? ` [${line.button}]` : ''} &middot; Undo steps <b>${editor.history.queue.length}</b>`;
+		}
+		editor.subscribe({ topic: '*', subscriberID: 'anyink.boardPage.readout', callback: () => requestAnimationFrame(readout) });
+		window.addEventListener('anyink-save-status', () => requestAnimationFrame(readout));
+		window.addEventListener('anyink-page-change', () => requestAnimationFrame(readout));
+		getCoach().subscribe(() => requestAnimationFrame(readout));
+
+		installBoard();
+		await load();
+		window.anyinkBoardPage.ready = true;
+	</script>
+</body>
+</html>

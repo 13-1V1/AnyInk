@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK trace layer: drops that miss the canvas (Milestone 7 fix).
 
@@ -20,12 +22,19 @@
 	  on any other page the user gets a plain hint. Upstream's open-project page keeps its own
 	  drop area. The canvas, the Trace panel, and the open-project page stop their drops
 	  before they reach the window, so nothing is handled twice.
+	- B10: on the letter board (Simple, 'board' on, the Overview page) every stray file drop goes
+	  to the board (board/board_drop.js routeBoardDrop: a photo on a tile is that letter's, on
+	  blank space the photo dialog with the letter unknown), and a drag held over the board marks
+	  the tile it would go to (markBoardDropTarget). Every other page, All tools, and Simple
+	  without 'board' are as before.
 
 	Nothing touches the DOM at import time.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
 import { handleDropSVGonEditCanvas } from '../../edit_canvas/events_drag_drop_paste.js';
+import { clearBoardDropTarget, markBoardDropTarget, routeBoardDrop } from '../board/board_drop.js';
+import { isBoardShowing } from '../board/board_keys.js';
 import { isWorkFile, sayWorkFileDropped } from '../toast/drop_toasts.js';
 import { DROP_HINT, NOT_TRACEABLE_HINT, classifyDroppedFile } from './paste_drop.js';
 import { isTraceImageFile } from './trace_import.js';
@@ -112,6 +121,7 @@ export function installPageDropGuard({ target, route = routeStrayDrop } = {}) {
 		if (event.defaultPrevented || !hasFiles(event.dataTransfer)) return;
 		event.preventDefault();
 		setDropEffect(event.dataTransfer);
+		markBoard(event);
 	};
 	const onDrop = (event) => {
 		if (event.defaultPrevented || !hasFiles(event.dataTransfer)) return;
@@ -122,11 +132,17 @@ export function installPageDropGuard({ target, route = routeStrayDrop } = {}) {
 			console.warn('ANY-INK trace: a dropped file could not be handled', error);
 		}
 	};
+	// B10: a drag that leaves the window takes the board's mark with it
+	const onDragLeave = (event) => {
+		if (hasFiles(event.dataTransfer)) markBoard(event);
+	};
 	target.addEventListener('dragover', onDragOver);
+	target.addEventListener('dragleave', onDragLeave);
 	target.addEventListener('drop', onDrop);
 
 	const uninstall = () => {
 		target.removeEventListener('dragover', onDragOver);
+		target.removeEventListener('dragleave', onDragLeave);
 		target.removeEventListener('drop', onDrop);
 		guards.delete(target);
 	};
@@ -135,19 +151,38 @@ export function installPageDropGuard({ target, route = routeStrayDrop } = {}) {
 }
 
 /**
+ * B10: the board's mark on the tile a held photo would go to (board_drop.js); never throws.
+ * @param {DragEvent} event
+ */
+function markBoard(event) {
+	try {
+		markBoardDropTarget(event, { editor: getCurrentProjectEditor() });
+	} catch (error) {
+		console.warn('ANY-INK trace: the board could not mark a tile', error);
+	}
+}
+
+/**
  * Where a stray file drop goes.
  * @param {DragEvent} event
  * @param {Object} [options] - seams for tests
  * @param {Object} [options.editor] - default: the current ProjectEditor
  * @param {Function} [options.dropOnCanvas] - default: the canvas's handleDropSVGonEditCanvas
+ * @param {Function} [options.takePhoto] - B10, the board's: default photo_app.js takePhoto
  */
 export function routeStrayDrop(
 	event,
-	{ editor = getCurrentProjectEditor(), dropOnCanvas = handleDropSVGonEditCanvas } = {}
+	{ editor = getCurrentProjectEditor(), dropOnCanvas = handleDropSVGonEditCanvas, takePhoto } = {}
 ) {
 	// Upstream's open-project page has its own drop area; a miss there just stays put
 	if (event?.target?.closest?.('#open-project__page')) return;
 	if (!editor?.project) return;
+	// B10 (UX-BEGINNER.md 4.2 Drops): the letter board takes every drop on its page
+	if (isBoardShowing(editor)) {
+		routeBoardDrop(event, takePhoto ? { editor, takePhoto } : { editor });
+		return;
+	}
+	clearBoardDropTarget();
 	if (TRACE_PAGES.includes(editor.nav?.page)) {
 		dropOnCanvas(event);
 		return;

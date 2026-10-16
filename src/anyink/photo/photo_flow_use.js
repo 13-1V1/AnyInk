@@ -16,11 +16,14 @@ import { applyFollow, photoScale } from '../placement/photo_scale.js';
 import { markAuto } from '../spacing/owner.js';
 import { toast } from '../toast/toast.js';
 import { setTrace } from '../trace/trace_model.js';
-import { letterPhrase } from '../words/letter_name.js';
+import { flippedSince, needsALookNow } from '../checks/fix_step.js';
+import { showItem } from '../preview/show_item.js';
+import { letterPhrase, sentenceStart } from '../words/letter_name.js';
 import { word } from '../words/words.js';
 import { photoData, placementFor } from './photo_flow_data.js';
 import { isAsTraced, setPhotoFit, tracedCopies } from './photo_flow_fit.js';
 import { releaseSavedTrace } from './photo_flow_hold.js';
+import { settleOnLine } from './photo_flow_settle.js';
 import { currentEditor, emit, failure, stateOf, whenFlowSettled } from './photo_flow_state.js';
 import { getPhoto, releaseItem, setScale, usePart } from './photo_registry.js';
 
@@ -67,7 +70,12 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 	});
 
 	const title = word('history.traced', { letter: letterPhrase(char) || char });
-	const finalTrace = { ...flow.trace, opacity: USED_OPACITY, locked: true };
+	// B10 + B11 finalize: a letter the checks would call a little off the line sits on it, with
+	// its photo, inside this step (photo_flow_settle.js)
+	const settled = add
+		? { trace: flow.trace }
+		: settleOnLine(char, copies, flow.trace, project.settings.font);
+	const finalTrace = { ...settled.trace, opacity: USED_OPACITY, locked: true };
 	const asTraced = !add || item.shapes.length === 0;
 	const commit = () => {
 		releaseItem(project, itemId, { except: asset });
@@ -79,6 +87,9 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 	};
 	const shapes = { editor, item, shapes: copies, mode: add ? 'add' : 'replace' };
 
+	// B10 + B11 finalize: which letters need a look before, so the toast can say which this trace
+	// made need one (4.2; the critic: "a trace that turns other letters amber says nothing")
+	const before = needsALookNow(editor);
 	flow.applying = true;
 	let applied = false;
 	try {
@@ -120,14 +131,15 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 	if (plan.length) history.updateAfterSaveState?.();
 	const resized = plan.filter((entry) => entry.resized).map((entry) => entry.char);
 	const moved = plan.filter((entry) => !entry.resized).map((entry) => entry.char);
-	sayFollowers(char, resized, moved);
+	const flipped = flippedSince(before, editor, { except: itemId });
+	sayFollowers(editor, char, { resized, moved, flipped });
 	try {
 		showTip('photoStays');
 	} catch (error) {
 		console.warn('ANY-INK photo: the tip could not show', error);
 	}
 	emit(null, editor);
-	return { ok: true, title, resized, moved };
+	return { ok: true, title, resized, moved, flipped };
 }
 
 /**
@@ -149,26 +161,57 @@ function withoutSteps(editor) {
 	});
 }
 
-/** The toast after Use it, when earlier letters of the photo followed (principle 6). */
-function sayFollowers(char, resized, moved) {
-	if (!resized.length && !moved.length) return;
+/**
+ * The toast after Use it, when earlier letters of the photo followed (principle 6), or letters
+ * now need a look that didn't (B10 + B11 finalize: said in the same toast, with [Show me], which
+ * opens the first of them). A list names two letters, then how many more.
+ */
+function sayFollowers(editor, char, { resized, moved, flipped = [] }) {
+	if (!resized.length && !moved.length && !flipped.length) return;
 	const letter = letterPhrase(char) || char;
 	const names = (chars) => listOf(chars.map((c) => letterPhrase(c) || c));
+	let key = 'photoFlow.traced';
+	let vars = { letter };
 	if (resized.length && moved.length) {
-		toast(
-			'photoFlow.tracedResizedMoved',
-			{ letter, resized: names(resized), moved: names(moved) },
-			{ kind: 'automatic' }
-		);
+		key = 'photoFlow.tracedResizedMoved';
+		vars = { letter, resized: names(resized), moved: names(moved) };
 	} else if (resized.length) {
-		toast('photoFlow.tracedResized', { letter, others: names(resized) }, { kind: 'automatic' });
-	} else {
-		toast('photoFlow.tracedMoved', { letter, others: names(moved) }, { kind: 'automatic' });
+		key = 'photoFlow.tracedResized';
+		vars = { letter, others: names(resized) };
+	} else if (moved.length) {
+		key = 'photoFlow.tracedMoved';
+		vars = { letter, others: names(moved) };
 	}
+	if (!flipped.length) {
+		toast(key, vars, { kind: 'automatic' });
+		return;
+	}
+	const first = editor.project?.getItem?.(flipped[0]);
+	const said = word(key, vars);
+	const look =
+		flipped.length === 1
+			? word('photoFlow.flippedOne', { other: sentenceStart(letterPhrase(first?.chars) || '') })
+			: word('photoFlow.flippedMany', { count: flipped.length });
+	toast(
+		'photoFlow.saidAndFlipped',
+		{ said, flipped: look },
+		{ kind: 'automatic', action: { key: 'check.showMe', run: () => showItem(editor, flipped[0]) } }
+	);
 }
 
-/** "Capital B, small r and small e" */
-function listOf(names) {
+/**
+ * "Capital B, small r and small e"; past three, "Capital B, small r and 9 other letters"
+ * @param {Array<String>} names
+ * @returns {String}
+ */
+export function listOf(names) {
 	if (names.length < 2) return names[0] || '';
+	if (names.length > 3) {
+		return word('photoFlow.listMore', {
+			first: names[0],
+			second: names[1],
+			count: names.length - 2,
+		});
+	}
 	return word('photoFlow.listAnd', { first: names.slice(0, -1).join(', '), last: names.at(-1) });
 }

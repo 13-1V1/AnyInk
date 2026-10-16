@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 wiring (UX-BEGINNER.md 4.3, 6.3): the real Characters page drawn by the real Navigator.
 	In Simple with the letter view, the left area's letter and panel buttons give way to the letter
@@ -60,7 +62,9 @@ const square = (x = 100) =>
  */
 function letterPage({ mode = 'simple', letterView = true, id = 'glyph-0x44' } = {}) {
 	setModeForTests(mode);
-	setFeaturesForTests({ letterView });
+	// B10 + B11 integration: 'checks' off: B7's page on toy shapes the checks would judge (the
+	// card with the checks is checks/tests/card_checks.test.js)
+	setFeaturesForTests({ letterView, checks: false });
 	addStyles();
 	const editor = sampleEditor();
 	document.body.innerHTML = '<div id="app__wrapper"></div>';

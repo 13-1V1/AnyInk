@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: the letter card (UX-BEGINNER.md 4.3 "Letter card sections"), in the panel slot of the
 	Simple letter view (panels.js; nav.panel stays 'Attributes' or 'Trace'). A section shows only
@@ -42,6 +44,16 @@
 	                 y, Q J f; photo/letter_tail.js): [It has a tail] / [No tail], the one it is
 	                 now pressed; a press goes out as TAIL_EVENT and the photo flow re-seats the
 	                 letter in one step (photo/photo_flow_tail.js)
+	B10 + B11 integration (Simple with 'checks' on; 4.2 "Ready", 4.3 Header):
+	  Header         the chip says "Needs a look: floats above the writing line" (amber) when the
+	                 checks find a problem he hasn't said looks fine (checks/cache.js, the Next
+	                 line's own source, so the chip, the tile and the Next line agree)
+	  Look           under the header: [Looks fine to me] (outlined; one step, "said small n looks
+	                 fine", checks/looks_fine_step.js) while it needs a look, and each soft note as
+	                 a quiet line ("Note: thicker than your other letters."), which never takes
+	                 Ready away. The fix button is the Next line's (rule 7), never repeated here.
+	                 Never while a Point pen shape on this letter is still open (it isn't judged),
+	                 nor while the photo card runs
 	Every change is one Undo step with a plain title (2.2): Merge, Flip, Clear letter and Back to
 	automatic name the letter (7.3); Solid / Hole and Smooth / Corner write the letter-tools
 	track's titles. Clear letter says so in a toast with [Undo] (7.3: destructive actions use an
@@ -83,6 +95,9 @@
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
 import { inkOf } from '../board/letter_set.js';
+import { getChecksCache } from '../checks/cache.js';
+import { runLooksFine } from '../checks/looks_fine_step.js';
+import { isSimpleMode } from '../mode/mode.js';
 import { makeBrushSection } from '../nib/size_control.js';
 import { PHOTO_CARD_EVENT, isPhotoCardOpen, photoCardElement } from '../photo/photo_card_slot.js';
 import { TAIL_EVENT, letterTail } from '../photo/letter_tail.js';
@@ -116,6 +131,8 @@ const CARD_TOPICS = [
 	'whichToolIsSelected',
 	'editCanvasView',
 	'traceLayer',
+	// B10 + B11 integration: a font-file problem is "Needs a look" too, and comes 2 s later
+	'fontCheck',
 ];
 
 /** The drawing tools whose picked point gets This point */
@@ -165,6 +182,9 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 	const pickedShape = singleton(editor?.multiSelect?.shapes);
 	const point = pickedPoint(editor);
 	const char = charOf(editor, item);
+	const ink = letterInk(item, editor).length > 0;
+	const checked = ink && !(open && item?.shapes?.includes(open)) ? checksOf(editor, item) : null;
+	const look = checked?.needsLook || null;
 	const shapes = [];
 	(item?.shapes || []).forEach((shape, index) => {
 		// the shape the Point pen is still drawing is listed once it is finished
@@ -184,7 +204,10 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 		itemId: editor?.selectedGlyphID || null,
 		char,
 		name: letterName(char) || word('check.aLetter'),
-		status: letterInk(item, editor).length ? 'ready' : 'empty',
+		status: ink ? (look ? 'needsLook' : 'ready') : 'empty',
+		// B10 + B11 integration: the check he hasn't said looks fine, and the soft notes
+		look: look ? { id: look.id, reason: look.reason, short: look.short } : null,
+		notes: checked ? (checked.notes || []).map((note) => note.text) : [],
 		hasShapes: shapes.length > 0,
 		hasPhoto: !!getTrace(item),
 		// B9's photo card says when one of its steps is open (B8 + B9 integration)
@@ -247,6 +270,9 @@ export function spacingShown(item) {
  */
 export function cardSections(state, isOn = isFeatureOn) {
 	const sections = ['header'];
+	// B10 + B11 integration: [Looks fine to me] and the soft notes, never beside the photo
+	// card's step C (its [Use it] is about the new trace, not the ink he has now)
+	if (!state.photoCardOpen && (state.look || state.notes?.length)) sections.push('look');
 	if (state.hasShapes && !state.photoCardOpen && mainButtons(state, isOn).length) {
 		sections.push('main');
 	}
@@ -487,6 +513,7 @@ function render(view) {
 	card.dataset.anyinkCardState = state.status;
 	const builders = {
 		header: () => makeHeader(state),
+		look: () => makeLookSection(state, editor),
 		main: () => makeMainButtons(state),
 		photo: () => makePhotoSection(),
 		brush: () => makeBrushSection(),
@@ -502,7 +529,7 @@ function render(view) {
 
 /** The flags the card reads, so turning one on in a test page draws it again */
 function flagsSeen() {
-	return ['brush', 'photo'].map((flag) => isFeatureOn(flag));
+	return ['brush', 'photo', 'checks'].map((flag) => isFeatureOn(flag));
 }
 
 function makeHeader(state) {
@@ -510,15 +537,71 @@ function makeHeader(state) {
 	const name = makeElement({ tag: 'h3', className: 'anyink-letter-card__name' });
 	name.textContent = state.name;
 	const key = `letter.state.${state.status}`;
+	// B10 + B11 integration: "Needs a look: floats above the writing line", the reason in full
+	// as its tooltip
+	const look = state.status === 'needsLook' && state.look;
 	const chip = makeElement({
 		tag: 'span',
 		className: 'anyink-letter-card__state',
-		attributes: { 'data-anyink-state': state.status, title: hintOf(key) },
+		attributes: {
+			'data-anyink-state': state.status,
+			title: look ? String(state.look.reason || '') : hintOf(key),
+		},
 	});
-	chip.textContent = word(key);
+	chip.textContent = look
+		? word('checks.state.needsLookWhy', { reason: shortOf(state.look) })
+		: word(key);
 	header.appendChild(name);
 	header.appendChild(chip);
 	return header;
+}
+
+/**
+ * B10 + B11 integration: [Looks fine to me] while the letter needs a look, and its soft notes.
+ * @param {Object} state - letterCardState
+ * @param {Object} editor
+ * @returns {HTMLElement | null}
+ */
+function makeLookSection(state, editor) {
+	if (!state.look && !state.notes?.length) return null;
+	const section = makeElement({ tag: 'div', className: 'anyink-letter-card__look' });
+	if (state.look) {
+		const row = makeElement({ tag: 'div', className: 'anyink-letter-card__buttons' });
+		row.appendChild(
+			actionButton('looksFine', 'checks.looksFine', () =>
+				runLooksFine({ itemId: state.itemId, check: state.look.id }, { editor })
+			)
+		);
+		section.appendChild(row);
+	}
+	(state.notes || []).forEach((text) => {
+		const note = makeElement({ tag: 'p', className: 'anyink-letter-card__note' });
+		note.textContent = text;
+		section.appendChild(note);
+	});
+	return section;
+}
+
+/** @returns {String} a check's reason without the letter's name or its period */
+function shortOf(look) {
+	return String(look?.short || look?.reason || '')
+		.trim()
+		.replace(/[.]$/, '');
+}
+
+/**
+ * B10 + B11 integration: the letter's checks, in Simple with 'checks' on (checks/cache.js, the
+ * Next line's source); null elsewhere, or when they can't be read.
+ * @returns {{needsLook: Object | null, notes: Array<{id: String, text: String}>} | null}
+ */
+function checksOf(editor, item) {
+	if (!item || !isSimpleMode() || !isFeatureOn('checks')) return null;
+	try {
+		return getChecksCache().state(editor, item);
+	} catch (error) {
+		console.warn('ANY-INK letter card: the checks could not be read', error);
+		return null;
+	}
 }
 
 function makeMainButtons(state) {

@@ -1,5 +1,7 @@
 /* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
    brennanmmeyer@gmail.com */
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 /*
 	B7 (UX-BEGINNER.md 4.3): the Simple letter view's left area (the letter header and the letter
 	card), the empty-letter overlay over the canvas, and the view switches under it. Everything is
@@ -134,6 +136,31 @@
 .anyink-letter-card__state[data-anyink-state='empty'] {
 	border-style: dashed;
 	color: var(--chrome-text-faint);
+}
+
+/* B10 + B11 integration: "Needs a look: <reason>" in the board tile's amber (tile_state.css),
+   the "!" there and the words here; the header wraps so a long reason goes under the name */
+.anyink-letter-card__header {
+	flex-wrap: wrap;
+}
+
+.anyink-letter-card__state[data-anyink-state='needsLook'] {
+	border: 1px solid var(--warning);
+	background-color: var(--warning-soft);
+	color: var(--chrome-text);
+}
+
+.anyink-letter-card__look {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+/* A soft note: a quiet line that never takes Ready away (4.2) */
+.anyink-letter-card__note {
+	margin: 0;
+	color: var(--chrome-text-muted);
+	font-size: var(--text-xs);
 }
 
 .anyink-letter-card__buttons {

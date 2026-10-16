@@ -1629,8 +1629,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B7 | Letter view (**done 10/14/2026**) | `letter/` | 4 | A calm editing screen |
 | B8 | Brush (round) (**done 10/15/2026**) | `nib/` | 2.5 | Drag to draw |
 | B9 | Photos: How card, photo dialog, photo card (**done 10/15/2026**) | `photo/` | 4 | One photo makes many letters |
-| B10 | Letter board | `board/` | 3 | Home with progress |
-| B11 | Checks and fixes | `checks/` | 2.5 | Needs a look, with one-click fixes |
+| B10 | Letter board (**done 10/15/2026**) | `board/` | 3 | Home with progress |
+| B11 | Checks and fixes (**done 10/15/2026**) | `checks/` | 2.5 | Needs a look, with one-click fixes |
 | B12 | Try it and gap fixes | `tryit/` | 3 | Test and fix gaps visually |
 | B13 | Start screen | `start/` | 2.5 | Create, Continue, crash card |
 | B14 | Use in Word | `install/` | 2.5 | The full loop to Word |
@@ -2056,6 +2056,13 @@ keys (D-041).
 
 ### B10. Letter board
 
+**DONE 10/15/2026** (board-page and board-tiles tracks, then the B10 + B11 integration, which turned
+`board` and `checks` on together, and the critic, fix and finalize passes; D-042, D-043). The board
+is Simple's Overview: 58 tiles (80 with "+ Numbers & symbols"), one progress line, the rail and the
+Next line counting with one Ready rule, type a letter to open it, drops to the photo dialog or a
+work file, Undo that stays on the board, and a filter that lasts only while he is on it. Checks:
+`tests/b1011.verify.mjs`, `tests/board_page.verify.mjs`, `tests/board_tiles.verify.mjs`.
+
 - `src/anyink/board/`: `board_page.js` (the Overview right area in Simple), `tile_state.js` (extends
   `GlyphTile` `session-state`), `progress.js` (one line, then section counts), `filters.js`,
   `board_keys.js` (type a letter to open it, arrows, Enter), `board_drop.js` (routing to the photo
@@ -2070,6 +2077,12 @@ keys (D-041).
 - **Done when:** these pass. Days: 3.
 
 ### B11. Checks and fixes
+
+**DONE 10/15/2026** (checks and fixes tracks, then the B10 + B11 integration and the critic, fix and
+finalize passes; D-042, D-043). One "Needs a look" for the board, the rail, the letter card and the
+Next line, each check with its one-press fix and [Looks fine to me]; the rules the spec left open
+(Brush letters by the pen's line when they sink and when fixed, tails by their body, pen-dot specks, the size check waiting for
+the photo, Move the line only inside the letter box) are in D-043. Pokes is a soft note (D-042).
 
 - `src/anyink/checks/`: `checks.js` (pure, per letter, each returning `{ id, reason, fix }`),
   `soft_notes.js`, `cache.js` (recompute only the letter named by the narrow topic, on release),

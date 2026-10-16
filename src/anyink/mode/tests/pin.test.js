@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md 6.3 "Tests"): the vitest setup file pins mode 'all' with no feature flag
 // forced before every test, so the existing suite keeps seeing upstream behavior and a Simple
 // test opts in with setModeForTests('simple'). These two tests run in order: the first leaves
@@ -15,15 +17,16 @@ import { getMode, setModeForTests } from '../mode.js';
 describe('the vitest setup pins All tools', () => {
 	it('a test may switch to Simple and turn a flag on (and not clean up)', () => {
 		setModeForTests('simple');
-		setFeaturesForTests({ board: true });
+		// B10 + B11 integration: tryIt, a flag that hasn't landed ('board' is on in the app now)
+		setFeaturesForTests({ tryIt: true });
 		expect(getMode()).toBe('simple');
-		expect(isFeatureOn('board')).toBe(true);
+		expect(isFeatureOn('tryIt')).toBe(true);
 	});
 
 	it('the next test starts in All tools with every flag off again', () => {
 		expect(getMode()).toBe('all');
 		expect(document.documentElement.getAttribute('data-ui-mode')).toBe('all');
-		expect(isFeatureOn('board')).toBe(false);
+		expect(isFeatureOn('tryIt')).toBe(false);
 	});
 
 	it('the setup file says so', () => {

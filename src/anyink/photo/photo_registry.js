@@ -28,6 +28,8 @@
 	    used: { [partId]: { char, itemId, seq, tail? } },  the letter named for the part, the
 	                                 letter's record id, the naming order, [It has a tail] / [No tail]
 	    skipped: [partId],           "Skip this part"
+	    junk?: [partId],             the skipped parts no pen wrote (markJunk, B10 + B11
+	                                 finalize): they never break the alphabet prefill's run
 	    done,                        "Done with this photo"
 	    scale }                      the photo's scale (B3 photo_scale.js), or null before any letter
 	The coach's own reader (coach/font_facts.js photoRecords: parts minus used) reads this shape;
@@ -369,6 +371,22 @@ export function skipPart(record, partId) {
 }
 
 /**
+ * B10 + B11 finalize: a part the finder skipped because no pen wrote it (photo_flow_ink.js
+ * isJunkPart: ruled lines, punch holes, a crossed-out letter). Skipped like his own skips, and
+ * remembered as junk, so it never breaks the alphabet prefill's run (comesNext) the way a part
+ * he skipped does.
+ * @param {Object} record
+ * @param {String} partId
+ * @returns {Boolean} true when skipped
+ */
+export function markJunk(record, partId) {
+	if (!skipPart(record, partId)) return false;
+	if (!Array.isArray(record.junk)) record.junk = [];
+	if (!record.junk.includes(partId)) record.junk.push(partId);
+	return true;
+}
+
+/**
  * "Done with this photo" (rule 12 stops for it; its unused parts stay usable).
  * @param {Object} record
  * @param {Boolean} [done]
@@ -504,7 +522,9 @@ export function guessPart(record, { char } = {}) {
 	const small = SMALL_MARKS.has(verticalClass(char));
 	const sized = free.filter((id) => {
 		const part = byId.get(id);
-		return small ? isMarkSized(part, usual) : !isMarkSized(part, usual) && isLetterSized(part, record);
+		return small
+			? isMarkSized(part, usual)
+			: !isMarkSized(part, usual) && isLetterSized(part, record);
 	});
 	const pool = sized.length || !small ? sized : free;
 	if (!pool.length) return null;
@@ -730,6 +750,10 @@ export function normalizePhotoRecord(raw, asset) {
 		if (typeof id === 'string' && ids.has(id) && !used[id] && !skipped.includes(id))
 			skipped.push(id);
 	}
+	// B10 + B11 finalize: the finder's own skips (markJunk), only while still skipped
+	const junk = (Array.isArray(source.junk) ? source.junk : []).filter(
+		(id, i, all) => skipped.includes(id) && all.indexOf(id) === i
+	);
 	const scale = source.scale;
 	const paper = PHOTO_PAPERS.includes(source.paper) ? source.paper : 'scan';
 	const lightInk = source.lightInk === true;
@@ -750,6 +774,7 @@ export function normalizePhotoRecord(raw, asset) {
 		parts,
 		used,
 		skipped,
+		...(junk.length ? { junk } : {}),
 		done: source.done === true,
 		scale: typeof scale === 'number' && Number.isFinite(scale) && scale > 0 ? scale : null,
 	};
@@ -929,9 +954,21 @@ function runNeighbor(record, char, pool) {
  * boxes he drew and used; `extra` (a box he is drawing) put in its place, taking the place of
  * the parts it covers.
  */
-function readingList(record, extra = null) {
+function readingList(record, extra = null, { keepSkipped = false } = {}) {
 	const covers = usedBoxes(record);
-	const skipped = new Set(Array.isArray(record?.skipped) ? record.skipped : []);
+	// keepSkipped (the prefill, B10 + B11 finalize; the critic's U, VW skipped, X filled in as
+	// "V"): a letter-sized part he skipped stays in its place, so a letter he passed over breaks
+	// the run; the finder's junk and a skipped mark (a smudge) never do
+	const junk = new Set(Array.isArray(record?.junk) ? record.junk : []);
+	const usual = keepSkipped ? usualSize(record) : 0;
+	const passedOver = (id) =>
+		!keepSkipped ||
+		junk.has(id) ||
+		!isLetterSized(partOf(record, id), record) ||
+		isMarkSized(partOf(record, id), usual);
+	const skipped = new Set(
+		(Array.isArray(record?.skipped) ? record.skipped : []).filter(passedOver)
+	);
 	const leftovers = leftoverParts(record);
 	const extraCovers = extra ? [extra] : [];
 	const parts = (record?.parts || []).filter(
@@ -965,7 +1002,7 @@ function comesNext(record, fromId, boxed) {
 		}
 	}
 	if (!target) return false;
-	const order = readingList(record, extra);
+	const order = readingList(record, extra, { keepSkipped: true });
 	const from = order.findIndex((p) => p.id === fromId);
 	return from >= 0 && order[from + 1]?.id === target.id;
 }

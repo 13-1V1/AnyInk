@@ -1661,3 +1661,173 @@ before the fix pass).
 **Revisit if:** real felt-tip photos split letters at the rescue's darkness floor, a second pen's
 ruled-line bits come back as letters, Brennan finds the m@490 case in practice, or a font's
 whole-font steps run past 400,000 points.
+
+## D-042: B10 and B11 integration choices (one "Needs a look", the backup's saved copies, the seams)
+**Decided:** 10/15/2026, in the B10 + B11 integration, which turned on `board` and `checks`
+together and joined the four tracks (board-page, board-tiles, checks, fixes) to the Next line, the
+rail, the letter card, the photo screens and crash recovery (UX-BEGINNER.md principles 1, 6, 8;
+4.0 rules 7 and 9, 4.2, 4.3, 7.2, 7.3; D-026, D-033, D-037).
+**Chose:**
+- **One "Needs a look" everywhere** (`checks/checks_app.js`, started in `main.js`): the app's checks
+  cache follows the current editor and reads the font check's last problems; it is the Next line's
+  'checks' source, so rules 7 and 9, the coach's letters, the board's tiles and counts (which read
+  the coach's letters) and the rail (which counts with the board's `readyRuleFor`) can't disagree;
+  the letter card reads the same cache. `fixLetter` and `looksFine` are the Next line's and the
+  tiles' actions. Checked in Chrome: the board and the rail said the same count at every step (7,
+  5, 6, 5, 6, 7), and the Next line's letters agreed where read (7, 5, 7).
+- **The letter card** (4.3 Header): the chip says "Needs a look: floats above the writing line" in
+  the tile's amber, the full sentence as its tooltip; under it [Looks fine to me] (outlined) and
+  each soft note as a quiet line. The fix stays the Next line's (rule 7), never repeated in the
+  card. Never while a Point pen shape on the letter is still open.
+- **Looks fine to me is one item step** (`checks/looks_fine_step.js`, "said small n looks fine"),
+  from the card or a tile; on a tile the board stays the board (fix_step.js points History at the
+  letter for that one step).
+- **Move the line only where it would move** (the fixes track's need 1, in `cache.js`): [Move the
+  line to fit your writing] needs 2 letters off the same way (checks.js) and the middle of his
+  letters on that line off that way too (`fit_lines_to_writing.js lineMoveWays`, read from the
+  kept measures through `impliedFromMeasures` / `waysFromValues`, so nothing is measured twice).
+  Right after the line moved, the letters it flipped get [Match size].
+- **One voice for a letter a change flips** (4.2, principle 6): the fixes' own toast
+  (`fix_step.js sayFlipped`: "Moving the line made 2 letters need a look." [Show me]) for a fix or
+  a moved line. `cache.js`'s CHECKS_CHANGE_EVENT gets no toast of its own, so nothing is said twice.
+- **Rule 9 on a board already showing Needs a look** (`coach/rules.js nextLookOnBoard`; the coach
+  reads the board's filter): [Show me] would do nothing there, yet 4.2 keeps the one green button
+  on the Next line (principle 1). The line takes the letters one at a time in rule 7's words ("small
+  e is too tall for the small-letter line." [Match size]); Something else moves to the next letter;
+  once every one is skipped rule 9 says nothing there. On All, the count and [Show me] as before.
+- **One word for "Needs a look"**: tiles use the checks' `checks.state.needsLook`;
+  `boardTile.caption.needsLook` is gone.
+- **The backup's saved copies, a record each** (D-026's revisit, the board-tiles track's need 3,
+  their first option; D-033's limits stand): every Undo step's saved copy of a letter or of the
+  whole font, and the font as it was opened, is its own record in the 'recovery' store
+  (`recovery/step_states.js`, key 'state:<projectId>:<sessionId>:<n>'), written the first time a
+  write names it and deleted when the list no longer holds it; the session's record names them
+  (`History.serializeForStorage({ stateRef })`: `itemStateRef`, `initialProjectRef`). Deleting a
+  session's record deletes its copies; a copy whose record is gone is swept when the backups are
+  listed (never one of a live session here or in another tab); a restore puts the copies back
+  before History adopts the list, and a missing copy restores the font without its Undo list. In
+  Chrome on a 58-letter traced font with the list at its fullest (200 steps, 30 about the whole
+  font): before, every write 1,090 ms for 38.9 MB (Simple); now a write after a step on a letter
+  26 to 34 ms (Simple and All tools, two runs) and after a step about the whole font (two new
+  copies) 56 to 60 ms; the session's record 0.7 to 1.3 MB (the font, and the undo floor once
+  steps fall off the old end: it changes, so it is always copied). A session that starts
+  with a long list (a restored backup) writes every copy once, about 2.8 s on that font, right
+  after the restore (in the background; the font is already on screen).
+- **A work file dropped on the board opens** (4.2 Drops, the board-tiles track's need 4;
+  `files/open_font.js openDroppedFont`): the file's handle is taken during the drop
+  (`getAsFileSystemHandle` works only then), so Save writes back to it; Ctrl+O's box first when the
+  work file is behind ([Save] [Cancel]); after Save it opens with no second click (a drop needs no
+  picker); with no handle the dropped file is read and the font has no work file yet; a file
+  ANY-INK can't read says 7.7's sentence.
+- **Pokes is a soft note** (the checks track's choice, `checks.js POKES_IS_NOTE`): the exporter
+  sets the font's clipping lines from the real highest and lowest ink (font-flux-js
+  usWinAscent / usWinDescent), so Word cuts nothing off (section 8); as a check it turned 8 of 58
+  letters of a neat traced alphabet amber. `pokesAsNote: false` brings back [Shrink to fit].
+- **Tests that pin an earlier B** (B5's Overview, B7's card on toy letters) turn `board` or
+  `checks` off for themselves; the export toast and the first photo test wait as long as a full
+  suite's load needs (they timed out at 8 s and 5 s there, never alone).
+**Open:** a letter flipped by a change that isn't a fix (the photo flow's "Also resized B", a
+whole-font Undo) is said only by that change's own toast; rule 9's guided line on the filtered
+board is new behavior for Gate 2; the photo doesn't follow a Select-tool resize of a traced
+letter, while Match size scales both; a real Explorer drag's handle (the headless check drops a
+made File, so it takes the no-handle path); the first write after a restore (2.8 s once).
+**Why:** principles 1, 6, 8; 4.0, 4.2, 4.3, 7.2, 7.3; D-026's own revisit rule.
+**Affects:** `checks/checks_app.js` (new), `looks_fine_step.js` (new), `cache.js`,
+`fit_lines_to_writing.js`; `recovery/step_states.js` (new), `recovery.js`, `snapshot.js`; upstream
+`project_editor/history.js`; `letter/letter_card.js`, `letter.css`; `topbar/simple_top_bar.js`;
+`board/board_page.js`, `board_drop.js`, `tile_state.js`; `coach/rules.js`, `font_facts.js`;
+`files/open_font.js`; `mode/features.js`; `app/main.js`; word set `board_tiles.js`.
+**Revisit if:** Brennan reads rule 9's guided line as a second Show me, a photo-flow resize turns a
+letter amber with nothing said, or a backup write after a step goes past 100 ms on a real font.
+
+## D-043: B10 and B11 finalize choices (the hostile pass and its verifiers)
+**Decided:** 10/15/2026, in the B10 + B11 finalize, after the first-timer and critic runs, the
+four fix tracks (board-page, checks, fixes, and the integration) and their verifiers
+(UX-BEGINNER.md principles 1, 6, 8; 4.0 rules 7, 9, 15; 4.2; 4.4; 7.2; 7.3; D-026, D-034, D-041,
+D-042).
+**Chose:**
+- **The checks' rules the spec left open** (the checks track, `checks/checks.js`,
+  `body_bottom.js`):
+  - A Brush letter sinks by the line the pen drew, its center (`penAllowance`: half the stroke's
+    own nib, from `glyph.anyink.nib.strokes`), and floats by its ink, each within 2 % of the
+    letter box like every body; the fixes seat the pen's line (`fix_shapes.js seatLine`), so a
+    fixed Brush letter sits where one drawn to the line does, its round end half a nib under it,
+    and clears both ways at once. The verifier's "tolerance stacks" (ink up to about 91 units
+    under the line reads Ready) is this rule, kept on purpose: judging the ink would call a pen
+    that stops a pixel under the line "sinks" (a mouse drag ends within a few pixels, and the
+    Brush has no snap). Judging floating by the pen's line too was tried and dropped: a round
+    stroke whose ink touches the line (the nib check's a) read "floats".
+  - A tail letter is judged by its body: the bowl of g p q Q (placement's counter rule, then the
+    ink of two Brush strokes together, then a bowl that stops short of closing by up to a stroke,
+    `BOWL_GAP`), the joint of y, the head of , ;. A bowl or a joint gets half a stroke and a
+    stroke more room; j, and J f with their tail on, only float when all the ink is above the line.
+  - A pen-sized dot beside a plain letter or number (not i j, not accented) is a speck: about
+    round, at most 2 strokes across, under a quarter of the biggest piece, clear of the others. A
+    tap straight over or under a letter is not one (B11).
+  - A comma with a head floats or sinks by its half-width row; a small comma or a slash never sinks
+    unless all of it is under the line.
+  - Capital I and 1 are naturally narrow (`spacing/letter_classes.js NARROW_LETTERS`), and an
+    automatic letter already at its fit is never offered [Fit spacing] for its width (it would do
+    nothing).
+- **The size check waits for the photo** (`checks/photo_walk.js`): a letter still exactly as
+  traced from a photo with free parts and no Done has no size check until 5 plain letters are named
+  from it (`SETTLED_LETTERS`; 3 was not enough: the verifier's walk e H r B d a n, the two letters
+  written too big first, called the r "too short" with a green [Match size] and flipped two letters
+  later). A median of 5 holds with 2 of them written off. Done with this photo, or the photo used
+  up, ends the wait at once (the Done press marks the font changed, which the board, the Next line
+  and the checks follow). A letter he resized himself keeps that size (it is his change, judged like
+  any other); it doesn't follow the photo's scale afterwards.
+- **Move the line** (the fixes track, `fit_lines_to_writing.js`): only inside the letter box, and
+  never pushing another line past letters that fit it now (`lineCanMoveTo`); a [Move the line]
+  left over from before a change resizes the pressed letter instead. Every press of a check's fix
+  runs the font check at once (`fixes.js`), so [Fix it] clears with no 2 s wait.
+- **The board's filter lasts only while he is on the board and a letter needs a look**
+  (`board/filters.js settleBoardFilter`, `endBoardFilter`; the board-page track): the board always
+  opens on All; a switch to All tools ends it (a More tools visit doesn't). "+ Numbers & symbols"
+  goes back to All and scrolls the new section into view, washed green for 1.6 s.
+- **The Next line and the Brush** (`coach/rules.js brushingOpen`, `font_facts.js`): while the Brush
+  is the tool on a letter with ink (picked, or the one the letter opened with once it has ink), he
+  may still be drawing, so no rule gives that letter a green button: rule 7 says its problem with
+  the fix outlined, rule 9 in the letter view outlines [Show me], rule 15 says "When small b looks
+  right, go to small c." outlined. The letter card's chip shows as always. Chosen over holding the
+  check until he leaves: then a letter that sinks would say nothing until the board.
+- **Something else on a look ends when he asks again** (`coach_state.js forgetLookSkips`): opening
+  a tile and [Show me] end that letter's (or every) look skip. On a board filtered to Needs a look
+  with every letter skipped, rule 9 says the count with no button (the tiles hold the fixes), never
+  a green way on to a letter not on screen.
+- **Photos** (`photo/`):
+  - A stray pen dot joins the piece above it only as the dot of ! or ? (`ink_parts.js`: within 0.4
+    of the typical height under it, its middle under the piece's lowest ink), so it never stretches
+    a letter's part, seats it in the air or splits a row.
+  - A traced letter the checks would call a little off the line (at most 5 % of the letter box)
+    settles on it, photo too, inside Use it's step (`photo_flow_settle.js`); placement and the
+    check read the bottom two ways (the photo's turn, the tracer's smoothing).
+  - The toast after Use it names the letters the trace made need a look, in the same toast, with
+    [Show me] (4.2: "a toast says so"), and a list names two letters and then how many more.
+  - A crossed-out letter is junk (`photo_flow_ink.js isScribbledOut`: as one pen-wide line its ink
+    runs 4 box diagonals or more and fills half its box; the notebook's Q 5.3 and 0.67, the
+    fixtures' letters 2.8 and 0.42 at most), skipped as it comes in and remembered as junk
+    (`photo_registry.js markJunk`, `record.junk`).
+  - The alphabet prefill stops at a letter-sized part he skipped (it may be a letter he passed
+    over: after U with VW skipped, X was filled in as "V"); the finder's junk and a skipped mark
+    never stop it. An l written touching an m is as wide as an M, so it isn't caught as two
+    letters; the prefill no longer runs on past it once he skips it.
+- **The backup keeps a live session's saved copies through a save** (`recovery.js`,
+  `step_states.js pending`): Save deletes the session's record, not its copies, so the next write
+  sends only what is new (the critic: 0.85 s and a 0.4 s freeze after every save); a clean session
+  that ends, or a tab that closes clean, takes its copies with it, and the orphan sweep takes any
+  left. Each copy is saved as it is written and the page gets a turn every 12 ms of work, so the
+  first write after a restore no longer runs as one long task.
+**Open (Gate 2, Brennan's call):** rule 9's one-at-a-time line on a filtered board (D-042); tool
+keys inside a letter view right after the board taught "type a letter to open it" (7.6 says the
+keys pick tools there, with a toast); the outlined fix while the Brush is picked. Not B10 or B11:
+the faint photo doesn't follow a Select-tool resize of a traced letter (Match size moves both); a
+real Explorer drag of a .gs2 still needs a manual check (the headless check drops a made File).
+**Why:** principles 1, 6, 8; 4.0, 4.2, 4.4, 7.2, 7.3; D-026's revisit rule.
+**Affects:** `checks/checks.js`, `body_bottom.js`, `photo_walk.js`, `cache.js`, `fix_shapes.js`,
+`fixes.js`, `fit_lines_to_writing.js`; `coach/rules.js`, `font_facts.js`, `coach_state.js`;
+`board/board_page.js`, `filters.js`, `board.css`; `photo/ink_parts.js`, `photo_flow.js`,
+`photo_flow_use.js`, `photo_flow_settle.js` (new), `photo_flow_ink.js`, `photo_registry.js`; word
+set `photo_flow.js`; `spacing/letter_classes.js`; `recovery/recovery.js`, `step_states.js`.
+**Revisit if:** Brennan reads an outlined fix as "nothing to do", a real photo's crossed-out letter
+is offered or a real letter is skipped as junk, or a backup write after a save goes past 100 ms.

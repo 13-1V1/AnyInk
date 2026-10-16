@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK recovery snapshot helpers (Milestone 6, D-012).
 	Pure functions shared by recovery.js and recovery_ui.js: the session record
@@ -17,7 +19,9 @@
 	  - project:    editor.project.save()                   (payload)
 	  - assets:     editor.assets.toBlobMap()               (payload)
 	  - history:    editor.history.serializeForStorage()    (payload: the undo queue that
-	                describes exactly this project, adopted on restore)
+	                describes exactly this project, adopted on restore). B10 + B11
+	                integration (D-042): with options.stateRef, each step's saved copy is a
+	                record of its own (step_states.js) and the queue names it
 	Older builds wrote one record per project under 'session:<projectId>' without key,
 	lock or history; those stay listable and restorable.
 */
@@ -65,11 +69,13 @@ export function peekProject(editor) {
  * @param {String} [options.key] - store key of the session
  * @param {String} [options.sessionId]
  * @param {String} [options.lock] - Web Lock name the session holds
+ * @param {Function} [options.stateRef] - (copy) => its record's key: the Undo list names each
+ *   step's saved copy instead of copying it (step_states.js makeStateBook refFor)
  * @returns {Object | null} null when the editor has no project
  */
 export function makeSessionRecord(
 	editor,
-	{ dirty, time, includeProject = true, key, sessionId, lock }
+	{ dirty, time, includeProject = true, key, sessionId, lock, stateRef = null }
 ) {
 	const project = peekProject(editor);
 	const meta = project?.settings?.project;
@@ -92,7 +98,7 @@ export function makeSessionRecord(
 		record.assets = typeof editor.assets?.toBlobMap === 'function' ? editor.assets.toBlobMap() : {};
 		record.history =
 			typeof editor.history?.serializeForStorage === 'function'
-				? editor.history.serializeForStorage()
+				? editor.history.serializeForStorage(stateRef ? { stateRef } : undefined)
 				: null;
 	}
 	return record;

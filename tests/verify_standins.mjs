@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Real-browser check helpers (B5 wiring): reach a screen the way each mode can, for the
 	*.verify.mjs walkthroughs that run in Simple (?ui=simple). Since B5, Simple draws no page
@@ -25,6 +27,13 @@
 	                         app's start page has loaded, every feature flag is turned off in the
 	                         page (mode/features.js setFeaturesForTests), so Simple draws as it did
 	                         before B6 and B7. B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs
+	  pinBeforeChecks(page)  B10 + B11 integration: B6 to B9's walkthroughs (b67, b67-fixes, b89,
+	                         b89_final) and B10's board_tiles draw toy letters (a square, a brush scribble, clicked
+	                         points) that B11's checks rightly call "Needs a look", which takes
+	                         Ready, the rail's count and the Next line's sentence from the screens
+	                         they check. Once the start page has loaded, 'checks' is turned off in
+	                         the page; everything else is as the app ships it (the board is home).
+	                         B10 + B11's Simple with the checks: b1011.verify.mjs
 	Each takes the Playwright page of the dev app (served from src/, so modules are /app/...).
 */
 
@@ -36,6 +45,17 @@ export async function pinB5Simple(page) {
 	await page.evaluate(async () => {
 		const { FEATURE_NAMES, setFeaturesForTests } = await import('/anyink/mode/features.js');
 		setFeaturesForTests(Object.fromEntries(FEATURE_NAMES.map((name) => [name, false])));
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page - on the app's start page (or about to be)
+ */
+export async function pinBeforeChecks(page) {
+	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
+	await page.evaluate(async () => {
+		const { setFeaturesForTests } = await import('/anyink/mode/features.js');
+		setFeaturesForTests({ checks: false });
 	});
 }
 

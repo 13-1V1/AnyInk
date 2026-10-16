@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B6: the coach's state (UX-BEGINNER.md 4.0 "Next line"): it follows the editor through its
 // topics (makeEditorTracker), reads the font (ink, the save status, the font check, photos),
 // remembers this session's changes (since Try it, since the last font file), one turn per
@@ -650,11 +652,12 @@ describe('Something else, hide, facts and sources', () => {
 
 	it('B6 + B7 (the flags as the app has them): rules whose flags are off never speak', () => {
 		// B8 + B9 integration: the app has the Brush and photos on too; a new font with no ink
-		// and no photo says rule 11, the photo's way in
+		// and no photo says rule 11, the photo's way in. B10 + B11 integration: the board and
+		// the checks too (no letter needs a look on a font with no ink)
 		resetFeaturesForTests();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
-		expect(coach.state().flags).toEqual(flags('letterView', 'brush', 'photo'));
+		expect(coach.state().flags).toEqual(flags('letterView', 'brush', 'photo', 'board', 'checks'));
 		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
 		// before B9 (photo off) the same font says rule 15, as it did
 		setFeaturesForTests({ photo: false });

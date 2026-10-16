@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B6 + B7 finalize, real-browser check of every finding the fix tracks' verifiers left open (docs/
 // UX-BEGINNER.md 4.0, 4.2, 4.3, 7.2, 7.3, 7.4, 7.6, principles 1, 5 and 6), in the real app on a Vite
 // dev server, Chrome with a throwaway profile, 1600 x 900, ?ui=simple, the flags as the app has
@@ -33,6 +35,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { pinBeforeChecks } from './verify_standins.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const src = resolve(repo, 'src');
@@ -72,6 +75,8 @@ async function freshFont(name = 'Brennan Hand') {
 	});
 	page.on('dialog', (dialog) => dialog.dismiss());
 	await page.goto(`${origin}/?ui=simple`);
+	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
+	await pinBeforeChecks(page);
 	const field = page.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill(name);

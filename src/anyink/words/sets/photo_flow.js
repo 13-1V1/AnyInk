@@ -19,6 +19,8 @@ const PHOTO_FLOW = {
 	// --------------------------------------------------------------
 	// After Use it, when earlier letters from the photo followed (4.0, 4.4)
 	// --------------------------------------------------------------
+	// B10 + B11 finalize: before "... needs a look now." when no earlier letter followed
+	'photoFlow.traced': { text: 'Traced {letter}.', feature: 'photo' },
 	'photoFlow.tracedResized': {
 		text: 'Traced {letter}. Also resized {others} to match the photo.',
 		feature: 'photo',
@@ -33,6 +35,17 @@ const PHOTO_FLOW = {
 	},
 	// Joins the last two letters of a list: "Capital B, small r and small e"
 	'photoFlow.listAnd': { text: '{first} and {last}', feature: 'photo' },
+	// B10 + B11 finalize: a list never runs on (the critic's toast named 11 letters): two names,
+	// then how many more
+	'photoFlow.listMore': {
+		text: '{first}, {second} and {count|1 other letter|# other letters}',
+		feature: 'photo',
+	},
+	// B10 + B11 finalize: the letters this trace made need a look (4.2: "If a later change flips
+	// a letter he isn't looking at, a toast says so"), said in the same toast, with [Show me]
+	'photoFlow.flippedOne': { text: '{other} needs a look now.', feature: 'checks' },
+	'photoFlow.flippedMany': { text: '{count} letters need a look now.', feature: 'checks' },
+	'photoFlow.saidAndFlipped': { text: '{said} {flipped}', feature: 'photo' },
 
 	// --------------------------------------------------------------
 	// When the trace of a part can't be used (7.7)

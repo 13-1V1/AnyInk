@@ -1,0 +1,243 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B10: the letter board's page (UX-BEGINNER.md 4.2): the progress line, the filters and toolbar,
+	the sections. The tiles themselves are tile_state.css (inside GlyphTile). Colors are tokens
+	only: no green fill here (the one green button is the Next line's, principle 1), green outline
+	for the filter he picked, his ink color for the progress bar. Sentence case: no uppercase
+	transform anywhere (2.2).
+*/
+
+/* The board takes the whole page: no left area in Simple */
+.content__page.anyink-board-page {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.content__page.anyink-board-page > .anyink-board-area {
+	grid-column: 1;
+	padding: var(--space-4) var(--space-5) var(--space-6) var(--space-5);
+}
+
+.anyink-board {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	font-family: var(--font-ui);
+	color: var(--chrome-text);
+}
+
+/* --------------------------------------------------------------
+   Your letters   7 of 58 ready   [#####.........]
+   -------------------------------------------------------------- */
+
+.anyink-board__head {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2) var(--space-4);
+}
+
+.anyink-board .anyink-board__title {
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--chrome-text);
+}
+
+.anyink-board__progress {
+	font-size: var(--text-base);
+	color: var(--chrome-text);
+	white-space: nowrap;
+}
+
+.anyink-board__bar {
+	flex: 1 1 240px;
+	max-width: 720px;
+	height: 10px;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius-sm);
+	background-color: var(--chrome-bg-sunken);
+	overflow: hidden;
+}
+
+/* the bar fills with his ink */
+.anyink-board__bar-fill {
+	width: 0;
+	height: 100%;
+	background-color: var(--chrome-text);
+	transition: width 200ms ease-out;
+}
+
+/* --------------------------------------------------------------
+   Show: (All 58) (Needs a look 1) (Empty 51)        [Use a photo...] ...
+   -------------------------------------------------------------- */
+
+.anyink-board__controls {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2) var(--space-4);
+}
+
+.anyink-board__filters,
+.anyink-board__toolbar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.anyink-board__toolbar {
+	margin-left: auto;
+}
+
+.anyink-board__filters-label {
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+}
+
+/* every board button is outlined (principle 1); scoped so resets.css' button rules don't win */
+.anyink-board button.anyink-board__filter,
+.anyink-board button.anyink-board__tool,
+.anyink-board button.anyink-board__fix {
+	margin: 0;
+	padding: var(--space-1) var(--space-3);
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.anyink-board button.anyink-board__filter:hover,
+.anyink-board button.anyink-board__tool:hover,
+.anyink-board button.anyink-board__fix:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-board button.anyink-board__filter:focus-visible,
+.anyink-board button.anyink-board__tool:focus-visible,
+.anyink-board button.anyink-board__fix:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* the filter in effect: a green outline, never a fill */
+.anyink-board button.anyink-board__filter[aria-pressed='true'] {
+	border-color: var(--touch);
+	box-shadow: inset 0 0 0 1px var(--touch);
+}
+
+/* --------------------------------------------------------------
+   Sections and tiles
+   -------------------------------------------------------------- */
+
+.anyink-board__sections {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-5);
+}
+
+.anyink-board .anyink-board__section-head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-3);
+	height: 20px;
+	margin: 0 0 var(--space-2) 0;
+	font-size: var(--text-base);
+	line-height: 20px;
+	font-weight: 600;
+	color: var(--chrome-text);
+}
+
+.anyink-board__section-count {
+	font-weight: normal;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-board__section-done {
+	font-weight: 700;
+	color: var(--chrome-text);
+}
+
+.anyink-board__section-count[hidden],
+.anyink-board__section-done[hidden],
+.anyink-board__note[hidden] {
+	display: none;
+}
+
+/* a section just added ("+ Numbers & symbols"): a soft green wash that fades, so the press shows
+   what it did (fix pass; board_page.js revealSection) */
+.anyink-board__section[data-anyink-new] {
+	border-radius: var(--radius);
+	animation: anyink-board-new 1600ms ease-out;
+}
+
+@keyframes anyink-board-new {
+	from {
+		background-color: var(--touch-soft-strong);
+		box-shadow: 0 0 0 var(--space-2) var(--touch-soft-strong);
+	}
+	to {
+		background-color: transparent;
+		box-shadow: 0 0 0 var(--space-2) transparent;
+	}
+}
+
+.anyink-board__tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, 96px);
+	gap: var(--space-2);
+}
+
+.anyink-board__cell {
+	display: flex;
+	flex-direction: column;
+	width: 96px;
+}
+
+.anyink-board__cell > glyph-tile {
+	flex: none;
+}
+
+.anyink-board .anyink-board__note,
+.anyink-board .anyink-board__nothing {
+	margin: var(--space-2) 0 0 0;
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+}
+
+/* Under "Needs a look": the tile, then its reason and its fixes beside it */
+.anyink-board[data-filter='needsLook'] .anyink-board__tiles {
+	grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+	gap: var(--space-3);
+}
+
+.anyink-board[data-filter='needsLook'] .anyink-board__cell {
+	flex-direction: row;
+	align-items: flex-start;
+	gap: var(--space-3);
+	width: auto;
+}
+
+.anyink-board__look {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.anyink-board .anyink-board__reason {
+	margin: 0;
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+}
+
+.anyink-board__fixes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}

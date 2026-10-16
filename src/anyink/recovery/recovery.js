@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK crash recovery (Milestone 6, D-012 / D-018 / D-026, RESEARCH 2.5).
 	Replaces upstream's localStorage auto-saves with rolling snapshots in the
@@ -43,6 +45,18 @@
 	a restore adopts exactly the queue that describes the restored project.
 	A failed write shows a toast at most once per FAILURE_TOAST_INTERVAL_MS and is
 	kept in getRecoveryStatus().lastError.
+
+	The Undo list's saved copies (B10 + B11 integration, D-042: D-026's revisit). Each step's
+	saved copy of a letter or of the whole font, and the font as it was opened, is a record of
+	its own ('state:<projectId>:<sessionId>:<n>', step_states.js), written the first time a
+	write names it and deleted when the list no longer holds it. A write sends the font, the
+	list's titles and only the new copies: on a 58-letter traced font with the list at its
+	fullest the whole record was 39 MB and about 1.1 s in Chrome; now a write after a step is
+	the font and one or two copies. Deleting a session's record deletes its copies; a copy whose
+	session record is gone (a crash between the two writes) is swept when the list of backups
+	is read, unless its session is live here or in another tab. Restore puts the copies back
+	into the list before History adopts it; a copy that is missing restores the font without
+	its Undo list.
 
 	Toasts (B4) go through the one toast voice (src/anyink/toast/toast.js) by words key:
 	deps.toast(key, vars, options), as toast() takes them. "Couldn't save a backup copy. Press
@@ -93,7 +107,7 @@ import { isProjectFileHandle } from '../files/write_file.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
 import { runFileCommand } from '../files/run_command.js';
 import { toast } from '../toast/toast.js';
-import { recClear, recDel, recEntries, recGet, recSet } from '../storage/kv.js';
+import { recClear, recDel, recEntries, recGet, recKeys, recSet } from '../storage/kv.js';
 import { acquireLock, heldLockNames, lockName, sessionLockName } from './session_lock.js';
 import {
 	describeSession,
@@ -103,11 +117,14 @@ import {
 	peekProject,
 	sessionKey,
 } from './snapshot.js';
+import { inlineStates, isStateKey, makeStateBook, ownerOfState } from './step_states.js';
 
 /** Trailing debounce after the last edit before a snapshot is written. */
 export const SNAPSHOT_DELAY_MS = 3000;
 /** Longest an edit waits for a snapshot while edits keep coming. */
 export const SNAPSHOT_MAX_WAIT_MS = 3000;
+/** B10 + B11 finalize: a backup write gives the page a turn after this long of work */
+export const WRITE_SLICE_MS = 12;
 /** A failed snapshot write toasts at most this often. */
 export const FAILURE_TOAST_INTERVAL_MS = 60000;
 /** Dead snapshots kept per project id (newest first); older ones are deleted. */
@@ -304,6 +321,7 @@ export async function listRecoverableSessions() {
 	const held = await heldLockNames(deps.locks());
 	const { kept, extra } = splitRecoverable(entries, held, liveKeys());
 	if (extra.length) await deleteRecords(extra);
+	await sweepOrphanStates(entries, held);
 	return kept.map(([key, record]) => describeSession(record, key));
 }
 
@@ -323,13 +341,15 @@ export async function restoreSession(id) {
 		notifyChange(); // any list still showing it is stale
 		throw goneError(key);
 	}
+	// B10 + B11 integration (D-042): the steps' saved copies are records of their own; read
+	// them before the font goes in, so the adopt below still runs right after it
+	const history = await inlineStates(record.history, recGet);
 
 	deps.importProject(record.project);
 	const editor = safeGetEditor();
 	// The queue recorded with this project describes exactly this project. Must run
 	// synchronously after 'editor.project = x' (ProjectEditor made a fresh History).
-	if (typeof editor?.history?.adoptSnapshot === 'function')
-		editor.history.adoptSnapshot(record.history);
+	if (typeof editor?.history?.adoptSnapshot === 'function') editor.history.adoptSnapshot(history);
 	if (typeof editor?.assets?.loadBlobMap === 'function') editor.assets.loadBlobMap(record.assets);
 	if (editor) editor.loadedFileHandle = record.fileHandle || false;
 	if (editor) {
@@ -379,6 +399,7 @@ export async function discardSession(id) {
 		return false;
 	}
 	await recDel(key);
+	await deleteStatesOf([key]);
 	notifyChange();
 	return true;
 }
@@ -396,6 +417,7 @@ export async function forgetAllSnapshots() {
 		await state.writing;
 		await recClear();
 		sessions.forEach((session) => {
+			session.states?.lostAll();
 			session.recorded = false;
 			session.supersedes = null;
 			releaseSupersededLock(session);
@@ -479,6 +501,8 @@ function startSession(editor, meta) {
 		supersedes: null, // restored from this key; deleted after the first write
 		supersededLock: null, // holds the source record's lock until then
 		ended: false,
+		// B10 + B11 integration (D-042): the Undo list's saved copies, a record each
+		states: makeStateBook(key),
 	};
 	state.sessions.set(editor, session);
 	subscribeEditor(editor);
@@ -501,6 +525,8 @@ function endSession(session) {
 	}
 	session.lock.release();
 	releaseSupersededLock(session);
+	// B10 + B11 finalize: a clean session's copies (kept through its saves) are no one's now
+	if (!session.dirty && !session.recorded) enqueue(() => deleteStatesOf([session.key]));
 	if (session.dirty || session.recorded) {
 		const pendingWrites = state.writing;
 		Promise.all([session.lock.released, pendingWrites]).then(notifyChange, notifyChange);
@@ -637,7 +663,16 @@ function onVisibilityChange() {
 function onPageHide() {
 	state.sessions.forEach((session) => {
 		if (session.dirty) snapshotSession(session, 'pagehide');
-		else if (session.recorded || session.supersedes) enqueue(() => deleteOwnRecords(session));
+		else {
+			if (session.recorded || session.supersedes) enqueue(() => deleteOwnRecords(session));
+			// B10 + B11 finalize: the copies a clean session kept through its saves (best effort;
+			// the orphan sweep takes any left at the next start)
+			enqueue(async () => {
+				if (session.dirty) return;
+				await deleteStatesOf([session.key]);
+				session.states?.lostAll();
+			});
+		}
 	});
 }
 
@@ -708,15 +743,30 @@ async function writeSession(session, reason) {
 		return false;
 	}
 	if (editor.history !== session.history) return false; // replaced: syncSessions ends it
+	const book = session.states;
+	book.beginWrite();
 	const record = makeSessionRecord(editor, {
 		dirty: reason === 'manual' ? session.dirty : true,
 		time: deps.now(),
 		key: session.key,
 		sessionId: session.sessionId,
 		lock: session.lockName,
+		stateRef: book.refFor,
 	});
 	if (!record || record.id !== session.projectId) return false;
 	try {
+		// the copies the list names that aren't stored yet, then the record that names them.
+		// B10 + B11 finalize: each copy is saved as it is written, and the page gets a turn
+		// every WRITE_SLICE_MS, so a long list (after a restore) never freezes it
+		let slice = deps.now();
+		for (const [stateKey, value] of book.pending()) {
+			await recSet(stateKey, value);
+			book.written(stateKey);
+			if (deps.now() - slice >= WRITE_SLICE_MS) {
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				slice = deps.now();
+			}
+		}
 		await recSet(session.key, record);
 	} catch (error) {
 		reportWriteFailure(error);
@@ -732,7 +782,14 @@ async function writeSession(session, reason) {
 	) {
 		setSaveStatus(editor, { recovery: 'saved' });
 	}
-	state.lastWrite = { key: session.key, id: record.id, time: record.time, reason };
+	state.lastWrite = {
+		key: session.key,
+		id: record.id,
+		time: record.time,
+		reason,
+		states: book.size(),
+	};
+	await deleteUnnamedStates(session);
 	const firstWrite = !session.recorded;
 	session.recorded = true;
 	if (session.supersedes) await deleteSupersededRecord(session);
@@ -797,6 +854,75 @@ async function deleteRecords(pairs) {
 			console.warn(`ANY-INK recovery: could not delete the old snapshot ${key}`, error);
 		}
 	}
+	await deleteStatesOf(pairs.map(([key]) => key));
+}
+
+/**
+ * B10 + B11 integration (D-042): the saved copies a write no longer names (steps that left the
+ * Undo list) go. Best effort: one that stays is deleted with its session.
+ * @param {Object} session
+ */
+async function deleteUnnamedStates(session) {
+	for (const key of session.states.unnamed()) {
+		try {
+			await recDel(key);
+			session.states.forget(key);
+		} catch (error) {
+			console.warn('ANY-INK recovery: could not delete an old backup step', error);
+			return;
+		}
+	}
+}
+
+/**
+ * Deletes every saved copy of these sessions (their records are gone or going). Best effort.
+ * @param {Array<String>} sessionKeys
+ */
+async function deleteStatesOf(sessionKeys) {
+	const owners = new Set(sessionKeys.filter(Boolean));
+	if (!owners.size) return;
+	let keys = [];
+	try {
+		keys = await recKeys();
+	} catch (error) {
+		console.warn('ANY-INK recovery: could not list the backup steps', error);
+		return;
+	}
+	for (const key of keys || []) {
+		if (!owners.has(ownerOfState(key))) continue;
+		try {
+			await recDel(key);
+		} catch (error) {
+			console.warn(`ANY-INK recovery: could not delete the backup step ${key}`, error);
+		}
+	}
+}
+
+/**
+ * Saved copies whose session record is gone (a crash between writing the copies and the record)
+ * go, unless that session is live in this tab or holds its lock in another. Without the Web
+ * Locks API nothing is swept (another tab could be writing its first record).
+ * @param {Array<[String, Object]>} entries - the whole store
+ * @param {Set<String> | null} held
+ */
+async function sweepOrphanStates(entries, held) {
+	if (!held) return;
+	const sessions = new Set(entries.map(([key]) => key).filter(isSessionKey));
+	const live = liveKeys();
+	const orphans = entries
+		.map(([key]) => key)
+		.filter((key) => isStateKey(key))
+		.filter((key) => {
+			const owner = ownerOfState(key);
+			return !sessions.has(owner) && !live.has(owner) && !held.has(sessionLockName(owner));
+		});
+	for (const key of orphans) {
+		try {
+			await recDel(key);
+		} catch (error) {
+			console.warn(`ANY-INK recovery: could not delete the backup step ${key}`, error);
+		}
+	}
 }
 
 /** After a restored session's first write, the record it came from can go. */
@@ -808,6 +934,7 @@ async function deleteSupersededRecord(session) {
 		console.warn('ANY-INK recovery: could not delete the restored snapshot', error);
 		return;
 	}
+	await deleteStatesOf([oldKey]);
 	if (session.supersedes === oldKey) session.supersedes = null;
 	releaseSupersededLock(session);
 	notifyChange();
@@ -822,6 +949,12 @@ async function deleteOwnRecords(session) {
 		console.warn('ANY-INK recovery: could not delete a clean snapshot', error);
 		return false;
 	}
+	// B10 + B11 integration (D-042): the restored source's saved copies go with it. B10 + B11
+	// finalize (the critic: the write after every Save re-sent the whole list, 0.85 s with a
+	// 0.4 s freeze): this live session keeps its own, so the next write sends only what is new.
+	// With no session record they are no backup on their own (nothing names them); the orphan
+	// sweep takes them once this session is gone (its lock let go: sweepOrphanStates)
+	if (session.supersedes) await deleteStatesOf([session.supersedes]);
 	const hadRecords = session.recorded || !!session.supersedes;
 	session.recorded = false;
 	session.supersedes = null;

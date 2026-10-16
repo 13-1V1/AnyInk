@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md principle 8, section 10 "Feature flags"): one flag per feature, each turned on
 // by the B that builds it, all off until then, so no screen shows a door to a later B. The flag
 // names are the ones words.js entries carry, so Help's glossary (B4) and the visibility tables
@@ -35,8 +37,11 @@ const SPEC_FLAGS = [
 	'roughen',
 ];
 
-/** The flags the Bs that have landed turned on (B6 + B7 integration; B8 brush, B9 photo). */
-const LANDED = ['coach', 'letterView', 'brush', 'photo'];
+/**
+ * The flags the Bs that have landed turned on (B6 + B7 integration; B8 brush, B9 photo; B10 + B11
+ * integration: board, checks).
+ */
+const LANDED = ['coach', 'letterView', 'brush', 'photo', 'board', 'checks'];
 
 describe('feature flags', () => {
 	it("are the spec's flags, in its order", () => {
@@ -47,7 +52,7 @@ describe('feature flags', () => {
 	});
 
 	// B6 + B7 integration: each B turned on only its own flag; every later one is still off
-	it('are on for the Bs that have landed (B6 coach, B7 letterView, B8 brush, B9 photo) and off for the rest', () => {
+	it('are on for the Bs that have landed (B6 to B11) and off for the rest', () => {
 		SPEC_FLAGS.forEach((name) => {
 			const on = LANDED.includes(name);
 			expect(FEATURES[name], name).toBe(on);
@@ -95,16 +100,17 @@ describe('feature flags', () => {
 
 describe('test overrides', () => {
 	it('turn a flag on for isFeatureOn until reset, and hand back what they replaced', () => {
-		// B9: board and checks are flags that haven't landed (brush and photo have)
-		expect(setFeaturesForTests({ checks: true })).toEqual({});
-		expect(isFeatureOn('checks')).toBe(true);
-		expect(isFeatureOn('board')).toBe(false);
-		expect(setFeaturesForTests({ board: true })).toEqual({ checks: true });
-		expect(isFeatureOn('checks')).toBe(true);
-		expect(isFeatureOn('board')).toBe(true);
+		// B10 + B11 integration: tryIt and startScreen are flags that haven't landed (board and
+		// checks have)
+		expect(setFeaturesForTests({ tryIt: true })).toEqual({});
+		expect(isFeatureOn('tryIt')).toBe(true);
+		expect(isFeatureOn('startScreen')).toBe(false);
+		expect(setFeaturesForTests({ startScreen: true })).toEqual({ tryIt: true });
+		expect(isFeatureOn('tryIt')).toBe(true);
+		expect(isFeatureOn('startScreen')).toBe(true);
 		resetFeaturesForTests();
-		expect(isFeatureOn('checks')).toBe(false);
-		expect(isFeatureOn('board')).toBe(false);
+		expect(isFeatureOn('tryIt')).toBe(false);
+		expect(isFeatureOn('startScreen')).toBe(false);
 	});
 
 	it('turn a landed flag off for isFeatureOn until reset (a "before this B" guard)', () => {
@@ -122,8 +128,8 @@ describe('test overrides', () => {
 	});
 
 	it('never change FEATURES itself', () => {
-		setFeaturesForTests({ board: true, coach: false });
-		expect(FEATURES.board).toBe(false);
+		setFeaturesForTests({ tryIt: true, coach: false });
+		expect(FEATURES.tryIt).toBe(false);
 		expect(FEATURES.coach).toBe(true);
 		resetFeaturesForTests();
 	});

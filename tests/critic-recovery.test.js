@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { it, expect, vi } from 'vitest';
 import { ProjectEditor } from '../src/project_editor/project_editor.js';
 import { GlyphrStudioProject } from '../src/project_data/glyphr_studio_project.js';
@@ -9,6 +11,11 @@ import { recEntries, setStorageDriver } from '../src/anyink/storage/kv.js';
 import { fakeDriver } from '../src/anyink/storage/tests/fake_driver.js';
 import { rememberFileVersion } from '../src/anyink/files/save_queue.js';
 import { getSaveStatus } from '../src/anyink/files/save_status.js';
+import { isSessionKey } from '../src/anyink/recovery/snapshot.js';
+
+// B10 + B11 integration (D-042): the Undo list's saved copies are records of their own beside
+// the session's record; these checks read the session records
+const sessionRecords = async () => (await recEntries()).filter(([key]) => isSessionKey(key));
 
 it.each(['granted', 'denied'])(
 	'continuous edits are protected within three seconds with %s file permission',
@@ -66,7 +73,7 @@ it.each(['granted', 'denied'])(
 						expect(JSON.parse(diskText).glyphs['glyph-0x41'].advanceWidth).toBe(600 + second);
 						expect(getSaveStatus(editor).file).toBe('saved');
 					} else {
-						const records = await recEntries();
+						const records = await sessionRecords();
 						expect(records).toHaveLength(1);
 						expect(records[0][1].project.glyphs['glyph-0x41'].advanceWidth).toBe(600 + second);
 						expect(getSaveStatus(editor)).toMatchObject({ file: 'failed', recovery: 'saved' });
@@ -81,7 +88,7 @@ it.each(['granted', 'denied'])(
 				expect(JSON.parse(diskText).glyphs['glyph-0x41'].advanceWidth).toBe(616);
 				expect(createWritable).toHaveBeenCalledTimes(6);
 			} else {
-				expect((await recEntries())[0][1].project.glyphs['glyph-0x41'].advanceWidth).toBe(616);
+				expect((await sessionRecords())[0][1].project.glyphs['glyph-0x41'].advanceWidth).toBe(616);
 				expect(createWritable).not.toHaveBeenCalled();
 			}
 		} finally {

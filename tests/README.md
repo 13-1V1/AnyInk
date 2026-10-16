@@ -214,6 +214,44 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
   `b23.verify.mjs` takes the photo screens' route off for its Trace-panel stand-in, and
   `b45.verify.mjs` sends its photo to the photo screens (B9) instead of expecting it turned away.
 
+- `board_tiles.verify.mjs` (`npm run verify:board-tiles`): the B10 board's tiles, keys and drops
+  (every tile state, b / Shift+B / . open their letters, the arrows and Enter, 7 isn't on the
+  board yet, a photo held over a tile, dropped on blank space or on a tile), Undo on the board, and
+  the backup write measured on a 58-letter traced font. Optional argument: a screenshot folder.
+
+- `b1011.verify.mjs` (`npm run verify:b1011`): B10 and B11 together in the dev app, with the flags
+  as the app ships them ('board' and 'checks' on). A new font opens on the board (58 faint to-do
+  tiles); b opens small b; a handwriting photo dropped on the board is walked into seven letters
+  through the photo dialog; two letters broken on purpose turn amber with plain reasons; the Next
+  line, the rail and the board say one count; [Show me], a tile's [Sit on the line] (one step, the
+  board stays), Ctrl+Z on the board, [Looks fine to me], the card's chip and the Next line's
+  [Match size]; the font check finds nothing; a dropped .gs2 asks first with unsaved work and
+  opens otherwise; the backup write after a step on a 58-letter traced font with the Undo list at
+  its fullest (D-042); All tools before (the last commit, git archive) and after: the same
+  Overview and letter page, pixel for pixel. Optional argument: a screenshot folder.
+- `board_page.verify.mjs` (`npm run verify:board-page`): the B10 + B11 finalize's board filter and
+  numbers section in the real app (Simple, real checks): [Show me] picks Needs a look; Looks fine
+  to me on every amber letter hides the filters; Ctrl+Z on the board stays on All; a letter made
+  amber later, or a letter left and come back to, finds the board on All; "+ Numbers & symbols" on
+  a filtered board goes to All with the new section in view and washed green; Ctrl+Z / Ctrl+Y take
+  it away and bring it back into view. Optional argument: a screenshot folder.
+- `b1011_final.verify.mjs` (`npm run verify:b1011-final`): the B10 + B11 finalize in the real app
+  (Simple, flags as shipped): small n typed on the board opens with the Brush, one stroke under the
+  line gives "sinks" with [Sit on the line] outlined, green once V picks Select, and the press puts
+  the pen's line on the writing line; Something else on the filtered board leaves the count with
+  no button and the tile brings the fix back; Save keeps the backup's saved copies, the next write
+  sends one; the notebook photo's crossed-out Q is skipped as junk and the prefill stops after a
+  skipped VW. Optional argument: a screenshot folder.
+
+Since B10 + B11 (10/15/2026) the letter board is Simple's home and the checks are on: a check
+that opens Simple's Overview finds the board, and a B5-era check that wants B5's Overview turns
+'board' off in its page (as `pinB5Simple` does). The B6 to B9 walkthroughs (`b67`, `b67-fixes`,
+`b89`, `b89_final`) and B10's `board_tiles` draw toy letters (a square, a scribble, clicked
+points) that the checks rightly call "Needs a look": they turn 'checks' off in the page once its
+start page loads (`verify_standins.mjs` pinBeforeChecks); `b1011.verify.mjs` checks Simple with
+the checks on. `b89.verify.mjs`'s All tools comparison expects the Brush only when the last
+commit lacks it (as `b67.verify.mjs` does).
+
 Since B8 + B9 (10/15/2026) the Brush and photos are on, and every check runs with the flags as the
 app ships them (B8 + B9 finalize: `b67.verify.mjs` no longer turns `brush` and `photo` off; its
 empty letter offers [Use a photo] and reaches the Point pen by its key, P).

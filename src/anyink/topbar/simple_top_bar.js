@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: the Simple top bar (UX-BEGINNER.md 4.0 "Top bar", 4.11). makeAppTopBar (app/menu.js) draws
 	it instead of today's bar in Simple once the 'coach' flag is on; All tools, and Simple before
@@ -34,6 +36,11 @@
 	notices. The bar keeps itself up to date (the font name, the ready count, Undo / Redo, the pill)
 	on every save status event, which History's every step, Undo and Redo send (recovery.js
 	markDirty); a navigate draws it anew.
+	B10 + B11 integration: the ready count counts with the board's own Ready rule
+	(board/board_page.js readyRuleFor: ink, and no check that needs a look while 'checks' is on,
+	read from the Next line's letters), so the rail, the board and the Next line say one number;
+	it is said again whenever the Next line's state changes (the font check's answer comes 2 s
+	after a step, with no save status event of its own).
 
 	  useSimpleTopBar()                 true when makeAppTopBar draws this bar
 	  makeSimpleTopBar(editor)          the bar (#app__top-bar.anyink-topbar)
@@ -41,7 +48,9 @@
 */
 import './simple_top_bar.css';
 import { getCurrentProjectEditor } from '../../app/main.js';
+import { readyRuleFor } from '../board/board_page.js';
 import { makeNextChip } from '../coach/coach_element.js';
+import { getCoach } from '../coach/coach_state.js';
 import { openPathOf } from '../coach/open_shape.js';
 import logoHorizontal from '../../common/graphics/anyink-wordmark-horizontal-small.svg?raw';
 import { preloadExportFolder } from '../files/export_folder.js';
@@ -311,8 +320,12 @@ function refreshBar(bar, editor) {
 	if (name && name.textContent !== fontName) name.textContent = fontName;
 	const letters = bar.querySelector('[data-anyink-step="letters"]');
 	if (letters) {
-		// the shape the Point pen is still drawing is no letter yet (B6 + B7 finalize)
-		const { ready, total } = readyCount(editor.project, { open: openPathOf(editor) });
+		// the shape the Point pen is still drawing is no letter yet (B6 + B7 finalize); a letter
+		// that needs a look isn't ready (B10 + B11 integration: the board's rule)
+		const { ready, total } = readyCount(editor.project, {
+			open: openPathOf(editor),
+			isReady: readyRuleFor(editor),
+		});
 		const count = letters.querySelector(`.${TOPBAR_CLASS}__step-count`);
 		const text = word('topbar.step.count', { ready, total });
 		if (count && count.textContent !== text) count.textContent = text;
@@ -374,4 +387,11 @@ function listenOnce() {
 	if (listening || typeof globalThis.addEventListener !== 'function') return;
 	listening = true;
 	globalThis.addEventListener(SAVE_STATUS_EVENT, () => refreshSimpleTopBar(globalThis.document));
+	// B10 + B11 integration: the checks' answers reach the Next line's state (a font check, a
+	// pass after a step); the count follows it, as the board does
+	try {
+		getCoach().subscribe(() => refreshSimpleTopBar(globalThis.document));
+	} catch (error) {
+		console.warn('ANY-INK top bar: could not follow the Next line', error);
+	}
 }

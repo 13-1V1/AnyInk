@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 wiring (UX-BEGINNER.md 6.1, 6.3, 4.11): the real Navigator.navigate runs the landing rule
 // before it draws, and draws the purple band under the top bar (menu.js makeAppBand). On the
 // real History: a More tools change on the Kerning page, then Simple's Undo from the keys lands
@@ -16,6 +18,7 @@ import { noFlags } from './no_flags.js';
 import { getMode, getVisit, setModeForTests } from '../mode.js';
 import { word } from '../../words/words.js';
 import { sampleEditor } from './controls_probe.js';
+import { simpleHome } from '../visibility.js';
 
 let editor;
 let warn;
@@ -120,7 +123,9 @@ describe("the landing rule on the real navigate (Simple's Undo to the Kerning pa
 
 		band().querySelector('button').click();
 		expect(getMode()).toBe('simple');
-		expect(editor.nav.page).toBe('Characters');
+		// B10 + B11 integration: Simple's home is the letter board now (visibility.js simpleHome)
+		expect(editor.nav.page).toBe(simpleHome());
+		expect(editor.nav.page).toBe('Overview');
 		expect(band()).toBeNull();
 		expect(visible('#nav-button-l3')).toBe(false);
 	});

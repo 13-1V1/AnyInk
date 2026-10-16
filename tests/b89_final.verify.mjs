@@ -29,6 +29,7 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import { pinBeforeChecks } from './verify_standins.mjs';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const shots = resolve(process.argv[2] || resolve(tmpdir(), 'anyink-b89-final'));
@@ -93,6 +94,8 @@ const waitUntil = async (check, what, timeout = 20000) => {
 };
 const newFont = async (name) => {
 	await page.goto(`${origin}/?ui=simple`);
+	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
+	await pinBeforeChecks(page);
 	const field = page.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 30000 });
 	await field.fill(name);

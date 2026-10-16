@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5: Ctrl+O, "Open a saved font" (UX-BEGINNER.md 7.6, 4.9), the same in both modes: the work
 	file picker (openProjectFromPicker), instead of upstream's new window. The font that opens
@@ -21,6 +23,16 @@
 
 	  openFontCommand({ editor, unsaved })   'picker' | 'asked' | 'window'
 	  hasUnsavedWork(editor)                 the rule above
+	B10 + B11 integration (UX-BEGINNER.md 4.2 Drops: "A .gs2 opens it"; the board-tiles track's
+	need 4): a work file dropped on the letter board opens into the font he is in, with Ctrl+O's
+	check first (the same box: [Save] [Cancel]; no second click after Save, since a drop needs
+	no picker). The file's handle is taken during the drop itself (board_drop.js:
+	DataTransferItem.getAsFileSystemHandle, which only works then), so Save writes back to the
+	file he dropped; without it (no File System Access, or the handle can't be read) the dropped
+	file itself is read and the font has no work file yet (Save asks where). A file that isn't a
+	work file ANY-INK can read says so in 7.7's words, as Ctrl+O's picker does.
+	  openDroppedFont({ editor, file, handle, unsaved })   'opened' | 'asked' | 'failed'; handle:
+	                                         the promise getAsFileSystemHandle gave (or null)
 	Buttons carry data-anyink-choice (save, cancel, open) for tests and later Bs.
 */
 import { hasInkNotInItsFile } from '../../app/app.js';
@@ -32,10 +44,13 @@ import { isLookingAroundEntry } from '../history/history_helpers.js';
 import { snapshotNow } from '../recovery/recovery.js';
 import { word } from '../words/words.js';
 import { hasFileSystemAccess } from './file_api.js';
-import { openProjectFromPicker } from './project_files.js';
+import { openProjectFromHandle, openProjectFromPicker } from './project_files.js';
+import { readFileText, validateProjectText } from './read_project.js';
 import { runFileCommand } from './run_command.js';
 import { getSaveStatus } from './save_status.js';
-import { isProjectFileHandle } from './write_file.js';
+import { isFileHandle, isProjectFileHandle } from './write_file.js';
+import { sayError } from '../words/error_box.js';
+import { openErrorWords } from '../words/error_words.js';
 
 const BOX_CLASS = 'anyink-open-box';
 
@@ -76,6 +91,83 @@ export async function openFontCommand({ editor = getCurrentProjectEditor(), unsa
 		button('cancel', 'open.cancel', true, () => closeEveryTypeOfDialog()),
 	]);
 	return 'asked';
+}
+
+/**
+ * A work file dropped on the board opens into this font, after Ctrl+O's unsaved check.
+ * @param {Object} options
+ * @param {Object} [options.editor] - default: the current project editor
+ * @param {File} options.file - the dropped file
+ * @param {Promise<FileSystemHandle | null> | FileSystemHandle | null} [options.handle] - taken
+ *   during the drop (getAsFileSystemHandle)
+ * @param {() => Boolean} [options.unsaved] - default: hasUnsavedWork(editor)
+ * @returns {Promise<'opened' | 'asked' | 'failed'>}
+ */
+export async function openDroppedFont({
+	editor = getCurrentProjectEditor(),
+	file,
+	handle = null,
+	unsaved,
+} = {}) {
+	const isUnsaved = unsaved || (() => hasUnsavedWork(editor));
+	const open = async () => {
+		let opened = false;
+		await runFileCommand(async () => (opened = await openDropped(editor, file, handle)));
+		return opened;
+	};
+	if (!isUnsaved()) return (await open()) ? 'opened' : 'failed';
+	showBox([
+		button('save', 'open.save', false, async () => {
+			await runFileCommand(() => editor.saveProjectFile());
+			closeEveryTypeOfDialog();
+			// saved: the dropped font opens now (a drop needs no picker, so no second click)
+			if (!isUnsaved()) await open();
+		}),
+		button('cancel', 'open.cancel', true, () => closeEveryTypeOfDialog()),
+	]);
+	return 'asked';
+}
+
+/**
+ * @returns {Promise<Boolean>} true when the font opened
+ */
+async function openDropped(editor, file, handlePromise) {
+	let handle = null;
+	try {
+		handle = await handlePromise;
+	} catch {
+		handle = null;
+	}
+	if (isFileHandle(handle) && isProjectFileHandle(handle)) {
+		const status = await openProjectFromHandle(handle, { load: loadInto(editor) });
+		if (status === 'opened') return true;
+		// 'invalid' said why already (7.7); a handle it may not read falls back to the file itself
+		if (status === 'invalid') return false;
+	}
+	if (!file) return false;
+	let text = '';
+	try {
+		text = await readFileText(file);
+	} catch (error) {
+		sayDropFailed(error?.message || 'The file could not be read.', file.name);
+		return false;
+	}
+	const result = validateProjectText(text);
+	if (!result.content) {
+		sayDropFailed(result.message, file.name);
+		return false;
+	}
+	await loadInto(editor)(result.content, false);
+	return true;
+}
+
+/** A dropped file that isn't a work file ANY-INK can read: 7.7's words, as Ctrl+O's picker */
+function sayDropFailed(message, fileName) {
+	if (message) console.warn('ANY-INK: the dropped work file did not open:', message);
+	sayError(openErrorWords(message, fileName), {
+		actions: { 'error.button.openAnother': () => openFontCommand() },
+		allTools: message,
+	});
 }
 
 /**

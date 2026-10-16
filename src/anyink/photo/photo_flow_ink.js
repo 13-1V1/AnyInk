@@ -55,7 +55,8 @@
 	                       pixels; penShare 1 without a stroke)
 	  keepPenPieces(mask, width, height, { stroke }) -> { mask, thin, blob }: a copy with the pieces
 	                       no pen wrote taken out, and how many of each; stroke <= 0: a plain copy
-	  isJunkPart(part, stroke) -> true when no letter ink is left in the part's mask
+	  isJunkPart(part, stroke) -> true when no letter ink is left in the part's mask, or the part
+	                              is a letter scribbled over (isScribbledOut, B10 + B11 finalize)
 	  trimCutInk(part, inkMask, imageWidth, imageHeight, { stroke }) -> the part's mask (a copy)
 	                       without the ink its box cut off a neighbor; part: { left, top, right,
 	                       bottom, mask } in the photo's pixels, the mask the box's size
@@ -274,8 +275,39 @@ export function isJunkPart(part, stroke) {
 	const height = Number(part?.bottom) - Number(part?.top);
 	if (!(part?.mask instanceof Uint8Array) || !(width > 0) || !(height > 0)) return false;
 	if (part.mask.length < width * height || !(Number(stroke) > 0)) return false;
+	if (isScribbledOut(part.mask, width, height, Number(stroke))) return true;
 	return !hasInk(keepPenPieces(part.mask, width, height, { stroke }).mask);
 }
+
+/**
+ * B10 + B11 finalize (UX-BEGINNER.md 4.4: "a crossed-out letter is never a part he is asked
+ * about"): a letter scribbled over is far more pen line than any letter its size. Its ink, laid
+ * out as one pen-wide line, runs SCRIBBLE_LENGTH times the box's diagonal or more (the
+ * notebook's crossed-out Q 5.3; the fixtures' letters 2.8 at most, a W or an M), and it fills
+ * SCRIBBLE_FILL of its box (the Q 0.67; letters that size 0.42 at most). Small parts (dots,
+ * dashes: a box under SCRIBBLE_SIZE pens across) are never scribbles.
+ * @param {Uint8Array} mask
+ * @param {Number} width
+ * @param {Number} height
+ * @param {Number} pen - the photo's pen, in pixels
+ * @returns {Boolean}
+ */
+export function isScribbledOut(mask, width, height, pen) {
+	const diagonal = Math.hypot(width, height);
+	if (!(pen > 0) || diagonal < SCRIBBLE_SIZE * pen) return false;
+	let ink = 0;
+	for (let i = 0; i < width * height; i++) if (mask[i]) ink++;
+	return ink / pen >= SCRIBBLE_LENGTH * diagonal && ink >= SCRIBBLE_FILL * width * height;
+}
+
+/** A crossed-out letter: its ink as a pen-wide line is this many box diagonals long or more... */
+export const SCRIBBLE_LENGTH = 4;
+
+/** ...and it covers this share of its box or more... */
+export const SCRIBBLE_FILL = 0.5;
+
+/** ...in a box at least this many pens across. */
+export const SCRIBBLE_SIZE = 6;
 
 // --------------------------------------------------------------
 // A box he drew: the ink it cut off a neighbor

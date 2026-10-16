@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { isBoardOn, makeBoardPage } from '../anyink/board/board_page.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { makeElement } from '../common/dom.js';
 import { countItems } from '../common/functions.js';
@@ -14,6 +17,12 @@ import { word } from '../anyink/words/words.js';
  * @returns {Element} - page content
  */
 export function makePage_Overview() {
+	// ANY-INK (B10, UX-BEGINNER 4.2): in Simple, with the board's flag on, the Overview is the
+	// letter board: the Quick font's letters in board order, the progress line, the filters and
+	// the toolbar, across the whole page. Nothing of the page below is drawn there (B5's stand-in,
+	// the Welcome card and every Basic Latin letter, contradicted the rail's count).
+	if (isBoardOn()) return makeBoardPage(getCurrentProjectEditor());
+
 	const content = makeElement({
 		tag: 'div',
 		id: 'app__page',
@@ -119,9 +128,10 @@ export function makePage_Overview() {
 		})
 	);
 
-	// ANY-INK (B4 + B5 integration, UX-BEGINNER 6.2): until B10's letter board, Simple's Overview
-	// is the welcome in house words and the letters; the project card (numbers, a door to Settings,
-	// a More tools page) is All tools only
+	// ANY-INK (B4 + B5 integration, UX-BEGINNER 6.2): Simple with the board's flag off (B5's stub,
+	// which the walkthroughs that pin every flag off still check) is the welcome in house words and
+	// the letters; the project card (numbers, a door to Settings, a More tools page) is All tools
+	// only
 	if (isSimpleMode()) {
 		const title = document.createElement('h2');
 		title.textContent = word('overview.welcomeTitle');

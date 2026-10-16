@@ -82,7 +82,7 @@
 	Fix pass, 10/15/2026 (the B8 + B9 first-timer and engineer critics):
 	- Junk: a new photo's parts that hold no pen's ink (bits of ruled and margin lines, punch
 	  holes, a crossed-out letter, a hand's shadow: photo_flow_ink.js isJunkPart, against the
-	  photo's pen) are skipped as it comes in (photo_registry.js skipPart), so the green box, the
+	  photo's pen) are skipped as it comes in (photo_registry.js markJunk), so the green box, the
 	  alphabet prefill's turn, rule 12's count and [Use the same photo] never land on them; he can
 	  still click one and name it. A part is traced from its letter's ink only
 	  (photo_flow_data.js), and a part with none left, or whose trace is nothing but specks or
@@ -146,7 +146,7 @@ import {
 	removePhoto,
 	setLightInk,
 	setPaper,
-	skipPart,
+	markJunk,
 } from './photo_registry.js';
 import { SMOOTH_DETAIL_DEFAULT, optionsForSlider } from './smooth_detail.js';
 
@@ -296,7 +296,7 @@ async function addDecoded(editor, { file, bytes, fingerprint, same }) {
 	if (fresh) {
 		// Parts no pen wrote (ruled lines, punch holes, a shadow) are never guessed or counted
 		for (const part of found.parts) {
-			if (isJunkPart(part, found.stroke)) skipPart(record, part.id);
+			if (isJunkPart(part, found.stroke)) markJunk(record, part.id);
 		}
 	}
 	keepPixels(s, record, {

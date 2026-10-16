@@ -1,10 +1,15 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B1: exporting from the File menu still makes the font file as today. When the font check
 	finds something, the export's own "where it went" sentence stays on screen and gains
 	", but small a needs fixing." with a [Show me] button and the amber (warning) edge, so
 	the file name and folder never disappear exactly when something is wrong.
+	B10 + B11 integration: the exports build a real font, which takes several seconds when the
+	whole suite runs at once (the "Keep both" case timed out at 8 s there and passed alone); the
+	waits are generous (EXPORT_WAIT_MS), and each check still ends the moment it passes.
 */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -58,7 +63,11 @@ function clickMenuRow(id) {
 	mark.closest('.context-menu-row').click();
 }
 
-async function waitFor(check, ms = 8000) {
+/** How long an export may take under a full suite's load */
+const EXPORT_WAIT_MS = 40000;
+const EXPORT_TEST_MS = 60000;
+
+async function waitFor(check, ms = EXPORT_WAIT_MS) {
 	const end = Date.now() + ms;
 	while (Date.now() < end) {
 		if (check()) return true;
@@ -245,7 +254,7 @@ describe('File menu export', () => {
 		await new Promise((resolve) => setTimeout(resolve, 2700));
 		expect(toastWords()).toContain('Exported CheckEdge-Regular.otf to Fonts');
 		expect(toastWords()).toContain('small a');
-	}, 15000);
+	}, EXPORT_TEST_MS);
 
 	it('a "Keep both" export names the file it really made', async () => {
 		openBroken();
@@ -253,13 +262,14 @@ describe('File menu export', () => {
 		dir.addFile('CheckEdge-Regular.otf'); // a font ANY-INK didn't write
 		openFileMenu();
 		clickMenuRow('font-otf');
-		await answerExistingFileDialog('keepBoth');
+		// the dialog opens once the font is built: wait as long as an export may take
+		await answerExistingFileDialog('keepBoth', 20000);
 		expect(await waitFor(() => checkSentence().includes('small a'))).toBe(true);
 		expect(dir.files.has('CheckEdge-Regular (2).otf')).toBe(true);
 		expect(checkSentence()).toBe(
 			'Exported CheckEdge-Regular (2).otf to Fonts, but the question mark and small a need fixing.'
 		);
-	}, 15000);
+	}, EXPORT_TEST_MS);
 
 	it('as a download: says it is downloading, then names the letters', async () => {
 		openBroken();
@@ -274,7 +284,7 @@ describe('File menu export', () => {
 		expect(checkSentence()).toBe(
 			'Downloading CheckEdge-Regular.otf, but the question mark and small a need fixing.'
 		);
-	}, 15000);
+	}, EXPORT_TEST_MS);
 
 	it('with nothing wrong, the export toast is the same as before', async () => {
 		openProject(edgeProjectJSON());
@@ -285,5 +295,5 @@ describe('File menu export', () => {
 			true
 		);
 		expect(document.querySelector('#toast .anyink-export-check')).toBeNull();
-	}, 15000);
+	}, EXPORT_TEST_MS);
 });
