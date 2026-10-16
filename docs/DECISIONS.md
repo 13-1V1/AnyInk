@@ -2066,3 +2066,46 @@ tools (`?ui=all`).
 **Revisit if:** Brennan reads the outlined Brush line as a dead end, the slower gap drag feels like
 the handle lags his hand, a real felt-tip photo traces more than 15 % uneven, or he wants All tools
 to be remembered between launches.
+
+## D-047: Sketched letters (centerline + thickness and closed outlines), from Gate 2
+**Decided:** 10/16/2026, after Gate 2 (Brennan: "i was hoping to see a way to make curved
+splines/lines and make shapes for letters like i do in solidworks. all i had was a brush").
+Revised the same day after review. Design: docs/SKETCH.md.
+**Chose:**
+1. A sketch layer, `glyph.anyink.sketch`, is the source of truth for a sketched letter; its shapes
+   are rebuilt from it on every step and tagged `{ sketchId, sketchKey, sketchPart }`. Simple never
+   edits built shapes directly. Any change to built shapes that did not come through a follow plan
+   is caught by a stored hash and sets the sketch aside with a toast and [Undo].
+2. Two uses of the same pieces: Centerline (swept with the B8 round nib, one thickness per letter
+   from a font thickness `settings.anyink.sketchThickness`, Round or Flat ends per end) and Outline
+   (closed loops, solid or hole by nesting in a pure build; clipper only where loops cross; never
+   B7 auto-hole). Fine-tune's "Outline only" becomes "See-through".
+3. **The edge rule:** a Centerline point snapped to a line puts the ink edge on the line (center
+   half a thickness inside), for ends, extremes and corners alike, re-placed when the thickness
+   changes; round tops and bottoms add `guideLines(font).overshoot`. B11 gives built Centerline
+   shapes no half-nib allowance. This replaces "tuck pinned round ends".
+4. Tools on the rail, never behind Fine-tune: Line L, Arc A (Select keeps V), Spline S, Circle C
+   (O and Q too), Rectangle R; in Simple, P and E go to the sketch. SolidWorks chaining: tangent
+   only when leaving along the curve, the earlier part gives way, a Line's click never moves.
+   Double-click or Enter finishes, a second Esc returns to Select. Ctrl suspends snaps.
+5. In-house Hobby spline with per-point directions and per-side tension (hobby-curve has neither);
+   arcs stored as ends plus bulge; a part tangent at both ends is a curve, not an arc.
+6. No constraint solver in v1: drag rules (mirror, on a line, on a piece / joined, level / plumb,
+   tangent) applied once each in a fixed order; a conflict unpins with a toast and [Undo].
+7. The empty letter has one fixed green door, Sketch it (Centerline), unless a photo part waits;
+   the outline door is a quiet link; Brush and Parts sit under More ways. "Draw it with points" is
+   replaced.
+8. A letter is not Ready while a stroke it needs is missing (per-letter part templates against the
+   guide letter) or before its Compare is seen once; the Brush dead end gets Make it a sketch and a
+   B11 Bumpy check (3+ bumps and over 4 per 1,000 units, long pieces only). This revises D-046's
+   "a brushed letter is Ready the moment it has ink" for bumpy strokes only.
+9. Other features that move shapes pass a follow plan `{ matrix, grow }` to the sketch and the
+   Brush record; B15 line moves carry pinned points. Every export path merges overlaps in letters
+   with sketch-built or Brush shapes.
+**Rejected:** a single "smart pen" as the only tool (less like SolidWorks); Spiro (spirals on large
+drags); vendoring hobby-curve (no directions); editing built ink in Simple; sketch tools behind
+Fine-tune (the Gate 2 failure); per-piece thickness in v1; tucking only pinned ends; a moving
+"last way used" green.
+**Left for later:** solver, equal-size relation, fillet, trim, curvature combs, G2 joins,
+thickness along a stroke, flat / angled nibs (M10), pasting a letter with its sketch, reusable
+parts across letters.
