@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Where the app notices sit (B1 fix pass, until B6 decides where notices live): one line in the
 	top bar's empty middle, just left of the save status, so a notice covers nothing on any page.
@@ -13,7 +15,8 @@
 	B6 + B7 integration: Simple's top bar (B6) has no menus, and Undo and Redo sit just left of
 	its status pill, so there the notice goes inside the bar's flexible gap between the rail and
 	Undo (data-anyink-slot="notices"), centered on its row (--anyink-notice-top); its right end
-	never passes the gap, so it covers no control.
+	never passes the gap, so it covers no control. B16 final: a gap narrower than one short line
+	(MIN_ROOM) puts it under the bar and the Next line, at the window's right.
 */
 
 /** px kept clear between a notice and the menus or the save status. */
@@ -60,9 +63,17 @@ function placeInSlot(container, doc, win) {
 	const slot = doc.querySelector('#app__top-bar [data-anyink-slot="notices"]');
 	const box = slot?.getBoundingClientRect();
 	if (!box || !(box.width > 0)) return false;
-	const right = Math.round(win.innerWidth - box.right + NOTICE_GAP);
+	let right = Math.round(win.innerWidth - box.right + NOTICE_GAP);
 	const room = Math.max(MIN_ROOM, Math.round(box.width - 2 * NOTICE_GAP));
-	const top = Math.max(0, Math.round(box.top + (box.height - NOTICE_HEIGHT) / 2));
+	let top = Math.max(0, Math.round(box.top + (box.height - NOTICE_HEIGHT) / 2));
+	if (box.width - 2 * NOTICE_GAP < MIN_ROOM) {
+		// B16 final: a gap too narrow for one short line (every step's words kept at 1280 px):
+		// under the bar and the Next line, at the window's right, where it covers no control
+		const coach = doc.querySelector('anyink-coach')?.getBoundingClientRect();
+		const under = Math.max(box.bottom, coach && coach.height > 0 ? coach.bottom : 0);
+		top = Math.round(under + NOTICE_GAP / 2);
+		right = NOTICE_GAP;
+	}
 	container.style.setProperty('--anyink-notice-right', `${right}px`);
 	container.style.setProperty('--anyink-notice-room', `${room}px`);
 	container.style.setProperty('--anyink-notice-top', `${top}px`);

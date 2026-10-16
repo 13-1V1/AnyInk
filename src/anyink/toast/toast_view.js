@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: drawing toasts. toast.js decides what shows; this file only puts it on the page.
 
@@ -21,6 +23,8 @@
 	      pointer over it pauses the time. onDone(entry) runs once when the time is up or the
 	      button was pressed. An entry drawn again (an offer pushed aside comes back) is
 	      timed by its newest element only.
+	  leaveClassic()        B16: closeAllToasts marks the All tools toast leaving (its own fade
+	                        follows), so a toast shown during that fade gets a fresh element
 	  hideSimple(entry)     fades the entry's element out (data-leaving), stops its timer
 	  fadeOut(element)      upstream's animateRemove: a 120 ms fade, then removed
 	  writeDropLog(text)    Simple: the hidden record of a dropped message (toast.js)
@@ -96,6 +100,11 @@ export function showClassic(
 	if (element) {
 		window.clearTimeout(timers.get(element));
 	} else {
+		// B16: the newest replaces the last: one fading out goes at once, so a page changed many
+		// times over (leaveClassic) never piles toasts up
+		document
+			.querySelectorAll('#toast[data-leaving]:not([data-anyink-toast])')
+			.forEach((old) => old.remove());
 		element = document.createElement('div');
 		element.id = 'toast';
 		element.setAttribute('tabindex', '-1');
@@ -116,6 +125,21 @@ export function showClassic(
 	element.style.display = 'block';
 	const timer = window.setTimeout(leave, duration);
 	timers.set(element, timer);
+}
+
+/**
+ * B16: closeAllToasts fades the All tools toast out with upstream's animateRemove, which marks
+ * nothing; a toast shown before that fade ended reused the element and went with it 110 ms
+ * later (the Trace panel's page change took "Added a trace image..."). toast.js clearToasts
+ * runs first in closeAllToasts and calls this: the element is marked leaving and its timer
+ * stopped, so the next toast gets a fresh element. Upstream's fade still removes this one.
+ */
+export function leaveClassic() {
+	document.querySelectorAll('#toast:not([data-leaving]):not([data-anyink-toast])').forEach((el) => {
+		window.clearTimeout(timers.get(el));
+		timers.delete(el);
+		el.setAttribute('data-leaving', '');
+	});
 }
 
 // --------------------------------------------------------------

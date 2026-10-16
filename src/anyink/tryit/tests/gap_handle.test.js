@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B12 (UX-BEGINNER.md 4.6 Gap handle; 7.3 "Gap fix drag or removal: whole-project step"; section
 // 10 B12 unit tests "handle hit test; a one-pair rule written and removed; undo doesn't
 // navigate"). Pointing between two made letters in Try it shows a purple handle; a drag writes a
@@ -15,8 +17,12 @@ import { resetToastsForTests, toastLog } from '../../toast/toast.js';
 import { historyText } from '../../words/history_text.js';
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import {
+	GAP_DRAG_GAIN,
+	GAP_DRAG_STEP,
 	GAP_REACH_PX,
+	GAP_REACH_SHARE,
 	attachGapHandle,
+	gapDragValue,
 	beginGapDrag,
 	findGapAtPoint,
 	removeGapFix,
@@ -273,12 +279,12 @@ describe('the purple handle on the sheet', () => {
 		pointer('pointermove', host, n.view.dx, 80);
 		const handle = control.element;
 		pointer('pointerdown', handle, n.view.dx, 80, { button: 0 });
-		pointer('pointermove', handle, n.view.dx - 3, 80);
-		// live: 3 px at 0.1 px a unit is 30 units closer
-		expect(kernOffsetFor(editor.project, 'e', 'n')).toBe(-30);
+		pointer('pointermove', handle, n.view.dx - 4, 80);
+		// live: 4 px at 0.1 px a unit, slowed to a quarter (B16), is 10 units closer
+		expect(kernOffsetFor(editor.project, 'e', 'n')).toBe(-10);
 		expect(queueOf(editor)).toHaveLength(0);
-		pointer('pointerup', handle, n.view.dx - 4, 80);
-		expect(kernOffsetFor(editor.project, 'e', 'n')).toBe(-40);
+		pointer('pointerup', handle, n.view.dx - 8, 80);
+		expect(kernOffsetFor(editor.project, 'e', 'n')).toBe(-20);
 		expect(queueOf(editor)).toHaveLength(2);
 		const said = toastLog().at(-1);
 		expect(said).toMatchObject({ key: 'tryitGaps.toast.closer' });
@@ -360,7 +366,11 @@ describe('a letter tucks under an overhang', () => {
 		advanceWidth: 1100,
 		anyink: { spacing: 'manual' },
 	};
-	const o = { shapes: [rect(100, 0, 1000, 900)], advanceWidth: 1100, anyink: { spacing: 'manual' } };
+	const o = {
+		shapes: [rect(100, 0, 1000, 900)],
+		advanceWidth: 1100,
+		anyink: { spacing: 'manual' },
+	};
 
 	it('the floor is where the ink touches row by row, not where the boxes meet', () => {
 		const editor = gapsEditor({ letters: '', own: { T, o } });
@@ -372,8 +382,16 @@ describe('a letter tucks under an overhang', () => {
 	});
 
 	it('two letters that share no row of ink still stop where their boxes meet', () => {
-		const high = { shapes: [rect(100, 1000, 500, 1400)], advanceWidth: 600, anyink: { spacing: 'manual' } };
-		const low = { shapes: [rect(100, 0, 500, 400)], advanceWidth: 600, anyink: { spacing: 'manual' } };
+		const high = {
+			shapes: [rect(100, 1000, 500, 1400)],
+			advanceWidth: 600,
+			anyink: { spacing: 'manual' },
+		};
+		const low = {
+			shapes: [rect(100, 0, 500, 400)],
+			advanceWidth: 600,
+			anyink: { spacing: 'manual' },
+		};
 		const editor = gapsEditor({ letters: '', own: { "'": high, '.': low } });
 		expect(touchFloor(editor.project, "'", '.', 0)).toBe(-200);
 	});
@@ -444,5 +462,77 @@ describe('Undo during a held gap drag', () => {
 		expect(heard).toEqual(['z']);
 		document.removeEventListener('keydown', listen);
 		control.detach();
+	});
+});
+
+// B16 acceptance (finding: "The gap handle has a 12 px target that appears only within 6 px of a
+// gap"; at 72 pt a 13 px drag went straight to touching). Written to fail first: the reach was
+// 6 px either side, the handle 6 px wide, and one screen px was a whole 1 / dz units.
+describe('B16: the gap handle is easy to find and slow to drag', () => {
+	it('reaches at least 12 px either side of a gap, and 30% into the narrower letter', () => {
+		const editor = gapsEditor();
+		const data = layoutWord(editor.project, 'Hen');
+		const [, e, n] = data[0];
+		const gapX = n.view.dx;
+		expect(GAP_REACH_PX).toBeGreaterThanOrEqual(12);
+		expect(findGapAtPoint(data, gapX + 11, 80, FONT)).toMatchObject({ left: e, right: n });
+		expect(findGapAtPoint(data, gapX - 11, 80, FONT)).toMatchObject({ left: e, right: n });
+		const narrower = Math.min(e.widths.advance * e.view.dz, n.widths.advance * n.view.dz);
+		const reach = Math.max(GAP_REACH_PX, GAP_REACH_SHARE * narrower);
+		expect(findGapAtPoint(data, gapX + reach - 0.5, 80, FONT)).toMatchObject({ right: n });
+		// the middle of a letter is still not a gap
+		expect(findGapAtPoint(data, n.view.dx + (n.widths.advance * n.view.dz) / 2, 80, FONT)).toBe(
+			false
+		);
+	});
+
+	it('the handle takes a press across 24 px, though it draws 6 px wide', () => {
+		const editor = gapsEditor();
+		mountHandle(editor);
+		const css = document.getElementById('anyink-gap-handle-style')?.textContent || '';
+		expect(css).toMatch(/\.anyink-gap-handle::before\s*\{[^}]*left:\s*-9px;[^}]*right:\s*-9px;/);
+	});
+
+	it('one screen px moves the gap by a quarter as many units, in steps, and back to the start exactly', () => {
+		expect(GAP_DRAG_GAIN).toBe(0.25);
+		expect(GAP_DRAG_STEP).toBe(5);
+		// 72 pt on a 1000-unit font: 96 px an em, about 0.096 px a unit
+		const dz = 0.096;
+		const thirteen = gapDragValue(0, 500, 487, dz);
+		expect(Math.abs(thirteen % GAP_DRAG_STEP)).toBe(0);
+		expect(thirteen).toBeGreaterThan(-40);
+		expect(thirteen).toBeLessThan(-30);
+		expect(gapDragValue(-37, 500, 500, dz)).toBe(-37);
+		expect(gapDragValue(-37, 500, 501, dz)).toBe(-32);
+	});
+});
+
+// B16 final (the tryit verifier's variant): at 48 pt a 13 px drag went 85 % of the way to touching
+// and at 24 pt straight to touching, since one px was GAP_DRAG_GAIN / dz units; and at 24 pt the
+// 12 px least reach was wider than half a letter, so pointing at the middle of an n showed a
+// handle. Written to fail on the code before the fix.
+describe('B16 final: the gap handle at small sizes', () => {
+	it('below 72 pt one screen px moves no more units than at 72 pt', () => {
+		// a 1000-unit font: 72 pt is 96 px an em, 24 pt 32 px
+		const at72 = gapDragValue(0, 500, 487, 0.096, 1000);
+		const at24 = gapDragValue(0, 500, 487, 0.032, 1000);
+		const at48 = gapDragValue(0, 500, 487, 0.064, 1000);
+		expect(at24).toBe(at72);
+		expect(at48).toBe(at72);
+		expect(at24).toBeGreaterThan(-40);
+		// above 72 pt it is slower still, as before
+		expect(gapDragValue(0, 500, 487, 0.2, 1000)).toBeGreaterThan(at72);
+	});
+
+	it('at 24 pt the middle of a letter finds no gap', () => {
+		const editor = gapsEditor();
+		const data = layoutWord(editor.project, 'Hen', { dz: 0.032 });
+		const [, e, n] = data[0];
+		const middle = n.view.dx + (n.widths.advance * n.view.dz) / 2;
+		expect(findGapAtPoint(data, middle, 100 - 10, FONT)).toBe(false);
+		const eMiddle = e.view.dx + (e.widths.advance * e.view.dz) / 2;
+		expect(findGapAtPoint(data, eMiddle, 100 - 10, FONT)).toBe(false);
+		// the gap itself still finds it
+		expect(findGapAtPoint(data, n.view.dx + 1, 100 - 10, FONT)).toMatchObject({ right: n });
 	});
 });

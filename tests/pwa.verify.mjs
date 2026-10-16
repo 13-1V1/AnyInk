@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Codex 09/24/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Disposable browser profile and localhost server; no installed app/user profile changes.
 import { chromium } from '@playwright/test';
 import { createServer } from 'node:http';
@@ -91,6 +93,10 @@ try {
 	const manifest = await (await fetch(`${origin}/AnyInk/manifest.webmanifest`)).json();
 	assert.equal(manifest.display, 'standalone');
 	assert.equal(manifest.start_url, './');
+	// B16: the launch default is Simple, so the installed app's start_url opens the start screen
+	assert.equal(await page.evaluate(() => document.documentElement.dataset.uiMode), 'simple');
+	await page.locator('#button__create-new-project').waitFor({ state: 'attached' });
+	console.log('PASS start_url opens in Simple (B16), with the two start-screen ids');
 	for (const icon of manifest.icons) {
 		const metadata = await sharp(await readFile(resolve(root, icon.src))).metadata();
 		assert.equal(`${metadata.width}x${metadata.height}`, icon.sizes);

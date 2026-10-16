@@ -1984,3 +1984,85 @@ strip); TEST_LOG has them.
 `mode/keys.js`; word sets `install.js`, `fontinfo.js`, `help.js`, `toasts.js`, `screens.js`.
 **Revisit if:** Word shows a merged letter differently from the screen, a name cut at a word reads
 wrong to Brennan, or he wants fit-to-writing to keep the lines apart anyway.
+
+## D-046: B16 choices (the acceptance run, its fixes, and Simple as the launch default)
+**Decided:** 10/16/2026, in B16: the acceptance run of UX-BEGINNER section 9 (9.4's automated check,
+a first-timer walk and an impatient walk, 1600 x 900 and 1280 x 720, with `?ui=simple`), eleven fix
+tracks and their verifiers, then this final pass (UX-BEGINNER.md principles 1, 3, 5, 6; 4.0, 4.1, 4.2,
+4.4, 4.6, 6.1, 7.3, section 9; D-031, D-036, D-037, D-038, D-041, D-043, D-044, D-045).
+**Chose (the launch):**
+- **Simple is the launch default** (`mode/mode.js LAUNCH_MODE = 'simple'`): the address with no
+  `ui`, the installed app's `start_url` (`./`) and a reopened tab open the start screen. All tools is
+  the More tools switch (one click from the top bar, Menu or Fine-tune), or `?ui=all` for one load;
+  `?ui=simple` still works. Saved fonts stay one click away (the start screen's Continue card and
+  "Open a saved font..."; "Other ways to start..." keeps the old tabs and backups list). The vitest
+  setup loads every test page at `?ui=all`, so jsdom tests stay pinned to All tools unless they
+  switch; every real-Chrome check of All tools loads `?ui=all`.
+**Chose (9.4 and its fixtures):**
+- `tests/beginner.verify.mjs` builds the real app with one probe module (never in `dist/`) and runs T1
+  to T7, the file part of T8 and the tight photo; the fixtures are copies of the drawn B9 photos.
+- **T3's stroke weight is read against the photo** (`tests/beginner_weight.mjs`): the drawn pen
+  wobbles 7 %, so the fixture's e is 12 % thin on the paper itself (11.8 % by the same measure). A
+  letter more than 15 % off the median passes only when the app kept its pen as written (font to
+  photo weight within 10 % of the others') and the photo shows the same. Tried first: tracing a
+  thin pen from a copy blown up to 12 px; it made r and a thinner, not e thicker, so it was dropped.
+- **The Brush still picked on a drawn letter** (D-043's outlined fix, rule 18's calm line): one green
+  for something else, or none and the Next line's one button outlined, counts as 9.3's "a Next
+  sentence naming one". A brushed letter is Ready the moment it has ink (D-037's one ink rule); no
+  pause rule was added.
+**Chose (the fixes):**
+- **One Undo after Use it on an empty letter brings back the empty letter with its photo kept**
+  (T2): the step carries that earlier state (`history/simple_undo.js markStepBefore`, `entry.before`,
+  kept in crash copies; both modes undo to it), and a whole-font step's before-copy holds the
+  step C photo. A letter that had shapes still gets its earlier shapes with its earlier photo. An
+  empty letter holds no part (`photo_flow_fit.js reconcilePhotoUses`), so the part is offered again.
+- **Two touching letters:** a letter traced from a part that may hold two (`letterMayBeTwo`) needs a
+  look, "small n may be two letters that touch." [Draw a box] (the photo dialog on the letter, as
+  Trace again opens it; `checks.js twoLetters`, added by `cache.js` from the photo list). Trace it on
+  such a part already used for one of its letters traces nothing for the other: "This part is two
+  letters that touch. Drag a box around the one you want, then press Trace it." Step C makes Draw a
+  box the green button on that note; the photo's size leaves out such parts and letters far off
+  their row's size (`photo_flow_votes.js`).
+- **A letter the photo walk turns amber is named with its reason:** "Traced Capital H. Have a look:
+  small r is too short for the small-letter line." The size check still waits for the fifth letter
+  of a photo (D-043), so one flip there stays; it now says why.
+- **Try it before the photo's next part, once** (`coach/rules.js tryItFirst`): when every letter of
+  the Try-it text is Ready, rule 13 comes before rule 12 until Try it is opened or he presses
+  Something else on it.
+- **The install offer waits out a photo walk** (`start/install_offer.js photoWalkNow`: the photo card,
+  or the Next line on step C or the photo's next part), unless a font file was made.
+- **The gap handle at small sizes:** below 72 pt a screen pixel moves no more font units than at 72 pt
+  (`gapDragValue(..., upm)`), and the reach never takes in more than 40 % of the narrower letter, so
+  the middle of a small letter is no gap.
+- **A fast Brush hand:** a sample 40 px or more from the one before goes in as it is
+  (`nib/filter.js FAST_STEP_PX`), with the corner finder before it (`raw_corners.js`), so a flick's
+  legs stay straight (0.2 px in real Chrome) as well as its corners. 24 px was tried: the S stroke's
+  live picture then differed from its ink by 2.05 %, over the 2 % limit.
+- **The name field:** a press on the suggested name picks it whole (the press places no caret), so a
+  click and typing gives "Brennan Hand" even when the field already has the keyboard.
+- **App notices** go under the top bar and the Next line, at the right, when the bar's gap is too
+  narrow for one short line (every step's words are kept down to 1280 px now).
+- **From the fix tracks** (their own tests and verifiers): Match size keeps the pen's width
+  (`checks/keep_weight.js`); the Live Preview pop-out takes its stylesheets as text; a drawing tool's
+  press is the tool's in both modes (`mode/locks.js`); the Help door starts at the end of its own
+  module; the Menu's Keyboard keys row uses a 20-unit icon; an All tools toast shown during another's
+  fade lasts its time; the rail keeps its words to 1280 px; the backup written as the page closes is
+  one IndexedDB transaction, record first, started before Chrome's "Leave site?"; the photo dialog
+  says when letters are out of view and keeps his zoom per photo; the Brush starts at the photo's
+  pen width once 3 letters are traced from it.
+**Open (Brennan's own session, `docs/GATE2.md`):** the 9.2 timings and feeling questions; a real window
+close (Playwright closed Chrome's last page); FACTCHECK section 8 on his PC (the Install window, a
+per-user install in Word, Kerning for fonts and Set As Default, gap fixes in Word, a reinstalled test
+font, tall ink clipping, missing letters); how the slower gap drag and the outlined Brush line feel
+to a real hand; real handwriting instead of the drawn fixtures.
+**Why:** principles 1, 3, 5, 6; section 9 (9.2 T2, T3, T4, T5; 9.3 no dead end; 9.4).
+**Affects:** `mode/mode.js`, `vitest-setup.js`, `history/simple_undo.js`, `project_editor/history.js`,
+`photo/photo_flow_use.js`, `photo/photo_flow_fit.js`, `photo/photo_dialog.js`, `checks/checks.js`,
+`checks/cache.js`, `checks/fixes.js`, `checks/fix_step.js`, `coach/rules.js`, `start/install_offer.js`,
+`start/name_field.js`, `tryit/gap_handle.js`, `nib/filter.js`, `pwa/notice_place.js`, word sets
+`checks.js`, `fixes.js`, `photo.js`, `photo_flow.js`; `tests/beginner.verify.mjs`,
+`tests/beginner_weight.mjs`, `tests/nib.verify.mjs`, `tests/pwa.verify.mjs` and every check of All
+tools (`?ui=all`).
+**Revisit if:** Brennan reads the outlined Brush line as a dead end, the slower gap drag feels like
+the handle lags his hand, a real felt-tip photo traces more than 15 % uneven, or he wants All tools
+to be remembered between launches.

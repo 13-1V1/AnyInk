@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B12 Try it, the strip side (UX-BEGINNER.md 4.6): the preview strip grows to fill the page area
 	under the top bar; the top bar and its Next line stay. The strip element, its sheet and the
@@ -31,7 +33,10 @@
 	The hint line under the sheet carries the stand-ins' legend while it applies (legendLine,
 	shown by the strip).
 	[Done] is green while the Next line holds no button (rule 5); with rule 4's [Use in Word] it
-	is outlined, so the screen has one green button (principle 1).
+	is outlined, so the screen has one green button (principle 1). B16: it is outlined too while
+	any dialog is open over Try it (Use in Word, Font details, an upstream box): the dialog has its
+	own green button. A dialog coming or going on the page redraws it (a watch on the body's
+	children, beside the coach's word).
 	The coach hears 'tryItOpen' and reads the strip's text as the Try-it text.
 
 	Slots for the gap-fix track (src/anyink/tryit letter_spacing.js, gap_handle.js, gap_list.js,
@@ -52,7 +57,7 @@
 */
 import { getCoach, setCoachFact, setCoachSource } from '../coach/coach_state.js';
 import { setCoachAction } from '../coach/actions.js';
-import { DIALOG_SELECTOR } from '../coach/dom_probe.js';
+import { DIALOG_SELECTOR, openDialogName } from '../coach/dom_probe.js';
 import { defaultTryItText } from '../coach/font_facts.js';
 import { isFeatureOn } from '../mode/features.js';
 import { isSimpleMode, MODE_EVENT } from '../mode/mode.js';
@@ -240,7 +245,7 @@ export function makeTryIt(strip, { doc = strip?.ownerDocument || document } = {}
 
 		/** [Done] is green unless the Next line holds a button of its own (rule 4). */
 		updateDone() {
-			const green = doneIsGreen();
+			const green = doneIsGreen(doc);
 			done.classList.toggle('anyink-primary', green);
 			done.classList.toggle('anyink-outlined', !green);
 			return green;
@@ -272,6 +277,15 @@ export function makeTryIt(strip, { doc = strip?.ownerDocument || document } = {}
 			);
 			// the purple gap handle, Letter spacing, "Gaps you fixed" and the Word note
 			SLOT_PIECES.forEach((installPiece) => listeners.push(installPiece(controller, { win })));
+			// B16: a dialog put on the page or taken off it (upstream's boxes never tell the coach)
+			const Observer = win.MutationObserver;
+			if (Observer && doc.body) {
+				const watch = new Observer(() => {
+					if (open) controller.updateDone();
+				});
+				watch.observe(doc.body, { childList: true });
+				listeners.push(() => watch.disconnect());
+			}
 			try {
 				unsubscribeCoach = getCoach().subscribe(() => controller.updateDone());
 			} catch {
@@ -302,8 +316,12 @@ function setFact(value) {
 	}
 }
 
-/** @returns {Boolean} */
-function doneIsGreen() {
+/**
+ * @param {Document} doc
+ * @returns {Boolean} no dialog is open and the Next line holds no button of its own
+ */
+function doneIsGreen(doc) {
+	if (openDialogName(doc)) return false;
 	try {
 		const coach = getCoach();
 		if (coach.isHidden?.()) return true;

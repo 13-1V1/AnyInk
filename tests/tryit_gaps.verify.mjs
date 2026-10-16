@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B12 tryit-gaps fix pass, real-browser check (docs/UX-BEGINNER.md 4.6 Try it, gap handle, Gaps you
 // fixed, the Word note; 7.3). The real app on a Vite dev server, Chrome, 1600 x 900, Simple by
 // ?ui=simple, the flags as the app ships them. "Brennan Hand" with B r e n a H d made (traced-like
@@ -14,6 +16,10 @@
 //   D. No banned word on the strip (strict)
 //   E. Measured, not asserted (the strip's layout belongs to the preview track): opening the two
 //      closed sections
+//   F. B16: the handle is found from at least 12 px either side of the gap (the band where it
+//      shows is measured), and a 13 px drag closer stops short of touching
+//   G. B16: [Use in Word] over Try it: one green button on the screen (the dialog's), Try it's
+//      Done outlined; green again when the dialog closes
 // Usage: node tests/tryit_gaps.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -207,7 +213,7 @@ try {
 	assert.equal(after.posts, after.wholes, `every before-copy has its after-copy (${after.wholes}/${after.posts})`);
 	assert.equal(
 		after.note,
-		'Word needs one setting for gap fixes. Nothing to do now: you will be shown it when you put your font in Word.'
+		'Word needs one setting for gap fixes. Use in Word will show you.'
 	);
 	assert.equal(after.list, 'Gaps you fixed (1)');
 	assert.equal(after.baseline, before.baseline, `the words stay put on release (${before.baseline} -> ${after.baseline})`);
@@ -313,6 +319,76 @@ try {
 	pass(
 		`E (${closed}): sections closed -> open: sheet bottom ${sectionsClosed.boxBottom} -> ${sectionsOpen.boxBottom}, the words stayed at ${sectionsOpen.baseline}`
 	);
+	// ------------------------------------------------------------------
+	// F. B16: an easy reach and a slow drag
+	// ------------------------------------------------------------------
+	await page.keyboard.press('Control+z');
+	await settle(600);
+	const reset = await measure();
+	assert.equal(reset.kern, 0, 'Ctrl+Z took the long drag back');
+	const gapF = await gapAt('e', 'n');
+	const band = [];
+	for (let dx = -40; dx <= 40; dx += 2) {
+		await page.mouse.move(gapF.x + dx, gapF.y);
+		await settle(30);
+		if (await page.locator('.anyink-gap-handle').isVisible()) band.push(dx);
+	}
+	assert.ok(band.includes(-12) && band.includes(12), `found 12 px either side: ${band.join(',')}`);
+	await page.mouse.move(gapF.x + 11, gapF.y);
+	await settle(150);
+	const hbF = await page.locator('.anyink-gap-handle').boundingBox();
+	// a press 8 px off the drawn bar still takes the handle (its 24 px target)
+	await page.mouse.move(hbF.x + hbF.width / 2 + 8, hbF.y + hbF.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(hbF.x + hbF.width / 2 - 5, hbF.y + hbF.height / 2, { steps: 6 });
+	await page.mouse.up();
+	await settle(600);
+	const slow = await page.evaluate(async () => {
+		const editor = (await import('/app/main.js')).getCurrentProjectEditor();
+		const { kernOffsetFor } = await import('/anyink/kerning/kern_lookup.js');
+		const { touchFloor } = await import('/anyink/tryit/gap_handle.js');
+		return {
+			kern: kernOffsetFor(editor.project, 'e', 'n'),
+			floor: touchFloor(editor.project, 'e', 'n', 0),
+		};
+	});
+	await shot('T7-slow-drag');
+	assert.ok(slow.kern < 0 && slow.kern > slow.floor, `13 px closer, short of touching: ${JSON.stringify(slow)}`);
+	pass(
+		`F: pointer x offsets from the e|n gap (2 px steps) where a handle shows: ${band.join(",")}; a 13 px drag closer gave kern ${slow.kern} (touching at ${slow.floor})`
+	);
+
+	// ------------------------------------------------------------------
+	// G. B16: one green button with Use in Word over Try it
+	// ------------------------------------------------------------------
+	const greens = () =>
+		page.evaluate(async () => {
+			const { isShown, PRIMARY_SELECTOR } = await import('/anyink/coach/dom_probe.js');
+			return [...document.querySelectorAll(PRIMARY_SELECTOR)].filter(isShown).map((b) => ({
+				t: b.textContent.trim(),
+				inDialog: !!b.closest('[data-anyink-dialog]'),
+			}));
+		});
+	await page.evaluate(async () => {
+		(await import('/anyink/coach/actions.js')).runCoachAction('useInWord');
+	});
+	await page.locator('[data-anyink-dialog="useInWord"]').waitFor({ timeout: 10000 });
+	await settle(400);
+	const withDialog = await greens();
+	await shot('T8-use-in-word-over-try-it');
+	assert.equal(withDialog.length, 1, `one green: ${JSON.stringify(withDialog)}`);
+	assert.equal(withDialog[0].inDialog, true, 'the green one is in the dialog');
+	await page.keyboard.press('Escape');
+	await settle(500);
+	const doneGreen = await page.evaluate(() =>
+		document.querySelector('.anyink-tryit__done').classList.contains('anyink-primary')
+	);
+	const closedGreens = await greens();
+	assert.equal(closedGreens.length, 1, `one green after closing: ${JSON.stringify(closedGreens)}`);
+	pass(
+		`G: Use in Word over Try it: greens ${JSON.stringify(withDialog)}; closed: Done green ${doneGreen}, greens ${JSON.stringify(closedGreens)}`
+	);
+
 	assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);
 	pass('no page errors');
 	console.log(`screenshots: ${shots}`);

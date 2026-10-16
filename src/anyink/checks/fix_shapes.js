@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11 fixes, the shapes part (UX-BEGINNER.md 4.2, 7.2, section 10 B11). Pure: no editor, no
 	Undo step, no topics. fixes.js turns each into one Undo step; fit_lines_to_writing.js reads
@@ -37,7 +39,10 @@
 	                               letter whose width the font file can't hold made automatic and
 	                               fitted, any other width rounded (options.fit false: the
 	                               automatic letter's fit is left to Simple's spacing hook)
-	A plan is { k, ox, oy, dx, dy }: x' = ox + (x - ox) * k + dx, y' = oy + (y - oy) * k + dy.
+	A plan is { k, ox, oy, dx, dy, grow }: x' = ox + (x - ox) * k + dx, y' = oy + (y - oy) * k + dy,
+	then (B16, Match size) every outline pushed `grow` font units away from its ink, so a scaled
+	letter keeps the width of the pen that wrote it (keep_weight.js; the photo follows the map).
+	Match size's k and grow land the body on its line at the same stroke (weightPlan).
 	Components inside a letter are left as they are (they are another letter's shapes).
 */
 import { guideLines, lineTargets } from '../placement/classes.js';
@@ -48,6 +53,7 @@ import { isAutomatic, markAuto } from '../spacing/owner.js';
 import { roundItemPoints, roundWidth, whole } from '../spacing/round.js';
 import { getTrace, setTrace } from '../trace/trace_model.js';
 import { measureLetter, speckPieces } from './checks.js';
+import { thickenShapes, weightPlan } from './keep_weight.js';
 
 /** The widest width the font file holds (fontcheck/validate.js MAX_WIDTH; a test keeps them equal) */
 export const MAX_WIDTH = 65535;
@@ -131,7 +137,9 @@ export function sizePlan(item, font, { slant = 0 } = {}) {
 	const { body, ink, line } = measures;
 	const height = body.top - body.bottom;
 	if (!(height > 0) || !(line.height > 0)) return null;
-	const k = line.height / height;
+	// B16: the letter changes size, never its pen (keep_weight.js): scaled by k, then pushed out
+	// by what the scale took off its stroke, so the body lands on its line at the same width
+	const { k, grow } = weightPlan({ height, line: line.height, stroke: measures.stroke });
 	const target = lineTargets(charOf(item), font);
 	// B10 + B11 finalize: a tail letter's body is seated too (its bowl or joint), so Match size
 	// never leaves a lifted g floating
@@ -139,9 +147,10 @@ export function sizePlan(item, font, { slant = 0 } = {}) {
 	// B10 + B11 finalize: what belongs on the line is lineAt (a Brush letter's pen line, half a
 	// nib over its ink: the same nib after the scale, penAllowance reads the stroke's own)
 	const above = seatLine(measures) - body.bottom;
-	const dy = seated - body.bottom - (target.seat === 'bottom' ? above : 0);
+	// the push moves the bottom and the left edge out by grow: the move takes it back
+	const dy = seated - body.bottom - (target.seat === 'bottom' ? above : 0) + grow;
 	if (Math.abs(k - 1) < 1e-6 && Math.abs(dy) < 0.5) return null;
-	return { k, ox: ink.xMin, oy: body.bottom, dx: 0, dy };
+	return { k, ox: ink.xMin, oy: body.bottom, dx: grow, dy, grow };
 }
 
 /**
@@ -200,6 +209,8 @@ export function applyPlan(item, plan) {
 			changed = true;
 		}
 	}
+	// B16: a plan that keeps the pen width pushes the outlines out after the scale (keep_weight.js)
+	if (Number.isFinite(plan.grow) && plan.grow) changed = thickenShapes(item, plan.grow) || changed;
 	const trace = getTrace(item);
 	if (trace) {
 		const scale = Number(trace.scale) * k;

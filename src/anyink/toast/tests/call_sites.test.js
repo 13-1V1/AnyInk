@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4: each main-path toast the spec lists (UX-BEGINNER.md section 10 B4, 2.4 G) runs through its
 // real call site and comes out as its words key in Simple, or as nothing where the spec says
 // Simple never shows it. All tools keeps its words, except a toast both modes share (2.2).
@@ -129,7 +131,8 @@ describe('history.js', () => {
 			.find((data) => data.iconName === 'deleteGlyph')
 			.onClick();
 		editor.history.restoreState();
-		expect(toasts()[0].innerHTML).toBe('Restored deleted item<br>Latin Small Letter R');
+		// B16: the delete's own toast is fading out (a page change); the live one speaks
+		expect(live().at(-1).innerHTML).toBe('Restored deleted item<br>Latin Small Letter R');
 		const entry = lastLog();
 		expect(entry).toMatchObject({
 			key: 'toast.broughtBack',
@@ -229,7 +232,11 @@ describe('trace_import.js (the photo toasts)', () => {
 			expect(route).toHaveBeenCalledWith(photo, { editor, item: undefined });
 			expect(editor.selectedItem.anyink?.trace).toBeFalsy();
 			expect(editor.history.queue.length).toBe(steps);
-			expect(toastLog().slice(before).map((entry) => entry.key)).not.toContain('toast.photoNotYet');
+			expect(
+				toastLog()
+					.slice(before)
+					.map((entry) => entry.key)
+			).not.toContain('toast.photoNotYet');
 			// the drop on the canvas goes the same way
 			const drop = new Event('drop', { cancelable: true });
 			drop.dataTransfer = { files: [jpeg()] };

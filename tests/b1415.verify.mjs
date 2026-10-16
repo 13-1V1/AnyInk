@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B14 + B15 integration real-browser check (docs/UX-BEGINNER.md 4.7 Use in Word, 4.8 Font
 // details and Move the guide lines, 4.10 Help, section 8, section 10 B14 and B15): the first full
 // loop, in the real app on a Vite dev server, Chrome with a throwaway context, 1600 x 900, the
@@ -793,7 +795,7 @@ try {
 	// ------------------------------------------------------------------
 	context = await newContext();
 	page = await freshPage('all tools', context);
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#open-project__tab-new').waitFor({ timeout: 60000 });
 	await page.locator('#input__new-project-name').fill('Tools Font');
 	await page.locator('#button__create-new-project').click();

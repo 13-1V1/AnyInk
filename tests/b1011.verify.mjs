@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B10 + B11 integration real-browser check (docs/UX-BEGINNER.md 4.2 the letter board, 4.3 the
 // letter card, 4.0 rules 7 and 9, 7.2, 7.3; section 10 B10 and B11), in the real app on Vite dev
 // servers, Chrome with throwaway profiles, 1600 x 900, the feature flags as the app ships them
@@ -130,7 +132,7 @@ const waitUntil = async (check, what, timeout = 20000, p = page) => {
 	}
 	throw new Error(`timed out: ${what}`);
 };
-const newFont = async (p, origin, name, search = '') => {
+const newFont = async (p, origin, name, search = '?ui=all') => {
 	await p.goto(`${origin}/${search}`);
 	const field = p.locator('#input__new-project-name');
 	await field.waitFor({ timeout: 60000 });
@@ -817,7 +819,7 @@ try {
 		return result;
 	};
 	const simpleBackup = await backup('simple', '?ui=simple', 0);
-	const allBackup = await backup('all-tools', '', 30);
+	const allBackup = await backup('all-tools', '?ui=all', 30); // B16: Simple is the launch default
 	[
 		['Simple, 200 steps, 30 whole-font', simpleBackup],
 		['All tools, 200 steps, 30 whole-font, 30 "Navigated to"', allBackup],

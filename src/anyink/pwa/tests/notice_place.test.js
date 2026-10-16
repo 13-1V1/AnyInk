@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 fix pass: an app notice (Install, ready offline) first sat 80 px up from the bottom of the
 // window, over the canvas zoom bar and the preview strip; moved above the strip, it then covered
 // letter tiles on Overview and buttons on Settings. Until B6 decides where notices live, a notice
@@ -65,14 +67,16 @@ describe('where app notices sit (CSS)', () => {
 
 describe('placeNotices', () => {
 	let container;
-	const rect = (left, right, top = 8, bottom = 32) => () => ({
-		left,
-		right,
-		top,
-		bottom,
-		width: right - left,
-		height: bottom - top,
-	});
+	const rect =
+		(left, right, top = 8, bottom = 32) =>
+		() => ({
+			left,
+			right,
+			top,
+			bottom,
+			width: right - left,
+			height: bottom - top,
+		});
 
 	beforeEach(() => {
 		document.body.innerHTML = '';
@@ -159,8 +163,24 @@ describe('placeNotices', () => {
 	it('Simple: a narrow gap still never puts the notice over Undo', () => {
 		simpleBar({ slotLeft: 900, slotRight: 980 });
 		placeNotices(container, document, { innerWidth: 1280 });
-		const right = parseInt(vars().right, 10);
-		expect(1280 - right).toBeLessThanOrEqual(980 - NOTICE_GAP);
+		// B16 final: too narrow for a notice, it goes under the bar, off Undo's row
+		const top = parseInt(container.style.getPropertyValue('--anyink-notice-top'), 10);
+		expect(top).toBeGreaterThanOrEqual(46);
+	});
+
+	// B16 final (the board track: with every step's words kept at 1280, the gap can be 83 px; a
+	// notice is never narrower than 160 px, so it would cover "3 Use in Word"). Written to fail
+	// first: the notice stayed in the gap, its left end over the rail.
+	it('Simple: a gap too narrow for a notice puts it under the bar and the Next line, at the right', () => {
+		simpleBar({ slotLeft: 897, slotRight: 980 });
+		const coach = document.createElement('anyink-coach');
+		coach.getBoundingClientRect = rect(0, 1280, 46, 84);
+		document.body.append(coach);
+		placeNotices(container, document, { innerWidth: 1280 });
+		const top = parseInt(container.style.getPropertyValue('--anyink-notice-top'), 10);
+		expect(top).toBeGreaterThanOrEqual(84);
+		expect(vars().right).toBe(`${NOTICE_GAP}px`);
+		coach.remove();
 	});
 
 	it('All tools after Simple: the top is the CSS fallback again', () => {

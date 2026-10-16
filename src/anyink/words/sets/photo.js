@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 word set: the photo screens (UX-BEGINNER.md 4.4, 4.5, 7.7): the How card, the photo dialog
 	(step B) and the photo card (steps A and C) in src/anyink/photo. Owner: B9 photo-ui track.
@@ -107,9 +109,18 @@ const PHOTO = {
 		feature: 'photo',
 	},
 	'photo.dialog.loading': { text: 'Loading the photo...', feature: 'photo' },
+	// B16: a whole page opened close up, letters still to name out of view
+	'photo.dialog.more': {
+		text: 'Some letters are out of view. Scroll the photo to see them, or press − to see all of it.',
+		feature: 'photo',
+	},
 	// finalize: the green box on a part that may hold two letters written touching
 	'photo.dialog.twoLetters': {
 		text: 'Two letters touch here. Drag a box around each one.',
+		feature: 'photo',
+	},
+	'photo.dialog.twoLettersBox': {
+		text: 'This part is two letters that touch. Drag a box around the one you want, then press Trace it.',
 		feature: 'photo',
 	},
 	'photo.dialog.typeFirst': {

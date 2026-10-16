@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <!-- Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com
+     Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
      brennanmmeyer@gmail.com -->
 <html lang="en">
 <head>
@@ -131,6 +133,12 @@
 					})
 			);
 		}
+		// B16 (10/16/2026): Simple is the launch mode now, so the page starts in the mode its radio
+		// shows (All tools), and ?ui=simple checks Simple's radio
+		const startMode = new URLSearchParams(location.search).get('ui') === 'simple' ? 'simple' : 'all';
+		document.querySelector(`input[name="mode"][value="${startMode}"]`).checked = true;
+		setMode(startMode);
+		document.documentElement.dataset.uiMode = startMode;
 		window.__toastPage = { setMode, toastLog, showToast, toast };
 		render();
 		document.body.dataset.ready = 'true';

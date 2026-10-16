@@ -426,8 +426,9 @@ alone.
 | More tools | "More tools" | Turns on All tools mode (section 6) |
 | Menu | "Menu" | Opens the menu (4.9) |
 
-Below 1440 px the rail shows "1 2 3" plus the current step's name. Nothing is ever locked; every
-step can be clicked at any time.
+Down to 1280 px every step keeps its words (B16: "2" and "3" alone told a first-timer nothing).
+Below 1280 px the rail shows the current step's name and the other steps' numbers, each with its
+name as a tooltip. Nothing is ever locked; every step can be clicked at any time.
 
 **Next line** (row 2): `<anyink-coach>`. Its state lives in `src/anyink/coach/coach_state.js`, so a
 rebuilt top bar re-renders it instantly with no flicker. It holds one sentence, at most one button, a
@@ -1253,8 +1254,10 @@ gap fixes and a Bold copy.
   does now. Simple mode is reachable only by adding `?ui=simple` to the address (on the live site or
   `npm run dev`); nothing on screen points there. So every B can be deployed without changing what
   Brennan sees on launch, and he never meets a half-built Simple mode.
-- **Default, from B16:** ANY-INK **always opens in Simple mode.** All tools lasts until he turns it off
-  or closes the app. A forgotten switch must never greet him with the pro workspace the next day.
+- **Default, from B16 (done 10/16/2026):** ANY-INK **always opens in Simple mode** (the address with no
+  `ui`, the installed app's start_url, a reopened tab). All tools lasts until he turns it off or closes
+  the app, or loads `?ui=all` for one load (the real-Chrome checks of All tools do). A forgotten
+  switch must never greet him with the pro workspace the next day.
 - **Stored** in `src/anyink/mode/mode.js` (`getMode()` / `setMode()`), mirrored to `html[data-ui-mode]`
   the way `theme.js` mirrors the canvas theme. Changing mode calls `navigate()`. The launch default is
   one constant, flipped in B16.
@@ -1513,7 +1516,7 @@ follows the answers):
 ### 9.1 Setup
 
 - Windows 11, Chrome, a **fresh profile**, the deployed build (or `vite preview` of the release build),
-  in Simple mode (`?ui=simple` before B16 flips the default).
+  in Simple mode (the launch default since B16; `?ui=simple` before it). Brennan's session: `docs/GATE2.md`.
 - Paper with **B r e n a H d** written as the How card asks: black felt-tip, about 1 in tall, a finger's
   width apart, in one row. A phone photo of it (JPEG) already on the PC in Downloads.
 - **Testers, in order:** the automated run (9.4); then an agent role-playing a first-timer who may read
@@ -1571,7 +1574,7 @@ Any failure becomes a fix item in B16 and the failed task is re-run.
 ### 9.4 Automated checks (run before every Gate 2 attempt)
 
 - `tests/beginner.verify.mjs` (Playwright, headless): runs T1 to T7 and the file part of T8 against the
-  built app with `?ui=simple`, with stand-ins for the Windows pickers (as the walkthrough did) and real
+  built app in Simple (since B16 with no `?ui`, as it opens), with stand-ins for the Windows pickers (as the walkthrough did) and real
   drops of two fixtures:
   - `tests/fixtures/brenna-loose.jpg`: B r e n a H d with gaps wider than a capital's height;
   - `tests/fixtures/brenna-tight.jpg`: the same letters with gaps of about a quarter of the

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B2: Undo and Redo in Simple mode (UX-BEGINNER 7.3). History.restoreState and redoState hand
 	over to these while mode.js says 'simple'; All tools keeps upstream's undo untouched.
@@ -90,9 +92,7 @@ export function undoNewest(history, editor, { inLetterView } = {}) {
 			itemID = top.itemID || false;
 		} else {
 			itemID = top.itemID;
-			const state = top.itemWasDeleted
-				? top.itemState
-				: previousItemState(queue, itemID, history.undoBase);
+			const state = stateBeforeStep(queue, history.undoBase);
 			writeItemState(editor.project, itemID, state);
 			if (objTypeFromID(itemID) === 'KernGroup') notifyKernGroup(editor, itemID);
 			undone = queue.splice(0, 1);
@@ -168,6 +168,43 @@ function passOverLookingAround(history) {
 		const gone = queue.splice(0, count);
 		if (gone.includes(history.savedMarker)) history.savedMarker = queue[0] || SAVED_AT_EMPTY;
 	}
+}
+
+/**
+ * B16: the state the newest step (queue[0]) undoes to. A deletion step holds the item from before
+ * it was deleted; a step that carries its own earlier state (`before`, markStepBefore) goes back
+ * to that; any other item step to its item's nearest older state (previousItemState).
+ * @param {Array} queue - History.queue, newest first
+ * @param {Object} base - History.undoBase
+ * @returns {Object | null}
+ */
+export function stateBeforeStep(queue, base) {
+	const top = queue[0];
+	if (!top) return null;
+	if (top.itemWasDeleted) return top.itemState;
+	if (top.before) return top.before;
+	return previousItemState(queue, top.itemID, base);
+}
+
+/**
+ * B16: gives the newest step its own earlier state, for a change whose real "before" is not in
+ * the list. Use it on an empty letter: the photo went on at step C with no step of its own (a
+ * look, never saved), so the letter's older state has no photo, while one Undo must bring back
+ * the empty letter with its photo kept (UX-BEGINNER 9.2 T2). Only an item step of that item
+ * takes it; a whole-project step already holds its own copy.
+ * @param {Object} history
+ * @param {String} itemID
+ * @param {Object} state - the item's save() data, or an item with save()
+ * @param {(data: Object) => Object} make - builds the stored item (new Glyph(data))
+ * @returns {Boolean} true when the step took it
+ */
+export function markStepBefore(history, itemID, state, make) {
+	const top = history?.queue?.[0];
+	if (!top || top.itemID !== itemID || top.wholeProjectSave || top.settingsSave) return false;
+	if (top.itemWasDeleted || !state) return false;
+	const data = typeof state.save === 'function' ? state.save() : structuredClone(state);
+	top.before = make(data);
+	return true;
 }
 
 /**

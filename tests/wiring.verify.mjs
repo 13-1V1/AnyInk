@@ -1,12 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 wiring real-browser check (docs/UX-BEGINNER.md 6.2, 6.3, 7.6, 4.11, section 10 B5), in the
 // real app on a Vite dev server over src/, Chrome with a throwaway profile, 1600 x 900:
-//   A. All tools (no ?ui), a new font, small a: the screens show exactly the controls jsdom saw
+//   A. All tools (?ui=all), a new font, small a: the screens show exactly the controls jsdom saw
 //      before the wiring (src/anyink/mode/tests/today_controls.json: choosers, tools, view tools,
-//      menus, File rows); P Point pen, E Edit points, U Add a point, no toast; Ctrl+Space hides
-//      the UI; Ctrl+G makes the SVG font file; Ctrl+O opens the work file picker, no new window;
-//      the small-letter line drags
+//      menus, File rows; plus B8's Brush after New path); P Point pen, E Edit points, U Add a
+//      point, B Brush; no toast; Ctrl+Space hides the UI; Ctrl+G makes the SVG font file; Ctrl+O
+//      opens the work file picker, no new window; the small-letter line drags
 //   B. Simple (?ui=simple), a new font, small a: the page chooser with Simple's four pages (kept
 //      until B6's rail: B5 fix track), no panel chooser, no panel; 5 tools, 6 view tools; File and
 //      Help menus; File is Save, Save as..., Open a saved font... and the .otf font file; the banned-word scan of the whole letter screen;
@@ -227,14 +229,19 @@ try {
 	// ----------------------------------------------------------
 	// A. All tools
 	// ----------------------------------------------------------
-	await newFont('Wiring All', '');
+	await newFont('Wiring All', '?ui=all'); // B16: Simple is the launch default
 	await openSmallA();
 	let s = await state();
 	assert.equal(s.mode, 'all');
 	assert.equal(s.page, 'Characters');
 	let c = await controls();
 	assert.deepEqual(c.nav, today.pages.Characters.nav);
-	assert.deepEqual(c.tools, today.pages.Characters.tools);
+	// today_controls.json is upstream's snapshot from before B8 and stays as it is; the Brush
+	// (B8, D-038) came after it, in both modes, right after New path (tools.js), so it is put in
+	// here rather than in the snapshot
+	const withBrush = [...today.pages.Characters.tools];
+	withBrush.splice(withBrush.indexOf('New path') + 1, 0, 'Brush');
+	assert.deepEqual(c.tools, withBrush);
 	assert.deepEqual(c.viewTools, today.pages.Characters.viewTools);
 	assert.equal(c.panel, true);
 	assert.deepEqual(c.menus, today.topMenus);
@@ -262,7 +269,8 @@ try {
 		p: 'newPath',
 		e: 'pathEdit',
 		u: 'pathAddPoint',
-		b: 'pathEdit',
+		// B8 (D-038): B is the Brush in both modes; before B8 it was Edit points here
+		b: 'nib',
 		v: 'resize',
 	});
 	assert.notEqual(await toastText(), 'Switched to Rectangle (R)');
@@ -286,7 +294,7 @@ try {
 	await waitUntil(() => page.evaluate(() => window.__opens === 1), 'the open picker', 5000);
 	assert.equal(context.pages().length, pagesBefore);
 	pass(
-		`All tools keys: P Point pen, E Edit points, U Add a point, B Edit points, V Select, no toast; Ctrl+Space hides the UI; Ctrl+G downloads ${downloads[0]}; Ctrl+O opens the work file picker, no new window`
+		`All tools keys: P Point pen, E Edit points, U Add a point, B Brush, V Select, no toast; Ctrl+Space hides the UI; Ctrl+G downloads ${downloads[0]}; Ctrl+O opens the work file picker, no new window`
 	);
 
 	const xBefore = (await state()).xHeight;

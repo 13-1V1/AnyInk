@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B13: Simple's start screen (UX-BEGINNER.md 4.1), in place of the four-tab Open Project page.
 	open_project.js draws it in Simple with the 'startScreen' flag on; All tools keeps the tabs.
@@ -29,7 +31,8 @@
 	  none           nothing to continue: [Create my font] is the green one
 	[Create my font] is outlined whenever a card shows. Other fonts (up to 3) and "Open a saved
 	font..." show always. The name field (#input__new-project-name) says "My Font", or "My Font 2"
-	... when a recent font or a backup copy already has that name; [Create my font]
+	... when a recent font or a backup copy already has that name; the suggestion is picked whole
+	on a click or a focus, and with no card the field has the keyboard (B16, name_field.js); [Create my font]
 	(#button__create-new-project) starts the save box without waiting for it (create_font.js). A
 	work file dropped anywhere on the page opens. "Other ways to start..." opens the original tabs
 	under the purple More tools band. The page lists again whenever a backup copy comes or goes.
@@ -62,6 +65,7 @@ import { recGet } from '../storage/kv.js';
 import { word } from '../words/words.js';
 import { sessionFacts } from './card_facts.js';
 import { createFont } from './create_font.js';
+import { focusNameField, wireNameField } from './name_field.js';
 import { chooseCard, defaultFontName, otherFonts, whenParts } from './start_state.js';
 
 export const START_CLASS = 'anyink-start';
@@ -149,6 +153,8 @@ export function makeStartPage(deps = {}) {
 	main.append(foot);
 
 	let defaultName = initialName;
+	// B16: the suggested name is picked whole on a click or a focus, so typing replaces it
+	wireNameField(input, { suggested: () => defaultName });
 	const pressCreate = () => {
 		const name = input.value.trim() || defaultName;
 		input.value = name;
@@ -379,7 +385,10 @@ export function makeStartPage(deps = {}) {
 
 	wrapper.refill = refill;
 	wrapper.page = page;
-	wrapper.ready = refill();
+	// B16: on a first launch (no card, Create is the green one) typing goes straight to the name
+	wrapper.ready = refill().then(() => {
+		if (page.card?.kind === 'none') focusNameField(input);
+	});
 	page.ready = wrapper.ready;
 	page.refill = refill;
 	page.lastAction = Promise.resolve();

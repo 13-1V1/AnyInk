@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { injectStyleOnce } from '../anyink/preview/inject_style.js';
 import pointsSliderStyle from '../anyink/preview/points-slider.css?inline';
 import { applyThemeTo, onThemeChange } from '../anyink/theme/theme.js';
 import tokenStyle from '../anyink/theme/tokens.css?inline';
@@ -49,25 +52,20 @@ export function openPopOutWindow() {
 	});
 
 	// Tokens go in first so every stylesheet after them can resolve var(--...).
-	const tokens = makeElement({ tag: 'style', innerHTML: tokenStyle });
-	popDoc.head.appendChild(tokens);
+	// ANY-INK 10/16/2026: stylesheets go in as text (textContent), never through makeElement's
+	// innerHTML, which parses the CSS as HTML and stops at a tag-like word in a comment.
+	injectStyleOnce('anyink-popout-tokens', tokenStyle, popDoc);
 
 	popDoc.head.appendChild(makeElement({ tag: 'title', content: 'Live Preview - ANY-INK' }));
 
-	const resets = makeElement({ tag: 'style', innerHTML: resetStyle });
-	popDoc.head.appendChild(resets);
-	const popWindow = makeElement({ tag: 'style', innerHTML: popOutWindowStyle });
-	popDoc.head.appendChild(popWindow);
-	const dialogs = makeElement({ tag: 'style', innerHTML: dialogStyle });
-	popDoc.head.appendChild(dialogs);
-	const panels = makeElement({ tag: 'style', innerHTML: panelStyle });
-	popDoc.head.appendChild(panels);
+	injectStyleOnce('anyink-popout-resets', resetStyle, popDoc);
+	injectStyleOnce('anyink-popout-window', popOutWindowStyle, popDoc);
+	injectStyleOnce('anyink-popout-dialogs', dialogStyle, popDoc);
+	injectStyleOnce('anyink-popout-panels', panelStyle, popDoc);
 	// ANY-INK: the 'Edit live previews' dialog holds a points slider (fancy-slider bar +
 	// points-slider row). Same id makePointsSlider uses, so its injectStyleOnce is a no-op here.
-	popDoc.head.appendChild(makeElement({ tag: 'style', innerHTML: fancySliderStyle }));
-	const pointsSlider = makeElement({ tag: 'style', innerHTML: pointsSliderStyle });
-	pointsSlider.id = 'anyink-points-slider-style';
-	popDoc.head.appendChild(pointsSlider);
+	injectStyleOnce('anyink-popout-fancy-slider', fancySliderStyle, popDoc);
+	injectStyleOnce('anyink-points-slider-style', pointsSliderStyle, popDoc);
 
 	popDoc.body.appendChild(
 		makeElement({

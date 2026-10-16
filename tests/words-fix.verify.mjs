@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix pass, words track: real-browser check of the critic findings this track fixed, in
 // the dev app (Vite on src/), Chrome with a throwaway profile, 1600 x 900, ?ui=simple then All tools:
 //   1. the empty preview says what fits: "Your letters show here as you make them." with text and
@@ -477,7 +479,7 @@ try {
 	// ----------------------------------------------------------
 	// 9. All tools
 	// ----------------------------------------------------------
-	await newFont('');
+	await newFont('?ui=all'); // B16: Simple is the launch default
 	await openSmallA();
 	await page.locator('button[title="New rectangle"]').click();
 	await drag(await at(100, 60), await at(400, 460));

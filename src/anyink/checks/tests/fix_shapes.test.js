@@ -1,5 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+// B16: Match size keeps the pen width (keep_weight.test.js has its own checks).
 // B11 fixes, the shapes part (UX-BEGINNER.md 4.2, 7.2, section 10 B11): where a letter's body
 // ends, the move and the scales that Sit on the line, Match size and Shrink to fit make (the
 // photo moves with the ink, every point whole), the specks rule (dots of i j ! ? : ; never),
@@ -98,14 +101,17 @@ describe('Match size (sizePlan)', () => {
 		const { item } = letterOf('n', shapesOf('n', { k: 1.4, dy: 30 }));
 		setTrace(item, photo({ x: 60, y: 900, scale: 2 }));
 		const before = inkBounds(item);
-		applyPlan(item, sizePlan(item, FONT));
+		const plan = sizePlan(item, FONT);
+		applyPlan(item, plan);
 		const after = inkBounds(item);
 		expect(after.yMin).toBe(0);
 		expect(after.yMax).toBe(500);
 		expect(after.xMin).toBe(before.xMin);
-		expect(Math.round(after.xMax - after.xMin)).toBe(Math.round((before.xMax - before.xMin) / 1.4));
-		// The photo scaled through the same map: 1 / 1.4 of its size
-		expect(getTrace(item).scale).toBeCloseTo(2 / 1.4, 6);
+		// B16: scaled, then pushed out by what the scale took off the stroke (keep_weight.js)
+		const width = plan.k * (before.xMax - before.xMin) + 2 * plan.grow;
+		expect(Math.abs(after.xMax - after.xMin - width)).toBeLessThanOrEqual(1);
+		// The photo scaled through the same map
+		expect(getTrace(item).scale).toBeCloseTo(2 * plan.k, 6);
 		expect(numbers(item).every(Number.isInteger)).toBe(true);
 	});
 

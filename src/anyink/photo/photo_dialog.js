@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-ui: the photo dialog, step B (docs/UX-BEGINNER.md 4.4 "Step B, the photo dialog", 4.5).
 	Which part of the photo is which letter. The whole photo fills the dialog; each part has a thin
@@ -28,9 +30,16 @@
 	  ResizeObserver on it, else the window's resize) only changes how much shows, and the green
 	  box comes back into view. A zoom button that hides while it has the focus hands it on (the
 	  other zoom button, else the field or the photo), so the dialog's keys keep working.
+	- B16 (acceptance run: a whole-alphabet page opened on its capitals every time, nothing saying
+	  the small letters were below): while a part still to name is out of view, a line under the
+	  photo says so ("Some letters are out of view..."), and the view opens as close as he left
+	  it for that photo with [-] [+] or Ctrl + the wheel (kept for the session).
 	- On a part that may hold two letters written touching (photo_registry.js mayBeTwoLetters),
 	  the sentence under the photo says so: "Two letters touch here. Drag a box around each one."
-	  (finalize: the merged "VW", "lm" and "na" said nothing).
+	  (finalize: the merged "VW", "lm" and "na" said nothing). B16: such a part used for one of
+	  its letters is offered again (photo_registry.js twoLettersFor), with an empty field. B16
+	  final: Trace it on it for another letter traces nothing ("This part is two letters that
+	  touch. Drag a box around the one you want, then press Trace it."): the box comes first.
 	- Picking: a click picks the part under it (a few screen pixels round it count too). A drag
 	  anywhere draws a new box, with a crosshair cursor: the tight box round the ink inside it
 	  (ink_parts.js partFromBox) becomes the pick; a box round no ink says so and keeps the pick.
@@ -120,7 +129,7 @@ import { isSimpleMode } from '../mode/mode.js';
 import { letterName } from '../words/letter_name.js';
 import { word, wordEntry } from '../words/words.js';
 import { partAt, partFromBox } from './ink_parts.js';
-import { mayBeTwoLetters } from './photo_registry.js';
+import { twoLettersFor, unusedParts } from './photo_registry.js';
 import { fitSize, paintPhoto } from './paint_photo.js';
 import {
 	addDrawnPart,
@@ -156,6 +165,9 @@ export const MAX_PIXEL_SCALE = 3;
 
 /** Never closer than this many times the whole photo. */
 export const MAX_ZOOM = 8;
+
+/** B16: how close he left each photo's view ([-] [+], Ctrl + the wheel), by its record. */
+const keptZoom = new WeakMap();
 
 /** Zoom in and Zoom out: one press. */
 export const ZOOM_STEP = 1.5;
@@ -585,15 +597,18 @@ export function openPhotoDialog(options = {}) {
 	});
 	modal.show(state.known ? state.els.trace : state.els.field);
 	state.els.field?.select?.();
-	// close up when the letters would show too small to click or box (finding 2)
+	// close up when the letters would show too small to click or box (finding 2); B16: or as
+	// close as he left it for this photo
 	const { width: viewWidth, height: viewHeight } = viewSize(state);
-	state.zoom = autoZoom({
-		parts: record.parts,
-		width: state.width,
-		height: state.height,
-		viewWidth,
-		viewHeight,
-	});
+	state.zoom =
+		keptZoom.get(record) ??
+		autoZoom({
+			parts: record.parts,
+			width: state.width,
+			height: state.height,
+			viewWidth,
+			viewHeight,
+		});
 	sizeStage(state);
 	state.sized = true;
 	render(state);
@@ -723,6 +738,7 @@ function build(state, titleId) {
 	viewBox.appendChild(stage);
 	// Ctrl + the wheel (a touchpad pinch) zooms where the pointer is; the wheel alone scrolls
 	viewBox.addEventListener('wheel', (event) => onWheel(state, event), { passive: false });
+	viewBox.addEventListener('scroll', () => showMore(state), { passive: true });
 	// "Loading the photo..." over the view, wherever it is scrolled
 	frame.append(viewBox, els.loading);
 
@@ -730,13 +746,19 @@ function build(state, titleId) {
 	const under = el('div', 'anyink-photo-dialog__under');
 	const hint = el('p', 'anyink-photo-dialog__hint', { 'data-anyink-photo-hint': '' });
 	hint.textContent = word('photo.dialog.hint');
+	// B16: letters still to name that are out of view (a whole page opened close up)
+	els.more = el('p', 'anyink-photo-dialog__more', { 'data-anyink-photo-more': '' });
+	els.more.textContent = word('photo.dialog.more');
+	els.more.hidden = true;
+	const words = el('div', 'anyink-photo-dialog__words');
+	words.append(hint, els.more);
 	const zoom = el('div', 'anyink-photo-dialog__zoom', { role: 'group' });
 	els.zoomOut = zoomButton('zoomOut', 'view.zoomOut', '−');
 	els.zoomOut.addEventListener('click', () => zoomBy(state, 1 / ZOOM_STEP));
 	els.zoomIn = zoomButton('zoomIn', 'view.zoomIn', '+');
 	els.zoomIn.addEventListener('click', () => zoomBy(state, ZOOM_STEP));
 	zoom.append(els.zoomOut, els.zoomIn);
-	under.append(hint, zoom);
+	under.append(words, zoom);
 	els.message = el('p', 'anyink-photo-dialog__message', {
 		'aria-live': 'polite',
 		'data-anyink-photo-message': '',
@@ -858,12 +880,14 @@ function reveal(state, part, { center = false } = {}) {
 		box.top - room >= view.scrollTop &&
 		box.right + room <= view.scrollLeft + m.view.width &&
 		box.bottom + room <= view.scrollTop + m.view.height;
-	if (inView && !center) return;
-	scrollView(
-		state,
-		(box.left + box.right) / 2 - m.view.width / 2,
-		(box.top + box.bottom) / 2 - m.view.height / 2
-	);
+	if (!inView || center) {
+		scrollView(
+			state,
+			(box.left + box.right) / 2 - m.view.width / 2,
+			(box.top + box.bottom) / 2 - m.view.height / 2
+		);
+	}
+	showMore(state);
 }
 
 /**
@@ -888,9 +912,40 @@ function zoomBy(state, factor, pointer) {
 	const photoY = (spot.y + view.scrollTop - m.offY) / m.k;
 	state.zoom *= factor;
 	sizeStage(state);
+	keptZoom.set(state.record, state.zoom);
 	render(state);
 	const after = stageMetrics(state);
 	scrollView(state, photoX * after.k + after.offX - spot.x, photoY * after.k + after.offY - spot.y);
+	showMore(state);
+}
+
+/**
+ * B16: "Some letters are out of view..." while a part still to name is not wholly in view.
+ * @param {Object} state
+ */
+function showMore(state) {
+	const { more, view } = state.els;
+	if (!more) return;
+	if (!state.sized || state.modal.closed) {
+		more.hidden = true;
+		return;
+	}
+	const m = stageMetrics(state);
+	// its line is kept while the photo is bigger than the view, so the view never jumps under
+	// the pointer as the words come and go while he scrolls (only a zoom changes the layout)
+	more.hidden = !(state.stage.width > m.view.width + 1 || state.stage.height > m.view.height + 1);
+	const byId = new Map(state.record.parts.map((part) => [part.id, part]));
+	const out = unusedParts(state.record).some((id) => {
+		const part = byId.get(id);
+		return (
+			part.left * m.k + m.offX < view.scrollLeft - 1 ||
+			part.top * m.k + m.offY < view.scrollTop - 1 ||
+			part.right * m.k + m.offX > view.scrollLeft + m.view.width + 1 ||
+			part.bottom * m.k + m.offY > view.scrollTop + m.view.height + 1
+		);
+	});
+	more.style.visibility = out ? '' : 'hidden';
+	more.toggleAttribute('data-anyink-photo-more-out', out);
 }
 
 /** Ctrl + the wheel zooms where the pointer is; the wheel alone scrolls, as anywhere. */
@@ -964,7 +1019,8 @@ function render(state) {
 function messageText(state) {
 	if (state.message) return word(state.message);
 	// a part that may hold two touching letters: box each one (finalize)
-	if (state.picked && !state.picked.drawn && mayBeTwoLetters(state.record, state.picked.id)) {
+	const picked = state.picked;
+	if (picked && twoLettersFor(state.record, picked.id, usedChar(state.record, picked.id))) {
 		return word('photo.dialog.twoLetters');
 	}
 	if (state.picked) return '';
@@ -1001,7 +1057,9 @@ function pick(state, part) {
 	if (part?.id !== DRAWN_ID) state.drawn = null;
 	if (state.message !== 'photo.dialog.typeFirst') state.message = '';
 	if (!state.known && !(state.source === 'typed' && state.char)) {
-		const used = part && part.id !== DRAWN_ID ? usedChar(state.record, part.id) : '';
+		let used = part && part.id !== DRAWN_ID ? usedChar(state.record, part.id) : '';
+		// B16: a used part of two touching letters still has one with no name
+		if (used && twoLettersFor(state.record, part.id, used)) used = '';
 		if (used) setField(state, used, 'used');
 		else setField(state, part ? prefillChar(state.record, boxedFor(part)) : '', 'prefill');
 	}
@@ -1208,6 +1266,14 @@ function traceIt(state) {
 	let { picked } = state;
 	let mask = null;
 	const drawn = picked.id === DRAWN_ID;
+	// B16 final: a part of two touching letters already used for one of them is never traced
+	// whole for the other (the whole "na" would become the a too): he draws a box round it first
+	const taken = drawn ? '' : usedChar(record, picked.id);
+	if (taken && taken !== char && twoLettersFor(record, picked.id, taken)) {
+		state.message = 'photo.dialog.twoLettersBox';
+		render(state);
+		return;
+	}
 	if (drawn) {
 		mask = picked.mask || null;
 		const stored = addDrawnPart(record, picked);

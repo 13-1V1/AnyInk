@@ -13,7 +13,17 @@ and roughen. It installs as a PWA and runs offline.
 
 ## 2. The user's journey
 
-1. **Launch** from the desktop icon. If the last session ended unclean, a card offers
+**Since B16 (10/16/2026) the journey is `docs/UX-BEGINNER.md`.** ANY-INK opens in Simple mode, and
+UX-BEGINNER section 3 (the first-time journey, minute by minute) and section 4 (every screen) are the
+source of truth: the start screen, the letter board, photos to letters, the Brush, Try it with its gap
+handle, Use in Word, crash recovery, and the Next line that names one step at a time. Section 9 is the
+acceptance test (`tests/beginner.verify.mjs` runs its automated part; `docs/GATE2.md` is Brennan's own
+session).
+
+The journey below is the **All tools** one (More tools, or `?ui=all`): the original Glyphr Studio
+screens with the M4 to M8 additions, kept for pro work.
+
+1. **Launch** with `?ui=all`, or turn on More tools. If the last session ended unclean, a card offers
    "Recover unsaved work". Otherwise: New project, Open (file picker starting in the last
    folder), Reopen recent, or Examples.
 2. **Draw** on a white canvas with dark outlines. Green marks what is being touched:
@@ -21,13 +31,13 @@ and roughen. It installs as a PWA and runs offline.
    handles, guide lines, metrics lines, kern indicators. A one-click toggle turns the
    canvas dark; the choice is remembered.
 3. **Space and size**: drag the purple ascender / cap / x-height / descender lines; the
-   preview strip at the bottom re-flows as they move. Drag side bearings on the canvas.
+   preview strip at the bottom re-flows as they move. Drag side bearings on the canvas
+   (with Resize or Path edit; a drawing tool's press is always the tool's, B16).
 4. **Kern**: on the Kerning page, a live pair view shows the pair inside real words; drag
    the right letter. Arrow keys nudge. The strip updates.
 5. **Creative tools** (each its own page or panel): drop a photo to trace over it; auto-trace
-   it with three sliders; print a handwriting sheet, photograph it, and get a typeable font;
-   draw with the nib brush; make a Bold with the weight slider; add alternates in tabs and
-   watch them cycle in the strip; roughen with a seed and reroll.
+   it with three sliders; draw with the Brush (B / N). Still to come (M9 to M13): the
+   handwriting sheet, more nibs, a Bold with the weight slider, alternates, roughen.
 6. **Save** goes straight to the open file (autosave every few seconds while dirty and on
    every glyph switch). **Export OTF** writes into a folder picked once and remembered.
 7. **Update**: when a new version is deployed, a small "Update ready, reload" toast appears.

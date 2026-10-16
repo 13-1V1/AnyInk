@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B9 photo-flow (photo_flow.js; UX-BEGINNER.md 4.4, 4.5, 7.3, 7.7, section 10 B9) on a real
 // ProjectEditor in Simple with the real registry, parts finder, paper detector, placement,
 // spacing hook and history. jsdom can't decode a JPEG or run the potrace worker, so the fixture
@@ -313,14 +315,17 @@ describe('Use it (4.4, 7.3)', () => {
 		expect(isAsTraced(b, asset)).toBe(true);
 		const said = toastLog().at(-1);
 		expect(said.key).toBe('photoFlow.tracedResized');
-		expect(said.text).toBe('Traced small r. Also resized Capital B to match the photo.');
+		expect(said.text).toBe(
+			'Traced small r. Resized Capital B a little, so all your letters from this photo stay one size.'
+		);
 		// One step (a whole-font one) for both letters; one press undoes both
 		expect(steps().filter((t) => t === 'traced small r')).toHaveLength(1);
 		editor.history.restoreState();
 		await Promise.resolve();
 		expect(getTrace(editor.project.getItem(ID('B'))).scale).toBeCloseTo(bScale, 9);
 		expect(editor.project.getItem(ID('r')).shapes).toHaveLength(0);
-		expect(getTrace(editor.project.getItem(ID('r')))).toBeNull();
+		// B16 (T2): the empty r keeps the photo it was traced from
+		expect(getTrace(editor.project.getItem(ID('r')))?.asset).toBe(asset);
 		expect(Object.values(getPhoto(editor.project, asset).used).map((u) => u.char)).toEqual(['B']);
 	});
 

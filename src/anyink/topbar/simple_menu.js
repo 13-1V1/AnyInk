@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: Simple's one Menu (UX-BEGINNER.md 4.9), opened by the top bar's Menu button. Four groups:
 	  File   Save (Ctrl+S), Save as..., Open a saved font... (Ctrl+O), Start a new font... (B13),
@@ -219,7 +221,9 @@ export function menuRows(editor, { isOn = isFeatureOn } = {}) {
 		),
 		row(
 			'help-keys',
-			{ icon: 'keyboard', onClick: () => openDoor(HELP_EVENT, { section: 'keys' }) },
+			// B16: command_help like its neighbors; upstream's 'keyboard' is drawn in 50 units and
+			// spilled over the next row in makeIcon's 20 by 20 box
+			{ icon: 'command_help', onClick: () => openDoor(HELP_EVENT, { section: 'keys' }) },
 			words('topbar.menu.helpKeys')
 		),
 		row(

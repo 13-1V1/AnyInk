@@ -6,6 +6,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import {
 	SAVED_AT_EMPTY,
 	collectionNameFromID,
@@ -26,7 +28,12 @@ import {
 	systemGuidesFromList,
 } from '../anyink/history/settings_snapshot.js';
 import { writeItemState } from '../anyink/history/item_state.js';
-import { previousItemState, redoNewest, undoNewest } from '../anyink/history/simple_undo.js';
+import {
+	previousItemState,
+	redoNewest,
+	stateBeforeStep,
+	undoNewest,
+} from '../anyink/history/simple_undo.js';
 import { sayUndone } from '../anyink/history/undo_toast.js';
 import {
 	MAX_UNDO_POINTS,
@@ -637,7 +644,8 @@ export class History {
 			// ANY-INK (B3 fix): a step with parts, or a real step whose letter's earlier state is
 			// not right under it (a list made in Simple), is undone from each letter's own newest
 			// older state. Only a navigation step is ever passed as "navigated without undoing".
-			if (q[0].step || isStepOverAnotherItem(q[0], nextEntry)) {
+			// B16: so is a step that carries its own earlier state (simple_undo.js markStepBefore)
+			if (q[0].step || q[0].before || isStepOverAnotherItem(q[0], nextEntry)) {
 				this.undoFromOwnEarlierStates(editor);
 				changed = true;
 				this.finishUndoUI(editor);
@@ -792,9 +800,7 @@ export class History {
 		editor.multiSelect.points.clear();
 		editor.multiSelect.shapes.clear();
 		// A deletion step holds the item from before it was deleted
-		const state = top.itemWasDeleted
-			? top.itemState
-			: previousItemState(q, top.itemID, this.undoBase);
+		const state = stateBeforeStep(q, this.undoBase);
 		applyItemState(editor, {
 			itemID: top.itemID,
 			page: top.page || pageFromItemID(top.itemID),
@@ -1292,6 +1298,8 @@ export function serializeHistoryEntry(entry, { stateRef = null } = {}) {
 	// ANY-INK (B3 fix): a step with parts stays one press after a crash restore
 	if (entry.step) wire.step = entry.step;
 	if (ref) wire.itemStateRef = ref;
+	// ANY-INK (B16): a step's own earlier state (simple_undo.js markStepBefore)
+	if (entry.before && typeof entry.before.save === 'function') wire.before = entry.before.save();
 	return wire;
 }
 
@@ -1309,7 +1317,10 @@ export function deserializeHistoryEntry(entry) {
 	else if (entry.page === 'Kerning') itemState = new KernGroup(entry.itemState);
 	else itemState = new Glyph(entry.itemState);
 
-	return { ...entry, itemState, settingsSave: false, settingsState: false };
+	const restored = { ...entry, itemState, settingsSave: false, settingsState: false };
+	// ANY-INK (B16): a step's own earlier state
+	if (entry.before) restored.before = new Glyph(entry.before);
+	return restored;
 }
 
 // --------------------------------------------------------------

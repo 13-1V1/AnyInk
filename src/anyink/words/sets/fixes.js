@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11 word set: the one-click fixes (UX-BEGINNER.md 4.2, 4.3, 7.2, 7.3, section 10 B11).
 	Owner: the B11 fixes track: src/anyink/checks/fixes.js, fix_step.js and
@@ -50,6 +52,11 @@ const FIXES = {
 	'fixes.button.fixIt': {
 		text: 'Fix it',
 		hint: 'Tidies the letter so the font file can hold it.',
+		feature: 'checks',
+	},
+	'fixes.button.drawBox': {
+		text: 'Draw a box',
+		hint: 'Opens your photo so you can drag a box around each letter on its own.',
 		feature: 'checks',
 	},
 	'fixes.button.moveLine': {

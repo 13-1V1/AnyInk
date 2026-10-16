@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B13 (UX-BEGINNER.md 4.1 "Install offer", section 10 B13): in Simple, the install offer is a
 // toast, once, after the first letter becomes Ready (or the first font file, once B14 lands);
 // never on the start page, never while a dialog is open; Not now is remembered; then install
@@ -150,6 +152,51 @@ describe('when the install toast comes', () => {
 		dialog.remove();
 		vi.advanceTimersByTime(DIALOG_RETRY_MS);
 		expect(shown).toHaveLength(1);
+	});
+
+	it('B16: never in the middle of a photo walk; it waits for a calm moment', () => {
+		vi.useFakeTimers();
+		let walking = true;
+		setInstallOfferDepsForTests({
+			readyLetters: () => ready,
+			show: fakeShow,
+			isInstalled: () => false,
+			photoWalk: () => walking,
+		});
+		ready = 1;
+		holdInstallEvent(installEvent());
+		expect(tryInstallOffer()).toBe('busy');
+		vi.advanceTimersByTime(DIALOG_RETRY_MS * 3);
+		expect(shown).toEqual([]);
+		walking = false;
+		vi.advanceTimersByTime(DIALOG_RETRY_MS);
+		expect(shown).toHaveLength(1);
+	});
+
+	it('B16: after the first font file it may show even while photo parts are left', () => {
+		setFeaturesForTests({ startScreen: true, useInWord: true });
+		setInstallOfferDepsForTests({
+			readyLetters: () => 0,
+			show: fakeShow,
+			isInstalled: () => false,
+			photoWalk: () => true,
+		});
+		holdInstallEvent(installEvent());
+		noteFontFile();
+		expect(shown).toHaveLength(1);
+	});
+
+	it('B16: the photo walk is the photo card, or the Next line on step C or on the next part', async () => {
+		const { photoWalkNow } = await import('../install_offer.js');
+		expect(photoWalkNow({ line: () => ({ name: 'photoParts' }), state: () => ({}) })).toBe(true);
+		expect(photoWalkNow({ line: () => ({ name: 'photoResult' }), state: () => ({}) })).toBe(true);
+		expect(
+			photoWalkNow({
+				line: () => ({ name: 'tryLetters' }),
+				state: () => ({ photoCard: { step: 'result' } }),
+			})
+		).toBe(true);
+		expect(photoWalkNow({ line: () => ({ name: 'tryLetters' }), state: () => ({}) })).toBe(false);
 	});
 
 	it('not when ANY-INK already runs as the installed app', () => {

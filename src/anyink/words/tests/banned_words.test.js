@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: the banned-word scan (UX-BEGINNER.md 2.3, principle 2). No word on the banned list may
 	appear on the Simple main path: in the visible text, title and aria-label of a Simple screen,
@@ -12,8 +14,10 @@
 	guide labels and drag readouts, the File menu, the preview strip with its font check line,
 	the save status, the app notices, and the toasts of every Simple flow that exists (undo and
 	redo, a photo, Merge, tidy points, Save, the font file export). Later Bs add their screens
-	with scanSimpleScreen (./banned_scan.js) in their own test files; the todo list at the end
-	names them.
+	with scanSimpleScreen (./banned_scan.js) in their own test files; B16: the "later screens" at
+	the end scan one state of each of them here too (./later_screens.js: the brush, photos, the
+	board, Needs a look, Try it, the start screen, Use in Word, Font details / Move the guide
+	lines / Help), so this file covers every Simple screen (9.4).
 
 	A surface that still has hits carries { pending: '<track>' }, the B4 track that cleans it:
 	the test then checks the hits are still there, so the suite stays green until that track
@@ -75,6 +79,7 @@ import { scanTexts } from '../banned.js';
 import { historyText } from '../history_text.js';
 import { wordEntry, wordKeys } from '../words.js';
 import { expectNoBanned, scanSimpleScreen } from './banned_scan.js';
+import { closeLaterScreens, LATER_SCREENS } from './later_screens.js';
 
 /** B4 + B5 fix pass: these surfaces are clean, so they are scanned strict (2.4 E and G too). */
 const scanStrict = (name, build, options = {}) =>
@@ -152,7 +157,8 @@ function openFileMenu() {
 	document.body.appendChild(topBar);
 	const simpleMenu = topBar.querySelector('[data-anyink-control="menu"]');
 	if (simpleMenu) simpleMenu.click();
-	else [...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
+	else
+		[...topBar.querySelectorAll('.menu-entry-point')].find((b) => b.textContent === 'File').click();
 	return document.querySelector('#context-menu');
 }
 
@@ -472,13 +478,9 @@ describe('toasts', () => {
 // B6 + B7 together, one Simple letter screen as the app draws it: letter/tests/b67_seams.test.js;
 //   the finalize pass's toasts (Delete with [Undo], a shape too small taken away):
 //   letter/tests/delete_toast.test.js
+// B16: the screens B8 to B15 added, scanned here too, so this one file covers every Simple screen
+// (9.4). Their own B's tests scan more states.
 describe('later screens', () => {
-	it.todo('the brush: drawing a stroke, its toast (B8)');
-	it.todo('photos: the How card, the photo dialog, the photo card (B9)');
-	it.todo('the letter board (B10)');
-	it.todo('Needs a look: reasons and fixes (B11)');
-	it.todo('Try it and gap fixes (B12)');
-	it.todo('the start screen, Create and Continue, the crash card and its toasts (B13)');
-	it.todo('Use in Word, the font file and the install steps (B14)');
-	it.todo('Font details, Move the guide lines, Help (B15)');
+	afterEach(() => closeLaterScreens());
+	LATER_SCREENS.forEach(({ name, build }) => scanStrict(name, build, { timeout: 15000 }));
 });

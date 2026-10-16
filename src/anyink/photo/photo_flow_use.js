@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-flow: Use it (docs/UX-BEGINNER.md 4.4 "Use it", 7.3), item 4 of photo_flow.js's
 	header, which re-exports it. One Undo step titled "traced small r": an item step, or a
@@ -8,22 +10,33 @@
 	before-copy only, so after such a Use it the rail said one letter fewer was ready until the
 	file was written; the notice is sent again once the change is made. Step C's save hold
 	(photo_flow_hold.js) comes off the letter when Use it is in.
+	B16: parts of two touching letters and letters far off their row's size don't size the photo
+	(photo_flow_votes.js), so tracing them never resizes earlier letters; the toast says what a
+	resize made better ("so all your letters from this photo stay one size"), and a letter that
+	now needs a look is named calmly ("Have a look at small r too.").
+	B16 (acceptance T2): Undo of Use it on a letter that was empty brings back the empty letter
+	with the photo kept (its step carries that earlier state: history/simple_undo.js
+	markStepBefore; a whole-font step's before-copy holds it), so Trace again is one press. A
+	letter that had shapes gets back its earlier shapes with its earlier photo, as before.
 */
+import { Glyph } from '../../project_data/glyph.js';
 import { applyAutoTrace } from '../autotrace/apply.js';
+import { markStepBefore } from '../history/simple_undo.js';
 import { showTip } from '../coach/coach_state.js';
 import { followPlan } from '../placement/fit_lines.js';
-import { applyFollow, photoScale } from '../placement/photo_scale.js';
+import { applyFollow } from '../placement/photo_scale.js';
 import { markAuto } from '../spacing/owner.js';
 import { toast } from '../toast/toast.js';
 import { setTrace } from '../trace/trace_model.js';
-import { flippedSince, needsALookNow } from '../checks/fix_step.js';
+import { flippedSince, lookOf, needsALookNow } from '../checks/fix_step.js';
 import { showItem } from '../preview/show_item.js';
-import { letterPhrase, sentenceStart } from '../words/letter_name.js';
+import { letterPhrase } from '../words/letter_name.js';
 import { word } from '../words/words.js';
 import { photoData, placementFor } from './photo_flow_data.js';
 import { isAsTraced, setPhotoFit, tracedCopies } from './photo_flow_fit.js';
 import { releaseSavedTrace } from './photo_flow_hold.js';
 import { settleOnLine } from './photo_flow_settle.js';
+import { leftOutFollowers, votingFacts } from './photo_flow_votes.js';
 import { currentEditor, emit, failure, stateOf, whenFlowSettled } from './photo_flow_state.js';
 import { getPhoto, releaseItem, setScale, usePart } from './photo_registry.js';
 
@@ -57,17 +70,24 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 	if (s.flow !== flow) return failure('not-applied');
 	const draft = structuredClone(record);
 	usePart(draft, partId, { char, itemId });
-	const photo = placementFor(draft, data, { partId, char, itemId });
+	const whole = placementFor(draft, data, { partId, char, itemId });
 	const font = project.settings.font;
-	const info = photoScale(photo, font);
-	const plan = followPlan(photo, font, {
+	// B16: parts of two touching letters and letters far off their row's size don't size the
+	// photo, so they never resize the letters traced before them (photo_flow_votes.js)
+	const facts = votingFacts(draft, whole, font);
+	const { info } = facts;
+	const follow = {
 		except: partId,
 		asset,
 		getItem: (id) => {
 			const other = project.getItem(id);
 			return other && id !== itemId && isAsTraced(other, asset) ? other : null;
 		},
-	});
+	};
+	const plan = [
+		...followPlan(facts.photo, font, follow),
+		...leftOutFollowers(whole, facts, font, follow),
+	];
 
 	const title = word('history.traced', { letter: letterPhrase(char) || char });
 	// B10 + B11 finalize: a letter the checks would call a little off the line sits on it, with
@@ -77,6 +97,10 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 		: settleOnLine(char, copies, flow.trace, project.settings.font);
 	const finalTrace = { ...settled.trace, opacity: USED_OPACITY, locked: true };
 	const asTraced = !add || item.shapes.length === 0;
+	// B16 (T2): the photo an Undo leaves on the letter: the one it is traced from when the letter
+	// was empty, else the photo it had with its earlier shapes
+	const wasEmpty = item.shapes.length === 0;
+	const undoTrace = wasEmpty ? flow.trace : flow.before.trace;
 	const commit = () => {
 		releaseItem(project, itemId, { except: asset });
 		usePart(record, partId, { char, itemId });
@@ -96,7 +120,7 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 		if (plan.length) {
 			// A whole-font step (4.4): the earlier letters change too. Its before-copy is the
 			// font as it was before the photo card, so Undo puts back his earlier photo as well.
-			setTrace(item, flow.before.trace);
+			setTrace(item, undoTrace);
 			history.addWholeProjectChangePreState(title);
 			commit();
 			for (const entry of plan) {
@@ -107,8 +131,11 @@ export async function useIt(editor = currentEditor(), { mode = 'replace' } = {})
 			applied = applyAutoTrace({ ...shapes, editor: withoutSteps(editor) }, { round: true, title });
 			history.addWholeProjectChangePostState();
 		} else {
+			const prior = item.save();
+			if (wasEmpty) prior.anyink = { ...(prior.anyink || {}), trace: structuredClone(undoTrace) };
 			commit();
 			applied = applyAutoTrace(shapes, { round: true, title });
+			if (applied && wasEmpty) markStepBefore(history, itemId, prior, (data) => new Glyph(data));
 		}
 	} finally {
 		flow.applying = false;
@@ -188,9 +215,14 @@ function sayFollowers(editor, char, { resized, moved, flipped = [] }) {
 	}
 	const first = editor.project?.getItem?.(flipped[0]);
 	const said = word(key, vars);
+	// B16 final: one letter says what it needs a look for (the critic: "Have a look at X too"
+	// names no reason)
+	const reason = flipped.length === 1 ? lookOf(editor, first)?.reason : '';
 	const look =
 		flipped.length === 1
-			? word('photoFlow.flippedOne', { other: sentenceStart(letterPhrase(first?.chars) || '') })
+			? reason
+				? word('photoFlow.flippedReason', { reason })
+				: word('photoFlow.flippedOne', { other: letterPhrase(first?.chars) || '' })
 			: word('photoFlow.flippedMany', { count: flipped.length });
 	toast(
 		'photoFlow.saidAndFlipped',

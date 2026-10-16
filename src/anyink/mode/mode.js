@@ -1,10 +1,14 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B2 + B5: which interface ANY-INK shows (UX-BEGINNER.md section 6).
-	  'all'    - All tools ("More tools"): today's full Glyphr Studio editor. The launch default
-	             until B16.
-	  'simple' - the beginner screens. Adding ?ui=simple to the address turns it on for that load.
+	  'simple' - the beginner screens. The launch default since B16 (6.1): the address with no ui,
+	             the installed app's start_url and a reopened tab all open in Simple.
+	  'all'    - All tools ("More tools"): today's full Glyphr Studio editor. On only by its switch,
+	             or ?ui=all for one load (the real-Chrome checks of All tools use it); it lasts
+	             until he turns it off or closes the app.
 
 	The mode is mirrored to html[data-ui-mode] (the way theme.js mirrors html[data-canvas]), so
 	CSS can tell the modes apart, and a real change is announced once on window as
@@ -18,8 +22,7 @@
 	                             setMode ends the visit.
 	  getVisit()                 the visit, frozen, or null
 	  hasUsedSimple()            true once Simple has been on this session: the More tools band
-	                             shows only then, so the launch default (All tools, until B16)
-	                             looks exactly as it does today
+	                             shows only then, so a ?ui=all load looks exactly as upstream
 	  setModeForTests(mode)      switches with no event and starts the session over (no visit,
 	                             hasUsedSimple only for 'simple'); the vitest setup pins 'all'
 */
@@ -27,8 +30,8 @@
 /** The modes, in no particular order */
 export const MODES = Object.freeze(['all', 'simple']);
 
-/** What ANY-INK opens in when the address does not ask for Simple (B16 changes this). */
-export const LAUNCH_MODE = 'all';
+/** What ANY-INK opens in when the address does not ask for All tools (B16: Simple). */
+export const LAUNCH_MODE = 'simple';
 
 /** Announced on window after a real change: detail { mode, previous, visit } */
 export const MODE_EVENT = 'anyink-mode-change';
@@ -38,11 +41,12 @@ export const MODE_ATTRIBUTE = 'data-ui-mode';
 
 /**
  * @param {String} [search] - location.search, with or without the leading '?'
- * @returns {'all' | 'simple'} 'simple' only for ui=simple
+ * @returns {'all' | 'simple'} ui=all or ui=simple as asked; anything else the launch mode
  */
 export function modeFromSearch(search) {
 	try {
-		return new URLSearchParams(search || '').get('ui') === 'simple' ? 'simple' : LAUNCH_MODE;
+		const asked = new URLSearchParams(search || '').get('ui');
+		return MODES.includes(asked) ? asked : LAUNCH_MODE;
 	} catch {
 		return LAUNCH_MODE;
 	}

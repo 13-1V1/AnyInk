@@ -1,0 +1,59 @@
+{
+	"about": "Answer key for the photo of the same name (src/anyink/photo/tests/fixtures/make_fixtures.mjs). Image pixels, y down; box = [left, top, right, bottom], right and bottom exclusive, from the strokes and the pen width.",
+	"width": 1600,
+	"height": 1200,
+	"kind": "phone",
+	"paper": "photo",
+	"penPx": 5.37,
+	"rows": 1,
+	"letters": [
+		{
+			"char": "B",
+			"row": 0,
+			"box": [549, 513, 614, 615],
+			"center": [581.5, 564]
+		},
+		{
+			"char": "r",
+			"row": 0,
+			"box": [629, 552, 680, 615],
+			"center": [654.5, 583.5]
+		},
+		{
+			"char": "e",
+			"row": 0,
+			"box": [693, 546, 750, 617],
+			"center": [721.5, 581.5]
+		},
+		{
+			"char": "n",
+			"row": 0,
+			"box": [762, 549, 822, 622],
+			"center": [792, 585.5]
+		},
+		{
+			"char": "a",
+			"row": 0,
+			"box": [838, 553, 894, 622],
+			"center": [866, 587.5]
+		},
+		{
+			"char": "H",
+			"row": 0,
+			"box": [906, 518, 985, 624],
+			"center": [945.5, 571]
+		},
+		{
+			"char": "d",
+			"row": 0,
+			"box": [996, 518, 1060, 628],
+			"center": [1028, 573]
+		},
+		{
+			"char": "i",
+			"row": 0,
+			"box": [1073, 543, 1091, 628],
+			"center": [1082, 585.5]
+		}
+	]
+}

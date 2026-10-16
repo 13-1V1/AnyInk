@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B10 board-tiles real-browser check (docs/UX-BEGINNER.md 4.2 Tiles, keys, Drops, 7.3, 7.6;
 // section 10 B10), in the real app on a Vite dev server, Chrome with throwaway profiles,
 // 1600 x 900, Simple (?ui=simple) with the flags as the app ships them and 'board' turned on in
@@ -449,7 +451,7 @@ try {
 	const rows = [];
 	const simpleFull = await backup('simple-full', { search: '?ui=simple', wholeFont: 30, navigation: 0 });
 	rows.push(['Simple, 200 steps, 30 whole-font', simpleFull]);
-	const allFull = await backup('all-full', { search: '', wholeFont: 30, navigation: 30 });
+	const allFull = await backup('all-full', { search: '?ui=all', wholeFont: 30, navigation: 30 }); // B16: Simple is the launch default
 	rows.push(['All tools, 200 steps, 30 whole-font, 30 "Navigated to"', allFull]);
 	for (const wf of [0, 5, 10, 20]) {
 		rows.push([`Simple, 200 steps, ${wf} whole-font`, await backup(`simple-${wf}`, { search: '?ui=simple', wholeFont: wf, navigation: 0 })]);

@@ -4,6 +4,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK crash recovery (Milestone 6, D-012 / D-018 / D-026, RESEARCH 2.5).
 	Replaces upstream's localStorage auto-saves with rolling snapshots in the
@@ -39,7 +41,15 @@
 	    longer than that
 	  - the 'whichGlyphIsSelected' topic (glyph switch)
 	  - document visibilitychange -> hidden
-	  - pagehide (started synchronously, best effort)
+	  - beforeunload (also starts the work file's write: autosaveNow)
+	  - pagehide
+	The last three are the page's last moments (B16: closing Chrome right after a stroke lost
+	it). Their write (writeSessionNow) is made inside the handler: the record and every copy it
+	names that isn't stored yet go in ONE IndexedDB transaction (kv.js recSetMany), the record
+	first, committed at once, never behind a write already running and with no turns given.
+	beforeunload comes before Chrome's "Leave site?" box, so that write is in the database
+	while the box is up. A queued write that finishes after it never puts its older record
+	over it (session.newest).
 	Writes are skipped while History.isRestoring (an undo / redo is mid-flight) and
 	rescheduled. The record carries the serialized undo queue beside the project, so
 	a restore adopts exactly the queue that describes the restored project.
@@ -107,7 +117,15 @@ import { isProjectFileHandle } from '../files/write_file.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
 import { runFileCommand } from '../files/run_command.js';
 import { toast } from '../toast/toast.js';
-import { recClear, recDel, recEntries, recGet, recKeys, recSet } from '../storage/kv.js';
+import {
+	recClear,
+	recDel,
+	recEntries,
+	recGet,
+	recKeys,
+	recSet,
+	recSetMany,
+} from '../storage/kv.js';
 import { acquireLock, heldLockNames, lockName, sessionLockName } from './session_lock.js';
 import {
 	describeSession,
@@ -144,6 +162,7 @@ const defaults = {
 	toast: (key, vars, options) => toast(key, vars, options),
 	now: () => Date.now(),
 	makeSessionId: () => newSessionId(),
+	autosave: (editor) => autosaveNow(editor),
 };
 let deps = { ...defaults };
 
@@ -185,6 +204,7 @@ export function initRecovery() {
 	if (typeof globalThis.addEventListener === 'function') {
 		globalThis.addEventListener(PAGE_CHANGE_EVENT, onPageChange);
 		globalThis.addEventListener('pagehide', onPageHide);
+		globalThis.addEventListener('beforeunload', onBeforeUnload);
 	}
 	if (typeof document !== 'undefined') {
 		document.addEventListener('visibilitychange', onVisibilityChange);
@@ -198,6 +218,7 @@ export function stopRecovery() {
 	if (typeof globalThis.removeEventListener === 'function') {
 		globalThis.removeEventListener(PAGE_CHANGE_EVENT, onPageChange);
 		globalThis.removeEventListener('pagehide', onPageHide);
+		globalThis.removeEventListener('beforeunload', onBeforeUnload);
 	}
 	if (typeof document !== 'undefined') {
 		document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -501,6 +522,8 @@ function startSession(editor, meta) {
 		supersedes: null, // restored from this key; deleted after the first write
 		supersededLock: null, // holds the source record's lock until then
 		ended: false,
+		captures: 0, // counts the records made for writes, oldest first
+		newest: 0, // the newest capture handed to the store (a write's record never goes over it)
 		// B10 + B11 integration (D-042): the Undo list's saved copies, a record each
 		states: makeStateBook(key),
 	};
@@ -656,13 +679,32 @@ function onPageChange() {
 function onVisibilityChange() {
 	if (document.visibilityState !== 'hidden') return;
 	state.sessions.forEach((session) => {
-		if (session.dirty) snapshotSession(session, 'hidden');
+		if (session.dirty) writeSessionNow(session, 'hidden');
+	});
+}
+
+/**
+ * B16: before Chrome's "Leave site?" box (or a close without one), the backup copy goes in now
+ * and the work file's write starts, so both can finish while the box is up.
+ */
+function onBeforeUnload() {
+	state.sessions.forEach((session) => {
+		if (!session.dirty) return;
+		writeSessionNow(session, 'beforeunload');
+		const editor = session.editor;
+		if (isProjectFileHandle(editor?.loadedFileHandle) && getSaveStatus(editor).file !== 'saved') {
+			try {
+				void Promise.resolve(deps.autosave(editor)).catch(() => undefined);
+			} catch (error) {
+				console.warn('ANY-INK recovery: could not start the work file write', error);
+			}
+		}
 	});
 }
 
 function onPageHide() {
 	state.sessions.forEach((session) => {
-		if (session.dirty) snapshotSession(session, 'pagehide');
+		if (session.dirty) writeSessionNow(session, 'pagehide');
 		else {
 			if (session.recorded || session.supersedes) enqueue(() => deleteOwnRecords(session));
 			// B10 + B11 finalize: the copies a clean session kept through its saves (best effort;
@@ -745,6 +787,7 @@ async function writeSession(session, reason) {
 	if (editor.history !== session.history) return false; // replaced: syncSessions ends it
 	const book = session.states;
 	book.beginWrite();
+	const capture = ++session.captures;
 	const record = makeSessionRecord(editor, {
 		dirty: reason === 'manual' ? session.dirty : true,
 		time: deps.now(),
@@ -767,6 +810,9 @@ async function writeSession(session, reason) {
 				slice = deps.now();
 			}
 		}
+		// B16: a last-moment write (writeSessionNow) made since this one began holds newer work
+		if (session.newest > capture) return false;
+		session.newest = capture;
 		await recSet(session.key, record);
 	} catch (error) {
 		reportWriteFailure(error);
@@ -774,6 +820,82 @@ async function writeSession(session, reason) {
 		if (session.dirty && !session.ended) armMaxWait(session); // try again later
 		return false;
 	}
+	return afterWrite(session, record, reason, revision);
+}
+
+/**
+ * B16: the page's last moments (beforeunload, hidden, pagehide). The record and every copy it
+ * names that isn't stored yet go to the store inside this call, in one transaction with the
+ * record first, never behind a queued write; the rest (status, old copies, pruning) is queued.
+ * @param {Object} session
+ * @param {String} reason - 'beforeunload' | 'hidden' | 'pagehide'
+ * @returns {Promise<Boolean>} true when written
+ */
+function writeSessionNow(session, reason) {
+	clearTimers(session);
+	const editor = session.editor;
+	if (session.ended || !session.dirty || editor.history !== session.history) {
+		return Promise.resolve(false);
+	}
+	if (editor.history?.isRestoring) {
+		scheduleTimers(session);
+		return Promise.resolve(false);
+	}
+	const revision = getSaveStatus(editor).revision;
+	const book = session.states;
+	let pairs;
+	let record;
+	let capture;
+	try {
+		book.beginWrite();
+		capture = ++session.captures;
+		record = makeSessionRecord(editor, {
+			dirty: true,
+			time: deps.now(),
+			key: session.key,
+			sessionId: session.sessionId,
+			lock: session.lockName,
+			stateRef: book.refFor,
+		});
+		if (!record || record.id !== session.projectId) return Promise.resolve(false);
+		pairs = [[session.key, record], ...book.pending()];
+	} catch (error) {
+		console.warn('ANY-INK recovery: could not make the last backup copy', error);
+		return Promise.resolve(false);
+	}
+	session.newest = capture;
+	// the copies count as stored from now on, so a queued write never sends them again; if this
+	// write fails, every copy is written again at the next one (lostAll)
+	pairs.slice(1).forEach(([key]) => book.written(key));
+	let put;
+	try {
+		put = recSetMany(pairs);
+	} catch (error) {
+		put = Promise.reject(error);
+	}
+	const settled = put.then(
+		() => true,
+		(error) => {
+			book.lostAll();
+			reportWriteFailure(error);
+			if (!session.ended) setSaveStatus(editor, { recovery: 'failed' });
+			if (session.dirty && !session.ended) armMaxWait(session);
+			return false;
+		}
+	);
+	return enqueue(async () =>
+		(await settled) ? afterWrite(session, record, reason, revision) : false
+	);
+}
+
+/**
+ * What follows a written record: the status, the copies the list no longer names, the restored
+ * record it stood in for, the old records of its font.
+ * @returns {Promise<Boolean>} true
+ */
+async function afterWrite(session, record, reason, revision) {
+	const editor = session.editor;
+	const book = session.states;
 	state.writes++;
 	if (
 		!session.ended &&

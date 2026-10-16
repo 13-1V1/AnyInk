@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B8 + B9 integration real-browser check (docs/UX-BEGINNER.md 4.0, 4.3, 4.4, 4.5, 7.3, 7.7, section
 // 10 B8 and B9), in the real app on Vite dev servers, Chrome with throwaway profiles, 1600 x 900,
 // the feature flags as the app has them ('coach', 'letterView', 'brush', 'photo' on):
@@ -141,7 +143,7 @@ const photoDrawn = () =>
 			}),
 		'the photo drawn in the dialog'
 	);
-const newFont = async (p, origin, name, search = '') => {
+const newFont = async (p, origin, name, search = '?ui=all') => {
 	await p.goto(`${origin}/${search}`);
 	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
 	await pinBeforeChecks(p);

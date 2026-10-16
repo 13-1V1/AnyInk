@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: one toast voice (UX-BEGINNER.md 2.2 "Toasts, one voice", 4.0 Toasts, 2.4 G). Every toast
 	goes through here, with a words.js key: ANY-INK code calls toast(key); upstream's showToast
@@ -57,7 +59,7 @@ import './toast.css';
 import { getMode } from '../mode/mode.js';
 import { word } from '../words/words.js';
 import { createQueue, isSameStream } from './queue.js';
-import { hideSimple, renderSimple, showClassic, writeDropLog } from './toast_view.js';
+import { hideSimple, leaveClassic, renderSimple, showClassic, writeDropLog } from './toast_view.js';
 import { mapUpstreamToast, toastText } from './upstream_map.js';
 
 /** How long a Simple toast shows (4.0), in ms. */
@@ -307,6 +309,8 @@ export function upstreamToast(
  * @param {{all?: Boolean}} [options] - all: offers go too (tests, the queue's reset)
  */
 export function clearToasts({ all = false } = {}) {
+	// B16: All tools' toast is marked leaving now, so one shown during its fade is not taken too
+	leaveClassic();
 	const keepOffers = !all && getMode() === 'simple';
 	const { hide, show, dropped: gone } = queue.clear({ keepOffers });
 	gone.forEach(hideSimple);

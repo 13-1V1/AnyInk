@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11 word set: the checks on each letter (UX-BEGINNER.md 4.2 "Ready", "Needs a look", soft
 	notes; 4.3 the letter card's state chip; 4.0 rule 7; section 10 B11). Owner: the B11 checks
@@ -60,6 +62,12 @@ const CHECKS = {
 		feature: 'checks',
 	},
 	'checks.short.narrow': { text: 'too narrow', feature: 'checks' },
+	'checks.reason.twoLetters': {
+		text: '{letter} may be two letters that touch.',
+		hint: 'It was traced from a part of your photo that looks like two letters written touching.',
+		feature: 'checks',
+	},
+	'checks.short.twoLetters': { text: 'may be two letters that touch', feature: 'checks' },
 	'checks.reason.wide': {
 		text: '{letter} is too wide, so it would leave a big gap after it.',
 		feature: 'checks',

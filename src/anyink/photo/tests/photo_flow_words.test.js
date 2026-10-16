@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B9 photo-flow: every word the flow puts in front of him passes the banned-word scan
 // (UX-BEGINNER.md 2.3): the toast after Use it when earlier letters followed, every message a
 // screen shows for a flow code with its fix button, step C's quiet notes (fix pass), and the
@@ -78,7 +80,7 @@ scanSimpleScreen(
 		}
 		// The toast that names the letter that followed reached the page, so the scan reads it
 		toasts.flush();
-		expect(toasts.messages.join(' ')).toMatch(/Traced small r\. Also resized Capital B/);
+		expect(toasts.messages.join(' ')).toMatch(/Traced small r\. Resized Capital B a little/);
 		return {
 			root: document.body,
 			texts: {

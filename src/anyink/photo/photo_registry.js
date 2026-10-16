@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-core: the photo registry, settings.anyink.photos (docs/UX-BEGINNER.md 4.4, section 10
 	B9). One record per photo, keyed by its image's asset id (editor.assets), holding its parts,
@@ -103,6 +105,13 @@
 	                                      least TWO_WIDE_SHARE times the middle width of the
 	                                      photo's other parts and TWO_WIDE_ASPECT times as wide as
 	                                      it is tall; photo_flow_notes.js and the dialog say so)
+	  twoLettersFor(record, partId, char)   B16: mayBeTwoLetters (named m or w: WIDE_TWO_SHARE
+	                                      times the middle width), unless his
+	                                      boxes cover it; such a part stays free after Use it
+	                                      (its other letter has no name yet), never sizes the
+	                                      photo (photo_flow_votes.js), and step C makes [Draw a
+	                                      box] its green button
+	  letterMayBeTwo(project, itemId)     B16: the letter was traced from such a part
 	  prefillChar(record, boxed)          boxed: the part the green box is on (an id, a stored part,
 	                                      or a box he is drawing { left, top, right, bottom })
 	  photoSummaries(project)             [{ id, unused, done }] for the coach's rule 12
@@ -128,6 +137,12 @@ export const TINY_SHARE = 0.4;
 
 /** A letter's part is at least this many of the photo's pen strokes long (a dot is one or two). */
 export const LETTER_PENS = 2.5;
+
+/** B16: letters written wide enough to look like two touching ones (never asked for again). */
+export const WIDE_LETTERS = new Set(['m', 'w', 'M', 'W']);
+
+/** B16: how much wider than the photo's middle part one named m or w can be and stay one. */
+export const WIDE_TWO_SHARE = 2;
 
 /** A part this many times the middle width of the photo's other parts... */
 export const TWO_WIDE_SHARE = 1.6;
@@ -496,14 +511,13 @@ export function unusedParts(record) {
 	const covers = usedBoxes(record);
 	const skipped = new Set(Array.isArray(record.skipped) ? record.skipped : []);
 	const leftovers = leftoverParts(record);
+	// B16: a used part that may hold two touching letters still has one letter with no name
+	const named = (p) =>
+		!!record.used?.[p.id] && !twoLettersFor(record, p.id, usedChar(record, p.id));
 	return readingOrder(record.parts)
 		.filter(
 			(p) =>
-				!p.drawn &&
-				!record.used?.[p.id] &&
-				!skipped.has(p.id) &&
-				!leftovers.has(p.id) &&
-				!isCovered(p, covers)
+				!p.drawn && !named(p) && !skipped.has(p.id) && !leftovers.has(p.id) && !isCovered(p, covers)
 		)
 		.map((p) => p.id);
 }
@@ -566,7 +580,7 @@ export function onlyPart(record, { char } = {}) {
  * @param {String | Object} part - its id, or the part
  * @returns {Boolean}
  */
-export function mayBeTwoLetters(record, part) {
+export function mayBeTwoLetters(record, part, { share = TWO_WIDE_SHARE } = {}) {
 	const parts = Array.isArray(record?.parts) ? record.parts : [];
 	const box = typeof part === 'string' ? parts.find((p) => p?.id === part) : part;
 	if (!isMap(box)) return false;
@@ -580,7 +594,41 @@ export function mayBeTwoLetters(record, part) {
 		.filter((w) => w > 0)
 		.sort((a, b) => a - b);
 	if (!others.length) return false;
-	return width >= TWO_WIDE_SHARE * others[(others.length - 1) >> 1];
+	return width >= share * others[(others.length - 1) >> 1];
+}
+
+/**
+ * B16: a part that may hold two touching letters (mayBeTwoLetters). Named as a wide letter
+ * (WIDE_LETTERS), it must be WIDE_TWO_SHARE times the photo's middle width: an m written wide is
+ * one letter, a "VW" named W is not (the notebook page: 2.3 times). A part his own boxes cover
+ * (two boxes, one round each letter) is no longer one.
+ * @param {Object} record
+ * @param {String} partId
+ * @param {String} [char] - the letter named for it, or the one about to be
+ * @returns {Boolean}
+ */
+export function twoLettersFor(record, partId, char = '') {
+	const part = partOf(record, partId);
+	const share = WIDE_LETTERS.has(char) ? WIDE_TWO_SHARE : TWO_WIDE_SHARE;
+	if (!part || part.drawn || !mayBeTwoLetters(record, part, { share })) return false;
+	return !isCovered(part, usedBoxes(record));
+}
+
+/**
+ * B16, for the letter checks (a per-letter "may be two letters" check): true when the letter was
+ * traced from a part that may hold two touching letters (twoLettersFor), in any photo.
+ * @param {Object} project
+ * @param {String} itemId
+ * @returns {Boolean}
+ */
+export function letterMayBeTwo(project, itemId) {
+	let found = false;
+	forEachRecord(project, (record) => {
+		for (const [partId, use] of Object.entries(record.used)) {
+			if (use?.itemId === itemId && twoLettersFor(record, partId, use.char)) found = true;
+		}
+	});
+	return found;
 }
 
 /**

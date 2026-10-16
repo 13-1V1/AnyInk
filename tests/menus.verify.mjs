@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 item 3 real-browser check: the File menu, the preview strip's Presets menu and the Projects
 // menu are readable without hover, hints and greyed-out rows included. Starts its own Vite dev
 // server on a free port, opens Chrome with a throwaway profile, measures contrast from the computed
@@ -139,7 +141,7 @@ const menuShot = async (name) => {
 };
 
 try {
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });
 

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-flow: one photo makes many letters (docs/UX-BEGINNER.md 4.4, 4.5, 7.3, 7.7, section
 	10 B9). The engine the photo screens drive (photo_card.js, photo_dialog.js, how_card.js): a
@@ -122,6 +124,7 @@ import {
 import { findInk, photoInk } from './ink_parts.js';
 import { paperKind } from './paper_kind.js';
 import { keepPixels, photoData, placementFor } from './photo_flow_data.js';
+import { votingFacts } from './photo_flow_votes.js';
 import { reconcilePhotoUses } from './photo_flow_fit.js';
 import { holdSavedTrace, releaseSavedTrace } from './photo_flow_hold.js';
 import { hasInk, isJunkPart } from './photo_flow_ink.js';
@@ -365,9 +368,11 @@ export async function startPart({ editor = currentEditor(), asset, partId, char 
 	const font = project.settings.font;
 	const ink = item.shapes.length ? inkBounds(item) : null;
 	const left = ink && Number.isFinite(ink.xMin) ? Math.round(ink.xMin) : 0;
-	const placed = placePart(placementFor(record, data, { partId, char, itemId }), partId, font, {
-		left,
-	});
+	// B16: a part of two touching letters, or one far off its row's size, is placed at the size
+	// the other letters give (photo_flow_votes.js)
+	const photo = placementFor(record, data, { partId, char, itemId });
+	const { info } = votingFacts(record, photo, font);
+	const placed = placePart(photo, partId, font, { left, info });
 
 	const flow = {
 		editor,
@@ -576,7 +581,7 @@ function optionsFor(s, record) {
 	const kept = s.memory.get(record.asset) || {};
 	return {
 		// a cutoff he set that never gave a letter starts on Auto again
-		threshold: kept.cutoffWorked ? (kept.threshold ?? 'auto') : 'auto',
+		threshold: kept.cutoffWorked ? kept.threshold ?? 'auto' : 'auto',
 		smoothDetail: kept.smoothDetail ?? SMOOTH_DETAIL_DEFAULT,
 		despeckle: kept.despeckle ?? true,
 		lightInk: record.lightInk,

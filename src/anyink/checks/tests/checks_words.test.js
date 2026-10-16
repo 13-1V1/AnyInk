@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B11 checks in plain words (UX-BEGINNER.md 2.2, 2.3, principle 2): every reason, short reason,
 // fix label, soft note and the Looks fine words, for a font where every check fires, pass the
 // strict banned-word scan as the board's tiles and the letter card would show them; reasons are
@@ -7,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { word, wordEntry } from '../../words/words.js';
-import { CHECK, FIX, checkFont, checkLetter } from '../checks.js';
+import { CHECK, FIX, checkFont, checkLetter, describeChecks, twoLettersCheck } from '../checks.js';
 import { softNotes } from '../soft_notes.js';
 import {
 	FONT,
@@ -57,6 +59,14 @@ describe('checks in plain words', () => {
 			font: FONT,
 			fontProblems: [{ itemId: letter(blank, 'x').id, problem: 'point-range', message: 'm' }],
 		}).forEach((check) => ids.add(check.id));
+		// B16: the two-letters check needs the photo list, so cache.js adds it (b16_two_letters)
+		const two = describeChecks(letter(blank, 'x'), [twoLettersCheck()]);
+		expect(two[0]).toMatchObject({
+			reason: 'small x may be two letters that touch.',
+			short: 'may be two letters that touch',
+			fixLabel: 'Draw a box',
+		});
+		two.forEach((check) => ids.add(check.id));
 		expect([...ids].sort()).toEqual(Object.values(CHECK).sort());
 	});
 

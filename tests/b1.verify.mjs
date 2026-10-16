@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 real-browser walkthrough (docs/UX-BEGINNER.md section 10, B1): redoes the first-timer steps
 // B1 fixed, in the real app on a Vite dev server over src/ (app_config devMode stays as committed,
 // so the leave-site rule is the real one). Chrome with a throwaway profile; files go only to the
@@ -149,7 +151,7 @@ const stubPickers = async (photo) => {
 
 try {
 	const photo = process.env.B1_PHOTO ? (await readFile(process.env.B1_PHOTO)).toString('base64') : null;
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#input__new-project-name').fill('B1 Walkthrough');
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });

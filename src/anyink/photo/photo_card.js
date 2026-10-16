@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-ui: the photo card in the letter card, steps A and C (docs/UX-BEGINNER.md 4.4 "Step A,
 	pick" and "Step C, result", 4.3 "Letter card sections": Photo card, shown while running).
@@ -41,6 +43,8 @@
 	no Undo step.
 	Notes (finalize): the flow's quiet notes for a ready result (two letters may touch, the
 	letter reaches far past the top or tail line) show under the buttons, one quiet line each.
+	B16 (impatient run: "na" pressed through as n): when the note says the part may be two letters
+	that touch, [Draw a box] is the one green button and Use it shows plain.
 	A part with no letter in it at all (code 'no-letter') says so, with [Draw a box] green, and
 	Adjust stays as it was: no setting there finds a letter that isn't in the part.
 	Adjust is closed at first and stays as he left it for the session. Its controls speak the
@@ -256,6 +260,9 @@ function greenKey(state) {
 	if (fix === 'own') return state.error.button;
 	return 'action.useIt';
 }
+
+/** B16: the note that makes [Draw a box] step C's green button (photo_flow_notes.js). */
+const TWO_LETTERS_NOTE = 'photoFlow.note.twoLetters';
 
 /** Builds the card when its step, letter or photo list changed, then sets what shows. */
 function draw(card) {
@@ -558,6 +565,8 @@ function syncResult(card) {
 	// was found, the failure's own button, else Cancel)
 	const fix = fixOf(state);
 	els.useIt.hidden = stuck;
+	// B16: a part that may be two letters makes [Draw a box] green; Use it stays, plain
+	setKind(els.useIt, fix === null ? 'primary' : 'outlined');
 	setKind(els.drawBox, fix === 'drawBox' ? 'primary' : 'outlined');
 	setKind(els.cancel, fix === 'cancel' ? 'primary' : 'outlined');
 	els.fix.hidden = fix !== 'own';
@@ -608,6 +617,9 @@ function syncResult(card) {
  */
 function fixOf(state) {
 	if (state.status === 'no-ink') return 'drawBox';
+	if (state.status === 'ready' && state.notes.some((note) => note.key === TWO_LETTERS_NOTE)) {
+		return 'drawBox';
+	}
 	if (state.status !== 'error') return null;
 	const fixKey = state.error?.button;
 	if (typeof fixKey !== 'string' || !hasWord(fixKey)) return 'cancel';

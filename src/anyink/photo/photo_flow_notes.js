@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-flow, fix pass: the quiet notes under step C's "Look right?" (docs/UX-BEGINNER.md 4.4
 	step C; they work like B11's soft notes: a sentence, never a reason the letter isn't Ready).
@@ -19,12 +21,13 @@
 	  tail line"): photoFlow.note.reachesAbove / reachesBelow, with the letter's name.
 
 	  TWO_WIDE_SHARE (1.6), TWO_WIDE_ASPECT (1.25), REACH_SHARE (0.05)
-	  touchingLetters(record, partId) -> Boolean
+	  touchingLetters(record, partId, char?) -> Boolean (B16: never for an m or w, which are
+	  written wide; the photo card makes [Draw a box] green on this note)
 	  reachPast(shapes, font) -> 'above' | 'below' | null; shapes in font units
 	  stepNotes({ record, partId, shapes, font, char }) -> frozen [{ key, vars }]
 */
 import { guideLines } from '../placement/classes.js';
-import { TWO_WIDE_ASPECT, TWO_WIDE_SHARE, mayBeTwoLetters } from './photo_registry.js';
+import { TWO_WIDE_ASPECT, TWO_WIDE_SHARE, twoLettersFor } from './photo_registry.js';
 import { letterPhrase, sentenceStart } from '../words/letter_name.js';
 
 export { TWO_WIDE_ASPECT, TWO_WIDE_SHARE };
@@ -35,11 +38,12 @@ export const REACH_SHARE = 0.05;
 /**
  * @param {Object} record - the photo's record (photo_registry.js)
  * @param {String} partId
+ * @param {String} [char] - the letter he named it (B16: an m or w written wide is one letter)
  * @returns {Boolean} true when the part may be two letters that touch (the registry's rule,
  *   shared with the alphabet prefill and the photo dialog)
  */
-export function touchingLetters(record, partId) {
-	return mayBeTwoLetters(record, partId);
+export function touchingLetters(record, partId, char = '') {
+	return twoLettersFor(record, partId, char);
 }
 
 /**
@@ -70,7 +74,8 @@ export function reachPast(shapes, font) {
  */
 export function stepNotes({ record, partId, shapes, font, char } = {}) {
 	const notes = [];
-	if (touchingLetters(record, partId)) notes.push({ key: 'photoFlow.note.twoLetters', vars: {} });
+	if (touchingLetters(record, partId, char))
+		notes.push({ key: 'photoFlow.note.twoLetters', vars: {} });
 	const reach = Array.isArray(shapes) && shapes.length ? reachPast(shapes, font) : null;
 	if (reach) {
 		const letter = sentenceStart(letterPhrase(char) || char || '');

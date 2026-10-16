@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 guide lines, real-browser check (docs/UX-BEGINNER.md section 10, B1). In the real app on a
 // Vite dev server over src/, Chrome with a throwaway profile, a new font:
 //   1. an empty small e: the lines reach the default letter width, a faint right edge sits
@@ -171,7 +173,7 @@ const giveInk = (width) =>
 const fmt = (n) => n.toFixed(2);
 
 const newFont = async (name) => {
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#input__new-project-name').fill(name);
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });

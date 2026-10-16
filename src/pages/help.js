@@ -7,7 +7,9 @@
 // Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 import { getCurrentProjectEditor } from '../app/main.js';
-import { listenForHelpDoor } from '../anyink/help/help_door.js';
+// ANY-INK (B15 + B16): loading the Help door starts it (help_door.js listens when it loads);
+// the top bar's Menu > Help rows open this page at a section ('anyink-open-help')
+import '../anyink/help/help_door.js';
 import { makeHelpPage } from '../anyink/help/help_page.js';
 import { makeBackToLettersButton } from '../anyink/mode/back_to_letters.js';
 import { keysShown } from '../anyink/mode/keys.js';
@@ -17,12 +19,6 @@ import { cursors } from '../edit_canvas/cursors.js';
 import { makeToolButtonSVG } from '../edit_canvas/tools/tools.js';
 import { makeNavButton, toggleNavDropdown } from '../project_editor/navigator.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
-
-// ANY-INK (B15): the top bar's Menu > Help rows open this page at a section ('anyink-open-help').
-// B14 + B15 finalize: once every module has loaded, never during: help_door.js and this file
-// import each other through main.js, and a page that loads the door first (tests/help.html)
-// stopped with "Cannot access 'stop' before initialization"
-queueMicrotask(() => listenForHelpDoor());
 
 /**
  * Page > Help
@@ -211,7 +207,10 @@ export function makeKeyboardShortcutReference() {
 		['Ctrl', 'V'],
 		`Paste the selected shapes (ANY-INK clipboard)<br>Paste to import copied SVG Code (Operating System Clipboard)`
 	);
-	makeOneRow(['Ctrl', 'Z'], `Undo the last action. If the previous action was on a different item, undo navigates to the previously changed item without undoing the change.`);
+	makeOneRow(
+		['Ctrl', 'Z'],
+		`Undo the last action. If the previous action was on a different item, undo navigates to the previously changed item without undoing the change.`
+	);
 	makeOneRow(['Ctrl', 'Y'], `Redo (Undo the last Undo action)`);
 	makeOneRow(['Ctrl', 'Shift', 'Z'], `Redo (Undo the last Undo action)`);
 	makeOneRow(['Ctrl', ']'], `Move shape up`);

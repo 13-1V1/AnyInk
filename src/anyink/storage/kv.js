@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK key/value storage (Milestone 6 shared ground, D-012).
 	Thin wrappers over idb-keyval. One IndexedDB database, 'anyink', with two
@@ -28,6 +30,12 @@
 	    list, the list of exported files) must tell "nothing stored" from "the read
 	    failed", or it would write a truncated list over the real one. It rejects.
 
+	B16 (files-recovery): recSetMany(pairs) puts every pair in ONE readwrite transaction and
+	commits it at once (IDBTransaction.commit), so the backup copy written as the page goes
+	(recovery.js: beforeunload, hidden, pagehide) needs no answer from the database before it is
+	safe. Once the database is open, a store call starts its transaction inside the caller's own
+	turn (no promise step first).
+
 	Test seam: setStorageDriver(driver) swaps the IndexedDB layer for a fake
 	(tests/fake_driver.js) and returns a function that restores the default.
 
@@ -52,6 +60,7 @@ const memory = Object.fromEntries(STORE_NAMES.map((name) => [name, new Map()]));
  */
 function openStores(dbName, storeNames) {
 	let dbp;
+	let openDb; // the database once open: a call then starts its transaction right away
 	const getDB = () => {
 		if (dbp) return dbp;
 		const request = globalThis.indexedDB.open(dbName, 1);
@@ -61,36 +70,80 @@ function openStores(dbName, storeNames) {
 				if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
 			}
 		};
-		dbp = new Promise((resolve, reject) => {
+		const pending = new Promise((resolve, reject) => {
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
 			request.onblocked = () => reject(new Error('anyink IndexedDB open blocked'));
 		});
+		dbp = pending;
 		dbp.then(
 			(db) => {
-				db.onclose = () => (dbp = undefined);
+				if (dbp === pending) openDb = db;
+				db.onclose = () => {
+					dbp = undefined;
+					openDb = undefined;
+				};
 				db.onversionchange = () => {
 					db.close();
 					dbp = undefined;
+					openDb = undefined;
 				};
 			},
 			() => (dbp = undefined)
 		);
 		return dbp;
 	};
-	const useStore = (name) => (txMode, callback) =>
-		getDB().then((db) => callback(db.transaction(name, txMode).objectStore(name)));
+	const useStore = (name) => (txMode, callback) => {
+		if (openDb) {
+			try {
+				return Promise.resolve(callback(openDb.transaction(name, txMode).objectStore(name)));
+			} catch (error) {
+				return Promise.reject(error);
+			}
+		}
+		return getDB().then((db) => callback(db.transaction(name, txMode).objectStore(name)));
+	};
 	return {
 		use: Object.fromEntries(storeNames.map((name) => [name, useStore(name)])),
 		close() {
 			const pending = dbp;
 			dbp = undefined;
+			openDb = undefined;
 			if (pending) pending.then((db) => db.close()).catch(() => undefined);
 		},
 	};
 }
 
-const defaultDriver = { open: openStores, get, set, del, keys, entries, clear };
+/**
+ * Puts every [key, value] in one readwrite transaction and commits it at once.
+ * @param {Array<[String, *]>} pairs
+ * @param {Function} useStore - (txMode, callback) => Promise, as openStores gives
+ * @returns {Promise<void>} resolves when the transaction is complete
+ */
+export function putAllAndCommit(pairs, useStore) {
+	return useStore('readwrite', (store) => {
+		const tx = store.transaction;
+		const done = new Promise((resolve, reject) => {
+			tx.oncomplete = () => resolve();
+			tx.onabort = tx.onerror = () => reject(tx.error || new Error('IndexedDB write aborted'));
+		});
+		for (const [key, value] of pairs) store.put(value, key);
+		// no wait for the puts' answers: the database commits even if the page is gone by then
+		if (typeof tx.commit === 'function') tx.commit();
+		return done;
+	});
+}
+
+const defaultDriver = {
+	open: openStores,
+	get,
+	set,
+	setMany: putAllAndCommit,
+	del,
+	keys,
+	entries,
+	clear,
+};
 let driver = defaultDriver;
 let connection = null;
 let lastError = null;
@@ -180,6 +233,15 @@ const ops = {
 				m.set(key, value);
 			}
 		),
+	setMany: (name, pairs) =>
+		run(
+			name,
+			'setMany',
+			(d, s) => d.setMany(pairs, s),
+			(m) => {
+				pairs.forEach(([key, value]) => m.set(key, value));
+			}
+		),
 	del: (name, key) =>
 		run(
 			name,
@@ -254,19 +316,36 @@ export const kvGetStrict = (key) => ops.get('kv', key);
  * @param {String} key @param {*} value - structured-cloneable (handles, blobs, plain data)
  * @returns {Promise<Boolean>} true when stored
  */
-export const kvSet = (key, value) => bestEffort(ops.set('kv', key, value).then(() => true), false);
+export const kvSet = (key, value) =>
+	bestEffort(
+		ops.set('kv', key, value).then(() => true),
+		false
+	);
 /** @param {String} key @returns {Promise<Boolean>} true when deleted */
-export const kvDel = (key) => bestEffort(ops.del('kv', key).then(() => true), false);
+export const kvDel = (key) =>
+	bestEffort(
+		ops.del('kv', key).then(() => true),
+		false
+	);
 /** @returns {Promise<String[]>} every key in the store ([] on failure) */
 export const kvKeys = () => bestEffort(ops.keys('kv'), []);
 /** Removes every key in the 'kv' store. @returns {Promise<Boolean>} */
-export const kvClear = () => bestEffort(ops.clear('kv').then(() => true), false);
+export const kvClear = () =>
+	bestEffort(
+		ops.clear('kv').then(() => true),
+		false
+	);
 
 // 'recovery' store: crash-recovery snapshots (rejects on failure) --------------
 /** @param {String} key @returns {Promise<*>} stored value or undefined */
 export const recGet = (key) => ops.get('recovery', key);
 /** @param {String} key @param {*} value - structured-cloneable */
 export const recSet = (key, value) => ops.set('recovery', key, value);
+/**
+ * Every pair in one transaction, committed at once (all or none).
+ * @param {Array<[String, *]>} pairs - [key, structured-cloneable value]
+ */
+export const recSetMany = (pairs) => ops.setMany('recovery', pairs);
 /** @param {String} key */
 export const recDel = (key) => ops.del('recovery', key);
 /** @returns {Promise<String[]>} every key in the store */

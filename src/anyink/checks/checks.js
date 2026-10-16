@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11: the checks on one letter (UX-BEGINNER.md 4.2 "Ready" and "Needs a look", 7.2, section 10
 	B11). Pure and read-only: no editor, no DOM, nothing written to the letter. Font units, y-up,
@@ -52,6 +54,10 @@
 	              hand never hangs; never f, j or a letter with a tail          [Fit spacing]
 	  width       the width outside B3's limits for its kind (spacing/letter_classes.js
 	              widthProblem: i j l ! . , ' : ; - | are never too narrow)    [Fit spacing]
+	  twoLetters  B16: traced from a photo part that may hold two touching letters
+	              (photo_registry.js letterMayBeTwo; added by cache.js, which has the photo
+	              list; second in the order, after the font file's own)            [Draw a box]
+	              (the photo dialog on the letter, as Trace again opens it)
 
 	  measureLetter(item, font, { slant })   the numbers the checks read (null with no ink):
 	                                         { char, chars, stroke, pieces, specks, ink, frame,
@@ -95,12 +101,19 @@ export const CHECK = Object.freeze({
 	pokes: 'pokes',
 	hangs: 'hangs',
 	width: 'width',
+	twoLetters: 'twoLetters',
 });
+
+/** B16: the check for a letter traced from a part that may hold two touching letters */
+export function twoLettersCheck() {
+	return { id: CHECK.twoLetters, fix: FIX.drawBox, args: {} };
+}
 
 /** The order problems are shown in: the first one is the letter's reason. */
 export const CHECK_ORDER = Object.freeze([
 	CHECK.inkNoWidth,
 	CHECK.fontFile,
+	CHECK.twoLetters,
 	CHECK.specks,
 	CHECK.offLine,
 	CHECK.size,
@@ -118,6 +131,7 @@ export const FIX = Object.freeze({
 	removeSpecks: 'removeSpecks',
 	shrinkToFit: 'shrinkToFit',
 	fixIt: 'fixIt',
+	drawBox: 'drawBox',
 });
 
 /** Ink past an edge of the letter's width by more than this share of the letter box hangs. */
@@ -700,6 +714,8 @@ function wordsFor(check, { letter, n }) {
 			return pair('hangs');
 		case CHECK.width:
 			return pair(args.way === 'wide' ? 'wide' : 'narrow');
+		case CHECK.twoLetters:
+			return pair('twoLetters');
 		default:
 			return { reason: '', short: '' };
 	}

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B12 Try it, the strip side (UX-BEGINNER.md 4.6): the strip grows into Try it and is never
 	rebuilt; his letters big (72 pt); Esc, [Done] or a page change (step 1) closes it; the rail's
@@ -12,6 +14,8 @@ import { DisplayCanvas } from '../../../display_canvas/display_canvas.js';
 import { Path } from '../../../project_data/path.js';
 import { runCoachAction } from '../../coach/actions.js';
 import { getCoach } from '../../coach/coach_state.js';
+import { isShown } from '../../coach/dom_probe.js';
+import { closeUseInWord, openUseInWord } from '../../install/use_in_word_dialog.js';
 import { runFontCheckNow } from '../../fontcheck/font_check.js';
 import { twoLetterEditor } from '../../history/tests/two_letters.js';
 import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
@@ -318,6 +322,44 @@ describe('Done is the one green button', () => {
 		expect(done.classList.contains('anyink-primary')).toBe(false);
 		expect(done.classList.contains('anyink-outlined')).toBe(true);
 	});
+
+	it('B16: outlined while a dialog is open over Try it (Use in Word), green again after', async () => {
+		if (!Element.prototype.animate) Element.prototype.animate = () => ({});
+		simpleOn({ coach: true, tryIt: true, useInWord: true });
+		const { strip, editor } = stripOn();
+		openTryIt();
+		const done = strip.querySelector('.anyink-tryit__done');
+		expect(done.classList.contains('anyink-primary')).toBe(true);
+		const shownGreens = () =>
+			[...document.querySelectorAll('.anyink-primary')].filter((element) => isShown(element));
+		openUseInWord({ editor });
+		await Promise.resolve();
+		getCoach().flush();
+		expect(document.querySelector('[data-anyink-dialog="useInWord"]')).not.toBeNull();
+		expect(done.classList.contains('anyink-primary')).toBe(false);
+		expect(done.classList.contains('anyink-outlined')).toBe(true);
+		expect(shownGreens().length).toBe(1);
+		expect(shownGreens()[0].closest('[data-anyink-dialog]')).not.toBeNull();
+		closeUseInWord();
+		await Promise.resolve();
+		getCoach().flush();
+		expect(done.classList.contains('anyink-primary')).toBe(true);
+	});
+
+	it('B16: an upstream box put on the page outlines Done with no word from the coach', async () => {
+		simpleOn();
+		const { strip } = stripOn();
+		openTryIt();
+		const done = strip.querySelector('.anyink-tryit__done');
+		const box = document.createElement('div');
+		box.id = 'modal-dialog';
+		document.body.appendChild(box);
+		await Promise.resolve();
+		expect(done.classList.contains('anyink-primary')).toBe(false);
+		box.remove();
+		await Promise.resolve();
+		expect(done.classList.contains('anyink-primary')).toBe(true);
+	});
 });
 
 describe('the font check line', () => {
@@ -496,9 +538,7 @@ describe('his letters never move while the sheet changes height under them', () 
 		giveInk(editor, 'glyph-0x42');
 		const { strip } = stripOn(editor);
 		let height = 581;
-		vi.spyOn(strip.page, 'getClientRects').mockImplementation(() => [
-			{ width: 1200, height },
-		]);
+		vi.spyOn(strip.page, 'getClientRects').mockImplementation(() => [{ width: 1200, height }]);
 		vi.spyOn(strip.page, 'clientHeight', 'get').mockImplementation(() => height);
 		strip.setText('B');
 		openTryIt();

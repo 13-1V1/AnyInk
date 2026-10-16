@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B10 + B11 finalize: the critic's IMG_5012 (stray-dot-phone: "B r e n a H d", e written 1.62
 // times too big, the a dipping, a stray pen dot under the row between r and e), through the
 // real parts finder, the flow (placement, the fake tracer of flow_fakes.js) and the checks.
@@ -88,9 +90,7 @@ async function walk(count, order = null) {
 	const named = [];
 	for (let i = 0; i < count; i++) {
 		const record = getPhoto(editor.project, added.asset);
-		const partId = order
-			? record.parts.find((p) => charOf(p) === order[i]).id
-			: guessPart(record);
+		const partId = order ? record.parts.find((p) => charOf(p) === order[i]).id : guessPart(record);
 		const char = charOf(record.parts.find((p) => p.id === partId));
 		expect(char, `part ${partId}`).toBeTruthy();
 		await startPart({ editor, asset: added.asset, partId, char });
@@ -105,7 +105,7 @@ const state = (char) => getChecksCache().state(editor, editor.project.getItem(ID
 const checkIds = (char) => state(char).checks.map((check) => `${check.id}:${check.args.way}`);
 
 describe('a stray pen dot under the row (the critic IMG_5012)', () => {
-	it("is no part of the r, and the row stays one row read B r e n a H d", () => {
+	it('is no part of the r, and the row stays one row read B r e n a H d', () => {
 		const { mask } = photoInk(photo.image, { paper: 'photo' });
 		const found = findInk(mask, photo.image.width, photo.image.height);
 		const letters = found.parts.filter((part) => charOf(part));
@@ -120,7 +120,10 @@ describe('a stray pen dot under the row (the critic IMG_5012)', () => {
 		const { named } = await walk(7);
 		expect(named).toEqual(['B', 'r', 'e', 'n', 'a', 'H', 'd']);
 		for (const char of named) {
-			expect(checkIds(char).filter((id) => id.startsWith('offLine')), char).toEqual([]);
+			expect(
+				checkIds(char).filter((id) => id.startsWith('offLine')),
+				char
+			).toEqual([]);
 		}
 		const sized = named.filter((char) => checkIds(char).some((id) => id.startsWith('size')));
 		expect(sized).toEqual(['e', 'H']);
@@ -178,7 +181,10 @@ describe('the toast after Use it (one voice, 4.2)', () => {
 		const said = toastLog().at(-1);
 		expect(said.key).toBe('photoFlow.saidAndFlipped');
 		expect(said.text).toMatch(/^Traced small a\./);
-		expect(said.text).toMatch(/small e needs a look now\.$/);
+		// B16 final: the toast says what is wrong with it, not only its name
+		expect(said.text).toMatch(
+			/Have a look: small e is too (tall|short) for the small-letter line\.$/
+		);
 		expect(said.shown).toBe(true);
 	});
 

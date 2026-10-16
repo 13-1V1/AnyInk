@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 photo-flow: which letters are still exactly as traced from their photo, and keeping the
 	photo registry honest through Undo and Redo (docs/UX-BEGINNER.md 4.4 "One size for the whole
@@ -150,7 +152,14 @@ export function reconcilePhotoUses(project, { skip } = {}) {
 		return null;
 	};
 	out.released = releaseStaleUses(project, (itemId, partId) => {
-		if (itemId !== skip) return lookup(itemId);
+		if (itemId !== skip) {
+			// B16: an empty letter holds no part, even while it shows the photo (an Undo of Use it
+			// on an empty letter keeps the photo: T2), so the part is offered again
+			const item = lookup(itemId);
+			const empty = !item?.shapes?.length && !item?.components?.length;
+			if (item && empty && photoHeld(item)?.part !== partId) return null;
+			return item;
+		}
 		// The letter being traced keeps its uses as they are: answer with the photo they name
 		const record = recordOfUse(project, itemId, partId);
 		return record ? { anyink: { trace: { asset: record.asset } } } : lookup(itemId);

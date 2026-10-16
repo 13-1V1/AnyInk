@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 // B6: the Next line's 17 rules (UX-BEGINNER.md 4.0): each rule, their order (the first match
@@ -58,9 +60,7 @@ describe('the 17 rules', () => {
 		it(`rule ${name}: its sentence and button (fix pass)`, () => {
 			const line = pickLine(state());
 			expect(line.rule).toBe(rule);
-			expect({ sentence: line.sentence, button: line.button, action: line.action }).toEqual(
-				want
-			);
+			expect({ sentence: line.sentence, button: line.button, action: line.action }).toEqual(want);
 		});
 	});
 
@@ -98,9 +98,17 @@ describe('the 17 rules', () => {
 		// rule 10 (unsaved) ranks below the photo steps but above rule 12's photo walk
 		const unsavedWithPhoto = { ...RULE_STATES[12](), save: 'not-saved' };
 		expect(pickLine(unsavedWithPhoto).rule).toBe(10);
-		// rule 12 over rule 13 over rule 15
-		const both = { ...RULE_STATES[13](), photos: RULE_STATES[12]().photos, hasPhoto: true };
+		// rule 12 over rule 13 over rule 15, while the Try-it text has a letter not ready yet
+		// (B16: with the whole text ready, Try it goes first once: b16_try_before_parts.test.js)
+		const both = {
+			...RULE_STATES[13](),
+			tryItText: 'Brennan Hand!',
+			photos: RULE_STATES[12]().photos,
+			hasPhoto: true,
+		};
 		expect(pickLine(both).rule).toBe(12);
+		const wholeText = { ...RULE_STATES[13](), photos: RULE_STATES[12]().photos, hasPhoto: true };
+		expect(pickLine(wholeText).rule).toBe(13);
 		expect(pickLine(RULE_STATES[13]()).rule).toBe(13);
 		// rule 13 over rule 14
 		expect(pickLine({ ...RULE_STATES[14](), changedSinceTryIt: true }).rule).toBe(13);
@@ -506,7 +514,9 @@ describe('rule 10 after a failed save', () => {
 // B6 + B7 fix pass (hostile probe_coach): a skip lasts until the state behind it changes
 describe('liveSkips: the suggestions the state holds now, for ending old skips', () => {
 	it('names each suggestion by its skip key with its stamp, whatever page shows', () => {
-		const live = liveSkips(fakeState({ ready: 'a', save: 'not-saved', page: 'letter', current: 'a' }));
+		const live = liveSkips(
+			fakeState({ ready: 'a', save: 'not-saved', page: 'letter', current: 'a' })
+		);
 		expect(live.get('save')).toBe('not-saved');
 		expect(live.get('next:b')).toBe('empty');
 		expect(live.get('next:c')).toBe('empty');
@@ -564,7 +574,12 @@ describe('rule 6 holds every problem of the font check', () => {
 		const base = fakeState({ ready: 'Bre', page: 'board' });
 		const line = pickLine({ ...base, fontProblems: [rProblem, bProblem], fontProblem: rProblem });
 		const skips = { [line.skipKey]: line.stamp };
-		const next = pickLine({ ...base, fontProblems: [rProblem, bProblem], fontProblem: rProblem, skips });
+		const next = pickLine({
+			...base,
+			fontProblems: [rProblem, bProblem],
+			fontProblem: rProblem,
+			skips,
+		});
 		expect(next).toMatchObject({ rule: 6, sentence: bProblem.text });
 	});
 
@@ -573,14 +588,20 @@ describe('rule 6 holds every problem of the font check', () => {
 		const line = pickLine({ ...state, fontProblems: [bProblem], fontProblem: bProblem });
 		expect(line).toMatchObject({ rule: 8, button: '' });
 		// its skip is still held while it waits
-		expect(liveSkips({ ...state, fontProblems: [bProblem] }).has(`fontProblem:${bProblem.itemId}:${bProblem.problem}`)).toBe(true);
+		expect(
+			liveSkips({ ...state, fontProblems: [bProblem] }).has(
+				`fontProblem:${bProblem.itemId}:${bProblem.problem}`
+			)
+		).toBe(true);
 	});
 });
 
 describe('rule 8: empty is no finished shape', () => {
 	it('a letter whose only shape is a stray line is not empty: no "is empty" line', () => {
 		const state = fakeState({ ready: 'Bre', page: 'letter', current: 'a' });
-		const letters = state.letters.map((l) => (l.char === 'a' ? { ...l, ink: false, shapes: true } : l));
+		const letters = state.letters.map((l) =>
+			l.char === 'a' ? { ...l, ink: false, shapes: true } : l
+		);
 		const line = pickLine({ ...state, letters, letter: letters.find((l) => l.char === 'a') });
 		expect(line.rule).not.toBe(8);
 	});

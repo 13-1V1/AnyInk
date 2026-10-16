@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 // B6 + B7 integration real-browser check (docs/UX-BEGINNER.md 4.0, 4.3, 4.11, 7.3, section 10 B6
@@ -118,7 +120,7 @@ const waitUntil = async (check, what, timeout = 15000) => {
 	throw new Error(`timed out: ${what}`);
 };
 
-const newFont = async (p, origin, name, search = '') => {
+const newFont = async (p, origin, name, search = '?ui=all') => {
 	await p.goto(`${origin}/${search}`);
 	// B10 + B11 integration: this walkthrough checks B6 to B9 on toy letters; 'checks' off
 	await pinBeforeChecks(p);

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 item 5 real-browser check of the app notices on a production build (the service worker only
 // runs there). Serves dist/ on localhost with a throwaway Chrome profile. Checks: never more than
 // one notice on screen, and at most one app notice per launch (the install offer and "ready to
@@ -136,7 +138,7 @@ const coversNothing = async (where) => {
 
 try {
 	const launches = [];
-	await page.goto(`${origin}/AnyInk/`);
+	await page.goto(`${origin}/AnyInk/?ui=all`); // B16: Simple is the launch default; these are All tools' notices
 	await page.waitForSelector('#input__new-project-name', { state: 'attached' });
 	await page.evaluate(() => navigator.serviceWorker.ready);
 

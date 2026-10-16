@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B9 word set: what the photo flow itself says (src/anyink/photo/photo_flow.js; UX-BEGINNER.md
 	4.4 step C and Use it, 4.0 Toasts, 7.7). Owner: the B9 photo-flow track. The screens' own
@@ -21,16 +23,18 @@ const PHOTO_FLOW = {
 	// --------------------------------------------------------------
 	// B10 + B11 finalize: before "... needs a look now." when no earlier letter followed
 	'photoFlow.traced': { text: 'Traced {letter}.', feature: 'photo' },
+	// B16: what got better, in plain words (the run read "Also resized small r ... to match the
+	// photo" as "I broke r")
 	'photoFlow.tracedResized': {
-		text: 'Traced {letter}. Also resized {others} to match the photo.',
+		text: 'Traced {letter}. Resized {others} a little, so all your letters from this photo stay one size.',
 		feature: 'photo',
 	},
 	'photoFlow.tracedMoved': {
-		text: 'Traced {letter}. Also moved {others} to match the photo.',
+		text: 'Traced {letter}. Moved {others} a little, so they sit on the line like it.',
 		feature: 'photo',
 	},
 	'photoFlow.tracedResizedMoved': {
-		text: 'Traced {letter}. Also resized {resized} and moved {moved} to match the photo.',
+		text: 'Traced {letter}. Resized {resized} and moved {moved} a little, so all your letters from this photo stay one size.',
 		feature: 'photo',
 	},
 	// Joins the last two letters of a list: "Capital B, small r and small e"
@@ -43,8 +47,15 @@ const PHOTO_FLOW = {
 	},
 	// B10 + B11 finalize: the letters this trace made need a look (4.2: "If a later change flips
 	// a letter he isn't looking at, a toast says so"), said in the same toast, with [Show me]
-	'photoFlow.flippedOne': { text: '{other} needs a look now.', feature: 'checks' },
-	'photoFlow.flippedMany': { text: '{count} letters need a look now.', feature: 'checks' },
+	// B16: calm, never "needs a look now" (a first-timer read it as "I broke it")
+	'photoFlow.flippedOne': { text: 'Have a look at {other} too.', feature: 'checks' },
+	// B16 final: the one letter's reason, in the check's own sentence ("small r is too short for
+	// the small-letter line.")
+	'photoFlow.flippedReason': { text: 'Have a look: {reason}', feature: 'checks' },
+	'photoFlow.flippedMany': {
+		text: 'Have a look at {count|1 other letter|# other letters} too.',
+		feature: 'checks',
+	},
 	'photoFlow.saidAndFlipped': { text: '{said} {flipped}', feature: 'photo' },
 
 	// --------------------------------------------------------------

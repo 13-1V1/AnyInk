@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11 fixes: one Undo step about one letter, wherever he is (UX-BEGINNER.md 7.3: a fix button
 	is an item step; 4.2: the fix buttons sit on the board's tiles too), and the toast when a fix
@@ -48,6 +50,22 @@ export function useNeedsALook(fn) {
 	const previous = needsALookSource;
 	needsALookSource = typeof fn === 'function' ? fn : null;
 	return previous;
+}
+
+/**
+ * B16 final: what a letter needs a look for now ({ reason, ... }), or null
+ * @param {Object} editor
+ * @param {Object} item
+ * @returns {Object | null}
+ */
+export function lookOf(editor, item, needsALook = needsALookSource) {
+	if (typeof needsALook !== 'function' || !item) return null;
+	try {
+		return needsALook(item, { char: item.chars, editor }) || null;
+	} catch (error) {
+		console.warn('ANY-INK fixes: a letter check failed', error);
+		return null;
+	}
 }
 
 /**

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B2 + B3 integration, real-browser check (docs/UX-BEGINNER.md section 10, B2 and B3): the real
 // app on a Vite dev server over src/, Chrome with a throwaway profile, files only in the browser's
 // private file system. The photo steps use today's Trace panel and Auto-trace card; where B9's
@@ -248,7 +250,7 @@ try {
 	// All tools (today's behavior)
 	// ----------------------------------------------------------------------------------------
 	await withBrowser(async () => {
-		await newFont('B23 All tools', '');
+		await newFont('B23 All tools', '?ui=all'); // B16: Simple is the launch default
 		let s = await state();
 		assert.equal(s.mode, 'all');
 		await openLetter('a');

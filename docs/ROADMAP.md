@@ -44,12 +44,23 @@ status line in CLAUDE.md. Definition of done is one line each.
    they reach past the glyph box, holes kept under nonzero on the canvas and in the OTF; the
    facade `autoTraceImageData` is ready for the M9 sheet (D-029). (09/24/2026)
 
+B. **Beginner-proof** (docs/UX-BEGINNER.md, D-031 to D-046) — B0 to B16 done 10/14/2026 to
+   10/16/2026: Simple mode with the letter board as home, house words, one toast voice, Simple
+   undo, automatic spacing and placement, the top bar and the Next line, the letter view, the
+   round Brush, photos to letters, the board and per-letter checks with fixes, Try it with gap
+   fixes, the start screen, Use in Word, Font details, Move the guide lines, Help. **B16
+   (10/16/2026):** the acceptance test's automated run (`tests/beginner.verify.mjs`, section 9.4)
+   passes; every real-Chrome check passes; the launch default is Simple (`?ui=all` or More tools
+   for All tools). Gate 2 (Brennan's own session, `docs/GATE2.md`) is next, then M9.
+
 ## The vertical slice (milestones 4 to 6) — complete 09/23/2026
 One complete path: open or create a project on a themed canvas, draw a glyph, drag its
 metrics and kerning while the strip updates, save to a real file, export an OTF to a folder,
 and recover after a crash. Delivered; the details sit under Done above.
 
 ## Creative features (each: module, test page, unit tests, undo, format fields)
+**Next: M9**, after Gate 2. UX-BEGINNER "After B16" says where each lands in Simple (M9 in step 1
+of the board, M10 extends B8's Brush, M12 and M13 in Try it's Looks drawer).
 9. **Handwriting sheet** — printable Letter template with ArUco corners; photo or scan in;
    straighten, split, trace, place, default bearings; review grid with accept / retrace /
    redraw.

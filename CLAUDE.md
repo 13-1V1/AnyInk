@@ -20,6 +20,8 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   Upstream baseline at fork: 30 files, 613 tests, all pass.
 - `npm run lint` / `npm run fix` — eslint.
 - `npm run pages` — Vite on port 5174 serving the minimal test pages in `tests/` (launch config `anyink-tests`).
+- The app opens in Simple (B16); All tools is `?ui=all` or the More tools switch. Real-Chrome
+  checks of All tools load `?ui=all`; `vitest-setup.js` pins jsdom tests to All tools.
 
 ## Layout (upstream, details in src/README.md)
 - `src/project_data` — font data model. Project > Settings / Kerning / Components /
@@ -67,7 +69,8 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   file, export, toolSwitch, merge) replaces itself, an offer (info + button) survives a clear
   until its font is gone (`stillGood`), a press on the letter canvas leaves Simple's toasts alone.
   `drop_toasts.js`: a work file or an empty drawing dropped. Test page `tests/toast.html`.
-- `src/anyink/mode` (B2 + B5) — `mode.js` (`'all'` by default, `?ui=simple` for one load, mirrored
+- `src/anyink/mode` (B2 + B5) — `mode.js` (B16: `'simple'` by default, `LAUNCH_MODE`; `?ui=all` or
+  More tools for All tools, `?ui=simple` still works; mirrored
   to `html[data-ui-mode]`, `anyink-mode-change`, `setModeForTests`), `features.js` (14 flags, all
   off; each B turns on only its own), `visibility.js` (6.2's tables: `isShown(area, id)`; screens
   filter where they are drawn), `keys.js` (the one key map, 7.6), `band.js` (purple band, landing
@@ -255,8 +258,22 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   dialog opens (Menu open, then Ctrl+E).
 - Feature flags on: `coach` (B6), `letterView` (B7), `brush` (B8), `photo` (B9), `board` (B10),
   `checks` (B11), `tryIt` (B12), `startScreen` (B13), `useInWord` (B14), `fontDetails` and `help`
-  (B15). Tests that check Simple "with no flag" (B5's
-  stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
+  (B15); `alternates`, `weight`, `roughen` off until M11 to M13. Tests that check Simple "with no
+  flag" (B5's stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
+- B16 (D-046) — `history/simple_undo.js markStepBefore` (a step that carries its own earlier state:
+  one Undo after Use it on an empty letter keeps the photo; both modes, kept in crash copies);
+  `photo/photo_flow_votes.js` (two-letter parts and letters far off their row's size don't size the
+  photo); `checks.js twoLetters` ("may be two letters that touch" [Draw a box], added by `cache.js`
+  from the photo list) and `checks/keep_weight.js` (Match size keeps the pen's width);
+  `nib/raw_corners.js` and `filter.js take` (a flick keeps its corners; a fast sample goes in as it
+  is); `start/name_field.js` (the suggested name picked whole on a press); `coach/rules.js
+  tryItFirst` (Try it before the photo's next part, once); `start/install_offer.js photoWalkNow`;
+  `pwa/notice_place.js` (under the bar when its gap is narrow); `tryit/gap_handle.js` (no faster
+  than at 72 pt); `mode/locks.js` (a drawing tool's press is the tool's in both modes).
+  Acceptance: `tests/beginner.verify.mjs` (`npm run verify:beginner`, UX-BEGINNER 9.4, on a probe
+  build) with `tests/beginner_weight.mjs` and `tests/fixtures/brenna-loose.*`, `brenna-tight.*`;
+  B16 real-Chrome checks `close_soon`, `rail_words`, `drawing_tools_lines`, `start_name`. Brennan's
+  own session: `docs/GATE2.md`.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -292,7 +309,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
 6. Files — DONE 09/23/2026 (Open / Save / Save As on File System Access with remembered handles and recents `src/anyink/files`; IndexedDB crash recovery (snapshots keyed per editor session, one Web Lock per live session, undo queue stored in the snapshot, 3 s debounce with a 15 s max-wait, at most 3 orphan snapshots per font) and a Recover card `src/anyink/recovery`, replacing localStorage auto-save (D-026, D-027); OTF/TTF/WOFF/WOFF2 export into a picked folder; `settings.anyink` block and `merge()` boolean fix; asset store `src/anyink/assets`; one `anyink` IndexedDB database `src/anyink/storage`)
 7. Trace layer — DONE 09/24/2026 (`src/anyink/trace`: `item.anyink.trace` with the image Blob in `editor.assets`; drop, paste or pick a PNG / JPEG / WebP (EXIF upright, capped at 2000 px); Trace panel with opacity slider, show, invert, lock, fit; move / resize on the canvas with the Resize tool while the Trace panel is open (shapes win over the image body, its corners win over shapes); every change one undo; `.gs2` keeps only images a trace uses, crash snapshots keep all; cross-project copies carry the image; never exported; D-028; critic, fix and finalize passes 09/24/2026)
 8. Auto-trace — DONE 09/24/2026 (src/anyink/autotrace: params, binarize, potrace worker + client, svg_to_shapes, trace_region, facade autotrace.js for M9, session, preview, apply, Auto-trace card in the Trace panel; D-029)
-B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 done 10/14/2026 (`src/anyink/words` and `src/anyink/toast`: house words at every display point Simple shares, one toast voice, the banned-word scan; D-035); B5 done 10/14/2026 (`src/anyink/mode`: visibility tables, the key map, the purple band and landing rule, guide-line locks, wired into navigator / menu / actions / tools / keys / settings / panels; D-035); B4 + B5 integration done 10/14/2026 (0 banned-word hits on every Simple page that exists, `verify:b45`); B4 + B5 critic, fix and finalize passes done 10/14/2026 (strict scans on by default, 7.7 error boxes with working buttons, Ctrl+O into the right font, "Saving..." while a write waits, Help / About with a way back, start page with one green, photos closed in Simple until B9; D-035); B6 done 10/14/2026 (`src/anyink/topbar`, `src/anyink/coach`, `history/undo_toast.js`: Simple top bar, the Next line and tips, named undo toasts, the save pill; `coach` on; D-036); B7 done 10/14/2026 (`src/anyink/letter`: header, letter card with Fine-tune, empty overlay, Simple guide lines, guide letter, edges, neighbors, auto-hole, Smooth / Corner, labeled tools; `letterView` on; D-036); B6 + B7 integration done 10/14/2026 (`verify:b67`); B6 + B7 critic, fix and finalize passes done 10/14/2026 (one ink rule, the Point pen's edges and Undo, stale toasts, Delete with [Undo], holes where shapes overlap; D-037; `verify:b67-fixes`; the B5-era walkthroughs pin B5's Simple with `pinB5Simple`); B8 done 10/15/2026 (`src/anyink/nib`: the round Brush, both modes, B / N; `brush` on; D-038); B9 done 10/15/2026 (`src/anyink/photo`: parts, registry, paper, How card, photo dialog, photo card, the flow; `photo` on; D-039); B8 + B9 integration done 10/15/2026 (the opening Brush, the photo hub, drops to the photo screens, `path.js` keeps stroke tags, photo-list images kept in the work file, Fine-tune > Tail; D-040; `verify:b89`); B8 + B9 critic, fix and finalize passes done 10/15/2026 (Fine-tune > Photo, lighter letters and a second pen, clipped strokes and bold dots, the photo list through Undo, rule 18 and the calm Brush line, a smooth slow shaky hand, a resting pen, pasted strokes through Undo, outlines kept per shape and the Undo list's size cap; D-041; `verify:photo-ui`; every check with the flags as shipped); B10 + B11 integration done 10/15/2026 (`src/anyink/board`
+B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — DONE 10/16/2026, Gate 2 next (docs/GATE2.md): B0 done 10/14/2026; B1 done 10/14/2026 (fixes in both modes: panel ids, guide lines, menu contrast, leave warning, notices in the top bar, honest Real font preview, font check with Show me / Fix it; D-032); B2 done 10/14/2026 (mode switch, Simple undo, 200 / 30 cap, looking around is never a step; D-033); B3 done 10/14/2026 (automatic spacing refit inside the step in Simple, "set by you" in All tools, letter-spacing extra, placement engine for B9; D-034); B2 + B3 critic, fix and finalize passes done 10/14/2026 (sides from the body with tails bounded, a letter's own lean, every letter on the line, sloped rows, row sizes, parts rule; real-Chrome checks `b23`, `hooks`, `undo`, `spacing`, `placement` verify scripts); B4 done 10/14/2026 (`src/anyink/words` and `src/anyink/toast`: house words at every display point Simple shares, one toast voice, the banned-word scan; D-035); B5 done 10/14/2026 (`src/anyink/mode`: visibility tables, the key map, the purple band and landing rule, guide-line locks, wired into navigator / menu / actions / tools / keys / settings / panels; D-035); B4 + B5 integration done 10/14/2026 (0 banned-word hits on every Simple page that exists, `verify:b45`); B4 + B5 critic, fix and finalize passes done 10/14/2026 (strict scans on by default, 7.7 error boxes with working buttons, Ctrl+O into the right font, "Saving..." while a write waits, Help / About with a way back, start page with one green, photos closed in Simple until B9; D-035); B6 done 10/14/2026 (`src/anyink/topbar`, `src/anyink/coach`, `history/undo_toast.js`: Simple top bar, the Next line and tips, named undo toasts, the save pill; `coach` on; D-036); B7 done 10/14/2026 (`src/anyink/letter`: header, letter card with Fine-tune, empty overlay, Simple guide lines, guide letter, edges, neighbors, auto-hole, Smooth / Corner, labeled tools; `letterView` on; D-036); B6 + B7 integration done 10/14/2026 (`verify:b67`); B6 + B7 critic, fix and finalize passes done 10/14/2026 (one ink rule, the Point pen's edges and Undo, stale toasts, Delete with [Undo], holes where shapes overlap; D-037; `verify:b67-fixes`; the B5-era walkthroughs pin B5's Simple with `pinB5Simple`); B8 done 10/15/2026 (`src/anyink/nib`: the round Brush, both modes, B / N; `brush` on; D-038); B9 done 10/15/2026 (`src/anyink/photo`: parts, registry, paper, How card, photo dialog, photo card, the flow; `photo` on; D-039); B8 + B9 integration done 10/15/2026 (the opening Brush, the photo hub, drops to the photo screens, `path.js` keeps stroke tags, photo-list images kept in the work file, Fine-tune > Tail; D-040; `verify:b89`); B8 + B9 critic, fix and finalize passes done 10/15/2026 (Fine-tune > Photo, lighter letters and a second pen, clipped strokes and bold dots, the photo list through Undo, rule 18 and the calm Brush line, a smooth slow shaky hand, a resting pen, pasted strokes through Undo, outlines kept per shape and the Undo list's size cap; D-041; `verify:photo-ui`; every check with the flags as shipped); B10 + B11 integration done 10/15/2026 (`src/anyink/board`
    and `src/anyink/checks`: the letter board as Simple's home, "Needs a look" with one-click fixes
    and Looks fine to me, one count on the board, the rail and the Next line, a dropped .gs2 opens,
    the backup keeps each Undo step's copy once; `board` and `checks` on; D-042; `verify:b1011`);
@@ -307,10 +324,16 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/20
    `verify:b1213`); B14 + B15 done 10/16/2026 (`src/anyink/install`, `src/anyink/fontinfo`,
    `src/anyink/help`: Use in Word and its install card, Font details, Move the guide lines, Help;
    `useInWord`, `fontDetails` and `help` on; five tracks (factcheck, dialog, names, fontinfo, help),
-   the integration, critic, fix and finalize passes; D-045; `verify:b1415`); B16 next, then M9.
+   the integration, critic, fix and finalize passes; D-045; `verify:b1415`); B16 done 10/16/2026
+   (section 9's automated run `verify:beginner` passes; a first-timer and an impatient walk at 1600 x
+   900 and 1280 x 720, eleven fix tracks and their verifiers, then the final pass: one Undo after Use
+   it keeps the photo, two touching letters need a look, Try it before the photo's next part, the
+   install offer waits out a photo walk, the gap handle at small sizes, straight Brush legs, the name
+   field; every real-Chrome check run one at a time; the launch default flipped to Simple; D-046).
+   Gate 2 (Brennan's own session, docs/GATE2.md) next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
-   Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
-9. Handwriting sheet — pending (after B16; plugs into the letter board)
+   Since B16 Simple is the launch default; All tools is `?ui=all` or More tools.
+9. Handwriting sheet — pending, next after Gate 2 (plugs into the letter board)
 10. Nib brush — pending
 11. Alternates — pending
 12. Weight slider — pending

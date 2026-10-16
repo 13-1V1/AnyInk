@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 font check and export, in the real app (Vite dev server over src/, Chrome with a throwaway
 // profile; files go only to the browser's private file system). Checks what only a browser shows:
 //   1. a letter with ink and no width: Ctrl+E keeps "Exported <file> to Fonts" on screen, adds
@@ -115,7 +117,7 @@ const exportNow = async () => {
 const checkLine = page.locator('.preview-strip__check');
 
 try {
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#input__new-project-name').fill('Check Verify');
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });

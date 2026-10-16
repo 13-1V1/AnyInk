@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md 7.6 "Guide lines are locked in Simple mode"): only the horizontal kinds
 // 'metric' and 'baseline' lock, at guides_layer.js's two gates (a drag, an arrow nudge); the side
 // edges on the same layer stay draggable. Move the guide lines (4.8, B15) unlocks the horizontal
@@ -116,7 +118,9 @@ describe('the letter view (B7): a drawing tool picked, the edges never take the 
 		setModeForTests('simple');
 		setFineTuneOpen(true, null);
 		expect(isGuideLineLocked(rsb, { item: inked, tool })).toBe(true);
-		expect(isGuideLineLocked({ kind: 'sideBearing', side: 'lsb' }, { item: inked, tool })).toBe(true);
+		expect(isGuideLineLocked({ kind: 'sideBearing', side: 'lsb' }, { item: inked, tool })).toBe(
+			true
+		);
 	});
 
 	it('Select and Edit points: the edges move, as before', () => {
@@ -126,7 +130,8 @@ describe('the letter view (B7): a drawing tool picked, the edges never take the 
 		expect(isGuideLineLocked(rsb, { item: inked, tool: 'pathEdit' })).toBe(false);
 	});
 
-	it('All tools: a drawing tool changes nothing', () => {
-		expect(isGuideLineLocked(rsb, { mode: 'all', item: inked, tool: 'newPath' })).toBe(false);
+	it('All tools: a drawing tool locks the edges too (B16, locks_drawing_tools.test.js)', () => {
+		expect(isGuideLineLocked(rsb, { mode: 'all', item: inked, tool: 'newPath' })).toBe(true);
+		expect(isGuideLineLocked(rsb, { mode: 'all', item: inked, tool: 'resize' })).toBe(false);
 	});
 });

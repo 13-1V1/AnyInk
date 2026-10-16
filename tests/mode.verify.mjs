@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 mode core real-browser check (docs/UX-BEGINNER.md 6.1 to 6.3, 7.6, 4.11, section 10 B5), in
 // Chrome with a throwaway profile:
 //   1. tests/mode.html (a real editor on the sample font): All tools at launch shows today's
@@ -16,6 +18,12 @@
 //      and on a real editor page turnOnMoreTools / backToSimple redraw the page through the real
 //      Navigator.navigate (one 'anyink-page-change' each); the wiring draws the band under the
 //      real top bar
+//   B16 (10/16/2026): Simple is the launch default, so part 1 opens tests/mode.html?ui=all
+//   for "All tools at launch" and part 3 checks that the dev app with no ?ui opens in Simple
+//   and ?ui=all in All tools. Part 1 checks B5's stub, the Simple every later B builds on: the
+//   feature flags are turned off in the page first (as verify_standins.mjs pinB5Simple does),
+//   since the shipped flags change the table (the rail, the letter card, the Brush, the Menu,
+//   Use in Word's Ctrl+E). The shipped Simple is checked by b67 to b1415 and beginner.verify.
 // Usage: node tests/mode.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -57,6 +65,13 @@ page.on('console', (message) => {
 page.on('dialog', (dialog) => dialog.dismiss());
 
 const pass = (message) => console.log(`PASS ${message}`);
+/** B5's stub: every feature flag off in the test page, its flag boxes unticked to match */
+const pinB5Stub = () =>
+	page.evaluate(async () => {
+		const { FEATURE_NAMES, setFeaturesForTests } = await import('/src/anyink/mode/features.js');
+		setFeaturesForTests(Object.fromEntries(FEATURE_NAMES.map((name) => [name, false])));
+		document.querySelectorAll('input[data-flag]').forEach((box) => (box.checked = false));
+	});
 const shot = (name) => page.screenshot({ path: resolve(shots, `${name}.png`), fullPage: false });
 const numbers = {};
 const attr = () => page.evaluate(() => document.documentElement.getAttribute('data-ui-mode'));
@@ -86,8 +101,9 @@ try {
 	// ----------------------------------------------------------
 	// 1. tests/mode.html
 	// ----------------------------------------------------------
-	await page.goto(`${pages.origin}/tests/mode.html`);
+	await page.goto(`${pages.origin}/tests/mode.html?ui=all`);
 	await page.locator('body[data-ready="true"]').waitFor({ timeout: 20000 });
+	await pinB5Stub();
 	assert.equal(await attr(), 'all');
 	assert.equal(await page.locator('#bandSlot').getAttribute('data-band'), 'none');
 	assert.equal(await page.locator('.anyink-band').count(), 0);
@@ -96,7 +112,7 @@ try {
 	assert.equal(await page.locator('.drift').count(), 0, 'every table id is in the code');
 	numbers.allToolsShown = today;
 	pass(
-		`All tools at launch: all ${today} of today's controls show, html[data-ui-mode]="all", no band, no table drift`
+		`All tools at launch (?ui=all): all ${today} of today's controls show, html[data-ui-mode]="all", no band, no table drift`
 	);
 	await shot('1-all-tools-launch');
 
@@ -303,12 +319,16 @@ try {
 	// ----------------------------------------------------------
 	await page.goto(`${app.origin}/`);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
+	assert.equal(await attr(), 'simple', 'B16: the launch default is Simple');
+	pass('dev app, no ?ui: html[data-ui-mode]="simple" (B16: Simple is the launch default)');
+	await page.goto(`${app.origin}/?ui=all`);
+	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
 	assert.equal(await attr(), 'all');
 	assert.equal(
 		await page.evaluate(async () => (await import('/anyink/mode/band.js')).bandState()),
 		null
 	);
-	pass('dev app, no ?ui: html[data-ui-mode]="all", no band (today\'s app)');
+	pass('dev app, ?ui=all: html[data-ui-mode]="all", no band (upstream\'s app)');
 
 	await page.goto(`${app.origin}/?ui=simple`);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });

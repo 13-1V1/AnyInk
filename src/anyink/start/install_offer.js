@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B13: the install offer, as a toast (UX-BEGINNER.md 4.1 "Install offer", 7.1, section 10 B13).
 	Not on the start screen: in Simple it comes once, as a toast, after the first letter becomes
@@ -10,7 +12,10 @@
 	as well (one pref, pwa/register.js). After that, install lives in Menu > Help
 	(topbar/install_offer.js, which reads Chrome's offer from here).
 	Never while a dialog is open (coach/dom_probe.js openDialogName): it waits, checking again
-	every DIALOG_RETRY_MS, and shows once the dialog has closed. Never on the start page, never
+	every DIALOG_RETRY_MS, and shows once the dialog has closed. B16: nor in the middle of a photo
+	walk (photoWalkNow: the photo card, or the Next line on step C or the photo's next part; the
+	acceptance run saw it pop up over the letter while he was busy): it waits the same way, unless
+	a font file was made. Never on the start page, never
 	when ANY-INK already runs as the installed app, never in All tools (register.js keeps its
 	notice there, as before).
 
@@ -26,11 +31,13 @@
 	                              (register.js closes the All tools notice); returns a stop
 	  tryInstallOffer()           shows the toast when every rule allows; returns why not:
 	                              'no-event' | 'said' | 'installed' | 'not-simple' |
-	                              'flag-off' | 'start-page' | 'not-yet' | 'dialog' | 'shown'
+	                              'flag-off' | 'start-page' | 'not-yet' | 'dialog' | 'busy' |
+	                              'shown'
+	  photoWalkNow(coach)         B16: a photo walk is under way
 	  noteFontFile()              B14 calls it when a font file is made
 	  isRunningInstalled()        true while ANY-INK runs as the installed app
 	  INSTALL_NOT_NOW_PREF, INSTALL_OFFERED_PREF, OFFER_MS, DIALOG_RETRY_MS
-	  setInstallOfferDepsForTests({ readyLetters, show, isInstalled, dialogOpen })
+	  setInstallOfferDepsForTests({ readyLetters, show, isInstalled, dialogOpen, photoWalk })
 	  setInstallEventForTests(event)   the offer, without trying to show it
 	  resetInstallOfferForTests()
 */
@@ -79,6 +86,7 @@ const DEFAULTS = Object.freeze({
 	show: toast,
 	isInstalled: isRunningInstalled,
 	dialogOpen: () => !!openDialogName(globalThis.document),
+	photoWalk: () => photoWalkNow(getCoach()),
 });
 
 let deps = { ...DEFAULTS };
@@ -148,12 +156,39 @@ function stopRetry() {
 	retryTimer = null;
 }
 
-/** While a dialog is open: look again every DIALOG_RETRY_MS until it closes */
+/** While a dialog is open or a photo walk runs: look again every DIALOG_RETRY_MS until not */
 function retryAfterDialog() {
 	if (retryTimer !== null) return;
 	retryTimer = globalThis.setInterval(() => {
-		if (tryInstallOffer() !== 'dialog') stopRetry();
+		const why = tryInstallOffer();
+		if (why !== 'dialog' && why !== 'busy') stopRetry();
 	}, DIALOG_RETRY_MS);
+}
+
+/**
+ * B16: a photo walk is under way: the photo card runs, or the Next line is on step C (rule 3)
+ * or on the photo's next part (rule 12).
+ * @param {{line: () => Object, state: () => Object}} coach - coach_state.js getCoach()
+ * @returns {Boolean}
+ */
+export function photoWalkNow(coach) {
+	try {
+		if (coach?.state?.()?.photoCard) return true;
+		const name = coach?.line?.()?.name;
+		return name === 'photoParts' || name === 'photoResult';
+	} catch {
+		return false;
+	}
+}
+
+/** @returns {Boolean} */
+function isBusy() {
+	try {
+		return !!deps.photoWalk?.();
+	} catch (error) {
+		console.warn('ANY-INK install: could not tell whether a photo walk runs', error);
+		return false;
+	}
 }
 
 /** @returns {Boolean} */
@@ -187,6 +222,12 @@ export function tryInstallOffer() {
 	if (deps.dialogOpen()) {
 		retryAfterDialog();
 		return 'dialog';
+	}
+	// B16: not in the middle of a photo walk; it waits for a calm moment (the board with no
+	// photo part left to do, Try it, or the first font file)
+	if (!fontFileMade && isBusy()) {
+		retryAfterDialog();
+		return 'busy';
 	}
 	stopRetry();
 	setPref(INSTALL_OFFERED_PREF, Date.now());

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8: the Brush on the edit canvas (UX-BEGINNER.md 4.3 Tools "Brush B", 10 B8; D-014, RESEARCH
 	2.3). The one tool that listens to pointer events: every other tool keeps upstream's mouse
@@ -88,7 +90,8 @@ export function makeNibTool(canvas, { getEditor = getCurrentProjectEditor } = {}
 		if (!Number.isFinite(px) || !Number.isFinite(py)) return;
 		const t = Number.isFinite(event.timeStamp) ? event.timeStamp / 1000 : undefined;
 		stroke.raw = { px, py, t };
-		add(stroke.filter.push(px, py, t));
+		// B16: a sharp corner in the raw samples goes in as it is (filter.js take)
+		stroke.filter.take(px, py, t).forEach(add);
 	};
 	const add = ({ x, y }) => {
 		const { dx, dy, dz } = stroke.view;

@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: the Simple top bar (UX-BEGINNER.md 4.0 "Top bar", 4.11). makeAppTopBar (app/menu.js) draws
 	it instead of today's bar in Simple once the 'coach' flag is on; All tools, and Simple before
@@ -19,8 +21,9 @@
 	  rail        "1 Letters 7/58" (ready / total, ready_count.js), outlined green on the board or
 	              in a letter; "2 Try it" (B12) and "3 Use in Word" (B14) only once their flags are
 	              on. While Try it is open, step 2 is the current step (B12 + B13 integration:
-	              tryit/expand.js 'anyink-try-it-change'). Nothing is ever locked. Below 1440 px the steps show their numbers and only
-	              the current step its name (simple_top_bar.css). The rail ends with the Next
+	              tryit/expand.js 'anyink-try-it-change'). Nothing is ever locked. Every step keeps
+	              its words down to 1280 px; below that only the current step keeps its name
+	              (B16, simple_top_bar.css; tests/rail_words.verify.mjs). The rail ends with the Next
 	              line's "Next" chip (coach_element.js makeNextChip), which shows only while he
 	              has hidden the line with its "x" (data-anyink-slot="next-chip").
 	  Undo, Redo  named in plain words ("Undo: traced Capital B"), with the letter when it isn't

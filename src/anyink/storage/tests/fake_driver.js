@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Test helper: a stand-in for the IndexedDB layer under storage/kv.js
 	(jsdom has no indexedDB). Plug it in with setStorageDriver(fakeDriver()).
@@ -56,6 +58,11 @@ export function fakeDriver() {
 			op('set', store, key, (map) => {
 				map.set(key, value);
 			}),
+		// one transaction: all pairs or none
+		setMany: (pairs, store) =>
+			op('setMany', store, pairs[0]?.[0], (map) => {
+				pairs.forEach(([key, value]) => map.set(key, value));
+			}),
 		del: (key, store) =>
 			op('del', store, key, (map) => {
 				map.delete(key);
@@ -70,7 +77,8 @@ export function fakeDriver() {
 
 	async function op(name, store, key, fn) {
 		driver.calls.push(name);
-		if (store.isClosed()) throw makeError('InvalidStateError', 'the database connection is closing');
+		if (store.isClosed())
+			throw makeError('InvalidStateError', 'the database connection is closing');
 		if (pendingFailures > 0) {
 			pendingFailures--;
 			throw failure;

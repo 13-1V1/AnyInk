@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B12 + B13 integration real-browser check (docs/UX-BEGINNER.md 4.1 the start screen, 4.6 Try it,
 // 7.4 / 7.5 confirmations and recovery; section 10 B12 and B13), in the real app on a Vite dev
 // server, Chrome with a throwaway context, 1600 x 900, the feature flags as the app ships them
@@ -775,7 +777,7 @@ try {
 	// ------------------------------------------------------------------
 	context = await newContext();
 	page = await freshPage('all tools', context);
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#open-project__tab-new').waitFor({ timeout: 60000 });
 	await settle(600);
 	const tabs = await page.evaluate(() => ({

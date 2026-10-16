@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11: the checks, kept per letter (UX-BEGINNER.md 7.2 "Checks (B11) run per letter on release
 	and are cached"; 4.2 "Ready"; section 10 B11 cache.js). The board's 58 tiles, the rail's ready
@@ -25,6 +27,8 @@
 	photo's scale moves with every letter he names. A pass is due when a photo gains or loses a
 	free part or is marked done (photoWalkStamp), since none of that is an Undo step. A letter's
 	stamp holds its Brush strokes' tags and nibs too (the sink test reads the nib).
+	B16: a letter traced from a photo part that may hold two touching letters needs a look
+	(checks.js twoLetters, [Draw a box]), read from the photo list at every pass.
 	B10 + B11 integration: [Move the line to fit your writing] is offered only on a line that
 	the middle of his letters on it says is off the way this letter is (fit_lines_to_writing.js
 	lineMoveWays, read here from the kept measures, so no letter is measured twice). Right after
@@ -79,7 +83,9 @@ import {
 	resolveSizeFix,
 	sizeCounts,
 	spacingSlantOf,
+	twoLettersCheck,
 } from './checks.js';
+import { letterMayBeTwo } from '../photo/photo_registry.js';
 import {
 	extraFromMeasures,
 	impliedFromMeasures,
@@ -354,7 +360,10 @@ function assemble(project, letters, problems) {
 		const item = project.glyphs[id];
 		const own = fontFileCheck(item, problems, kept.found);
 		const found = waitForPhoto(item, project, kept.found);
-		lists.set(id, orderChecks(own ? [...found, own] : found));
+		// B16: traced from a part that may hold two touching letters (read from the photo list
+		// at every pass, since naming a part is no change to the letter)
+		const two = mayBeTwo(project, id) ? [twoLettersCheck()] : [];
+		lists.set(id, orderChecks([...found, ...two, ...(own ? [own] : [])]));
 	});
 	const counts = sizeCounts(lists.values());
 	const ways = waysFromValues(impliedByLine(withInk), project?.settings?.font || {});
@@ -440,7 +449,10 @@ function loneState(item, project, problems) {
 		atFit: atFitIn(project, slant),
 	});
 	const waits = sizeWaits(item, project);
-	const shown = waits ? checks.filter((check) => check.id !== CHECK.size) : checks;
+	const two =
+		item.id && mayBeTwo(project, item.id) ? describeChecks(item, [twoLettersCheck()]) : [];
+	const all = two.length ? orderChecks([...checks, ...two]) : checks;
+	const shown = waits ? all.filter((check) => check.id !== CHECK.size) : all;
 	return letterState(item, { char: item.chars || '' }, shown);
 }
 
@@ -451,6 +463,16 @@ function loneState(item, project, problems) {
  */
 function atFitIn(project, slant) {
 	return (item) => isAutomatic(item) && sitsAtFit(item, project, spacingSlantOf(item, slant));
+}
+
+/** B16: the letter was traced from a photo part that may hold two touching letters */
+function mayBeTwo(project, itemId) {
+	try {
+		return letterMayBeTwo(project, itemId);
+	} catch (error) {
+		console.warn('ANY-INK checks: could not read the photo list', error);
+		return false;
+	}
 }
 
 /**

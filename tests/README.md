@@ -10,6 +10,13 @@ call the bare `log()` helper. Vitest unit tests live beside the code in `src/`.
 Node scripts that drive real Chrome through Playwright with a throwaway profile. Each starts
 its own server on a free port.
 
+Since B16 (10/16/2026) ANY-INK opens in **Simple** (`src/anyink/mode/mode.js` `LAUNCH_MODE`): the
+address with no `ui`, the installed app's `start_url` and a reopened tab. **All tools is
+`?ui=all`** for one load (or the More tools switch). Every check of All tools loads `?ui=all`;
+the vitest setup (`vitest-setup.js`) loads every test page at `?ui=all`, so jsdom tests stay pinned
+to All tools unless they switch. The test pages in `tests/` open in Simple too unless their address
+says `?ui=all`.
+
 Since B5, Simple (`?ui=simple`) draws no page chooser, no panel chooser and no panel, and locks
 the horizontal guide lines (UX-BEGINNER 6.2, 7.6). Until the Bs that give Simple its own way
 there land, the walkthroughs that run in Simple reach those screens through
@@ -76,20 +83,26 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
 - `words.verify.mjs` (`npm run verify:words`): `tests/words.html` lists every words.js key with its
   text, hint, pro word and feature, none says a banned word, Help's glossary shows the landed words
   in 2.1's order, every Undo title has its plain words; then the dev app with `?ui=simple`: the
-  banned-word scanner run in the real page (real CSS) finds in the strip, the File menu and the
-  canvas (a guide line hovered) the same hits as the jsdom scan, and the whole Simple letter screen
-  has 0 hits (B4; asserted since the B4 + B5 integration). Optional argument: a screenshot folder.
+  banned-word scanner run in the real page (real CSS) finds in the strip, Simple's Menu (the top
+  bar's, B6) and the canvas the same hits as the jsdom scan; the left edge pointed at says
+  "left space" with no number, pressed and dragged about 12 px it reads "left space N", then the
+  drag is undone (B16); the whole Simple letter screen has 0 hits (B4; asserted since the B4 + B5
+  integration). Optional argument: a screenshot folder.
 - `toast.verify.mjs` (`npm run verify:toast`): one toast voice (B4). `tests/toast.html`: All tools
   draws a toast where and as long as upstream did (top middle, 3 s); Simple draws it bottom right
   just above the strip, 6 s, hover pauses it, an undo toast holds while an info toast waits, a toast
   with a button holds against info, a message with no words key is dropped, file names are quotes.
-  Then the dev app in Simple: the real Merge says "Merging the shapes..." then "Merged the shapes",
-  Ctrl+R says nothing, a photo is turned away until B9, Ctrl+S says nothing (the save status does),
-  no message dropped; the same steps in All tools keep today's words except Merge. Then the toast
-  fix track in Simple: dropped photo, work file and empty drawing; an error toast holds while a tool
-  key's toast waits; an offer keeps its button through a real click on the drawing surface (the
-  click is checked to land on the canvas); the Recover card asks before throwing work away.
-  Optional argument: a screenshot folder.
+  The test page opens in All tools (`?ui=simple` for Simple). Then the dev app in Simple: the real
+  Merge says "Merging the shapes..." then "Merged the shapes", 8 px above the zoom bar (D-036; 16 px
+  above the strip on a page with no zoom bar), Ctrl+R says nothing, a photo opens the photo card at
+  step C ("Look right? Press Use it...", no toast) and Cancel takes it out, Ctrl+S says nothing (the
+  save status does), no message dropped; the same steps in All tools (`?ui=all`) keep today's words
+  except Merge, and the photo's toast still shows 1 s later (B16). Then the toast fix track in
+  Simple: a dropped photo opens the photo card; a dropped work file and empty drawing say what they
+  are; an error toast holds while a tool key's toast waits; an offer keeps its button through a
+  real click on the drawing surface (the click is checked to land on the canvas); after a reload
+  the start screen's card for never-saved work asks before Throw it away (one green Keep it), Keep
+  it keeps the card, Throw it away takes it off (B13). Optional argument: a screenshot folder.
 - `screens.verify.mjs` (`npm run verify:screens`): the display points Simple shares with More tools
   (B4), in both modes: the canvas guide labels and drag readouts ("small-letter line 1100", "tail
   line 440", "Left space 0"), the File menu rows with file names and types as quotes, the strip
@@ -117,8 +130,10 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
   modes ("Switched to Rectangle (R)" in Simple, H says P; U, B, Ctrl+R and Ctrl+G off; Ctrl+E makes
   the .otf); a flag preview adds only its own control; then the dev app: `?ui=simple` mirrors
   to `html[data-ui-mode]`, and `turnOnMoreTools` / `backToSimple` redraw the real page through
-  Navigator.navigate, with the band in its own grid row under the top bar (B5). Optional argument:
-  a screenshot folder.
+  Navigator.navigate, with the band in its own grid row under the top bar (B5). Since B16 it checks
+  B5's stub with every flag turned off in the page, opens the test page with `?ui=all` for "All
+  tools at launch", and checks that the dev app with no `?ui` opens in Simple and `?ui=all` in All
+  tools. Optional argument: a screenshot folder.
 - `wiring.verify.mjs` (`npm run verify:wiring`): the B5 wiring in the dev app. All tools: a letter
   page shows exactly the controls jsdom recorded before the wiring
   (`src/anyink/mode/tests/today_controls.json`), P / E / U / B / V pick their tools, Ctrl+Space hides
@@ -242,6 +257,41 @@ and `nudgeWritingLine`. In All tools each one uses the real chooser or control, 
   no button and the tile brings the fix back; Save keeps the backup's saved copies, the next write
   sends one; the notebook photo's crossed-out Q is skipped as junk and the prefill stops after a
   skipped VW. Optional argument: a screenshot folder.
+- `beginner.verify.mjs` (`npm run verify:beginner`): UX-BEGINNER 9.4, run before every Gate 2
+  attempt. It builds the app with `src/vite.config.js` plus one probe module (the script's own
+  build plugin puts the app's modules on `window.__anyinkModules`; `dist/` is never touched) and
+  serves it at `/AnyInk/`; Chrome, no `?ui` (Simple is the launch default; `BEGINNER_SEARCH=?ui=simple`
+  pins it), each task's wall-clock time printed at the end, stand-ins for Windows' save box (Documents) and
+  folder box (Documents\My Fonts) in the browser's private file area. T1 to T7 and the file part of
+  T8 with real drops of `tests/fixtures/brenna-loose.jpg` and `brenna-tight.jpg` (drawn handwriting
+  photos with answer keys, copies of `src/anyink/photo/tests/fixtures/brenna-*-phone.*`): one part
+  per letter (8 for the tight one, the dotted i one part), every letter Ready on the writing line,
+  whole numbers, stroke weights within 15 % of their median (or no further off than the photo
+  itself shows, `tests/beginner_weight.mjs`: the drawn pen wobbles 7 %, so the fixture's e is 12 %
+  thin on the paper; each letter's pen kept as written within 10 %), one Undo after Use it leaves
+  the empty B with its photo, the photo under the ink after Use
+  it, a left-edge drag and a letter-spacing change, the e|n gap fixed and undone and redone with
+  the top bar's buttons, the .otf read back (family, widths, empty letters left out, no overlap);
+  in every screen state exactly one green button (none with the Brush on an empty letter before
+  its first mark; with the Brush still picked on a drawn letter, one green or none and the Next
+  line's one button outlined, D-043 / D-046), no banned word, no number input, nothing in capitals; every canvas text and
+  toast scanned. A failed result check is listed and the run goes on, so one run shows them all.
+  `BEGINNER_DIST=<folder>` reuses a probe build. Optional argument: a screenshot folder.
+- `drawing_tools_lines.verify.mjs` (`npm run verify:drawing-tools-lines`): All tools (`?ui=all`), a drawing tool's press is the tool's
+  (B16, `mode/locks.js`): New path clicks on the writing line make points, New rectangle from the
+  right edge and New oval from the small-letter line draw shapes and move no line; Resize still
+  drags the right edge.
+- `close_soon.verify.mjs` (`npm run verify:close-soon`): B16, Chrome closed 300 ms or 1.5 s after a
+  change, its only tab, Leave pressed: the reopened start screen shows the crash card holding the
+  change (no work file, and with one). `CLOSE_SOON_ROOT=<folder>` serves another copy of `src/`.
+- `start_name.verify.mjs` (`npm run verify:start-name`): B16, no `?ui` opens Simple's start screen
+  with the name field holding the keyboard and "My Font" picked; a click on its text, in the empty
+  space after it or a slow press, then typing, gives "Brennan Hand"; a click inside his own name
+  places the caret.
+- `rail_words.verify.mjs` (`npm run verify:rail-words`): B16, the top bar's rail at 1600, 1440, 1280
+  and 1024 px with a long font name: every step keeps its words down to 1280; below, the current
+  step's name and the others' numbers with tooltips; nothing overlaps, runs off the window or
+  scrolls sideways.
 
 Since B10 + B11 (10/15/2026) the letter board is Simple's home and the checks are on: a check
 that opens Simple's Overview finds the board, and a B5-era check that wants B5's Overview turns

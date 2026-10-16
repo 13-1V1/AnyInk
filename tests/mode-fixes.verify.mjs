@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix track (mode) real-browser check, in the real app on a Vite dev server over src/,
 // Chrome with a throwaway profile, 1600 x 900, Simple (?ui=simple) unless it says otherwise:
 //   1. the page chooser stays until B6's rail: on the Overview, a letter, Help and About, with
@@ -396,7 +398,7 @@ try {
 	// ----------------------------------------------------------
 	// 6. All tools: an empty letter's width never goes below 0
 	// ----------------------------------------------------------
-	await newFont('Fix Check All', '');
+	await newFont('Fix Check All', '?ui=all'); // B16: Simple is the launch default
 	assert.equal((await state()).mode, 'all');
 	await openLetter('glyph-0x65');
 	const allEdge = await at(0, 300);
@@ -447,7 +449,7 @@ try {
 	// 8. The Open Project page follows a mode switch
 	// ----------------------------------------------------------
 	await page.evaluate(() => (window.onbeforeunload = null));
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#open-project__tab-load').waitFor({ timeout: 30000 });
 	await page.locator('#open-project__tab-load').click();
 	const before = await text('#open-project__drop-target');

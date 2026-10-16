@@ -1,5 +1,7 @@
 /* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
    brennanmmeyer@gmail.com */
+/* Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 /* B9 photo-ui: the ANY-INK modal shell (the How card and the photo dialog) and the photo dialog
    (UX-BEGINNER.md 4.4 step B). Tokens only. Solid green only on the one primary button
    (.anyink-primary); purple = structure (a part's outline); green outline = what you're
@@ -335,6 +337,24 @@
 	flex: 1;
 	margin: 0;
 	color: var(--chrome-text-muted);
+}
+
+/* B16: the hint, and under it "Some letters are out of view..." */
+.anyink-photo-dialog__words {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.anyink-photo-dialog__more {
+	margin: 0;
+	color: var(--chrome-text);
+	font-weight: 600;
+}
+
+.anyink-photo-dialog__more[hidden] {
+	display: none;
 }
 
 .anyink-photo-dialog__zoom {

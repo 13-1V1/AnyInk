@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B2 + B3 Undo hooks, real-browser check (docs/UX-BEGINNER.md section 10, B2 and B3; D-033,
 // D-034): the real app on a Vite dev server over src/, Chrome with throwaway profiles.
 //   A. ?ui=simple: B drawn with the mouse; r s t u v made from B; a wider second shape on B is one
@@ -480,7 +482,7 @@ try {
 
 	const second = await contextB.newPage();
 	watch(second);
-	await second.goto(`${origin}/`);
+	await second.goto(`${origin}/?ui=all`);
 	const restore = second.locator('.anyink-recovery-row__restore').first();
 	await restore.waitFor({ timeout: 15000 });
 	await shotOf(second)('h08-recover-card-all-tools');
@@ -563,7 +565,7 @@ try {
 	await deleting.close({ runBeforeUnload: false });
 	const after = await contextC.newPage();
 	watch(after);
-	await after.goto(`${origin}/`);
+	await after.goto(`${origin}/?ui=all`);
 	const restoreC = after.locator('.anyink-recovery-row__restore').first();
 	await restoreC.waitFor({ timeout: 15000 });
 	await restoreC.click();

@@ -1,15 +1,17 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 core real-browser check (docs/UX-BEGINNER.md 2.1 to 2.4, section 10 B4), in Chrome with a
 // throwaway profile:
 //   1. tests/words.html lists every words.js key (the count comes from the same module loaded
 //      through Vite in Node), with text, hint, pro word and feature; none says a banned word;
 //      Help's glossary shows the landed words in 2.1's order; every Undo title has a row
 //   2. the dev app with ?ui=simple: the scanner (banned.js) run in the real page, with real CSS,
-//      finds no banned word in the File menu, the preview strip and the edit canvas (a canvas
-//      spy, the left edge pointed at: its one label is the readout "left space N", B4 + B5 fix
-//      pass), as the jsdom scan
-//      says now the display-points track has landed, so jsdom and Chrome agree;
+//      finds no banned word in Simple's Menu (the top bar's, B6), the preview strip and the edit
+//      canvas (a canvas spy: the left edge pointed at says "left space" with no number, B7's
+//      edges.js, principle 3; pressed and dragged, the readout "left space N", then undone),
+//      as the jsdom scan says now the display-points track has landed, so jsdom and Chrome agree;
 //      then the whole Simple screen is scanned and must have 0 hits (B4 + B5 integration: B4
 //      counted 57, B5 hid most, the Simple labels named the rest)
 // Usage: node tests/words.verify.mjs [screenshot folder]   (default: the OS temp folder)
@@ -190,8 +192,9 @@ try {
 	await page.mouse.move(5, 895);
 	await page.waitForTimeout(300);
 
-	// Point at the left edge, so its drag readout is drawn (B5: Simple locks the horizontal guide
-	// lines, 7.6, so the small-letter line shows no readout there; the edges still drag)
+	// Point at the left edge: B7's edges.js labels it "left space" with no number (principle 3:
+	// numbers only while something is dragged; B5 locks the horizontal guide lines, 7.6, the edges
+	// still drag)
 	const linePoint = await page.evaluate(async () => {
 		const editor = (await import('/app/main.js')).getCurrentProjectEditor();
 		const host = document.querySelector('edit-canvas');
@@ -242,31 +245,79 @@ try {
 	// B4 display-points track: the strip and the canvas say no banned word, as in jsdom
 	assert.deepEqual(scanned.strip, [], 'the strip says no banned word and nothing in capitals');
 	assert.deepEqual(scanned.canvas, [], 'nothing on the canvas says a banned word');
+	// B16: a pointed-at edge says its name and no number (B7 edges.js, principle 3)
+	const spaceTexts = (texts) => texts.filter((text) => /space/i.test(text));
 	assert.ok(
-		// B4 + B5 fix pass: one label on a pointed-at edge, the readout ("left space 0", D-035)
-		scanned.drawn.some((text) => /^(left|right) space -?[\d.]+$/.test(text)) &&
+		scanned.drawn.includes('left space') &&
+			!scanned.drawn.some((text) => /^(left|right) space -?[\d.]+$/.test(text)) &&
 			!scanned.drawn.some((text) => /^(Left|Right) space/.test(text)),
-		`the left edge's readout is on the real canvas (${JSON.stringify(scanned.drawn)})`
+		`the pointed-at left edge says "left space" and no number (${JSON.stringify(scanned.drawn)})`
 	);
 	pass(
-		`real Chrome, Simple: the strip scan matches jsdom (no hits); the canvas spy reads the ` +
-			`readout ${JSON.stringify(scanned.drawn.filter((t) => /space/.test(t)))} and no banned word`
+		`real Chrome, Simple: the strip scan matches jsdom (no hits); the pointed-at edge says ` +
+			`${JSON.stringify(spaceTexts(scanned.drawn))} and no banned word`
 	);
 
-	await page.locator('.menu-entry-point', { hasText: 'File' }).click();
-	await page.waitForTimeout(300);
-	await shot('b4-05-simple-file-menu');
-	const menuHits = await page.evaluate(async () => {
-		const { scanDom } = await import('/anyink/words/banned.js');
-		return scanDom(document.querySelector('#context-menu')).map((h) => `${h.term}:${h.text}`);
+	// Pressed and dragged about 12 px, the guides layer draws the readout "left space N" (D-035);
+	// the drag is undone after
+	const sideBefore = await page.evaluate(async () => {
+		window.__canvasTexts.length = 0;
+		return (await import('/app/main.js')).getCurrentProjectEditor().selectedItem.leftSideBearing;
 	});
-	assert.deepEqual(menuHits, [], 'the File menu says no banned word (file types are quotes)');
-	pass(`real Chrome, Simple: the File menu scan matches jsdom (${menuHits.length} hits)`);
+	await page.mouse.down();
+	await page.mouse.move(linePoint.x - 12, linePoint.y, { steps: 4 });
+	await page.waitForTimeout(300);
+	await shot('b4-04b-simple-left-edge-drag-readout');
+	const dragged = await page.evaluate(async () => {
+		const { scanTexts } = await import('/anyink/words/banned.js');
+		return {
+			drawn: [...new Set(window.__canvasTexts)],
+			hits: scanTexts(window.__canvasTexts, 'canvas').map((h) => h.text),
+		};
+	});
+	await page.mouse.up();
+	const sideDragged = await page.evaluate(
+		async () =>
+			(await import('/app/main.js')).getCurrentProjectEditor().selectedItem.leftSideBearing
+	);
+	await page.keyboard.press('Control+z');
+	await page.waitForTimeout(300);
+	const sideUndone = await page.evaluate(
+		async () =>
+			(await import('/app/main.js')).getCurrentProjectEditor().selectedItem.leftSideBearing
+	);
+	assert.notEqual(sideDragged, sideBefore, 'the drag moved the left edge');
+	assert.equal(sideUndone, sideBefore, 'one Ctrl+Z puts the left edge back');
+	assert.ok(
+		dragged.drawn.some((text) => /^left space -?\d+$/.test(text)) &&
+			!dragged.drawn.some((text) => /^(Left|Right) space/.test(text)),
+		`the dragged left edge's readout is on the real canvas (${JSON.stringify(dragged.drawn)})`
+	);
+	assert.deepEqual(dragged.hits, [], 'nothing drawn during the drag says a banned word');
+	pass(
+		`real Chrome, Simple: dragged, the left edge reads ${JSON.stringify(
+			spaceTexts(dragged.drawn)
+		)} and no banned word; undone`
+	);
+
+	// B6: Simple's top bar has one Menu, no File menu
+	await page.locator('[data-anyink-control="menu"]').click();
+	await page.locator('#context-menu[data-anyink-menu="simple"]').waitFor({ timeout: 5000 });
+	await page.waitForTimeout(300);
+	await shot('b4-05-simple-menu');
+	const menuHits = await page.evaluate(async () => {
+		const { scanDom, findUppercase } = await import('/anyink/words/banned.js');
+		const menu = document.querySelector('#context-menu');
+		return [...scanDom(menu), ...findUppercase(menu)].map((h) => `${h.term}:${h.text}`);
+	});
+	assert.deepEqual(menuHits, [], "Simple's Menu says no banned word (file types are quotes)");
+	pass(`real Chrome, Simple: the Menu scan matches jsdom (${menuHits.length} hits)`);
 	await page.keyboard.press('Escape');
 
 	numbers.simpleScreen = {
 		...scanned.wholeScreen,
-		fileMenu: menuHits,
+		menu: menuHits,
+		dragReadout: spaceTexts(dragged.drawn),
 		strip: scanned.strip,
 		canvas: [...new Set(scanned.canvas)],
 	};

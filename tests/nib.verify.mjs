@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B8 brush real-browser check (docs/UX-BEGINNER.md 4.3 Tools, 7.3, 10 B8; D-014, D-015), Chrome
 // with throwaway profiles, 1600 x 900, the feature flags as the app has them ('brush' on):
 //   A. tests/nib.html: B picks the Brush; a mouse drag draws a stroke: while the button is down
@@ -13,6 +15,10 @@
 //      "Undid: drew a stroke on small a"; the page says no banned word (strict); the live
 //      picture vs the ink again, in the app
 //   C. the app in All tools: the Brush button is in the tool column after New path ("Brush")
+//   D. B16 fix (a fast flick rounded off its corners): in tests/nib.html, V and M flicked with 2
+//      and 5 mouse moves a leg and no rest: the tip of the V, the middle of the M and the M's
+//      peaks land within 4 px of where the mouse turned (before: the M's middle about 55 px
+//      short, a flat U; a V with 2 moves a leg 70 px short)
 // Usage: node tests/nib.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -613,7 +619,7 @@ const appView = async () => (await import('/app/main.js')).getCurrentProjectEdit
 // --------------------------------------------------------------
 {
 	const p = await freshPage('app all');
-	await newFont(p, '');
+	await newFont(p, '?ui=all'); // B16: Simple is the launch default
 	await openLetter(p, 'glyph-0x61');
 	const column = await p.evaluate(() =>
 		[...document.querySelectorAll('[data-anyink-tool]')]
@@ -629,6 +635,135 @@ const appView = async () => (await import('/app/main.js')).getCurrentProjectEdit
 		width: 160,
 		height: 360,
 	});
+	await p.context().close();
+}
+
+// --------------------------------------------------------------
+// D. B16 fix: fast flicks keep their corners (tests/nib.html)
+// --------------------------------------------------------------
+{
+	const p = await freshPage('nib.html flicks');
+	await p.goto(`${pages.origin}/tests/nib.html`);
+	await p.locator('edit-canvas').waitFor({ timeout: 30000 });
+	await settle(p, 800);
+	await p.evaluate(() => {
+		const { editor } = window.anyinkNibPage;
+		editor.view = { dx: 150, dy: 641, dz: 0.4 };
+		editor.editCanvas.redraw('verify');
+	});
+	await p.mouse.move(5, 895);
+	await p.keyboard.press('b');
+	await settle(p);
+	const box = await canvasBox(p);
+	/**
+	 * The newest stroke's center line in canvas pixels, laid from where the flick began (B16
+	 * final: Simple's spacing refit moves the letter and the view after the stroke, so the view
+	 * no longer maps the stroke's own units onto the canvas; its first point is where the pen
+	 * went down)
+	 */
+	const newestLine = (start) =>
+		p.evaluate(([sx, sy]) => {
+			const { editor } = window.anyinkNibPage;
+			const { dz } = editor.view;
+			const strokes = editor.selectedItem.anyink.nib.strokes;
+			const stroke = strokes.reduce((newest, one) => (one.id > newest.id ? one : newest));
+			const out = [];
+			stroke.skeleton.forEach(([a, b, c, d]) => {
+				for (let i = 0; i <= 40; i++) {
+					const t = i / 40;
+					const u = 1 - t;
+					const k = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+					const x = k[0] * a[0] + k[1] * b[0] + k[2] * c[0] + k[3] * d[0];
+					const y = k[0] * a[1] + k[1] * b[1] + k[2] * c[1] + k[3] * d[1];
+					out.push([x, y]);
+				}
+			});
+			const [x0, y0] = stroke.skeleton[0][0];
+			return out.map(([x, y]) => [sx + (x - x0) * dz, sy - (y - y0) * dz]);
+		}, start);
+	/** A flick through canvas points, `steps` mouse moves a leg, lifted at once */
+	const flick = async (points, steps) => {
+		const at = ([x, y]) => [box.x + x, box.y + y];
+		await p.mouse.move(...at(points[0]));
+		await p.mouse.down();
+		for (const point of points.slice(1)) await p.mouse.move(...at(point), { steps });
+		await p.mouse.up();
+		await settle(p, 400);
+		return newestLine(points[0]);
+	};
+	const near = (line, x0, pick) =>
+		pick(...line.filter(([x]) => Math.abs(x - x0) < 40).map(([, y]) => y));
+	/** B16 final: the farthest the center line strays from the legs aimed at, px */
+	const stray = (line, path) =>
+		Math.max(
+			...line.map(([px, py]) =>
+				Math.min(
+					...path.slice(1).map(([bx, by], k) => {
+						const [ax, ay] = path[k];
+						const dx = bx - ax;
+						const dy = by - ay;
+						const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+						return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+					})
+				)
+			)
+		);
+	const V_PATH = [
+		[80, 100],
+		[230, 470],
+		[380, 100],
+	];
+	const M_PATH = [
+		[480, 470],
+		[555, 100],
+		[630, 470],
+		[705, 100],
+		[780, 470],
+	];
+	const flicks = [];
+	for (const steps of [2, 5]) {
+		const v = await flick(
+			[
+				[80, 100],
+				[230, 470],
+				[380, 100],
+			],
+			steps
+		);
+		const vTip = near(v, 230, Math.max);
+		const vStray = stray(v, V_PATH);
+		await shot(p, `D-V-${steps}-moves-a-leg`);
+		const m = await flick(
+			[
+				[480, 470],
+				[555, 100],
+				[630, 470],
+				[705, 100],
+				[780, 470],
+			],
+			steps
+		);
+		const mMiddle = near(m, 630, Math.max);
+		const peaks = [near(m, 555, Math.min), near(m, 705, Math.min)];
+		const mStray = stray(m, M_PATH);
+		await shot(p, `D-M-${steps}-moves-a-leg`);
+		await p.locator('#clear').click();
+		await settle(p);
+		assert.ok(vTip > 466, `V, ${steps} moves a leg: tip at y ${vTip.toFixed(1)}, aimed at 470`);
+		assert.ok(mMiddle > 466, `M, ${steps} moves a leg: middle at ${mMiddle.toFixed(1)}`);
+		peaks.forEach((peak) =>
+			assert.ok(peak < 104, `M, ${steps} moves a leg: a peak at ${peak.toFixed(1)}, aimed at 100`)
+		);
+		assert.ok(vStray < 6, `V, ${steps} moves a leg: the line strays ${vStray.toFixed(1)} px off its legs`);
+		assert.ok(mStray < 6, `M, ${steps} moves a leg: the line strays ${mStray.toFixed(1)} px off its legs`);
+		flicks.push(
+			`${steps} moves a leg: V tip y ${vTip.toFixed(1)}, M middle ${mMiddle.toFixed(
+				1
+			)}, M peaks ${peaks.map((peak) => peak.toFixed(1)).join(' / ')} (aimed 470 / 100), legs straight within ${Math.max(vStray, mStray).toFixed(1)} px`
+		);
+	}
+	results.flicks = flicks;
+	pass(`D1 fast flicks keep their corners and straight legs: ${flicks.join('; ')}`);
 	await p.context().close();
 }
 

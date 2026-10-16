@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B1 fix pass, real-browser check of the font check's line on the preview strip (Vite dev server
 // over src/, Chrome with a throwaway profile). With a letter that has ink and no width, at 48,
 // 120 and 200 pt, in canvas mode and in Real font mode:
@@ -112,7 +114,7 @@ const inkUnder = async (clip, sheetColor) => {
 };
 
 try {
-	await page.goto(`${origin}/`);
+	await page.goto(`${origin}/?ui=all`);
 	await page.locator('#input__new-project-name').fill('Check Line');
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });

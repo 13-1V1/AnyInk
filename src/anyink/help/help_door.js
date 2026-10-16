@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B15: the top bar's Help door (topbar/doors.js 'anyink-open-help', detail { section }), sent
 	by Menu > How to make a font, What these words mean, Use your font in Word and Keyboard keys
@@ -10,8 +12,13 @@
 	All tools has no such rows, so the door does nothing there.
 
 	  openHelp(section, { editor })   true when Help opened (Simple, an editor that can navigate)
-	  listenForHelpDoor()             answers the door from now on (once; pages/help.js calls it
-	                                  when it loads); returns a function that stops it
+	  listenForHelpDoor()             answers the door from now on (once); returns a function
+	                                  that stops it. This module calls it itself when it loads
+	                                  (pages/help.js loads it with the app)
+	B16: the call lives at the end of this module, after 'stop' exists. pages/help.js used to make
+	it (a microtask after loading), but help_door.js and pages/help.js import each other through
+	main.js, and a module loader that awaits each import runs that microtask before this module
+	finishes: "Cannot access 'stop' before initialization".
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { isSimpleMode } from '../mode/mode.js';
@@ -61,3 +68,6 @@ export function listenForHelpDoor() {
 	};
 	return stop;
 }
+
+// The door answers from the moment the app loads (see B16 above)
+listenForHelpDoor();

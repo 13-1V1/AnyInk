@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: the Next line's 17 rules (UX-BEGINNER.md 4.0), checked in order; the first match wins.
 	Pure: a state in, one line out. coach_state.js builds the state from the editor; tests and
@@ -324,6 +326,22 @@ function photosWithParts(s) {
 /** Rule 13 */
 const wantsTryIt = (s) => tryItReady(s) >= MIN_READY && !!s.changedSinceTryIt;
 
+/**
+ * B16 (the alphabet-photo run: "Do the next one" never let Try it through): every letter of the
+ * Try-it text is ready and Try it would be offered, so rule 13 goes before rule 12, once: until
+ * Try it is opened (changedSinceTryIt) or he presses Something else on it.
+ */
+function tryItFirst(s, on) {
+	if (typeof on === 'function' && !on('tryIt')) return false;
+	if (!wantsTryIt(s) || isSkippedIn(s.skips, 'tryLetters', '')) return false;
+	const letters = lettersOf(s);
+	const wanted = tryItLetters(
+		s.tryItText,
+		letters.map((l) => l.char)
+	);
+	return wanted.length > 0 && tryItReady(s) === wanted.length;
+}
+
 /** Rule 14 */
 const wantsFontFile = (s) =>
 	readyCount(s) >= MIN_READY &&
@@ -557,7 +575,9 @@ export const RULES = Object.freeze([
 		id: 12,
 		name: 'photoParts',
 		flags: ['photo'],
-		match: (s) => {
+		match: (s, on) => {
+			// B16: once every letter of the Try-it text is ready, Try it comes first, once
+			if (tryItFirst(s, on)) return null;
 			for (const { photo, count } of photosWithParts(s)) {
 				const skipKey = `photo:${photo.id}`;
 				const stamp = String(count);
@@ -571,8 +591,7 @@ export const RULES = Object.freeze([
 			}
 			return null;
 		},
-		live: (s) =>
-			photosWithParts(s).map(({ photo, count }) => [`photo:${photo.id}`, String(count)]),
+		live: (s) => photosWithParts(s).map(({ photo, count }) => [`photo:${photo.id}`, String(count)]),
 	},
 	{
 		id: 13,

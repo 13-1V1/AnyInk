@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
 // B4 + B5 integration real-browser check (docs/UX-BEGINNER.md 2.2, 2.3, 4.0, 4.9 to 4.11, 6, 7.6,
@@ -318,7 +320,7 @@ const hover = async (point) => {
 	await settle(200);
 };
 
-const newFont = async (origin, name, search = '') => {
+const newFont = async (origin, name, search = '?ui=all') => {
 	await page.evaluate(() => (window.onbeforeunload = null)).catch(() => {});
 	await page.goto(`${origin}/${search}`);
 	if (search.includes('ui=simple')) await pinB5Simple(page);
@@ -903,7 +905,7 @@ try {
 
 	// All tools: a strip toggle with focus, then Ctrl+Z; the strip after a rectangle
 	await page.evaluate(() => (window.onbeforeunload = null));
-	await page.goto(`${after.origin}/`);
+	await page.goto(`${after.origin}/?ui=all`);
 	await newFont(after.origin, 'B45 Keys');
 	await openSmallA();
 	await page.evaluate(async () => {

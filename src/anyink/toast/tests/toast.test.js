@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4: the one toast voice (UX-BEGINNER.md 2.2, 4.0 Toasts). Every toast goes through toast.js:
 // upstream's showToast is routed into it. All tools shows each toast the way it always has (one
 // #toast element, the caller's time, the newest replaces the last). Simple shows one toast at a
@@ -129,6 +131,20 @@ describe('All tools: showToast looks and behaves as today', () => {
 		closeAllToasts();
 		vi.advanceTimersByTime(200);
 		expect(toasts()).toEqual([]);
+	});
+
+	it('a toast shown just after closeAllToasts lasts its time (B16: a page change took it)', () => {
+		// The Trace panel opening (a page change) closed "Values were rounded..." and the photo's
+		// toast then reused that fading element, so it went 110 ms later (toast.verify.mjs)
+		showToast('Values were rounded for the selected path points.', 3000);
+		closeAllToasts();
+		showToast('Added a trace image.', 3000);
+		vi.advanceTimersByTime(200);
+		expect(shownText()).toBe('Added a trace image.');
+		vi.advanceTimersByTime(2700);
+		expect(shownText()).toBe('Added a trace image.');
+		vi.advanceTimersByTime(300);
+		expect(live()).toEqual([]);
 	});
 
 	it('the font file toasts keep their words in All tools', () => {

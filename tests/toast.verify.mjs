@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 toast track, real-browser check (docs/UX-BEGINNER.md 2.2 "Toasts, one voice", 4.0 Toasts,
 // 2.4 G, section 10 B4), in Chrome with a throwaway profile:
 //   1. tests/toast.html: All tools draws a toast where and as long as upstream always did (top
@@ -8,15 +10,20 @@
 //      its turn, a toast with a button holds against info, a message with no words key is
 //      dropped, file names are quotes, nothing is in capitals
 //   2. the dev app with ?ui=simple, a new font, small a open: the real Merge button says
-//      "Merging the shapes..." then "Merged the shapes"; Ctrl+R with Edit points says nothing;
-//      a photo is turned away (fix track); Ctrl+S says nothing (the save status does); no message was
-//      dropped on the way
+//      "Merging the shapes..." then "Merged the shapes", just above the zoom bar (D-036: on a page
+//      with a zoom bar the toast sits 8 px above it, elsewhere 16 px above the strip); Ctrl+R with
+//      Edit points says nothing; a photo opens the photo card at step C (B9: "Look right? Press
+//      Use it...", no toast) and Cancel takes it out; Ctrl+S says nothing (the save status does);
+//      no message was dropped on the way
 //   3. the same steps in All tools keep today's words, except Merge, which both modes share
-//   4. fix track (10/14/2026), Simple: a dropped photo is turned away until B9's photo card; a
+//   4. fix track (10/14/2026), Simple: a dropped photo opens the photo card (B9), with no toast; a
 //      work file and an empty drawing dropped on a letter say what they are; an error toast holds
 //      while a tool key's toast waits its turn; an offer ("Couldn't save a backup copy [Save]")
-//      keeps its button through a click on the canvas; after a reload, Discard on never-saved
-//      work asks "Throw away this unsaved work?" and the Recover tab says "backup copy"
+//      keeps its button through a click on the canvas; after a reload, B13's start screen shows
+//      the never-saved work's card, its Throw it away asks "Throw away this unsaved work?" with
+//      one green Keep it, Keep it keeps the card, and Throw it away takes it off
+//   B16 (10/16/2026): the letter-page toast place, the photo steps and the start-screen card
+//   follow the app as D-036, B9 and B13 built it.
 // Usage: node tests/toast.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
@@ -102,6 +109,46 @@ const readToast = () =>
 			edge: style.borderLeftColor,
 		};
 	});
+
+/**
+ * Where Simple's toast sits, in px from the bottom of the window (toast.css, D-036): 8 px above
+ * the zoom bar on a page that has one, else 16 px above the 150 px strip.
+ */
+const simpleToastBottom = () =>
+	page.evaluate(() => {
+		const zoom = document.querySelector('.editor-page__zoom-area');
+		const top = zoom?.getBoundingClientRect().top;
+		return zoom && top > 0 ? Math.round(window.innerHeight - top + 8) : 150 + 16;
+	});
+
+/** The Next line, the photo card and the photo list: what B9's photo screens show. */
+const photoScreen = () =>
+	page.evaluate(async () => {
+		const editor = (await import('/app/main.js')).getCurrentProjectEditor();
+		const { listPhotos } = await import('/anyink/photo/photo_registry.js');
+		const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : null);
+		const coach = document.querySelector('anyink-coach');
+		return {
+			sentence: text(coach?.querySelector('.anyink-coach__sentence')),
+			card: !!document.querySelector('[data-anyink-photo-card]'),
+			photos: listPhotos(editor.project).length,
+		};
+	});
+
+/** Waits for step C of the photo card, then reads it. */
+const waitForStepC = async () => {
+	await waitUntil(
+		async () => /^Look right\? Press Use it/.test((await photoScreen()).sentence ?? ''),
+		'the photo card at step C'
+	);
+	return photoScreen();
+};
+
+/** Cancel on the photo card, and the photo it added is gone. */
+const cancelPhoto = async () => {
+	await page.locator('[data-anyink-photo-card-action="cancel"]').click();
+	await waitUntil(async () => (await photoScreen()).photos === 0, 'Cancel took the photo out');
+};
 
 async function withBrowser(run) {
 	const profile = await mkdtemp(resolve(tmpdir(), 'anyink-toast-'));
@@ -246,7 +293,7 @@ try {
 	const flows = {};
 	for (const mode of ['simple', 'all']) {
 		await withBrowser(async () => {
-			const search = mode === 'simple' ? '?ui=simple' : '';
+			const search = mode === 'simple' ? '?ui=simple' : '?ui=all'; // B16: Simple is the launch mode
 			await page.goto(`${app.origin}/${search}`);
 			await page.locator('#input__new-project-name').fill('Toast Check');
 			await page.locator('#button__create-new-project').click();
@@ -293,7 +340,12 @@ try {
 					(await import('/app/main.js')).getCurrentProjectEditor().selectedItem.shapes.length
 			);
 			assert.equal(shapes, 1, 'the two squares are one shape');
-			if (mode === 'simple') assert.equal(t.simple && t.bottom, 150 + 16);
+			if (mode === 'simple') {
+				const expected = await simpleToastBottom();
+				assert.notEqual(expected, 150 + 16, 'the letter page has a zoom bar');
+				assert.equal(t.simple && t.bottom, expected, '8 px above the zoom bar (D-036)');
+				numbers.letterPage = { bottom: t.bottom, expected };
+			}
 			pass(`${mode}: the real Merge button says "Merging the shapes..." then "Merged the shapes"`);
 
 			// Ctrl+R with Edit points
@@ -327,26 +379,36 @@ try {
 				const blob = await canvas.convertToBlob({ type: 'image/png' });
 				const file = new File([blob], 'a-photo.png', { type: 'image/png' });
 				const { importTraceImage } = await import('/anyink/trace/trace_import.js');
-				window.__added = await importTraceImage(file);
+				// Simple's route waits on the photo screens, so this is not awaited
+				window.__added = importTraceImage(file);
 			});
-			await waitUntil(
-				async () => /photo|trace image/.test((await readToast())?.text ?? ''),
-				'photo toast'
-			);
-			t = await readToast();
-			said.push(t.text);
 			if (mode === 'simple') {
-				// fix track: until B9's photo card, Simple turns a photo away with what to do instead
-				assert.equal(
-					t.text,
-					"ANY-INK can't use photos yet. Draw the letter with the Rectangle, Oval or Point pen for now."
+				// B9: the photo goes to the photo flow; one part, so step C at once, and no toast
+				const s = await waitForStepC();
+				assert.equal(s.photos, 1, 'the font keeps the photo while step C is up');
+				assert.equal(s.card, true, 'the photo card is up');
+				assert.equal(await readToast(), null, 'no toast: the card says it');
+				said.push(`(no toast) Next: ${s.sentence}`);
+				await shot('a2-simple-photo');
+				await cancelPhoto();
+				pass(
+					`simple: a photo opens the photo card ("${s.sentence}"), no toast; Cancel takes it out`
 				);
-				assert.equal(await page.evaluate(() => window.__added), false, 'no photo was added');
 			} else {
+				// read the toast as it shows: a 3 s All tools toast may be gone a moment later
+				await waitUntil(async () => {
+					t = await readToast();
+					return /photo|trace image/.test(t?.text ?? '');
+				}, 'photo toast');
+				// B16: it lasts (the Trace panel's page change closed the Ctrl+R toast, and the photo's
+				// toast reused that fading element and went 110 ms later: toast_view.js leaveClassic)
+				await page.waitForTimeout(1000);
+				assert.equal((await readToast())?.text, t.text, 'the photo toast still shows 1 s later');
+				said.push(t.text);
 				assert.match(t.text, /^Added a trace image\. Press Start auto-trace/);
+				await shot('a6-all-photo');
+				pass(`all: adding a photo says "${t.text.slice(0, 48)}..."`);
 			}
-			await shot(`a${mode === 'simple' ? 2 : 6}-${mode}-photo`);
-			pass(`${mode}: adding a photo says "${t.text.slice(0, 48)}..."`);
 
 			// Ctrl+S to a work file (Chrome's own file system stands in for the save picker)
 			await page.evaluate(async () => {
@@ -438,17 +500,20 @@ try {
 
 		// a photo, a work file and an empty drawing dropped on small b
 		await drop('handwriting.png', 'image/png', '');
-		await waitUntil(async () => /photos yet/.test((await readToast())?.text ?? ''), 'refused');
+		const dropped = await waitForStepC();
+		assert.equal(dropped.photos, 1, 'the font keeps the photo while step C is up');
 		let t = await readToast();
-		assert.equal(t.count, 1, 'the drag-over hint gave way to the drop at once');
+		assert.equal(t, null, 'the drag-over hint gave way to the photo card; no toast');
+		await shot('f01-simple-photo-card');
+		await cancelPhoto();
 		const trace = await page.evaluate(
 			async () =>
 				!!(await import('/app/main.js')).getCurrentProjectEditor().selectedItem.anyink?.trace
 		);
-		assert.equal(trace, false, 'no photo under small b');
-		await page.waitForTimeout(500); // its slide-in has finished
-		await shot('f01-simple-photo-turned-away');
-		pass(`Simple: a dropped photo is turned away: "${t.text}"`);
+		assert.equal(trace, false, 'no photo under small b after Cancel');
+		pass(
+			`Simple: a dropped photo opens the photo card ("${dropped.sentence}"); Cancel takes it out`
+		);
 
 		await clear();
 		await drop('Brennan Hand.gs2', '', '{"projectSettings":{}}');
@@ -520,7 +585,11 @@ try {
 		assert.equal(landed, true, 'the click point is on the letter canvas');
 		await page.mouse.click(point.x, point.y);
 		await page.waitForTimeout(300);
-		assert.equal(await page.evaluate(() => window.__canvasPresses), 1, 'the canvas heard the click');
+		assert.equal(
+			await page.evaluate(() => window.__canvasPresses),
+			1,
+			'the canvas heard the click'
+		);
 		t = await readToast();
 		assert.equal(t?.text, "Couldn't save a backup copy. Press Save to keep your work. Save");
 		await shot('f05-simple-offer-kept-after-click');
@@ -558,11 +627,23 @@ try {
 		});
 		await closing.close({ runBeforeUnload: false });
 		await page.goto(`${app.origin}/?ui=simple`);
-		const row = page.locator('.anyink-recovery-row:has-text("Never Saved")').first();
-		await row.waitFor({ timeout: 15000 });
-		assert.equal(await row.locator('.anyink-recovery-row__badge').count(), 0, 'no work file');
-		await shot('f06-simple-recover-never-saved');
-		await row.locator('.anyink-recovery-row__discard').click();
+		// B13: the start screen's one card for never-saved work
+		const crash = '.anyink-start__card--crash:has-text("Never Saved")';
+		const card = page.locator(crash).first();
+		await card.waitFor({ timeout: 15000 }).catch(async (error) => {
+			await shot('f06-simple-start-card-missing');
+			console.log(`start screen: ${(await page.locator('body').innerText()).replace(/\s+/g, ' ')}`);
+			throw error;
+		});
+		const cardText = (await card.innerText()).replace(/\s+/g, ' ').trim();
+		assert.match(cardText, /^Unsaved work from .+: Never Saved\./);
+		assert.match(cardText, /Continue with it Throw it away$/);
+		const cardGreens = await card.evaluate((el) =>
+			[...el.querySelectorAll('.anyink-primary')].map((b) => b.textContent.trim())
+		);
+		assert.deepEqual(cardGreens, ['Continue with it'], 'one green: Continue with it');
+		await shot('f06-simple-start-card-never-saved');
+		await card.locator('[data-anyink-choice="throw-away"]').click();
 		const confirm = page.locator('dialog#modal-dialog .anyink-recovery-confirm');
 		await confirm.waitFor({ timeout: 5000 });
 		const asked = (await confirm.innerText()).replace(/\s+/g, ' ').trim();
@@ -580,23 +661,19 @@ try {
 		await shot('f07-simple-throw-away-confirm');
 		await confirm.locator('[data-anyink-choice="keep"]').click();
 		await page.waitForTimeout(400);
-		assert.equal(await row.isVisible(), true, 'Keep it kept the backup copy');
-		await row.locator('.anyink-recovery-row__discard').click();
+		assert.equal(await card.isVisible(), true, 'Keep it kept the backup copy');
+		await card.locator('[data-anyink-choice="throw-away"]').click();
 		await confirm.waitFor({ timeout: 5000 });
-		await page.locator('dialog#modal-dialog [data-anyink-choice="throw-away"]').last().click();
+		await confirm.locator('[data-anyink-choice="throw-away"]').click();
 		await waitUntil(
-			async () =>
-				(await page.locator('.anyink-recovery-row:has-text("Never Saved")').count()) === 0,
-			'the row went after Throw it away'
+			async () => (await page.locator(crash).count()) === 0,
+			'the card went after Throw it away'
 		);
-		await page.locator('#open-project__tab-recover').click();
-		await page.waitForTimeout(300);
-		const empty = (await page.locator('#tab-content__recover').innerText()).replace(/\s+/g, ' ');
-		assert.match(empty, /ANY-INK keeps a backup copy every few seconds while you work\./);
-		assert.doesNotMatch(empty, /snapshot/i);
-		await shot('f08-simple-recover-tab-empty');
+		const start = (await page.locator('#open-project__page').innerText()).replace(/\s+/g, ' ');
+		assert.doesNotMatch(start, /snapshot|Never Saved/i);
+		await shot('f08-simple-start-after-throw-away');
 		pass(
-			'Simple: Discard on never-saved work asked first; Keep it kept it; Throw it away threw it'
+			`Simple: the start card "${cardText}"; Throw it away asked first; Keep it kept it; Throw it away threw it`
 		);
 	});
 

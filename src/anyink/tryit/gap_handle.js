@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B12: the purple gap handle in Try it (UX-BEGINNER.md 4.6 Gap handle; 7.3). Point between two
 	made letters on the sheet: a purple handle with the tooltip "drag to close or open this gap".
@@ -16,7 +18,20 @@
 	under it anyway is dropped, never written on the new font; a step's before-copy always gets
 	its after-copy, even when the change throws.
 
-	  GAP_REACH_PX                         how far either side of a gap the pointer finds it
+	B16 acceptance: the pointer finds a gap from at least GAP_REACH_PX either side of it, and from
+	GAP_REACH_SHARE of the narrower letter's width into either letter (the middle of a letter is
+	still no gap); the handle draws 6 px wide but takes a press across 24 px; a drag is slowed
+	(one screen px is GAP_DRAG_GAIN of a px's units) and moves in GAP_DRAG_STEP steps, so a small
+	hand movement never jumps straight to touching.
+
+	  GAP_REACH_PX                         the least the pointer reaches either side of a gap
+	  GAP_REACH_SHARE                      the share of the narrower letter it also reaches into
+	  GAP_DRAG_GAIN, GAP_DRAG_STEP         how slow a gap drag is, and its steps (font units)
+	  GAP_DRAG_SLOWEST_PT, GAP_REACH_MAX_SHARE   B16 final: below 72 pt a px moves no more units
+	                                       than at 72 pt; the reach never takes in more than 40 %
+	                                       of the narrower letter
+	  gapDragValue(start, firstX, x, dz)   the pair's gap for a pointer at x (whole steps from
+	                                       start, so a drag back lands on start exactly)
 	  findGapAtPoint(data, x, y, font, { reach })
 	                                       the gap under a point: { left, right, x, top, bottom,
 	                                       dz } (charData from TextBlock.data, x the right
@@ -50,7 +65,6 @@
 	                                       it opens only there.
 */
 import { KernGroup } from '../../project_data/kern_group.js';
-import { dragValue } from '../kerning/kern_drag.js';
 import {
 	kernOffsetFor,
 	kernOffsetWithout,
@@ -70,7 +84,14 @@ import { letterPhrase } from '../words/letter_name.js';
 import { word } from '../words/words.js';
 import { holdUndoKeys } from './undo_hold.js';
 
-export const GAP_REACH_PX = 6;
+export const GAP_REACH_PX = 12;
+export const GAP_REACH_SHARE = 0.3;
+export const GAP_DRAG_GAIN = 0.25;
+export const GAP_DRAG_STEP = 5;
+/** B16 final: a drag is never faster, in font units a screen px, than at this size (points) */
+export const GAP_DRAG_SLOWEST_PT = 72;
+/** B16 final: the reach never takes in more than this share of the narrower letter */
+export const GAP_REACH_MAX_SHARE = 0.4;
 /** expand.js TRY_IT_CHANGE_EVENT and preview_strip.js's redraw event (not imported: they may
  * import this file) */
 export const TRY_IT_CHANGE = 'anyink-try-it-change';
@@ -89,6 +110,14 @@ const STYLE = `
 	touch-action: none;
 	z-index: 2;
 }
+.anyink-gap-handle::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -9px;
+	right: -9px;
+}
 .anyink-gap-handle[hidden] { display: none; }
 .anyink-gap-handle.is-dragging { background: var(--structure); }
 `;
@@ -105,12 +134,46 @@ function isMadeLetter(charData) {
 	return hasInk(item);
 }
 
+/** @returns {Number} the open font's units per em (0 when unknown) */
+function upmOf(editor) {
+	return Number(editor?.project?.settings?.font?.upm) || 0;
+}
+
+/** @returns {Number} a letter's width on the sheet, CSS px */
+function widthPx(charData) {
+	return Math.max(0, (Number(charData.widths?.advance) || 0) * (Number(charData.view.dz) || 0));
+}
+
+/**
+ * The pair's gap value for a pointer at x: slowed by GAP_DRAG_GAIN, in GAP_DRAG_STEP steps from
+ * where the drag began.
+ * @param {Number} startValue - font units when the drag began
+ * @param {Number} firstX - pointer x when the drag began
+ * @param {Number} currentX - pointer x now
+ * @param {Number} dz - CSS px per font unit
+ * @param {Number} [upm] - the font's units per em: below GAP_DRAG_SLOWEST_PT the drag is as slow,
+ *   in units a px, as at that size
+ * @returns {Number} whole font units
+ */
+export function gapDragValue(startValue, firstX, currentX, dz, upm) {
+	const start = Math.round(Number(startValue) || 0);
+	let perPx = GAP_DRAG_GAIN / (Number(dz) || 1);
+	// B16 final: below 72 pt the letters are small, but a hand moves the same: one px is no more
+	// units than at 72 pt (96 px an em), so a small drag never jumps to touching
+	if (Number(upm) > 0)
+		perPx = Math.min(perPx, (GAP_DRAG_GAIN * Number(upm)) / ((GAP_DRAG_SLOWEST_PT * 4) / 3));
+	const units = (Number(currentX) - Number(firstX)) * perPx;
+	const steps = Math.round(units / GAP_DRAG_STEP) || 0;
+	return start + steps * GAP_DRAG_STEP;
+}
+
 /**
  * @param {Array<Array<Object>>} data - TextBlock.data
  * @param {Number} x - CSS px from the canvas left edge
  * @param {Number} y - CSS px from the canvas top edge
  * @param {{ascent: Number|String, descent: Number|String}} font
- * @param {{reach?: Number}} [options]
+ * @param {{reach?: Number}} [options] - the least reach (px); it grows to GAP_REACH_SHARE of the
+ *   narrower letter
  * @returns {{left: Object, right: Object, x: Number, top: Number, bottom: Number, dz: Number} | false}
  */
 export function findGapAtPoint(data, x, y, font, { reach = GAP_REACH_PX } = {}) {
@@ -133,7 +196,14 @@ export function findGapAtPoint(data, x, y, font, { reach = GAP_REACH_PX } = {}) 
 			const leftEnd = left.view.dx + (Number(left.widths?.advance) || 0) * left.view.dz;
 			const low = Math.min(gapX, leftEnd);
 			const high = Math.max(gapX, leftEnd);
-			if (x < low - reach || x > high + reach) continue;
+			const narrower = Math.min(widthPx(left), widthPx(right));
+			// B16 final: on small letters the least reach would take in a whole letter; never more
+			// than GAP_REACH_MAX_SHARE of the narrower one, so the middle of a letter is no gap
+			const pairReach = Math.min(
+				Math.max(reach, GAP_REACH_SHARE * narrower),
+				GAP_REACH_MAX_SHARE * narrower
+			);
+			if (x < low - pairReach || x > high + pairReach) continue;
 			const top = right.view.dy - ascent * dz;
 			const bottom = right.view.dy + descent * dz;
 			if (y < top || y > bottom) continue;
@@ -179,7 +249,8 @@ export function touchFloor(project, c1, c2, startValue = 0) {
 	const rightInk = rightItem ? inkBounds(rightItem) : null;
 	if (!leftInk || !rightInk) return -Infinity;
 	const advance = Number(leftItem.advanceWidth) || 0;
-	const space = closestRowSpace(leftItem, rightItem, leftInk, rightInk, advance) ??
+	const space =
+		closestRowSpace(leftItem, rightItem, leftInk, rightInk, advance) ??
 		advance - leftInk.xMax + rightInk.xMin;
 	const touching = Math.ceil(-space) || 0;
 	return Math.min(Math.round(Number(startValue) || 0), touching);
@@ -433,7 +504,10 @@ export function attachGapHandle({
 		handle.style.height = `${Math.max(8, found.bottom - found.top)}px`;
 		handle.setAttribute(
 			'aria-label',
-			word('tryitGaps.handle.label', namesOf(toKernHex(found.left.char), toKernHex(found.right.char)))
+			word(
+				'tryitGaps.handle.label',
+				namesOf(toKernHex(found.left.char), toKernHex(found.right.char))
+			)
 		);
 		handle.hidden = false;
 	};
@@ -468,20 +542,21 @@ export function attachGapHandle({
 			firstX: event.clientX,
 			startX: gap.x,
 			dz: gap.dz,
+			upm: upmOf(editor),
 		};
 		handle.classList.add('is-dragging');
 	};
 	const onDragMove = (event) => {
 		if (!drag) return;
 		event.stopPropagation();
-		const { session, firstX, startX, dz } = drag;
-		const value = session.set(dragValue(session.startValue, firstX, event.clientX, dz));
+		const { session, firstX, startX, dz, upm } = drag;
+		const value = session.set(gapDragValue(session.startValue, firstX, event.clientX, dz, upm));
 		place(startX + (value - session.startValue) * dz);
 	};
 	const endDrag = (event, cancel = false) => {
 		if (!drag) return;
 		event?.stopPropagation?.();
-		const { session, firstX, dz, release } = drag;
+		const { session, firstX, dz, upm, release } = drag;
 		drag = null;
 		release();
 		handle.classList.remove('is-dragging');
@@ -490,7 +565,7 @@ export function attachGapHandle({
 			return hide();
 		}
 		if (event && Number.isFinite(event.clientX)) {
-			session.set(dragValue(session.startValue, firstX, event.clientX, dz));
+			session.set(gapDragValue(session.startValue, firstX, event.clientX, dz, upm));
 		}
 		const result = session.finish();
 		if (result) onChange(result);

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B11: the one-click fixes (UX-BEGINNER.md 4.2, 4.3, 7.2, 7.3, 7.7, section 10 B11). A check
 	(checks.js, the checks track) says { id, reason, fix }; a fix button runs applyFix with that
@@ -62,6 +64,7 @@ import { isAutomatic, markAuto } from '../spacing/owner.js';
 import { fontSlant } from '../spacing/slant.js';
 import { whole } from '../spacing/round.js';
 import { word } from '../words/words.js';
+import { TRACE_AGAIN_EVENT } from '../letter/letter_card.js';
 import { FIX, spacingSlantOf } from './checks.js';
 import { fitLineToWriting } from './fit_lines_to_writing.js';
 import {
@@ -195,6 +198,17 @@ export function fixIt(editor, itemId, options = {}) {
 	);
 }
 
+/**
+ * B16 [Draw a box] (a letter that may be two touching letters): the photo dialog on the letter,
+ * as the card's [Trace again] opens it (letter_card.js TRACE_AGAIN_EVENT); no step of its own
+ */
+export function drawBox(editor, itemId) {
+	const none = { done: false, fix: FIX.drawBox, title: '', itemId, flipped: [] };
+	if (!editor?.project || !itemId) return none;
+	globalThis.dispatchEvent?.(new CustomEvent(TRACE_AGAIN_EVENT, { detail: { itemId } }));
+	return none;
+}
+
 const FIXES = Object.freeze({
 	fitSpacing,
 	sitOnLine,
@@ -202,6 +216,7 @@ const FIXES = Object.freeze({
 	removeSpecks,
 	shrinkToFit,
 	fixIt,
+	drawBox,
 });
 
 // --------------------------------------------------------------
