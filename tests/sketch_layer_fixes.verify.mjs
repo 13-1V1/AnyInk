@@ -204,7 +204,7 @@ try {
 	await openLetter(page, 'n');
 	v = await viewOf(page);
 	const { lines } = v;
-	const stemX = 160;
+	let stemX = 160;
 
 	// ---- 1. the stem stays on the canvas ------------------------------------------------------
 	await page.keyboard.press('l');
@@ -214,6 +214,9 @@ try {
 	await page.waitForTimeout(120);
 	let s = await state(page);
 	check('1. the stem is stored', s.sketch?.pieces?.length === 1, `pieces ${s.sketch?.pieces?.length}`);
+	// S3: the stem's ink is built, so Simple's automatic spacing fits the letter inside the step
+	// and the sketch moves with it (sketch/follow.js): the stem is where its stored points are now
+	stemX = s.sketch.points[s.sketch.pieces[0].parts[0].from].x;
 	await page.keyboard.press('Escape');
 	await page.keyboard.press('Escape');
 	await page.waitForTimeout(120);

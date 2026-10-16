@@ -9,7 +9,8 @@
 
 	  toolTitle(tool, upstream)        Simple: "Rectangle (R)" (tool.* words, keys.js toolKey: the
 	                                   key the "Switched to" toast names too)
-	  viewToolTitle(id, upstream)      Simple: "Fit letter", "Outline only", "Dark paper", "Zoom in"
+	  viewToolTitle(id, upstream)      Simple: "Fit letter", "Outline only" (S3: "See-through" with
+	                                   'sketch' on), "Dark paper", "Zoom in"
 	  navSuperTitle(superTitle)        Simple: the nav buttons' small labels, "Page", "Letter"
 	  pageTitle(page)                  Simple: a page's name on the page button and in its
 	                                   chooser ("All letters", "One letter", "Help", "About
@@ -28,6 +29,7 @@
 */
 import './simple_labels.css';
 import { getCurrentProject } from '../../app/main.js';
+import { isFeatureOn } from './features.js';
 import { toolKey } from './keys.js';
 import { isSimpleMode } from './mode.js';
 import { letterName } from '../words/letter_name.js';
@@ -52,6 +54,11 @@ export function toolTitle(tool, upstream) {
  */
 export function viewToolTitle(id, upstream) {
 	if (!isSimpleMode() || !hasWord(`view.${id}`)) return upstream;
+	// S3 integration: with 'sketch' on the switch is "See-through" (letter/view_switches.js
+	// displayModeKey), so "outline" means one thing in Simple
+	if (id === 'displayMode' && isFeatureOn('sketch') && hasWord('view.seeThrough')) {
+		return word('view.seeThrough');
+	}
 	return word(`view.${id}`);
 }
 

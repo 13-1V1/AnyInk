@@ -57,13 +57,23 @@
 	                           (its other parts may still be his letters), and never leads
 	  overlayShows(editor)     true while the box shows
 	  makeEmptyOverlay(editor) the box; follows the editor (subscriber 'anyink.letter.overlay')
+
+	S3 (docs/SKETCH.md section 7, one green door), with 'sketch' on: the buttons are
+	sketch_door.js doorButtons ([Sketch it] green with its key printed and its line under it,
+	unless a photo part waits; [Draw it with points] and the Brush button are gone), then "or drop
+	a photo here", the quiet "or sketch the outline instead" link with its picture, and More ways
+	(the Brush, "No photo yet? How to take one"). [Sketch it] and the outline link pick the Line
+	with the letter's way set (sketch_door.js openSketchDoor). The box stays while the Line the
+	letter opened with is picked (an opening tool, as the Brush is), and steps aside while a piece
+	is open (sketch/tools/undo_gate.js) or once the letter has a sketch piece.
+	With 'sketch' off the box is exactly as before.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
 import { selectTool } from '../../edit_canvas/tools/tools.js';
 import { openDialogName } from '../coach/dom_probe.js';
 import { isFeatureOn } from '../mode/features.js';
-import { isOpeningBrush } from '../nib/default_tool.js';
+import { isOpeningTool } from '../nib/default_tool.js';
 import { openPhotoDoor, samePhoto } from '../photo/photo_doors.js';
 import { PHOTO_CARD_EVENT, isPhotoCardOpen } from '../photo/photo_card_slot.js';
 import { paintPhoto } from '../photo/paint_photo.js';
@@ -75,6 +85,9 @@ import { openPathOf } from '../coach/open_shape.js';
 import { isLetterViewOn, setFineTuneOpen } from './view_switches.js';
 import { SKETCH_TOOLS } from '../sketch/tools/tool_names.js';
 import { hasSketchPieces } from '../sketch/sketched.js';
+import { isPieceOpen, SKETCH_PIECE_EVENT } from '../sketch/tools/undo_gate.js';
+import { toolKey } from '../mode/keys.js';
+import { doorButtons, moreWays, openSketchDoor, outlinePicture } from './sketch_door.js';
 
 export const OVERLAY_SUBSCRIBER = 'anyink.letter.overlay';
 
@@ -126,6 +139,14 @@ const BUTTONS = Object.freeze({
 		key: 'letter.overlay.chooseAnother',
 		run: (editor) => openPhotoDoor('pick', letterContext(editor)),
 	},
+	// S3: the sketch door (the Line, the letter's way Centerline)
+	sketchIt: { key: 'sketch.door.sketchIt', run: (editor) => openSketchDoor(editor, 'center') },
+});
+
+/** S3: More ways' quiet links (sketch_door.js moreWays) */
+const MORE_WAYS = Object.freeze({
+	brush: { key: 'sketch.door.brush', run: () => selectTool('nib') },
+	how: { key: 'letter.overlay.how', run: (editor) => openPhotoDoor('how', letterContext(editor)) },
 });
 
 /**
@@ -134,6 +155,8 @@ const BUTTONS = Object.freeze({
  * @returns {Array<'useSamePhoto' | 'usePhoto' | 'chooseAnother' | 'drawBrush' | 'drawPoints'>}
  */
 export function overlayButtons(isOn = isFeatureOn, { samePhoto: same = false, done = false } = {}) {
+	// S3: the sketch's one green door
+	if (isOn('sketch')) return doorButtons(isOn, { samePhoto: same, done });
 	const buttons = [];
 	if (isOn('photo')) {
 		if (!same) buttons.push('usePhoto');
@@ -158,7 +181,10 @@ export function overlayShows(editor = getCurrentProjectEditor()) {
 	if (hasSketchPieces(item)) return false;
 	// B8 + B9 integration: the photo card holds the screen's green button while it runs
 	if (isFeatureOn('photo') && (isPhotoCardOpen() || getFlow(editor))) return false;
-	if (editor.selectedTool === 'nib' && isOpeningBrush(editor)) return true;
+	// S3: a piece he is drawing is his way chosen; the box must not sit where he clicks
+	if (isFeatureOn('sketch') && isPieceOpen()) return false;
+	// the Brush (S3: or the Line) the letter opened with is no choice of his: the box stays
+	if (isOpeningTool(editor)) return true;
 	return !SHAPE_TOOLS.includes(editor.selectedTool);
 }
 
@@ -181,7 +207,21 @@ export function makeEmptyOverlay(editor = getCurrentProjectEditor()) {
 	});
 	watchForDialogs(view);
 	listenForPhotoCard(view);
+	listenForPiece(view);
 	return overlay;
+}
+
+/** S3: a piece opening or ending shows or hides the box (one listener per box). */
+function listenForPiece(view) {
+	if (typeof globalThis.addEventListener !== 'function') return;
+	const onPiece = () => {
+		if (!view.overlay.isConnected) {
+			if (view.placed) globalThis.removeEventListener(SKETCH_PIECE_EVENT, onPiece);
+			return;
+		}
+		update(view);
+	};
+	globalThis.addEventListener(SKETCH_PIECE_EVENT, onPiece);
 }
 
 /** The photo card opening or closing shows or hides the box (one listener per box). */
@@ -257,7 +297,8 @@ function update(view) {
 	const name = letterName(charOf(editor)) || word('check.aLetter');
 	const same = isFeatureOn('photo') ? samePhoto(editor) : null;
 	const buttons = overlayButtons(isFeatureOn, { samePhoto: !!same, done: !!same?.done });
-	const signature = JSON.stringify([name, buttons, same?.asset || '']);
+	const sketch = isFeatureOn('sketch');
+	const signature = JSON.stringify([name, buttons, same?.asset || '', sketch]);
 	if (signature === view.signature) {
 		if (shows) markGreen(view);
 		return;
@@ -284,11 +325,14 @@ function update(view) {
 		button.addEventListener('click', () => run(editor));
 		if (id === 'useSamePhoto' && same) {
 			box.appendChild(withThumb(button, editor.assets?.get?.(same.asset)?.blob));
+		} else if (id === 'sketchIt') {
+			box.append(withKey(button, toolKey('sketchLine')), note('sketch.door.sketchItLine'));
 		} else {
 			box.appendChild(button);
 		}
 	});
-	if (isFeatureOn('photo')) addPhotoLines(box, editor);
+	if (sketch) addSketchLines(box, editor);
+	else if (isFeatureOn('photo')) addPhotoLines(box, editor);
 	overlay.appendChild(box);
 	if (shows) markGreen(view);
 }
@@ -306,6 +350,80 @@ function withThumb(button, blob) {
 	if (blob) paintPhoto(canvas, blob, { fit: 'contain' });
 	row.append(button, canvas);
 	return row;
+}
+
+/** S3: [Sketch it] with its key printed beside it (SKETCH.md 2: every door prints its key) */
+function withKey(button, key) {
+	if (!key) return button;
+	const row = makeElement({ tag: 'div', className: 'anyink-empty-overlay__same' });
+	const print = makeElement({
+		tag: 'span',
+		className: 'anyink-empty-overlay__key',
+		attributes: { 'aria-hidden': 'true' },
+	});
+	print.textContent = key;
+	button.setAttribute('aria-keyshortcuts', key);
+	row.append(button, print);
+	return row;
+}
+
+/** A quiet line of words under a door */
+function note(key) {
+	const line = makeElement({ tag: 'p', className: 'anyink-empty-overlay__note' });
+	line.textContent = word(key);
+	return line;
+}
+
+/** A quiet link: its words key, its data-anyink-overlay-link name, what it does */
+function quietLink(key, name, run) {
+	const link = makeElement({
+		tag: 'button',
+		className: 'anyink-empty-overlay__link',
+		attributes: { type: 'button', 'data-anyink-overlay-link': name },
+	});
+	link.textContent = word(key);
+	const hint = wordEntry(key)?.hint;
+	if (hint) link.title = hint;
+	link.addEventListener('click', run);
+	return link;
+}
+
+/** More ways folds get their own ids, so aria-controls names the right one */
+let foldCount = 0;
+
+/**
+ * S3: "or drop a photo here" (with photos), the outline door with its picture, and More ways:
+ * a quiet fold with the Brush and "No photo yet? How to take one".
+ */
+function addSketchLines(box, editor) {
+	if (isFeatureOn('photo')) box.appendChild(note('letter.overlay.dropHere'));
+	const outline = quietLink('sketch.door.outline', 'outline', () =>
+		openSketchDoor(editor, 'outline')
+	);
+	outline.classList.add('anyink-empty-overlay__link--outline');
+	outline.appendChild(outlinePicture(box.ownerDocument));
+	box.appendChild(outline);
+
+	const ways = moreWays(isFeatureOn);
+	if (!ways.length) return;
+	foldCount += 1;
+	const fold = makeElement({
+		tag: 'div',
+		className: 'anyink-empty-overlay__more',
+		attributes: { 'data-anyink-overlay-more': '', id: `anyink-overlay-more-${foldCount}` },
+	});
+	fold.hidden = true;
+	ways.forEach((way) => {
+		const { key, run } = MORE_WAYS[way];
+		fold.appendChild(quietLink(key, way, () => run(editor)));
+	});
+	const toggle = quietLink('sketch.door.moreWays', 'more', () => {
+		fold.hidden = !fold.hidden;
+		toggle.setAttribute('aria-expanded', String(!fold.hidden));
+	});
+	toggle.setAttribute('aria-expanded', 'false');
+	toggle.setAttribute('aria-controls', fold.id);
+	box.append(toggle, fold);
 }
 
 /** "or drop a photo here" and "No photo yet? How to take one" (4.3) */

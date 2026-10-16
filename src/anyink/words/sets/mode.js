@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5 word set: the mode switch (UX-BEGINNER.md 4.11 "More tools band", 6.1, 6.3, 7.6).
 	Owner: B5 mode core, src/anyink/mode/: band.js (the purple band and the landing rule) and
@@ -12,7 +14,8 @@
 	                  (D-001): B7 labels the tool buttons with these, Help (B15) lists the keys;
 	                  until B7, Simple's tool tooltips (mode/simple_labels.js)
 	  view.*, nav.*   today's letter page in Simple until B7: the view switches' tooltips and the
-	                  nav buttons' small labels (B4 + B5 integration)
+	                  nav buttons' small labels (B4 + B5 integration). S3: view.seeThrough, the
+	                  display switch's name with the 'sketch' flag on (view.displayMode without)
 	  page.*          the pages Simple shows, on the page button and in the page chooser, which
 	                  Simple keeps until B6's rail replaces it (fix track)
 	  menu.openSavedFont   Simple's File menu row for Ctrl+O until B6's Menu (4.9, fix track)
@@ -78,6 +81,14 @@ const MODE = {
 	'view.zoomOut': { text: 'Zoom out' },
 	'view.zoomIn': { text: 'Zoom in' },
 	'view.displayMode': { text: 'Outline only', hint: 'Shows your shapes as outlines, or filled in.' },
+	// S3 (docs/SKETCH.md section 7): with sketched letters "outline" means a letter drawn as
+	// closed loops, so the same switch is called See-through. letter/view_switches.js
+	// displayModeKey shows it only with the 'sketch' flag on (a feature-tagged word must be a
+	// sketch.* key, words/tests/sketch_words.test.js)
+	'view.seeThrough': {
+		text: 'See-through',
+		hint: 'Shows your shapes as thin lines instead of filled in. It changes only the screen.',
+	},
 	'view.canvasTheme': { text: 'Dark paper', hint: 'Light paper or dark paper behind the letter.' },
 	'view.zoomEm': { text: 'Fit letter', hint: 'Zooms so the whole letter box fits.' },
 	'view.zoom1to1': { text: 'Actual size' },

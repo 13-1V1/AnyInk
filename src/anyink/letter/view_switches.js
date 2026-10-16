@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: what the Simple letter view shows (UX-BEGINNER.md 4.3): whether "Fine-tune this letter" is
 	open, and the four view switches inside it, "Dark paper", "Outline only", "Neighbors" and
@@ -26,7 +28,9 @@
 	                              since they put the ink there (a tool picked from the empty
 	                              letter's overlay opens Fine-tune). item: default the current
 	                              editor's open letter. The canvas (edges.js, neighbors.js) and
-	                              the tool rail (tools.js) ask this
+	                              the tool rail (tools.js) ask this. S3: with the 'sketch' flag
+	                              on, 'tools' is always false in the letter view (the sketch tools
+	                              replace them; a tool picked by its key still shows, tools.js)
 	  isNeighborsOn() / setNeighbors(on, editor)       the switch (on by default; neighbors.js
 	                              also needs his n or H to be ready)
 	  noteLetterOpened(item)      a letter was opened: a new visit for the guide letter
@@ -36,6 +40,9 @@
 	  setGuideLetter(on, editor)  the switch, for this visit
 	  isDarkPaper() / isOutlineOnly(project)          what the other two switches show
 	  switchStates(editor)        { darkPaper, outlineOnly, neighbors, guideLetter }
+	  displayModeKey(isOn)        S3: the display switch's words, 'view.seeThrough' ("See-through")
+	                              with the 'sketch' flag on, 'view.displayMode' ("Outline only")
+	                              with it off (docs/SKETCH.md section 7; same switch, same state)
 	  resetLetterViewForTests()
 	DOM:
 	  makeViewSwitches(editor)    the four switches (role="switch" buttons), for the zoom area
@@ -103,6 +110,9 @@ export function fineTuneShows(part, item = openLetter(currentEditor())) {
 	}
 	if (!isLetterViewOn()) return true;
 	if (!state.fineTuneOpen) return false;
+	// S3 (docs/SKETCH.md 2): with the sketch on, its tools replace Edit points, the Point pen,
+	// Rectangle and Oval in Simple; Fine-tune holds no second set (they stay in All tools)
+	if (part === 'tools' && isFeatureOn('sketch')) return false;
 	// The card's Fine-tune section is there only on a letter with ink (4.3), so its edges,
 	// neighbors and switches are too. Its tools are how ink gets there: they stay.
 	if (part !== 'tools' && item && !item.shapes?.length) return false;
@@ -205,13 +215,30 @@ globalThis.addEventListener?.(FINE_TUNE_EVENT, () => {
 /** What each switch says, and its tooltip */
 const LABELS = Object.freeze({
 	darkPaper: { key: 'view.canvasTheme', tip: () => hintOf('view.canvasTheme') },
-	outlineOnly: { key: 'view.displayMode', tip: () => hintOf('view.displayMode') },
+	outlineOnly: { key: displayModeKey, tip: () => hintOf(displayModeKey()) },
 	neighbors: {
 		key: 'letter.switch.neighbors',
 		tip: (editor) => word('letter.switch.neighborsTip', { letter: neighborFor(editor) }),
 	},
 	guideLetter: { key: 'letter.switch.guideLetter', tip: () => word('letter.switch.guideLetterTip') },
 });
+
+/**
+ * S3 (docs/SKETCH.md section 7): with the 'sketch' flag on, "outline" means a letter drawn as
+ * closed loops, so the display switch is called See-through there; with it off, Outline only as
+ * before. Same switch, same behavior (settings.app.canvasDisplayModeFilled).
+ * @param {(flag: String) => Boolean} [isOn]
+ * @returns {'view.seeThrough' | 'view.displayMode'}
+ */
+export function displayModeKey(isOn = isFeatureOn) {
+	return isOn('sketch') ? 'view.seeThrough' : 'view.displayMode';
+}
+
+/** @returns {String} the words key a switch shows now */
+function labelKey(name) {
+	const key = LABELS[name].key;
+	return typeof key === 'function' ? key() : key;
+}
 
 /** What each switch does when pressed */
 const FLIP = Object.freeze({
@@ -246,7 +273,7 @@ export function makeViewSwitches(editor = currentEditor()) {
 		});
 		button.appendChild(makeElement({ tag: 'span', className: 'anyink-letter-switch__track' }));
 		const label = makeElement({ tag: 'span', className: 'anyink-letter-switch__label' });
-		label.textContent = word(LABELS[name].key);
+		label.textContent = word(labelKey(name));
 		button.appendChild(label);
 		button.addEventListener('click', () => {
 			FLIP[name](editor);
@@ -263,6 +290,9 @@ export function makeViewSwitches(editor = currentEditor()) {
 			const name = button.dataset.anyinkSwitch;
 			button.setAttribute('aria-checked', String(!!states[name]));
 			button.title = LABELS[name].tip(editor);
+			// S3: the display switch's name follows the 'sketch' flag (See-through / Outline only)
+			const label = button.querySelector('.anyink-letter-switch__label');
+			if (label) label.textContent = word(labelKey(name));
 			// B6 + B7 integration: with no ready n or H there is nothing for Neighbors to show
 			if (name === 'neighbors') {
 				button.hidden = !neighborsAvailable(openLetter(editor), editor?.project);

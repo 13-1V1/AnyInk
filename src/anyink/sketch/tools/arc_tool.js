@@ -38,6 +38,16 @@ import { SketchTool, rubberPart } from './line.js';
 import { tagText } from './snap.js';
 import { pieceChanged } from './undo_gate.js';
 
+/**
+ * S3: the line an arc's top snapped to (only a snap that touches), stored on the part as
+ * top: { on } so build.js placeArcTops keeps it there through thickness and line changes.
+ * @param {Object | null} snap - arc_snap.js's snap
+ * @returns {String | null}
+ */
+export function topOn(snap) {
+	return snap?.touches && typeof snap.on === 'string' ? snap.on : null;
+}
+
 /** The words beside the pointer while the bend is set */
 const BEND_KEY = 'sketch.tag.bend';
 
@@ -108,6 +118,7 @@ export class ArcTool extends SketchTool {
 			to,
 			mode: 'corner',
 			bulge: straight ? undefined : bulge,
+			top: straight ? null : topOn(this.bend?.snap),
 		});
 		this.pendingEnd = null;
 		this.bend = null;
@@ -170,7 +181,12 @@ export class ArcTool extends SketchTool {
 		if (closing && !this.canClose()) return;
 		if (this.leaveMode() === 'tangent' && this.dir !== null) {
 			hit = this.arcTopHit(hit, ev);
-			const to = this.addClick(hit, { tool: 'arc', mode: 'tangent', bulge: this.startBulge(hit) });
+			const to = this.addClick(hit, {
+				tool: 'arc',
+				mode: 'tangent',
+				bulge: this.startBulge(hit),
+				top: hit.arcTop || null,
+			});
 			if (to) this.loose = false;
 			if (to && closing) this.finish();
 			return;
@@ -189,8 +205,14 @@ export class ArcTool extends SketchTool {
 	/** The bend click: the arc from the open end to the pending end */
 	placeBulge(ev) {
 		const to = this.pendingEnd;
-		const { bulge } = this.bendAt({ x: ev.x, y: ev.y }, ev);
-		const out = appendPart(this.sketch, this.piece, { tool: 'arc', to, mode: 'corner', bulge });
+		const { bulge, snap } = this.bendAt({ x: ev.x, y: ev.y }, ev);
+		const out = appendPart(this.sketch, this.piece, {
+			tool: 'arc',
+			to,
+			mode: 'corner',
+			bulge,
+			top: topOn(snap),
+		});
 		const threePoint = this.threePoint;
 		this.pendingEnd = null;
 		this.bend = null;

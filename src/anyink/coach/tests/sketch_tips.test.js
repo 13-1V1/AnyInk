@@ -70,7 +70,8 @@ describe('each sketch tool has its tip', () => {
 
 	it("SKETCH.md's words; the three it leaves out are short and new", () => {
 		expect(word('sketch.tip.arc')).toBe(
-			'From an open end, one click sets where the arc ends. Or click the start, the end, then how far it bends; that finishes the arc.'
+			// S3 fix: the bend click sets the arc; the piece stays open for more (critic 15-arc-done.png)
+			'From an open end, one click sets where the arc ends. Or click the start, the end, then how far it bends. Press Enter or double-click to finish.'
 		);
 		expect(word('sketch.tip.circle')).toBe(
 			'Click the center and drag the size. Or click one guide line, then another.'

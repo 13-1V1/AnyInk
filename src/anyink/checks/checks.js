@@ -46,7 +46,9 @@
 	              accent) and specks; a tail's body stops at its bowl, joint or
 	              head (body_bottom.js), j J f's at the writing line          [Move the line to
 	              fit your writing] when 2 or more letters on that line are off the same way
-	              (checkFont), else [Match size]
+	              (checkFont), else [Match size]. S3: a letter all sketched is too big too
+	              when its body top stands over its line by more than 2 % of the letter
+	              box (sketch_top.js; the edge rule puts sketched edges on the lines)
 	  pokes       ink more than 5 % above the top line or below the tail line [Shrink to fit],
 	              while POKES_IS_NOTE is false; it is true (see there): a soft note instead
 	  hangs       ink more than 5 % past either edge of the letter's width, measured in the
@@ -78,18 +80,21 @@
 	  sizeCounts(entries)                    how many letters on each line are off each way
 	  spacingSlantOf(item, fontSlant)        the slant the letter's edges are measured in
 	  speckPieces(item)                      the specks themselves (the fixes track's Remove
-	                                         specks takes out the same ones)
+	                                         specks takes out the same ones; S3 integration:
+	                                         never a piece of a sketch's built shapes)
 	  hasLetterInk(item)                     true when the letter has a piece of ink
 */
 import { guideLines, isRoundLetter, tailKind } from '../placement/classes.js';
 import { baseLetter, widthProblem } from '../spacing/letter_classes.js';
-import { inkPieces, isStrayPath, itemContours } from '../spacing/outline.js';
+import { inkPieces, isStrayPath, itemContours, pathContour } from '../spacing/outline.js';
 import { isAutomatic } from '../spacing/owner.js';
 import { BODY_SHARE, MARK_SIZE, referenceHeight, slope } from '../spacing/sides.js';
 import { fittedSlant, fontSlant } from '../spacing/slant.js';
 import { letterPhrase, sentenceStart } from '../words/letter_name.js';
 import { hasWord, word } from '../words/words.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 import { bowlBottom, penAllowance, rasterBowlBottom, tailBottom } from './body_bottom.js';
+import { standsOver } from './sketch_top.js';
 
 /** The check ids (looks_fine.js stores them; the coach's skip keys carry them). */
 export const CHECK = Object.freeze({
@@ -102,6 +107,9 @@ export const CHECK = Object.freeze({
 	hangs: 'hangs',
 	width: 'width',
 	twoLetters: 'twoLetters',
+	// S3 finalize: a sketched letter plainly missing strokes (board/sketch_unfinished.js, until
+	// S5); no fix, its words come with it (args.reason / args.short)
+	sketchUnfinished: 'sketchUnfinished',
 });
 
 /** B16: the check for a letter traced from a part that may hold two touching letters */
@@ -120,6 +128,7 @@ export const CHECK_ORDER = Object.freeze([
 	CHECK.pokes,
 	CHECK.hangs,
 	CHECK.width,
+	CHECK.sketchUnfinished,
 ]);
 
 /** The fix ids (the fixes track's fixes.js runs them; 'fixes.button.<id>' is the label). */
@@ -253,7 +262,7 @@ export function measureLetter(item, font, { slant = 0 } = {}) {
 	// The body bottom by the pen's center line: a Brush stroke's round end hangs half its nib
 	// past where the pen stopped (body_bottom.js penAllowance)
 	const allowance = penAllowance(item);
-	const specks = specksAmong(pieces, stroke, char, allowance);
+	const specks = notSketched(specksAmong(pieces, stroke, char, allowance), item);
 	const solid = pieces.filter((piece) => !specks.includes(piece));
 	const ink = boxOf(solid);
 	const frame = frameOf(solid, slope(slant), referenceHeight(font));
@@ -367,7 +376,27 @@ export function hasLetterInk(item) {
 export function speckPieces(item) {
 	const pieces = inkPieces(itemContours(item));
 	const char = typeof item?.chars === 'string' && [...item.chars].length === 1 ? item.chars : '';
-	return specksAmong(pieces, strokeOf(pieces), char, penAllowance(item));
+	return notSketched(specksAmong(pieces, strokeOf(pieces), char, penAllowance(item)), item);
+}
+
+/**
+ * S3 integration: a piece made of a sketch's built shapes is never a speck (a sketched dot is
+ * his i's dot), so the check counts what Remove specks takes out (fix_shapes.js
+ * speckShapeGroups skips built shapes too).
+ * @param {Array<Object>} specks - pieces
+ * @param {Object} item - Glyph
+ * @returns {Array<Object>}
+ */
+function notSketched(specks, item) {
+	if (!specks.length) return specks;
+	const built = new Set(
+		(item?.shapes || [])
+			.filter((shape) => shape?.objType === 'Path' && isBuiltShape(shape))
+			.map((shape) => pathContour(shape))
+			.filter(Boolean)
+	);
+	if (!built.size) return specks;
+	return specks.filter((piece) => !piece.contours.some((contour) => built.has(contour)));
 }
 
 /**
@@ -422,7 +451,7 @@ export function findChecks(
 	const off = offLineWay(measures, lines);
 	if (off) add(CHECK.offLine, FIX.sitOnLine, { way: off });
 
-	const sized = sizeWay(measures);
+	const sized = sizeWay(measures, item, lines);
 	if (sized) add(CHECK.size, FIX.matchSize, { way: sized, line: measures.line.key });
 
 	if (!pokesAsNote && measures.pokes) add(CHECK.pokes, FIX.shrinkToFit, { way: measures.pokes });
@@ -642,13 +671,20 @@ function offLineWay(measures, lines) {
 	return null;
 }
 
-/** @returns {'big' | 'small' | null} */
-function sizeWay(measures) {
+/**
+ * S3 follow fix: a sketched letter whose body stands over its own line by more than LINE_SHARE
+ * is too big too (sketch_top.js: the edge rule puts a sketch's ink edges on the lines, so the
+ * handwriting slack doesn't apply; Sit on the line once pushed a sketched B 102 over the
+ * capitals line and nothing said so)
+ * @returns {'big' | 'small' | null}
+ */
+function sizeWay(measures, item, lines) {
 	const { char, size, line } = measures;
 	if (!char || !line || size === null) return null;
 	if (!(isLetter(char) || isNumber(char) || char === '?' || char === '!')) return null;
 	if (size > 1 + SIZE_SHARE) return 'big';
 	if (size < 1 - SIZE_SHARE) return 'small';
+	if (standsOver(item, measures, lines)) return 'big';
 	return null;
 }
 
@@ -716,6 +752,8 @@ function wordsFor(check, { letter, n }) {
 			return pair(args.way === 'wide' ? 'wide' : 'narrow');
 		case CHECK.twoLetters:
 			return pair('twoLetters');
+		case CHECK.sketchUnfinished:
+			return { reason: args.reason || '', short: args.short || '' };
 		default:
 			return { reason: '', short: '' };
 	}

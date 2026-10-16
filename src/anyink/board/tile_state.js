@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B10: what a letter's tile on the board shows (UX-BEGINNER.md 4.2 Tiles and "Ready"; section 10
 	B10 tile_state.js). GlyphTile's session-state attribute grows into the board's states
@@ -19,7 +21,10 @@
 	needsLook | null, coach_state.js) makes it "Needs a look"; its tooltip says needsLook.short
 	(the reason without the letter's name) or else the reason sentence, without its period.
 	"From a photo": the letter has a photo under it and ink that isn't only brush strokes; anything
-	else with ink is "drawn". Looking never makes a letter's record (project.getItem, never the
+	else with ink is "drawn". S3 (docs/SKETCH.md section 7): shapes built from a sketch are ink by
+	the one rule (a sketched letter with built ink is Ready; a sketch with no ink yet is Empty) and
+	are drawn, never "from a photo", like brush strokes. S3 fix pass: a sketched letter plainly
+	missing strokes (sketch_unfinished.js, 'sketch' on) is "Needs a look", never Ready. Looking never makes a letter's record (project.getItem, never the
 	selectedItem getter).
 
 	  TILE_STATES                         ['empty', 'ready', 'needsLook', 'sheet']
@@ -39,11 +44,13 @@ import { GlyphTile } from '../../controls/glyph-tile/glyph_tile.js';
 import { charToHex } from '../../common/character_ids.js';
 import { isFeatureOn } from '../mode/features.js';
 import { strokeIdOf } from '../nib/stroke_record.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 import { getTrace } from '../trace/trace_model.js';
 import { letterName } from '../words/letter_name.js';
 import { word } from '../words/words.js';
 import { ensureBoardKeys } from './board_keys.js';
 import { boardLetters, hasInk, inkOf } from './letter_set.js';
+import { unfinishedLook } from './sketch_unfinished.js';
 
 /** The board's tile states (4.2), as GlyphTile's session-state */
 export const TILE_STATES = Object.freeze(['empty', 'ready', 'needsLook', 'sheet']);
@@ -78,7 +85,11 @@ export function tileStateOf(
 		};
 	}
 
-	const look = checksOn ? lookOf(item, char, checks, editor) : null;
+	// S3 fix pass: a sketched letter plainly missing strokes is never Ready (sketch_unfinished.js;
+	// B11's own look first, as the Next line reads it)
+	const look =
+		(checksOn ? lookOf(item, char, checks, editor) : null) ||
+		unfinishedLook(item, char, { font: project?.settings?.font || null, open });
 	if (look) {
 		const reason = shortReason(look);
 		return {
@@ -131,7 +142,9 @@ function shortReason(look) {
  */
 function sourceOf(item, open) {
 	if (!getTrace(item)?.asset) return 'drawn';
-	return inkOf(item, { open }).some((path) => strokeIdOf(path) === null) ? 'photo' : 'drawn';
+	// S3: a sketch's built shapes are drawn, as brush strokes are
+	const traced = (path) => strokeIdOf(path) === null && !isBuiltShape(path);
+	return inkOf(item, { open }).some(traced) ? 'photo' : 'drawn';
 }
 
 /**

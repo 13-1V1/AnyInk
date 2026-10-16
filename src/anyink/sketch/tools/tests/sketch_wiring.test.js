@@ -107,15 +107,26 @@ describe('the tool column', () => {
 		expect(keyOf(button(area, 'resize'))).toBe('V');
 	});
 
-	it('Fine-tune opening adds its tools under Select and leaves the sketch tools where they are', () => {
+	// S3 fix (thickness-card, critic 54-fine-tune.png): Fine-tune showed Edit points, the Point
+	// pen, a second Rectangle and Oval beside the sketch tools. SKETCH.md 2: the sketch replaces
+	// them in Simple; they stay in All tools.
+	it('Fine-tune opening adds no second Rectangle, Oval, Point pen or Edit points', () => {
 		simpleSketch();
+		const area = drawColumn();
+		setFineTuneOpen(true);
+		expect(columnOrder(area)).toEqual(['nib', 'heading', ...SKETCH_TOOLS, '|', 'resize']);
+		const words = [...area.querySelectorAll('[data-anyink-tool]')]
+			.filter((el) => !el.hidden)
+			.map(wordOf);
+		expect(words.filter((one) => one === word('sketch.tool.rectangle')).length).toBe(1);
+	});
+
+	it('the flag off: Fine-tune still adds its four tools under Select', () => {
+		simpleSketch(false);
 		const area = drawColumn();
 		setFineTuneOpen(true);
 		expect(columnOrder(area)).toEqual([
 			'nib',
-			'heading',
-			...SKETCH_TOOLS,
-			'|',
 			'resize',
 			'|',
 			'pathEdit',

@@ -1,0 +1,67 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* S3: the letter card's Sketch parts (card_section.js) and the "Rebuilding letters..." pill
+   (thickness_all.js). Tokens only. */
+
+.anyink-sketch-card {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.anyink-sketch-thickness {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.anyink-sketch-thickness__row {
+	display: grid;
+	grid-template-columns: max-content max-content minmax(80px, 1fr) max-content;
+	align-items: center;
+	column-gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+}
+
+.anyink-sketch-thickness__end {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-xs);
+}
+
+.anyink-sketch-thickness__slider {
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+	accent-color: var(--touch);
+}
+
+.anyink-sketch-thickness__readout,
+.anyink-sketch-card__quiet {
+	margin: 0;
+	font-size: var(--text-xs);
+	color: var(--chrome-text-muted);
+}
+
+.anyink-sketch-card__ends {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	font-size: var(--text-sm);
+	color: var(--chrome-text);
+}
+
+.anyink-sketch-rebuilding {
+	position: fixed;
+	/* bottom left, above the preview strip: the toasts keep the bottom right */
+	left: var(--space-4);
+	bottom: calc(var(--anyink-strip-height, 0px) + var(--space-4));
+	z-index: 50;
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-lg);
+	border: var(--hairline);
+	background: var(--chrome-bg-raised);
+	color: var(--chrome-text);
+	font-size: var(--text-sm);
+	box-shadow: var(--shadow-card);
+	pointer-events: none;
+}

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B10 + B11 fix pass: where a letter's body ends at the bottom when its ink alone can't say
 	(UX-BEGINNER.md 4.2 "Needs a look", 4.4 seating, 7.2, section 10 B11 "Body bottom ... off the
@@ -44,11 +46,13 @@
 	                                 up), or null
 	  halfWidthBottom(pieces, ink)   the half-width row (ink.yMin when no row is that wide)
 	  penAllowance(item)             (piece) => half the nib of the Brush stroke the piece is, or 0
+	                                 (0 for a shape a sketch built, S3)
 	  columnSpans(pieces, x)         the ink along the up-and-down line at x: [[bottom, top], ...]
 */
 import { rowExtent } from '../spacing/measure.js';
 import { pathContour } from '../spacing/outline.js';
 import { strokeIdOf, strokeKeyOf } from '../nib/stroke_record.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 
 /** A bowl hole covers at least this share of the letter's box (placement/seat.js). */
 export const MIN_COUNTER_SHARE = 0.01;
@@ -355,7 +359,9 @@ export function halfWidthBottom(pieces, ink) {
 /**
  * Half the nib of each piece of Brush ink (B8: each stroke's shapes are tagged with its id and
  * key, its nib's width is kept in glyph.anyink.nib.strokes). Reads only; never sorts the strokes
- * out (nib/stroke_record.js reconcileStrokes changes the letter).
+ * out (nib/stroke_record.js reconcileStrokes changes the letter). S3 (docs/SKETCH.md section 6):
+ * a shape a sketch built gets 0 even when it carries a stroke's tags too: the edge rule already
+ * put its ink edge on the line.
  * @param {Object} item - Glyph
  * @returns {(piece: Object) => Number}
  */
@@ -364,7 +370,7 @@ export function penAllowance(item) {
 	if (!Array.isArray(records) || !records.length) return () => 0;
 	const nibs = new Map();
 	(item.shapes || []).forEach((shape) => {
-		if (shape?.objType !== 'Path') return;
+		if (shape?.objType !== 'Path' || isBuiltShape(shape)) return;
 		const id = strokeIdOf(shape);
 		if (id === null) return;
 		const key = strokeKeyOf(shape) || '';

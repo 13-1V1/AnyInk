@@ -289,8 +289,39 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   (`beforeSketchStep`, called by `history.js` in both modes; never throws). Words in
   `words/sets/sketch.js`. Tests `sketch/tests` (Hobby fixture from a port of mp.w, no `mpost` here;
   the dead-end replay `dead_end_a.gs2.json`); test page `tests/sketch.html`, `npm run
-  verify:sketch-page`. S3 owes: Simple's spacing refit moves built ink after `beforeSketchStep`
-  (an `it.todo`), the sweep uses `edgeThickness`, Flip / Mirror turn `aim.dir`.
+  verify:sketch-page`.
+  S3 (D-050, build and stay in sync, flag still off): `build.js` (`buildSketch`, `rebuildItem` inside
+  every step; `placeArcTops` keeps a tagged arc top (`part.top = { on }`, stored by the Arc tool
+  and the pull-back arc) on its line, worked out on the built curve when the arc gives way to a
+  Line), `build_center.js` (the Brush sweep at `edgeThickness`, Round / Flat ends, a Flat end cut
+  along its line), `build_outline.js` (loops by depth, clipper only where they cross), `detach.js`
+  (the hash: ink changed behind the sketch sets it aside, toast with [Undo] in Simple), `follow*.js`
+  (`followShapes(item, { matrix, grow })` from spacing, line shifts, B11 fixes, Flip
+  (`letter/flip_letter.js`), All tools' left edge (`spacing/trace_follow.js followSketchOnly`);
+  `followLine` for B15), `thickness.js` / `thickness_drag.js` / `thickness_all.js` (the slider,
+  'sketchThickness' topic, Use on all as one whole-font step), `card_section.js` (Thickness on top,
+  Fine-tune > Sketch); `letter/sketch_door.js` (the empty letter's [Sketch it] door; an empty letter
+  opens on the Line), `coach/sketch_facts.js` + `sketch_actions.js` (rules 19, 20, 24, 25; the
+  coach's quiet second button `.anyink-coach__quiet`); export merges overlaps of sketched and Brush
+  letters on every path (`font_export.js glyphToContours`); B11: `penAllowance` 0, Match size keeps
+  a Centerline thickness exactly (`keep_weight.js weightPlan({ exact })`), sketched pieces are never
+  specks, Sit on the line on an all-Centerline letter whose top would pass its line uses Match
+  size's plan and a sketched top 2 % over its line is too big (`checks/sketch_top.js`), an Outline
+  sketch gets no thicker / thinner note (`isOutlineSketched`), and a sketched letter plainly
+  missing strokes needs a look (`board/sketch_unfinished.js`, B11's `sketchUnfinished` check, the
+  board's ready rule too; S5 brings the real rule). Also: `circle_fit.js` (a live circle solved
+  again whenever the edge rule moves its top or bottom: every build, `placePins`, thickness),
+  `keep_in_box.js` (refit curves no further past the outline's box than their own ends, plus
+  `HAIR`), `slant_vote.js` (the font's slant from the centerline with pins on their lines; loaded
+  by `follow.js`), `thickness.js slideTangentTops` (a tangent arch the same piece goes on from
+  moves up or down, the leg keeps its x), `use_again.js` (a set-aside sketch: the card's [Use the
+  sketch again], one step; the draw layer and the tools leave a set-aside sketch out, a new piece
+  starts a new sketch), the snap band (`tools/snap.js`: between a line and its ink line pins too),
+  Simple's H / W / M make a sketch, and a focused range slider keeps its keys from the sketch
+  tools (`controls/slider_keys.js`; the Thickness slider stops its arrows reaching the key map and
+  takes the keyboard back after its card is drawn again). Real-Chrome: `npm run
+  verify:sketch-build`, `verify:sketch-thickness`, `verify:sketch-door`,
+  `verify:sketch-door-coach`.
   S2 (D-049) `sketch/tools/`: the five tools in Simple only (`line.js` with the shared
   `SketchTool`: open piece, a snapshot per click, `end()` lets a stray first click go, one commit
   per piece; `arc_tool.js`, `spline_tool.js`, `circle_tool.js` + `TwoPressTool`, `rect_tool.js`),
@@ -368,7 +399,7 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — DONE 10/16/2026, Gate 2 next 
    Gate 2 (Brennan's own session, docs/GATE2.md) run 10/16/2026: the Brush-only letter was a dead
    end, so sketched letters come first (docs/SKETCH.md, D-047, S1 to S9, flag `sketch`). S1 (model,
    curves and measures) done 10/16/2026 (D-048); S2 (Draw) done 10/16/2026 (D-049); S3 (Build and
-   stay in sync) next; then S4 to S9, Gate 2b, then M9.
+   stay in sync) done 10/16/2026 (D-050); S4 (Edit) next; then S5 to S9, Gate 2b, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Since B16 Simple is the launch default; All tools is `?ui=all` or More tools.
 9. Handwriting sheet — pending, next after Gate 2 (plugs into the letter board)

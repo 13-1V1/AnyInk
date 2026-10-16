@@ -2177,3 +2177,53 @@ storing a stray click as a dot when he leaves; reading upstream's held Ctrl for 
 **Left for later:** S3 re-places snapped arc tops on a thickness change and builds ink (which ends
 the card's "Empty"); S4 picks and deletes pieces (until then a wrong piece comes off with Undo
 only) and keeps `onPiece` with level / plumb through drags; S9 lists the sketch keys in Help.
+
+## D-050: S3 build choices (sketched letters become ink and stay in sync)
+**Decided:** 10/16/2026, at the end of S3 (build, four tracks, integration, critics, fix and
+finalize passes). Design: docs/SKETCH.md sections 3, 4, 6, 7, 8 and 11.
+**Chose:**
+1. **The sketch is the source; the ink is rebuilt inside every step** (`history_hook.js` for the
+   open letter; thickness, follow and line-move steps rebuild the letters they change). Ink
+   changed behind the sketch's back sets the sketch aside (the hash, D-047 point 1).
+2. **Every feature that moves shapes moves the sketch through one plan** (`follow.js
+   followShapes`): spacing, line shifts, Sit on the line, Match size, Shrink to fit, Flip, All
+   tools' left edge; a moved guide line re-places the pins (`followLines`) in the same whole-font
+   step. The Brush stroke record follows a plan only with the `sketch` flag on (until S6), so with
+   the flag off a Brush letter's work file is byte for byte what it was.
+3. **A sketched letter is held to its lines exactly.** Match size keeps a Centerline thickness
+   exactly (`weightPlan({ exact })`); a sketched top more than 2 % of the letter box over its line
+   is too big (handwriting keeps its quarter of slack); Sit on the line uses Match size's plan when
+   a plain move would push an all-Centerline letter's top past its line; refit curves pass the
+   swept outline's box no further than their own whole-unit ends plus 0.05 (`keep_in_box.js`):
+   a pinned edge stays within 1 unit (and that hair) of its line.
+4. **The edge rule moves only what it must.** A live circle whose top or bottom it moves is
+   solved again as a circle (`circle_fit.js`, every build, pin and thickness change); a tangent
+   arch whose end the same piece goes on from (n's arch into its leg) moves up or down instead of
+   sliding round its circle, so the leg he drew keeps its x. The font's slant is read from the
+   centerline with pinned points on their lines, so no thickness moves it.
+5. **The snap band follows the ink:** between a line and its ink line a Centerline point pins
+   (a free center there would put the ink across the line); past the ink line nothing pulls, so
+   the S2 rule of no second target stands.
+6. **A set-aside sketch has a way back and stops looking live.** The card says so and offers [Use
+   the sketch again] (one step: its own ink rebuilt, his changes to its shapes gone, Undo puts it
+   back); the draw layer leaves it out; a sketch tool on that letter starts a new sketch, and the
+   old shapes stay as plain ink. Until S4, Select on built ink is what sets a sketch aside, so a
+   sketched letter opens on the Line.
+7. **Unfinished is a check until S5.** A sketched letter plainly too narrow, too short, or an i / j
+   with no dot needs a look (B11's `sketchUnfinished`, no fix, Looks fine to me honored): the
+   card, the board, the rail and the Next line agree. An Outline sketch gets no thicker / thinner
+   note (it has no Thickness).
+8. **The Thickness slider owns its keys.** Esc during a drag takes it back even with a sketch tool
+   picked; the arrows, Home, End and Page keys move it (one step after a 600 ms pause) and never
+   reach the key map; the keyboard stays on it after the card is drawn again. In Simple with the
+   flag on, H and W pick the Spline and M the Rectangle, so no key brings back the Point pen or
+   the old Rectangle.
+9. **Export merges overlaps on every path** for letters with sketch-built or Brush shapes.
+**Rejected:** a sharp (mitered) Centerline corner in S3 (the round nib rounds every outside
+corner by half the thickness: S7); a default oval for a Circle between two lines (the o can come
+out wider than the other letters: Compare in S5 names it, Shift makes the oval today); counting a
+point as on a line when it is past its ink line (S2's 17 px band); capitalizing "small" at the
+start of a Next line sentence (B4's tested rule; Brennan's call at Gate 2b).
+**Left for later:** S4 Select on the sketch (and the V drag that sets it aside today); S5 the real
+missing-part rule (an E with only its stem and top bar still reads Ready) and Compare; S7 sharp
+corners; tangent arc tops follow a moved line through the pins only.

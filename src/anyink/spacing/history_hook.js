@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B3: the spacing hook (UX-BEGINNER 7.2). History calls it before a step is captured, the same
 	choke point that tells crash recovery the font changed (D-018), so whatever it does is part of
@@ -46,6 +48,10 @@
 
 	The earlier state a step is compared with is the newest one the Undo list holds for that
 	letter (or the undo floor), the same state an Undo would go back to.
+	S3 (docs/SKETCH.md section 7 "Line moves"): before a whole-font step closes, in both modes,
+	every sketched letter's points pinned to a line are put back on the lines as they are now
+	(sketch/follow.js followLines) and those letters rebuilt, before Simple's refit: B15's Move
+	the guide lines and B11's Move the line carry the sketches inside their one step.
 	A hook that fails never costs the step: it warns and History carries on. Steps recorded during
 	an undo or redo, or for the other open font (upstream records those from the current one's
 	letters), are left alone.
@@ -55,6 +61,7 @@ import { indexOfNextItemEntry } from '../history/history_helpers.js';
 import { itemIn } from '../history/item_state.js';
 import { findPreviousSettingsSnapshot } from '../history/settings_snapshot.js';
 import { isSimpleMode } from '../mode/mode.js';
+import { followLines } from '../sketch/follow.js';
 import {
 	dependentsOffFit,
 	fitAllAutomatic,
@@ -125,6 +132,7 @@ export function beforeItemStep(history, editor, { itemWasDeleted = false } = {})
 export function beforeWholeProjectPost(history, editor) {
 	if (!isOwnStep(history, editor)) return;
 	try {
+		followLines(editor.project);
 		if (isSimpleMode()) {
 			refitAfterWholeFontStep(history, editor);
 			return;

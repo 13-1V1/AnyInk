@@ -108,6 +108,7 @@ import {
 	toggleNumbers,
 } from './letter_set.js';
 import { boardSummary, doneSections, newlyDone } from './progress.js';
+import { unfinishedLook } from './sketch_unfinished.js';
 import { makeBoardTile, tileStateOf, updateBoardTile } from './tile_state.js';
 
 export const BOARD_SUBSCRIBER = 'anyink.board.pageRender';
@@ -411,7 +412,11 @@ function readBoard(editor) {
 export function readyRuleFor(editor) {
 	const open = openPathOf(editor);
 	const looks = isFeatureOn('checks') ? coachLooks(editor) : null;
-	return (item, char) => hasInk(item, { open }) && !looks?.get(char);
+	const font = editor?.project?.settings?.font || null;
+	// S3 finalize: a sketched letter plainly missing strokes is never Ready, read here directly
+	// (not only through the coach's looks, which need 'checks' and the app's coach)
+	return (item, char) =>
+		hasInk(item, { open }) && !looks?.get(char) && !unfinishedLook(item, char, { font, open });
 }
 
 /**

@@ -39,6 +39,9 @@
 	                                 yet agrees only while it has no built shapes); true with no
 	                                 sketch
 	  markBuilt(item)                stores the hash now; returns it
+	  noteKnown(item)                S3: the letter's shapes now are the ones it holds (build.js
+	                                 after a rebuild), so a copy pasted before the next reconcile
+	                                 loses its tags and the rebuilt shapes keep theirs
 */
 import { getPiece, isNewerSketch, sketchOf } from './model.js';
 
@@ -144,6 +147,13 @@ export function reconcile(item) {
 	});
 	knownShapes.set(item, new WeakSet(item.shapes));
 	return changed;
+}
+
+/**
+ * @param {Object} item - Glyph
+ */
+export function noteKnown(item) {
+	if (Array.isArray(item?.shapes)) knownShapes.set(item, new WeakSet(item.shapes));
 }
 
 /**

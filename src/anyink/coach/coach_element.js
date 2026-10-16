@@ -2,7 +2,9 @@
 // brennanmmeyer@gmail.com
 /**
 	B6: <anyink-coach>, the Next line (UX-BEGINNER.md 4.0), the second row of Simple's top bar.
-	It holds one sentence, at most one button, a quiet "Something else" and "x", and a quiet
+	It holds one sentence, at most one button (S3 integration: and a line's own quiet second
+	button, rule 25's [Just this one], in place of "Something else"), a quiet "Something else"
+	and "x", and a quiet
 	"Tip:" when a tip shows. B6 + B7 fix pass (D-036 "Revisit if"): the tip sits beside the
 	sentence in the one row, not on a line of its own under it, so there is no empty band under
 	the sentence on screens with no tip, and a tip coming or going never moves the page (its
@@ -119,6 +121,11 @@ export class CoachElement extends HTMLElement {
 		});
 		other.textContent = word('coach.somethingElse');
 		other.addEventListener('click', () => this.coach.skip());
+		// S3 integration: a line's own quiet second button (rule 25's [Just this one]); it takes
+		// the place of "Something else"
+		const quiet = make('button', 'anyink-coach__quiet', { type: 'button' });
+		quiet.hidden = true;
+		quiet.addEventListener('click', () => this.pressQuiet());
 		const hide = make('button', 'anyink-coach__hide', {
 			type: 'button',
 			'aria-label': word('coach.hide'),
@@ -132,9 +139,9 @@ export class CoachElement extends HTMLElement {
 		const tipText = make('span', 'anyink-coach__tip-text');
 		tip.append(tipLabel, ' ', tipText);
 		// the tip beside the sentence, in the row's free room before the button
-		row.append(label, sentence, tip, button, other, hide);
+		row.append(label, sentence, tip, button, quiet, other, hide);
 		this.append(row);
-		this.parts = { label, sentence, button, other, hide, tip, tipText };
+		this.parts = { label, sentence, button, quiet, other, hide, tip, tipText };
 	}
 
 	/** Draws the line the coach has now. */
@@ -142,7 +149,7 @@ export class CoachElement extends HTMLElement {
 		if (!this.parts) this.build();
 		const coach = this.coach;
 		const line = coach.line();
-		const { label, sentence, button, other, hide, tip, tipText } = this.parts;
+		const { label, sentence, button, quiet, other, hide, tip, tipText } = this.parts;
 		this.hidden = coach.isHidden();
 		this.dataset.rule = String(line.rule);
 		label.hidden = !line.label;
@@ -154,7 +161,12 @@ export class CoachElement extends HTMLElement {
 		button.classList.toggle('anyink-coach__button--outlined', !!line.button && !line.primary);
 		if (line.action) button.dataset.coachAction = line.action;
 		else delete button.dataset.coachAction;
-		other.hidden = !line.somethingElse;
+		const hasQuiet = !!line.quiet?.label && !!line.sentence;
+		quiet.hidden = !hasQuiet;
+		setText(quiet, hasQuiet ? line.quiet.label : '');
+		if (hasQuiet && line.quiet.action) quiet.dataset.coachAction = line.quiet.action;
+		else delete quiet.dataset.coachAction;
+		other.hidden = !line.somethingElse || hasQuiet;
 		hide.hidden = !line.sentence;
 		const current = coach.tips?.current?.() || null;
 		const showTip = !!current && !!line.sentence && !repeatsSentence(current.text, line.sentence);
@@ -169,6 +181,13 @@ export class CoachElement extends HTMLElement {
 		const line = this.coach.line();
 		if (!line.action) return;
 		runCoachAction(line.action, line.args, { editor: this.coach.editor?.() ?? null });
+	}
+
+	/** S3 integration: the quiet second button's action, in the press. */
+	pressQuiet() {
+		const quiet = this.coach.line().quiet;
+		if (!quiet?.action) return;
+		runCoachAction(quiet.action, quiet.args, { editor: this.coach.editor?.() ?? null });
 	}
 
 	/**

@@ -16,8 +16,11 @@
 	  far above the top line, so lines of text will sit further apart.", "... far below the
 	  tail line ...", or both. Punctuation gets this one too.
 
-	  softNotes(letters)       letters: [{ id, char, stroke, ready, pokes? }] (pokes: checks.js
-	                           measureLetter's pokes, 'top' | 'tail' | 'both' | null)
+	  softNotes(letters)       letters: [{ id, char, stroke, ready, pokes?, fixedStroke? }]
+	                           (pokes: checks.js measureLetter's pokes, 'top' | 'tail' | 'both' |
+	                           null; fixedStroke: S3 finalize, a letter sketched with Outline
+	                           loops has no Thickness to set, so no thicker / thinner note; its
+	                           stroke still counts in the median)
 	                           -> Map id -> [{ id, text }] (letters with no note left out)
 	  strokeMedian(letters)    the median over ready letters (punctuation left out), or null
 	                           with fewer than MIN_READY
@@ -68,7 +71,7 @@ export function softNotes(letters) {
 	};
 	(letters || []).forEach((letter) => {
 		if (!letter?.id) return;
-		if (middle !== null && middle > 0 && counts(letter)) {
+		if (middle !== null && middle > 0 && counts(letter) && !letter.fixedStroke) {
 			const off = (letter.stroke - middle) / middle;
 			if (off > NOTE_SHARE) add(letter.id, note(NOTE.thicker, 'checks.note.thicker'));
 			else if (off < -NOTE_SHARE) add(letter.id, note(NOTE.thinner, 'checks.note.thinner'));

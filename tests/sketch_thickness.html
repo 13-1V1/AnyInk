@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	ANY-INK sketch thickness test page (S3, docs/SKETCH.md section 3 and section 7 "Card sections",
+	src/anyink/sketch/thickness.js, thickness_drag.js, thickness_all.js, card_section.js). A font
+	of five sketched letters (the stored n, built for real by build.js, at 99, 120, 99, 140 and 160
+	units), small n open in Simple with the 'sketch' flag on for this page only. Left: the open
+	letter's built ink on the guide lines (the edit canvas stand-in, with the see-through layer the
+	slider draws on). Right: the real letter card (letter/letter_card.js) with Thickness on top and
+	Fine-tune > Sketch open. Drag the slider: the real sweep shows on the layer each frame; on
+	release one step is recorded and the ink is rebuilt. Undo takes it back. [Use on all] re-inks
+	the other letters in chunks as one whole-font step. window.anyinkThicknessPage exposes the
+	editor and counts for tests/sketch_thickness.verify.mjs. Nothing here is in the app build.
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ANY-INK sketch thickness (S3)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/anyink/letter/letter.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		.stage { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+		.host { position: relative; }
+		.host #view { display: block; border-radius: var(--radius); box-shadow: 0 0 0 1px var(--chrome-border); background: var(--canvas-bg); }
+		.side { width: 340px; display: grid; gap: var(--space-3); }
+		.row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		#status { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; margin: 0; }
+	</style>
+</head>
+<body>
+	<h1>Sketch thickness and the card (S3)</h1>
+	<p>
+		Small n sketched down the middle, built by the sketch build. Drag Thickness: the real ink at
+		the new thickness shows while you drag; letting go is one Undo step. Esc while dragging puts
+		it back. Fine-tune holds Ends and Use this thickness on all letters.
+	</p>
+	<div class="stage">
+		<div class="host" id="host"><canvas id="view" width="560" height="620" aria-label="Small n on the guide lines"></canvas></div>
+		<div class="side">
+			<div id="card"></div>
+			<div class="row">
+				<button type="button" id="undo">Undo</button>
+				<button type="button" id="redo">Redo</button>
+			</div>
+			<pre id="status">loading...</pre>
+		</div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { setModeForTests } from '../src/anyink/mode/mode.js';
+		import { guideLines } from '../src/anyink/placement/classes.js';
+		import { makeLetterCard } from '../src/anyink/letter/letter_card.js';
+		import { setFineTuneOpen } from '../src/anyink/letter/view_switches.js';
+		import { sketchOf } from '../src/anyink/sketch/model.js';
+		import { builtShapes } from '../src/anyink/sketch/sketch_record.js';
+		import { THICKNESS_TOPIC } from '../src/anyink/sketch/thickness_drag.js';
+		import { N_ID, A_ID, O_ID, R_ID, S_ID, sketchedEditor } from '../src/anyink/sketch/tests/thickness_fixture.js';
+		import { token } from '../src/anyink/theme/theme.js';
+
+		const $ = (id) => document.getElementById(id);
+		setModeForTests('simple');
+		setFeaturesForTests({ letterView: true, checks: false, sketch: true });
+		const LETTERS = { [N_ID]: 99, [A_ID]: 120, [O_ID]: 99, [R_ID]: 140, [S_ID]: 160 };
+		const editor = sketchedEditor({ letters: LETTERS });
+		editor.selectedTool = 'resize';
+		const font = editor.project.settings.font;
+		const LINES = guideLines(font);
+
+		const canvas = $('view');
+		const DPR = window.devicePixelRatio || 1;
+		const CSS = { w: 560, h: 620 };
+		canvas.width = CSS.w * DPR;
+		canvas.height = CSS.h * DPR;
+		canvas.style.width = `${CSS.w}px`;
+		canvas.style.height = `${CSS.h}px`;
+		const dz = (0.24 * DPR);
+		editor.view = { dx: 140 * DPR, dy: (CSS.h - 140) * DPR, dz };
+		editor.editCanvas = { canvas, redraw: () => draw() };
+
+		const ctx = canvas.getContext('2d');
+		const X = (x) => editor.view.dx + x * dz;
+		const Y = (y) => editor.view.dy - y * dz;
+
+		function draw() {
+			ctx.fillStyle = token('--canvas-bg');
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.strokeStyle = token('--canvas-guide-muted');
+			ctx.lineWidth = 1;
+			for (const name of ['top', 'capitals', 'small', 'writing', 'tail']) {
+				ctx.beginPath();
+				ctx.moveTo(0, Y(LINES[name]));
+				ctx.lineTo(canvas.width, Y(LINES[name]));
+				ctx.stroke();
+			}
+			ctx.fillStyle = token('--canvas-ink');
+			const item = editor.project.getItem(N_ID);
+			for (const shape of item.shapes) {
+				const points = shape.pathPoints;
+				if (!points?.length) continue;
+				ctx.beginPath();
+				ctx.moveTo(X(points[0].p.x), Y(points[0].p.y));
+				points.forEach((point, i) => {
+					const next = points[(i + 1) % points.length];
+					ctx.bezierCurveTo(X(point.h2.x), Y(point.h2.y), X(next.h1.x), Y(next.h1.y), X(next.p.x), Y(next.p.y));
+				});
+				ctx.closePath();
+				ctx.fill('nonzero');
+			}
+			status();
+		}
+
+		const counts = { ticks: 0, releases: 0 };
+		editor.subscribe({
+			topic: THICKNESS_TOPIC,
+			subscriberID: 'anyink.testpage.thickness',
+			callback: (data) => (data.dragging ? counts.ticks++ : counts.releases++),
+		});
+		editor.subscribe({
+			topic: 'currentItem',
+			subscriberID: 'anyink.testpage.redraw',
+			callback: () => draw(),
+		});
+
+		function status() {
+			const rows = Object.keys(LETTERS).map((id) => {
+				const item = editor.project.getItem(id);
+				return `${id}  thickness ${sketchOf(item).thickness}  shapes ${builtShapes(item).length}`;
+			});
+			$('status').textContent = [
+				`steps ${editor.history.queue.length}  ticks ${counts.ticks}  releases ${counts.releases}`,
+				`font thickness ${editor.project.settings.anyink?.sketchThickness ?? 'not set'}`,
+				...rows,
+			].join('\n');
+		}
+
+		setFineTuneOpen(true, editor);
+		$('card').appendChild(makeLetterCard(editor));
+		$('undo').addEventListener('click', () => {
+			editor.history.restoreState();
+			draw();
+		});
+		$('redo').addEventListener('click', () => {
+			editor.history.redoState();
+			draw();
+		});
+		draw();
+		window.anyinkThicknessPage = { ready: true, editor, counts, LETTERS, ids: { N_ID, R_ID, S_ID } };
+	</script>
+</body>
+</html>

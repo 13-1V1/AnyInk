@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B14 + B15 integration (FACTCHECK_LOG 8.20): overlapping shapes made into one outline, in the
 	font file only. Microsoft's OpenType spec says overlapping outlines aren't supported in a CFF
@@ -19,17 +21,26 @@
 	of its own, flattened and united the same way (its halves come out as plain outlines), and a
 	shape with no area of its own is kept, never dropped, when something else in the letter merges.
 
+	S3 (docs/SKETCH.md section 3 "Overlaps in the font file", D-047 point 9): sketched letters always
+	overlap (one shape per piece, round ends at joins) and so do Brush letters, so every export
+	path merges a letter that holds sketch-built or Brush-tagged shapes (formats_io/otf/
+	font_export.js glyphToContours), not only Use in Word. A merge is kept by the shapes it was
+	made from (MERGE_CACHE of them), so the live font preview, which builds every letter again,
+	pays for each merge once.
+
+	  hasKeptInk(paths)         S3: true when a Path is a Brush stroke or a sketch built it
 	  hasOverlaps(paths)        true when any two of the Paths overlap, or one crosses itself
 	  crossesItself(points)     true when a closed line of points crosses itself
 	  mergedContours(paths)     FontFlux contours ([{ type: 'M' | 'L' | 'C', ... }]) with every
 	                            overlap gone, or null when there is none (the exporter keeps its
 	                            own contours, byte for byte)
-	  FLATTEN_TOLERANCE, REFIT_SIZE
+	  FLATTEN_TOLERANCE, REFIT_SIZE, MERGE_CACHE
 */
 import { FillRule, unionD } from 'clipper2-ts';
 import { relation, outlineOf, signOf } from '../letter/outlines.js';
 import { dedupe, flattenCubic, pointToSegment, signedArea } from '../nib/geometry.js';
 import { refitOutline } from '../nib/refit.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 
 /** Font units: how far the straight pieces stray from a curve before the union */
 export const FLATTEN_TOLERANCE = 0.25;
@@ -41,6 +52,22 @@ const PRECISION = 3;
 const MIN_AREA = 1;
 /** Font units: a handle this close to the straight line is a straight side */
 const STRAIGHT = 0.5;
+/** Merged letters kept by the shapes they were made from */
+export const MERGE_CACHE = 300;
+const merges = new Map();
+
+/**
+ * @param {Array<Object>} paths
+ * @returns {Boolean}
+ */
+export function hasKeptInk(paths) {
+	return (paths || []).some((path) => {
+		if (path?.objType !== 'Path') return false;
+		const stroke = path.anyink?.strokeId;
+		const brush = stroke !== undefined && stroke !== null && stroke !== '' && stroke !== false;
+		return brush || isBuiltShape(path);
+	});
+}
 
 /**
  * @param {Object} a - outline
@@ -213,6 +240,41 @@ function toContour(curves) {
  * @returns {Array<Array<Object>> | null} contours, or null when nothing overlaps
  */
 export function mergedContours(paths, keep) {
+	const key = keyOf(paths);
+	if (key !== null && merges.has(key)) {
+		const kept = merges.get(key);
+		merges.delete(key);
+		merges.set(key, kept);
+		return kept === null ? null : structuredClone(kept);
+	}
+	const contours = mergeNow(paths, keep);
+	if (key !== null) {
+		merges.set(key, contours === null ? null : structuredClone(contours));
+		if (merges.size > MERGE_CACHE) merges.delete(merges.keys().next().value);
+	}
+	return contours;
+}
+
+/** What a merge is made from: every Path's points and handles, in order; null when a shape
+ * can't be read (then nothing is kept) */
+function keyOf(paths) {
+	try {
+		return (paths || [])
+			.filter((path) => path?.objType === 'Path')
+			.map((path) =>
+				(path.pathPoints || [])
+					.map((point) =>
+						[point.p.x, point.p.y, point.h1.x, point.h1.y, point.h2.x, point.h2.y].join(',')
+					)
+					.join(';')
+			)
+			.join('|');
+	} catch {
+		return null;
+	}
+}
+
+function mergeNow(paths, keep) {
 	const shapes = shapesOf(paths);
 	const groups = shapeGroups(shapes);
 	if (!groups.some((group) => group.overlaps)) return null;

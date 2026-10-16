@@ -109,6 +109,23 @@ describe('the writing lines and the edge rule', () => {
 		expect(hit.y).toBe(50);
 	});
 
+	// S3 finalize (build verifier): a stem's end clicked at y 28, inside where its ink would be
+	// (thickness 99) but past the snap radius, was stored loose and never followed a thickness
+	// change. The band between a line and its ink line pulls too; past the ink line nothing does
+	it('a click between a line and its ink line pins the point to the line', () => {
+		expect(28).toBeGreaterThan(R);
+		const low = snapPoint({ x: 1500, y: 28 }, ctx());
+		expect(low.on).toBe('writing');
+		expect(low.y).toBe(50);
+		const high = snapPoint({ x: 1500, y: lines.small - 40 }, ctx());
+		expect(high.on).toBe('small');
+		expect(high.y).toBe(lines.small - 50);
+		// past the ink line: free
+		expect(snapPoint({ x: 1500, y: lines.small - 60 }, ctx()).on).toBe(null);
+		// an Outline point has no band: only the radius around the line
+		expect(snapPoint({ x: 1500, y: 28 }, ctx({ use: 'outline' })).on).toBe(null);
+	});
+
 	it('below the small-letter, capitals and top lines; above the tail line', () => {
 		const ink = inkLines(font, 100);
 		for (const name of ['small', 'capitals', 'top', 'tail']) {

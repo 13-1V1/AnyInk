@@ -94,6 +94,8 @@ import {
 } from './fit_lines_to_writing.js';
 import { looksFineIds } from './looks_fine.js';
 import { photoWalkStamp, sizeWaits } from './photo_walk.js';
+import { unfinishedLook } from '../board/sketch_unfinished.js';
+import { isOutlineSketched } from './sketch_top.js';
 import { softNotes } from './soft_notes.js';
 
 export const CHECKS_SUBSCRIBER_ID = 'anyink.checks.fontCheck';
@@ -363,7 +365,9 @@ function assemble(project, letters, problems) {
 		// B16: traced from a part that may hold two touching letters (read from the photo list
 		// at every pass, since naming a part is no change to the letter)
 		const two = mayBeTwo(project, id) ? [twoLettersCheck()] : [];
-		lists.set(id, orderChecks([...found, ...two, ...(own ? [own] : [])]));
+		// S3 finalize: a sketched letter plainly missing strokes (the Next line's look, here too)
+		const unfinished = unfinishedCheck(item, kept.char, project);
+		lists.set(id, orderChecks([...found, ...two, ...(own ? [own] : []), ...unfinished]));
 	});
 	const counts = sizeCounts(lists.values());
 	const ways = waysFromValues(impliedByLine(withInk), project?.settings?.font || {});
@@ -380,6 +384,7 @@ function assemble(project, letters, problems) {
 			stroke: kept.stroke,
 			ready: view.get(id).ready,
 			pokes: kept.pokes,
+			fixedStroke: isOutlineSketched(project.glyphs[id]),
 		}))
 	);
 	notes.forEach((list, id) => {
@@ -387,6 +392,24 @@ function assemble(project, letters, problems) {
 		if (known) view.set(id, Object.freeze({ ...known, notes: Object.freeze(list) }));
 	});
 	return view;
+}
+
+/**
+ * @returns {Array<Object>} [] or the one sketchUnfinished check (board/sketch_unfinished.js)
+ */
+function unfinishedCheck(item, char, project) {
+	try {
+		const look = unfinishedLook(item, char || item?.chars || '', {
+			font: project?.settings?.font || null,
+		});
+		if (!look) return [];
+		return [
+			{ id: CHECK.sketchUnfinished, fix: null, args: { reason: look.reason, short: look.short } },
+		];
+	} catch (error) {
+		console.warn('ANY-INK checks: the unfinished look failed', error);
+		return [];
+	}
 }
 
 /**

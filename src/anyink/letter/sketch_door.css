@@ -1,0 +1,36 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* S3 (docs/SKETCH.md section 7): the empty letter's sketch doors. The box, its buttons, notes and
+   quiet links are letter.css's; this adds the printed key beside [Sketch it], the outline link's
+   picture and the More ways fold. Colors: theme tokens only. */
+
+.anyink-empty-overlay__key {
+	flex: 0 0 auto;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	color: var(--canvas-ink-outline);
+}
+
+.anyink-empty-overlay .anyink-empty-overlay__box .anyink-empty-overlay__link--outline {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+}
+
+.anyink-empty-overlay__picture {
+	width: 44px;
+	height: 20px;
+	flex: 0 0 auto;
+}
+
+.anyink-empty-overlay__more {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+.anyink-empty-overlay__more[hidden] {
+	display: none;
+}

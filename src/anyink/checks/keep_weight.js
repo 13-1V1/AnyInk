@@ -24,9 +24,18 @@
 	                               handles keep their direction and grow with the curve. Every
 	                               point and handle in use whole. Components are left alone (they
 	                               are another letter's shapes).
+	  sketchStroke(item, font)     S3 (docs/SKETCH.md section 7): the stroke of a letter whose own
+	                               ink is all built from an active Centerline sketch: its one
+	                               thickness as the sweep makes it (sketch/edge_rule.js
+	                               edgeThickness), which never scales, so Match size and Shrink to
+	                               fit keep it exactly. null for any other letter (Brush, photo,
+	                               Outline sketch, a part made from another letter, or a mix).
 */
 import { inkPaths, isStrayPath, pathContour } from '../spacing/outline.js';
 import { whole } from '../spacing/round.js';
+import { edgeThickness } from '../sketch/edge_rule.js';
+import { getPiece, isSketchActive, sketchOf } from '../sketch/model.js';
+import { isBuiltShape, sketchIdOf, sketchKeyOf } from '../sketch/sketch_record.js';
 
 /** A letter made bigger is thinned by no more than this share of its stroke on each side. */
 export const MAX_THIN = 0.25;
@@ -38,18 +47,44 @@ const PROBE = 0.25;
 const HANDLE_RANGE = [0.5, 2];
 
 /**
- * @param {{height: Number, line: Number, stroke: Number | null}} sizes - font units: the body's
- *   height now, the height its line asks for, and the letter's stroke estimate
+ * @param {{height: Number, line: Number, stroke: Number | null, exact?: Boolean}} sizes - font
+ *   units: the body's height now, the height its line asks for, and the letter's stroke estimate;
+ *   exact (S3 integration): the stroke is kept exactly (a Centerline sketch), never limited
  * @returns {{k: Number, grow: Number}}
  */
-export function weightPlan({ height, line, stroke }) {
+export function weightPlan({ height, line, stroke, exact = false }) {
 	const plain = { k: line / height, grow: 0 };
 	if (!(stroke > 0) || !(height > stroke) || !(line > stroke)) return plain;
 	const k = (line - stroke) / (height - stroke);
 	const grow = ((1 - k) * stroke) / 2;
-	if (grow >= -MAX_THIN * stroke) return { k, grow };
+	// S3 integration: a Centerline sketch is rebuilt at its own thickness after the scale, so
+	// its stroke is kept exactly however much it grows (no MAX_THIN limit): the body lands on
+	// its line
+	if (exact || grow >= -MAX_THIN * stroke) return { k, grow };
 	const thin = -MAX_THIN * stroke;
 	return { k: (line - 2 * thin) / height, grow: thin };
+}
+
+/**
+ * @param {Object} item - Glyph
+ * @param {Object} font - settings.font
+ * @returns {Number | null} font units
+ */
+export function sketchStroke(item, font) {
+	const sketch = item?.anyink?.sketch ? sketchOf(item) : null;
+	if (!sketch || !isSketchActive(sketch)) return null;
+	const shapes = item.shapes || [];
+	if (!shapes.length) return null;
+	const all = shapes.every(
+		(shape) =>
+			shape?.objType === 'Path' &&
+			isBuiltShape(shape) &&
+			sketchKeyOf(shape) === sketch.key &&
+			getPiece(sketch, sketchIdOf(shape))?.use === 'center'
+	);
+	if (!all) return null;
+	const stroke = edgeThickness(font, sketch.thickness);
+	return stroke > 0 ? stroke : null;
 }
 
 /**

@@ -38,11 +38,19 @@ const RULE_FLAGS = {
 	17: ['tryIt'],
 	// B8 + B9 finalize: every letter ready, before rules 13, 14, 16 and 17 can show
 	18: ['coach'],
+	// S3 (docs/SKETCH.md section 7): the sketch rules, each in its own place in pick() order
+	19: ['coach', 'sketch'],
+	20: ['letterView', 'sketch'],
+	24: ['letterView', 'sketch'],
+	25: ['letterView', 'sketch'],
 };
 
+/** S3: the order pick() checks them in (19 right after 1, 20 before 7, 24 and 25 after 7) */
+const RULE_ORDER = [1, 19, 2, 3, 4, 5, 6, 20, 7, 24, 25, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+
 describe('the 17 rules', () => {
-	it('are 18, numbered 1 to 18 in order, each naming its feature flags', () => {
-		expect(RULES.map((rule) => rule.id)).toEqual([...Array(18)].map((_, i) => i + 1));
+	it('are 18, numbered 1 to 18 in order, each naming its feature flags (S3: and the sketch rules in their places)', () => {
+		expect(RULES.map((rule) => rule.id)).toEqual(RULE_ORDER);
 		RULES.forEach((rule) => expect(rule.flags, `rule ${rule.id}`).toEqual(RULE_FLAGS[rule.id]));
 	});
 

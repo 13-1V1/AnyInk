@@ -94,8 +94,8 @@ S C free). **In Simple with `sketch` on**, keys.js remaps so every shape key mak
 | A | Arc (Select keeps V) | Select |
 | S | Spline | - |
 | C, O, Q | Circle | O / Q: Oval |
-| R | Rectangle as a closed loop of 4 Lines (corners) | Rectangle |
-| P | Spline (the sketch replaces the Point pen in Simple) | Point pen |
+| R, M | Rectangle as a closed loop of 4 Lines (corners); M since S3 | Rectangle |
+| P, H, W | Spline (the sketch replaces the Point pen in Simple; H and W since S3) | Point pen |
 | E | Select on the sketch | Edit points |
 | V | Select | Select |
 
@@ -190,8 +190,9 @@ As built in S1 (`sketch/extremes.js lockFor`, D-048):
   finish. Drag once for a single line. Pull back over the last end for an arc."
 - **Arc** (first pick, and first on Arc right after a Line end, where its end click waits for a
   bend click after a corner): "From an open end, one click sets where the arc ends. Or click the
-  start, the end, then how far it bends; that finishes the arc." While the bend waits, the cursor
-  says "click to set how far it bends". (S2 finalize.)
+  start, the end, then how far it bends. Press Enter or double-click to finish." While the bend
+  waits, the cursor says "click to set how far it bends". (S2 finalize; S3 fix: the bend click
+  leaves the piece open, so the tip no longer says it finishes the arc.)
 - The sketch tips have **their own 3 a session**, apart from the other tips' 3 (S2 finalize), so
   the Brush and photo tips never use them up.
 - First Spline pick: "Fewer points, smoother curve."
@@ -261,6 +262,9 @@ with its stored centerline, so the sweep engine is reused unchanged.
   (the bowl of a meets its stem with no nub).
 - Test: the Flat-end corners stay corners after `refitOutline` (the corner points survive within 1
   unit).
+- **Known limit (S3):** Centerline corners are always rounded on the outside by half the
+  thickness (the round nib's `JoinType.Round`); a sharp-corner option (`JoinType.Miter` at corner
+  points, per corner or per letter) is S7 (outline extras). Gate 2b should not read it as a bug.
 
 ### Nib shapes
 
@@ -549,7 +553,10 @@ One rule, written down as decision D-047 point 3:
 As built in S2 (`sketch/tools/snap.js`, `arc_snap.js`, the fix pass):
 
 - **Only the real line pulls.** The faint ink line is where the dot lands, never a second target,
-  so the snap band is the snap radius either side of the real line.
+  so the snap band is the snap radius either side of the real line. **S3 (against real ink):** the
+  band also covers everything between the real line and its ink line (a free center there would put
+  the ink across the line: a stem end clicked at y 28 at thickness 99 was stored loose and never
+  followed a thickness change); past the ink line nothing more pulls.
 - **After a line, edge, level / plumb or Shift snap** places the point, it is checked against the
   sketch's points again: within the radius of one it joins that point (clicking where a loop
   started closes it, never a duplicate point).
@@ -1002,11 +1009,11 @@ S3).
 |---|---|---|---|---|
 | **S1** Model, curves and measures (**done 10/16/2026**) | Fixture copy; sketch format and migration; in-house Hobby spline with directions and tensions; arc (ends + bulge) and curve parts to cubics; extremes and level / plumb locks; the edge rule math (ink lines, overshoot, re-place on thickness); Bumpy measure; outline depth and orientation (no clipper yet); tags, reconcile, `builtHash`; `beforeSketchStep` hook; words and Undo titles; flag | see S1 below | vitest on all pure math; `tests/sketch.html` draws a stored sketch and its built centerline | L |
 | **S2** Draw (**done 10/16/2026**) | Line (click-drag single line, pull-back arc, readout), Arc (A), Spline, Circle (live circle, between two lines, half-way snap), Rectangle; autotransition chaining and give-way; level locks; Enter / double-click / Esc / second Esc; the undo gate for open pieces at every entry; snaps, ink lines and hints; Simple key remaps; printed keys; tips; draw layer | `sketch/tools/line.js`, `arc_tool.js`, `spline_tool.js`, `circle_tool.js`, `rect_tool.js`, `chain.js`, `snap.js`, `draw_layer.js`, `undo_gate.js`; `edit_canvas/events.js`, `events_mouse.js`, `edit_canvas.js redrawGlyphEdit`, `tools/tools.js`, `mode/visibility.js`, `mode/keys.js`, `topbar/undo_buttons.js`, `history/undo_toast.js`, `history/simple_undo.js`, `coach/tips.js` | vitest: snaps, chaining angle rule, give-way, Escape order, undo gate; `tests/sketch_draw.verify.mjs` (n's stem and arch, corners where it left at an angle) | L |
-| **S3** Build and stay in sync | Centerline build (edge rule, Round / Flat, Flat cut along a line, dots, closed loops), Outline build (clipper on crossings), rebuild per step; `followShapes` plans for spacing, line shifts, Sit on the line, Match size (`grow`), Shrink to fit, refit fix, Flip; `followLine` for B15; hash detach and Simple key routing; paste reconcile; `penAllowance` 0; export merge on every path; arc tops snapped to a line re-placed on a thickness change (a `top: { on, inset }` tag on the arc part, S2 stores only the bulge / end); the card's state for a sketched letter (S2 leaves "Empty" until there is ink) and a Next line sentence while a sketch tool is picked on an empty letter; re-check the snap band against real ink; thickness slider (real-sweep preview, font thickness, Use on all in chunks); top card section; empty-letter door; rules 19, 20, 24, 25; See-through rename | `sketch/build.js`, `build_center.js`, `build_outline.js`, `thickness.js`, `follow.js`, `detach.js`, `card_section.js`; `letter/letter_card.js`, `letter/empty_overlay.js`, `letter/open_tool.js`, `letter/auto_hole.js`, `nib/default_tool.js`, `coach/rules.js`, `spacing/trace_follow.js`, `metrics/font_metrics.js`, `checks/fixes.js`, `checks/fix_shapes.js`, `checks/body_bottom.js`, `board/tile_state.js`, `formats_io/otf/font_export.js`, `words/sets/mode.js` | vitest: o / B hole counts, o / n / v / A through B11 `measureLetter`, every follow (sketch and ink within 1 unit), outline o Match size widths, hash detach, Flat corners kept; `tests/sketch_build.verify.mjs` incl. File-menu export; B3 / B10 / B11 / B14 suites green | L |
+| **S3** Build and stay in sync (**done 10/16/2026**) | Centerline build (edge rule, Round / Flat, Flat cut along a line, dots, closed loops), Outline build (clipper on crossings), rebuild per step; `followShapes` plans for spacing, line shifts, Sit on the line, Match size (`grow`), Shrink to fit, refit fix, Flip; `followLine` for B15; hash detach and Simple key routing; paste reconcile; `penAllowance` 0; export merge on every path; arc tops snapped to a line re-placed on a thickness change (a `top: { on, inset }` tag on the arc part, S2 stores only the bulge / end); the card's state for a sketched letter (S2 leaves "Empty" until there is ink) and a Next line sentence while a sketch tool is picked on an empty letter; re-check the snap band against real ink; thickness slider (real-sweep preview, font thickness, Use on all in chunks); top card section; empty-letter door; rules 19, 20, 24, 25; See-through rename | `sketch/build.js`, `build_center.js`, `build_outline.js`, `thickness.js`, `follow.js`, `detach.js`, `card_section.js`; `letter/letter_card.js`, `letter/empty_overlay.js`, `letter/open_tool.js`, `letter/auto_hole.js`, `nib/default_tool.js`, `coach/rules.js`, `spacing/trace_follow.js`, `metrics/font_metrics.js`, `checks/fixes.js`, `checks/fix_shapes.js`, `checks/body_bottom.js`, `board/tile_state.js`, `formats_io/otf/font_export.js`, `words/sets/mode.js` | vitest: o / B hole counts, o / n / v / A through B11 `measureLetter`, every follow (sketch and ink within 1 unit), outline o Match size widths, hash detach, Flat corners kept; `tests/sketch_build.verify.mjs` incl. File-menu export; B3 / B10 / B11 / B14 suites green | L |
 | **S4** Edit | Pick a piece and Delete it as one step (until S4 a wrong piece comes off with Undo only: say so at Gate 2b); drag rules keep a point's `onPiece` and its level / plumb pair together (S2 stores both on A's bar); Select on the sketch: window and Ctrl picks, move / scale picks, drag point, Bend (arcs keep bulge), grips, Let it flow, circle resize, add / delete point, Smooth / Corner, nudge; drag rules and the can't-keep-both toast; picked point / piece card with More | `sketch/select_tool.js`, `pick.js`, `rules.js`, `bend.js`, `grips.js`, `piece_card.js`; `letter/point_kind.js`, `letter/delete_toast.js` | vitest per drag rule and order, n arch with unequal stems, window picks; `tests/sketch_edit.verify.mjs` (K5, K6) | L |
-| **S5** Guide, parts and Compare | Guide letter behind the sketch; `letter_parts.js` for the Quick set; rules 23 and 26; Save gating and "still being drawn"; Parts (More ways and the missing-part button); Try it on neighbor text | `sketch/letter_parts.js`, `compare.js`, `parts.js`; `letter/guide_letter.js`, `coach/rules.js`, `board/tile_state.js`, Try it entry | vitest: every Quick-set template matches its own guide letter and flags one removed stroke; Compare sentences on bent fixtures; `tests/sketch_guide.verify.mjs` | M |
+| **S5** Guide, parts and Compare | Guide letter behind the sketch (S3 found it offset from the sketch on A); `letter_parts.js` for the Quick set; rules 23 and 26; Save gating and "still being drawn"; Parts (More ways and the missing-part button), replacing S3's stand-in `board/sketch_unfinished.js` (too narrow, too short, no dot: an E with only its stem and top bar still reads Ready and gets rule 24); Compare names an o made by a Circle between the lines that comes out much wider than the other letters (Shift makes the oval); Try it on neighbor text | `sketch/letter_parts.js`, `compare.js`, `parts.js`; `letter/guide_letter.js`, `coach/rules.js`, `board/tile_state.js`, Try it entry | vitest: every Quick-set template matches its own guide letter and flags one removed stroke; Compare sentences on bent fixtures; `tests/sketch_guide.verify.mjs` | M |
 | **S6** Brush bridge | Brush record follows every plan; Make it a sketch (with ink fallback); Bumpy check (B11) and its fixes; no Ready while bumpy; [Make it a sketch] on rule 15; Fewer points; Redraw this piece | `sketch/from_brush.js`, `thin.js`, `fewer_points.js`, `redraw.js`; `nib/stroke_record.js`, `checks/*`, `coach/rules.js` | vitest on the replay fixture: both strokes bumpy before, 4-8 points and not bumpy after; record follows Match size and Flip; `tests/sketch_brush.verify.mjs` (K8) | M |
-| **S7** Outline extras | Make it an outline (hidden centerline, Show toggle, rule 27), Inside loop (linked), per-piece switch under More, Close it, rules 21 and 22, canvas labels for pieces with no ink | `sketch/to_outline.js`, `inside_loop.js`, `close_it.js`, `loose.js` | vitest: o centerline to outline gives 2 loops, 1 hole; inside loop follows outer edits; `tests/sketch_outline.verify.mjs` (K7 short) | M |
+| **S7** Outline extras | Make it an outline (hidden centerline, Show toggle, rule 27), Inside loop (linked), per-piece switch under More, Close it, rules 21 and 22, canvas labels for pieces with no ink; sharp Centerline corners (`JoinType.Miter` at corner points, from S3's known limit) | `sketch/to_outline.js`, `inside_loop.js`, `close_it.js`, `loose.js` | vitest: o centerline to outline gives 2 loops, 1 hole; inside loop follows outer edits; `tests/sketch_outline.verify.mjs` (K7 short) | M |
 | **S8** Mirror and helper | Mirror line (twins, one built piece, whole-number x), Helper line | `sketch/mirror.js`, `helper.js` | vitest: mirror stays symmetric through drag, Flip, spacing and Undo; `tests/sketch_mirror.verify.mjs` | S |
 | **S9** Integration and acceptance | Flag `sketch` on; Help and the How-to page name the sketch; the automated twin; `verify:sketch` npm script; CLAUDE.md module map; TEST_LOG | `help/*`, `package.json`, `tests/sketch_accept.verify.mjs`, docs | full vitest, every existing `*.verify.mjs`, the twin, strict scans on every Simple screen at 1600 x 900 and 1280 x 720 | M |
 
@@ -1092,6 +1099,39 @@ box, opens on Line and is never "empty, use the brush" (its "Empty" card state g
 Moved on: to S3, arc tops re-placed on a thickness change, the card state and the sketch-tool
 sentence on an empty letter, the snap band against real ink; to S4, pick and Delete a piece and
 keeping `onPiece` with level / plumb through drags; to S9, Help's list of the sketch keys.
+
+### S3 as built
+
+**Done 10/16/2026** (D-050): the sketch becomes real ink, rebuilt inside every step, and stays in
+sync with every feature that moves shapes. `sketch/build.js`, `build_center.js` (the Brush sweep at
+`edgeThickness`, Round / Flat, a Flat end cut along its line), `build_outline.js` (loops by depth,
+clipper only where they cross), `keep_in_box.js`, `circle_fit.js`, `detach.js`, `use_again.js`,
+`follow.js` / `follow_sketch.js` / `follow_matrix.js`, `slant_vote.js`, `thickness.js` /
+`thickness_drag.js` / `thickness_all.js`, `card_section.js`; `letter/sketch_door.js` (the
+empty-letter door) and `letter/flip_letter.js`; `coach/sketch_facts.js` and `sketch_actions.js`
+(rules 19, 20, 24, 25); `board/sketch_unfinished.js` (until S5); `checks/sketch_top.js`;
+`controls/slider_keys.js`; export merges overlaps on every path. Flag `sketch` off. Real-Chrome:
+`npm run verify:sketch-build`, `verify:sketch-thickness`, `verify:sketch-door`,
+`verify:sketch-door-coach`.
+
+Beyond the plan, from the critics: Sit on the line uses Match size's plan when a plain move would
+push an all-Centerline letter's top past its line, and a sketched top 2 % over its line is too big;
+Match size keeps a Centerline thickness exactly; refit curves stay within their outline's box (a
+pinned edge within 1 unit and 0.05 of its line); a live circle stays a circle through every
+thickness, build and line move; a tangent arch held by the leg after it moves up or down (the leg
+keeps its x); the font's slant comes from the centerline with pins on their lines; the snap band
+covers the ink side of a line; a set-aside sketch shows [Use the sketch again] and is no longer
+drawn or drawn on; a sketched letter with ink opens on the Line until S4; a plainly unfinished
+letter needs a look on the card, the board, the rail and the Next line; an Outline sketch has no
+thicker / thinner note; the Thickness slider keeps its keys (Esc during a drag with a sketch tool
+picked, the arrows, the keyboard after a rebuild); Simple's H / W / M make a sketch; the Brush
+record follows a plan only with the flag on.
+
+Moved on: to S4, Select on the sketch (a V drag on built ink sets the sketch aside today, with the
+way back); to S5, the real missing-part rule, Compare (the wide Circle o) and the guide letter's
+offset; to S7, sharp Centerline corners; open for Brennan at Gate 2b, a Next line sentence that
+starts with "small n" stays lowercase (B4's rule in `words/letter_name.js sentenceStart`). Tangent
+arc tops follow a moved line through the follow plan's pins only.
 
 ---
 

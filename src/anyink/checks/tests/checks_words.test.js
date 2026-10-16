@@ -67,6 +67,21 @@ describe('checks in plain words', () => {
 			fixLabel: 'Draw a box',
 		});
 		two.forEach((check) => ids.add(check.id));
+		// S3 finalize: the sketch's unfinished look brings its own words (cache.js adds it,
+		// checks/tests/sketch_unfinished_check.test.js); described as given, no fix button
+		const unfinished = describeChecks(letter(blank, 'x'), [
+			{
+				id: CHECK.sketchUnfinished,
+				fix: null,
+				args: { reason: 'small x looks unfinished.', short: 'looks unfinished' },
+			},
+		]);
+		expect(unfinished[0]).toMatchObject({
+			reason: 'small x looks unfinished.',
+			short: 'looks unfinished',
+			fixLabel: '',
+		});
+		unfinished.forEach((check) => ids.add(check.id));
 		expect([...ids].sort()).toEqual(Object.values(CHECK).sort());
 	});
 

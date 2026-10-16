@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B3 spacing: automatic spacing (UX-BEGINNER 10, B3; 4.6; 7.2). Pure functions on a project:
 	no editor, no Undo step, no topics. The hooks track wires them into History (the refit
@@ -52,7 +54,7 @@ import { isAutomatic } from './owner.js';
 import { roundItemPoints, whole } from './round.js';
 import { sideBounds } from './sides.js';
 import { fontSlant, measureSlant, nextSlant, recordSlant } from './slant.js';
-import { followShapes, moveSideways } from './trace_follow.js';
+import { followPhoto, moveSideways } from './trace_follow.js';
 
 /** The project collections that hold letters (components are parts, not letters). */
 const LETTER_COLLECTIONS = ['glyphs', 'ligatures'];
@@ -376,7 +378,7 @@ function runBatch(project, change) {
 		const now = inkBounds(item)?.xMin;
 		if (!Number.isFinite(xMin) || !Number.isFinite(now)) return;
 		const drift = now - xMin - (ownMove.get(item) || 0);
-		if (drift) followShapes(item, drift);
+		if (drift) followPhoto(item, drift);
 	});
 	return moved;
 }

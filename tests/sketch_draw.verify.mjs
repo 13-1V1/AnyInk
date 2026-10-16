@@ -558,6 +558,9 @@ try {
 	s = await state(page);
 	const legs = piecesOf(s)[0];
 	const apex = pointOf(s, legs.parts[0].to);
+	// S3: the legs' ink is built, so Simple's automatic spacing fits the letter inside the step
+	// (the sketch moves with it, sketch/follow.js): read the view again
+	v = await viewOf(page);
 	check(
 		'A: two legs as one piece, a corner at the apex on the capitals line',
 		legs.parts.map((p) => p.type).join(',') === 'line,line' &&
@@ -726,7 +729,10 @@ try {
 		};
 	});
 	check(
-		'n: a sketched letter (no ink yet) opens on Line, with no empty-letter box and no brush steer',
+		// S3: the sketch builds its ink; a letter with a live sketch opens on the Line until S4
+		// brings Select on the sketch (nib/default_tool.js: Select on built ink sets the sketch
+		// aside), with no empty-letter box and no brush steer
+		'n: a sketched letter (its ink built, S3) opens on the Line, with no empty-letter box and no brush steer',
 		s.tool === 'sketchLine' && !reopenedN.box && !/is empty/.test(reopenedN.line),
 		`tool ${s.tool}; box ${reopenedN.box}; line "${reopenedN.line.trim().slice(0, 80)}"`
 	);

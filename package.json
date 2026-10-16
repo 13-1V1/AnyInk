@@ -58,7 +58,11 @@
 		"verify:start-name": "node tests/start_name.verify.mjs",
 		"verify:sketch-page": "node tests/sketch.verify.mjs",
 		"verify:sketch-draw": "node tests/sketch_draw.verify.mjs",
-		"verify:sketch-layer": "node tests/sketch_layer_fixes.verify.mjs"
+		"verify:sketch-layer": "node tests/sketch_layer_fixes.verify.mjs",
+		"verify:sketch-thickness": "node tests/sketch_thickness.verify.mjs",
+		"verify:sketch-door": "node tests/sketch_door.verify.mjs",
+		"verify:sketch-build": "node tests/sketch_build.verify.mjs",
+		"verify:sketch-door-coach": "node tests/sketch_door_coach.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

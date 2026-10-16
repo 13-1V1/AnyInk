@@ -27,14 +27,20 @@
 	  OPEN_TOOL_SUBSCRIBER
 	B14 + B15 finalize: while the guide lines are unlocked (fontinfo/move_lines.js), every letter
 	opens on Select, so a drag on a line moves the line, never draws a stroke.
+	S3 (docs/SKETCH.md section 7): with 'sketch' on, an empty letter opens on the Line and a letter
+	with ink on Select (default_tool.js); the Line picked this way is an opening tool, so the
+	empty letter's door stays until he picks a way himself. watchOpenTool also installs the Next
+	line's sketch buttons (coach/sketch_actions.js), once, with the flag on. With 'sketch' off
+	nothing changes.
 */
 import { selectTool } from '../../edit_canvas/tools/tools.js';
 import { openPathOf } from '../coach/open_shape.js';
-import { isOpeningBrush, pickOpeningTool, toolForOpenedLetter } from '../nib/default_tool.js';
+import { isOpeningTool, pickOpeningTool, toolForOpenedLetter } from '../nib/default_tool.js';
 import { guideLinesMoving } from '../mode/locks.js';
 import { getFlow } from '../photo/photo_flow_state.js';
 import { isLetterViewOn } from './view_switches.js';
 import { SKETCH_TOOLS } from '../sketch/tools/tool_names.js';
+import { installSketchCoach } from '../coach/sketch_actions.js';
 
 export const OPEN_TOOL_SUBSCRIBER = 'anyink.letter.openTool';
 export const STEP_C_TOOL_SUBSCRIBER = 'anyink.letter.stepCTool';
@@ -59,8 +65,10 @@ export function applyOpenTool(editor) {
 	if (flow && flow.itemId === id) tool = 'resize';
 	// B14 + B15 finalize: while Move the guide lines has them unlocked, a drag on a line moves it
 	if (guideLinesMoving()) tool = 'resize';
-	// nothing to tell: the tool is already the one, and an opening Brush already this letter's
-	if (editor.selectedTool === tool && (tool !== 'nib' || isOpeningBrush(editor))) return tool;
+	// nothing to tell: the tool is already the one, and an opening tool (the Brush, S3: the Line)
+	// already this letter's
+	const opener = tool === 'nib' || tool === 'sketchLine';
+	if (editor.selectedTool === tool && (!opener || isOpeningTool(editor))) return tool;
 	try {
 		pickOpeningTool(editor, tool, (name) => selectTool(name));
 	} catch (error) {
@@ -76,6 +84,8 @@ export function applyOpenTool(editor) {
  */
 export function watchOpenTool(editor) {
 	if (typeof editor?.subscribe !== 'function') return;
+	// S3: the Next line's sketch buttons answer from the letter view on ('sketch' on only)
+	installSketchCoach();
 	const later = () => {
 		const before = editor.selectedTool;
 		queueMicrotask(() => {

@@ -67,7 +67,7 @@ import {
 	letterItem,
 } from './font_facts.js';
 import { lettersInSet } from './letter_order.js';
-import { isOpeningBrush } from '../nib/default_tool.js';
+import { isOpeningTool } from '../nib/default_tool.js';
 import { openPathOf } from './open_shape.js';
 import { liveSkips, pickLine } from './rules.js';
 import { makeSkips } from './skips.js';
@@ -370,9 +370,10 @@ export function makeCoach({
 		if (topic === 'whichToolIsSelected' && isSimpleMode() && Object.hasOwn(TOOL_TIPS, data)) {
 			// B8 + B9 integration: the Brush an empty letter opens with is no pick of his; its tip
 			// waits for the Brush he picks himself. S2 integration: Arc picked right after the
-			// Line brings the Line tip back (the pull-back arc, SKETCH.md 2 Tips)
+			// Line brings the Line tip back (the pull-back arc, SKETCH.md 2 Tips). S3 integration: the
+			// Line an empty letter opens on is no pick of his either
 			const pick = toolTipFor(data, { afterLineEnd: lastTool === 'sketchLine' });
-			if (pick && !(data === 'nib' && isOpeningBrush(getEditor()))) {
+			if (pick && !((data === 'nib' || data === 'sketchLine') && isOpeningTool(getEditor()))) {
 				tips.show(pick.name, { again: pick.again });
 			}
 		}

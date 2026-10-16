@@ -342,3 +342,22 @@ fixes in Chrome: a finished sketch stays drawn on Select, on the Brush and after
 letter (nothing with the flag off), Ctrl after a shortcut never sticks, a right press finishes a
 piece, Esc closes the Menu first, Space-pan gives the tool back, the plain wheel zooms in Simple
 with the flag on, and the Circle, Rectangle and Arc size readouts.
+
+Since S3 (10/16/2026) the sketch becomes real ink. `sketch_thickness.html` is the Thickness
+slider on a stand-in canvas; `sketch_thickness.verify.mjs` (`npm run verify:sketch-thickness`)
+drags it in Chrome (one preview per frame, one step on release, Use on all in chunks).
+`sketch_door.verify.mjs` (`npm run verify:sketch-door`) checks the empty-letter door in the real
+app: [Sketch it] the one green button, the outline link, More ways, rule 19's [Done] and rule 24.
+`sketch_build.verify.mjs` (`npm run verify:sketch-build`) sketches n, o, s, A, v, i (with its dot)
+and B with the mouse in Simple and checks each one's built ink sits on its lines within 1 unit and
+matches what its sketch builds; drags the Thickness slider and presses the Next line's [Use on all]
+(one step, Undo, Redo); clears o and B and sketches them as outlines (1 and 2 holes); runs
+[Match size], [Sit on the line], a small-letter line move and Flip with Undo and Redo; opens Try it;
+makes the font with Use in Word and the File menu's OTF export and reads both back with
+font-flux-js (no overlapping or self-crossing outlines); moves a left edge in All tools; and saves
+and opens the work file again. `sketch_door_coach.verify.mjs` (`npm run verify:sketch-door-coach`)
+checks the board's first line (sketching first), an unfinished B and i (never Ready, the card
+agrees), a sketched letter opening on the Line, the Thickness slider with the Line picked (Esc
+mid-drag records nothing, the arrow keys are one step and keep the keyboard), and a sketch set
+aside by Select coming back with [Use the sketch again]. All of them turn the `sketch` flag on
+for their own page only.

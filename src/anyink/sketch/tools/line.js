@@ -193,11 +193,17 @@ export class SketchTool {
 	// Where things come from
 	// ----------------------------------------------------------
 
-	/** @returns {Object | null} the letter's sketch as stored now */
+	/**
+	 * @returns {Object | null} the letter's sketch as stored now; a set-aside one is null (S3
+	 * finalize): a piece drawn on that letter starts a new sketch, and the old one's shapes, his
+	 * own now, lose its tags at the step (sketch_record.js reconcile) and stay as plain ink
+	 */
 	storedSketch() {
-		if (typeof this.ctx.getSketch === 'function') return this.ctx.getSketch() || null;
-		const item = this.item ? this.liveItem() : this.editor?.selectedItem;
-		return sketchOf(item) || null;
+		const stored =
+			typeof this.ctx.getSketch === 'function'
+				? this.ctx.getSketch() || null
+				: sketchOf(this.item ? this.liveItem() : this.editor?.selectedItem) || null;
+		return stored?.setAside === true ? null : stored;
 	}
 
 	/**
@@ -782,6 +788,8 @@ export class SketchTool {
 			tag: out.snap.tag,
 			tagAt,
 			hints,
+			// S3: the arc's part stores the line (part.top = { on }), chain.js appendPart
+			arcTop: out.snap.on,
 		};
 	}
 
@@ -932,6 +940,7 @@ export class LineTool extends SketchTool {
 			mode: arc ? 'tangent' : this.leaveMode(),
 			arc,
 			bulge: arc ? this.startBulge(hit) : undefined,
+			top: arc ? hit.arcTop || null : null,
 		});
 		if (to && closing) this.finish();
 	}

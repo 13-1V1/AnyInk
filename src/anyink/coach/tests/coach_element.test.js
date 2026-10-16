@@ -11,7 +11,7 @@ import { resetPrefsCache } from '../../prefs/prefs.js';
 import { resetCoachActionsForTests, setCoachAction } from '../actions.js';
 import { CoachElement, makeNextChip } from '../coach_element.js';
 import { makeCoach } from '../coach_state.js';
-import { fakeState } from './fake_state.js';
+import { ALL_FLAGS, fakeState } from './fake_state.js';
 
 const SEVEN = 'BrenaHd';
 
@@ -220,5 +220,37 @@ describe('<anyink-coach>', () => {
 		const render = vi.spyOn(el, 'render');
 		coach.set(fakeState({ ready: 'a', save: 'not-saved' }));
 		expect(render).not.toHaveBeenCalled();
+	});
+
+	it('S3 integration: a line with a quiet second button draws it in place of "Something else"; a press runs its action', () => {
+		const run = vi.fn();
+		setCoachAction('sketchJustThisOne', run);
+		const sketch = {
+			pieceOpen: false,
+			gap: false,
+			centerInk: true,
+			thickness: 120,
+			fontThickness: 120,
+			differ: 4,
+			sketched: 5,
+			canUseOnAll: true,
+			canClose: false,
+			offer: { count: 5, thickness: 120 },
+		};
+		const coach = fakeCoach(
+			fakeState({ page: 'letter', current: 'n', ready: 'n', sketch, flags: ALL_FLAGS })
+		);
+		const el = mount(coach);
+		expect(el.dataset.rule).toBe('25');
+		const quiet = el.querySelector('.anyink-coach__quiet');
+		expect(shown(quiet)).toBe(true);
+		expect(quiet.textContent).toBe('Just this one');
+		expect(quiet.classList.contains('anyink-primary')).toBe(false);
+		expect(shown(el.querySelector('.anyink-coach__else'))).toBe(false);
+		expect(el.querySelectorAll('.anyink-primary')).toHaveLength(1);
+		quiet.click();
+		expect(run).toHaveBeenCalledTimes(1);
+		coach.set(fakeState({ ready: 'a', save: 'not-saved' }));
+		expect(shown(el.querySelector('.anyink-coach__quiet'))).toBe(false);
 	});
 });

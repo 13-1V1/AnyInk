@@ -8,12 +8,16 @@
 	B6 + B7 fix pass: drawing (a number of points) puts a Point pen shape, still open, in the
 	open letter (it has ink and is not ready); tool is the picked tool's internal name.
 	  ALL_FLAGS                    every feature flag on
+	  SHIPPED_FLAGS                every flag on but the ones still being built ('sketch' until
+	                               S9): fakeState's default (S3 integration: the sketch words now
+	                               exist, so the B-series rules are read as they ship)
 	  flags(...names)              only these on (plus 'coach')
 */
 import { FEATURE_NAMES } from '../../mode/features.js';
 import { lettersInSet } from '../letter_order.js';
 
 export const ALL_FLAGS = Object.freeze(Object.fromEntries(FEATURE_NAMES.map((n) => [n, true])));
+export const SHIPPED_FLAGS = Object.freeze({ ...ALL_FLAGS, sketch: false });
 
 /**
  * @param {...String} names
@@ -45,7 +49,7 @@ export function fakeState({
 	current = null,
 	drawing = null,
 	tool = 'resize',
-	flags: flagSet = ALL_FLAGS,
+	flags: flagSet = SHIPPED_FLAGS,
 	...rest
 } = {}) {
 	const set = lettersInSet(numbers ? 'quick+numbers' : 'quick');

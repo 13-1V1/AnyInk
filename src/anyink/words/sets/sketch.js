@@ -23,12 +23,19 @@
 	  sketch.mirrorLine / sketch.helperLine / sketch.more   the buttons under More
 	  sketch.thickness.*    the Thickness slider, its readout and Use on all (section 3)
 	  sketch.ends.*         Round / Flat ends (section 3)
-	  sketch.card.*         the card on a sketched letter (section 5)
+	  sketch.card.*         the card on a sketched letter (section 5); S3: Fine-tune's Sketch
+	                        part (heading, wayCenter / wayOutline), the Brush's slider there
+	                        (brushSize, brushSlider); S3 finalize: a set-aside sketch (setAside,
+	                        useAgain; its step sketch.step.usedAgain)
 	  sketch.door.*         the empty letter's doors (section 7)
 	  sketch.part.*         a part's name ('arch'); sketch.partA.* with its article ('an arch'),
 	                        for "Add an arch" (sketch.part.add) and the dropped-part Undo title
 	  sketch.where.*        where a missing part runs, for sketch.next.missingPartWhere
-	  sketch.next.*         Next line sentences and their buttons (section 7 rules 19-27, Bumpy)
+	  sketch.next.*         Next line sentences and their buttons (section 7 rules 19-27, Bumpy);
+	                        S3 fix pass (door-coach): sketch.next.firstLetter, rule 11's first line
+	  sketch.unfinished.*   S3 fix pass (door-coach, board/sketch_unfinished.js): a sketched letter
+	                        plainly missing strokes, as "Needs a look" says it, and its tile's short
+	                        words (S5's missing-part rule replaces it)
 	  sketch.check.bumpy    the Bumpy check's short reason ("Needs a look: bumpy line")
 	  sketch.compare.*      Compare's one sentence and its buttons (section 7)
 	  sketch.toast.*        toasts (each offers [Undo] through the toast module)
@@ -77,7 +84,8 @@ const SKETCH = {
 	'sketch.tip.spline': { text: 'Fewer points, smoother curve.', feature: F },
 	// S2: first-pick tips of the tools SKETCH.md section 2 gives none (its table's own words)
 	'sketch.tip.arc': {
-		text: 'From an open end, one click sets where the arc ends. Or click the start, the end, then how far it bends; that finishes the arc.',
+		// S3 fix: the bend click sets the arc and the piece stays open for more (critic 15-arc-done)
+		text: 'From an open end, one click sets where the arc ends. Or click the start, the end, then how far it bends. Press Enter or double-click to finish.',
 		feature: F,
 	},
 	'sketch.tip.circle': {
@@ -113,6 +121,8 @@ const SKETCH = {
 
 	'sketch.label.helper': { text: 'helper line', feature: F },
 	'sketch.label.gap': { text: 'gap: not filled yet', feature: F },
+	// S3 build: the name a built shape is given (only More and All tools' shape list show it)
+	'sketch.shapeName': { text: 'Sketch piece {number}', feature: F },
 
 	// Buttons under More (section 2)
 	'sketch.more': { text: 'More', feature: F },
@@ -163,7 +173,11 @@ const SKETCH = {
 	'sketch.card.point': { text: 'Point', feature: F },
 	'sketch.card.piece': { text: 'Piece', feature: F },
 	'sketch.card.smooth': { text: 'Smooth', hint: 'The curve flows through this point.', feature: F },
-	'sketch.card.corner': { text: 'Corner', hint: 'The line turns sharply at this point.', feature: F },
+	'sketch.card.corner': {
+		text: 'Corner',
+		hint: 'The line turns sharply at this point.',
+		feature: F,
+	},
 	'sketch.card.delete': { text: 'Delete', feature: F },
 	'sketch.card.letItFlow': {
 		text: 'Let it flow',
@@ -206,6 +220,35 @@ const SKETCH = {
 	'sketch.card.hideCenterline': { text: 'Hide where the centerline was', feature: F },
 	'sketch.card.editSketch': { text: 'Edit sketch', feature: F },
 	'sketch.card.newer': { text: 'This sketch was made by a newer ANY-INK.', feature: F },
+	'sketch.card.setAside': {
+		text: 'The sketch is set aside. The shapes are your own now.',
+		feature: F,
+	},
+	'sketch.card.useAgain': {
+		text: 'Use the sketch again',
+		hint: 'Builds the ink from the sketch again. Your changes to its shapes go.',
+		feature: F,
+	},
+	// S3: Fine-tune's Sketch part (sketch/card_section.js): its title and the letter's way
+	'sketch.card.heading': { text: 'Sketch', feature: F },
+	'sketch.card.wayCenter': {
+		text: 'Sketched down the middle of each stroke.',
+		hint: 'The thickness builds the ink around the lines you sketched.',
+		feature: F,
+	},
+	// S3 fix: the Brush's slider on a sketched letter says it sizes new Brush strokes, so it never
+	// reads as a second Thickness (critic 54-fine-tune.png)
+	'sketch.card.brushSize': {
+		text: 'Size of new Brush strokes',
+		hint: 'How wide the Brush draws from now on. The sketch keeps its own Thickness.',
+		feature: F,
+	},
+	'sketch.card.brushSlider': { text: 'Size of new Brush strokes', feature: F },
+	'sketch.card.wayOutline': {
+		text: 'Sketched as its outline. Loops inside are holes.',
+		hint: 'Each closed loop is an edge of the letter.',
+		feature: F,
+	},
 
 	// --------------------------------------------------------------
 	// 7. The empty letter's doors and Parts
@@ -242,6 +285,12 @@ const SKETCH = {
 	// --------------------------------------------------------------
 	// 7. The Next line (rules 19-27) and the Bumpy check
 	// --------------------------------------------------------------
+	// S3 integration: rule 8's empty-letter line with 'sketch' on names the door's [Sketch it]
+	'sketch.next.empty': { text: '{letter} is empty. Sketch it.', feature: F },
+	'sketch.next.emptyPhoto': {
+		text: '{letter} is empty. Sketch it, or use a photo of it.',
+		feature: F,
+	},
 	'sketch.next.pieceOpen': {
 		text: 'Finish the line: double-click, press Enter, or click the first point to close it.',
 		feature: F,
@@ -285,6 +334,20 @@ const SKETCH = {
 		text: 'The stroke on {letter} is bumpy. Make it a sketch you can fix point by point.',
 		feature: F,
 	},
+	'sketch.next.firstLetter': {
+		text: 'Start by sketching {letter}, or write your letters on paper and take one photo of the page.',
+		feature: F,
+	},
+	'sketch.unfinished.narrow': {
+		text: '{letter} looks unfinished: it is much narrower than the gray guide letter.',
+		feature: F,
+	},
+	'sketch.unfinished.short': {
+		text: '{letter} looks unfinished: it is much shorter than the gray guide letter.',
+		feature: F,
+	},
+	'sketch.unfinished.tipLooks': { text: 'looks unfinished', feature: F },
+	'sketch.unfinished.tipDot': { text: 'needs its dot', feature: F },
 	'sketch.next.bumpySketch': {
 		text: 'A line on {letter} is bumpy. Use fewer points to smooth it.',
 		feature: F,
@@ -385,6 +448,7 @@ const SKETCH = {
 	'sketch.step.droppedPart': { text: 'dropped {part} on {letter}', feature: F },
 	'sketch.step.thicknessAll': { text: 'set the thickness for every sketched letter', feature: F },
 	'sketch.step.setAside': { text: "set {letter}'s sketch aside", feature: F },
+	'sketch.step.usedAgain': { text: "used {letter}'s sketch again", feature: F },
 
 	// --------------------------------------------------------------
 	// Glossary lines (section 7), in SKETCH_GLOSSARY's order

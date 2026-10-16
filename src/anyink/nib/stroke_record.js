@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8 brush: what a letter keeps about its brush strokes (UX-BEGINNER.md 10 B8, D-031). Each
 	stroke is its own shape (two or more for a stroke with a hole: its ink and each hole), tagged
@@ -67,7 +69,15 @@
 	  strokeShapes(item, id)          the shapes of one stroke
 	  strokeSkeleton(item, id)        the stroke's skeleton where its ink is now (null when the
 	                                  stroke has no shapes left)
+	  followStrokes(item, plan)       S3 (SKETCH.md section 7): the same follow plan the sketch
+	                                  takes ({ matrix, grow }, sketch/follow_matrix.js), after
+	                                  the shapes moved: each stroke's skeleton goes through the
+	                                  matrix from where it was, and `at` is its ink's lower left
+	                                  now. A move alone needs nothing (`at` follows it already);
+	                                  the size is kept (Match size keeps the pen). Returns how
+	                                  many records changed. S6 makes the Brush follow every plan.
 */
+import { apply, invert, isTranslation, matrixOf } from '../sketch/follow_matrix.js';
 import { word } from '../words/words.js';
 
 export const NIB_KIND = 'round';
@@ -299,9 +309,69 @@ export function strokeSkeleton(item, id) {
 	return record.skeleton.map((curve) => curve.map(([px, py]) => [px + dx, py + dy]));
 }
 
+/**
+ * @param {Object} item - Glyph (its records are replaced)
+ * @param {{matrix: Array<Number>, grow?: Number}} plan
+ * @returns {Number} records changed
+ */
+export function followStrokes(item, plan) {
+	const m = matrixOf(plan?.matrix);
+	const records = strokeRecords(item);
+	if (!m || isTranslation(m) || !records.length) return 0;
+	const back = invert(m);
+	if (!back) return 0;
+	const grow = Number(plan?.grow) || 0;
+	let changed = 0;
+	const next = records.map((record) => {
+		if (!Array.isArray(record?.skeleton)) return record;
+		const shapes = (item.shapes || []).filter((shape) => belongsTo(shape, record));
+		const box = boxOf(shapes);
+		if (!box) return record;
+		// where the ink's lower left was before the plan: its box now, less the push, taken back
+		const corners = [
+			[box.xMin + grow, box.yMin + grow],
+			[box.xMax - grow, box.yMin + grow],
+			[box.xMin + grow, box.yMax - grow],
+			[box.xMax - grow, box.yMax - grow],
+		].map((corner) => apply(back, corner));
+		const was = [
+			Math.round(Math.min(...corners.map(([x]) => x))),
+			Math.round(Math.min(...corners.map(([, y]) => y))),
+		];
+		const [ax, ay] = Array.isArray(record.at) ? record.at : was;
+		const dx = was[0] - ax;
+		const dy = was[1] - ay;
+		const skeleton = record.skeleton.map((curve) =>
+			curve.map(([x, y]) => apply(m, [x + dx, y + dy]).map((v) => Math.round(v) || 0))
+		);
+		changed += 1;
+		return { ...record, skeleton, at: lowerLeft(shapes) };
+	});
+	if (changed) item.anyink.nib = { ...item.anyink.nib, strokes: next };
+	return changed;
+}
+
 // --------------------------------------------------------------
 // Inside
 // --------------------------------------------------------------
+
+/** The box of some shapes' ink, or null */
+function boxOf(shapes) {
+	let box = null;
+	shapes.forEach((shape) => {
+		const maxes = shape?.maxes;
+		if (!maxes || ![maxes.xMin, maxes.xMax, maxes.yMin, maxes.yMax].every(Number.isFinite)) return;
+		box = box
+			? {
+					xMin: Math.min(box.xMin, maxes.xMin),
+					xMax: Math.max(box.xMax, maxes.xMax),
+					yMin: Math.min(box.yMin, maxes.yMin),
+					yMax: Math.max(box.yMax, maxes.yMax),
+				}
+			: { xMin: maxes.xMin, xMax: maxes.xMax, yMin: maxes.yMin, yMax: maxes.yMax };
+	});
+	return box;
+}
 
 /** A shape is one of a record's when its id matches, and its key (a record kept without one
  * takes shapes without one) */

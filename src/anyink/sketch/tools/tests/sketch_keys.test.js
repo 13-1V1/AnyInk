@@ -2,7 +2,8 @@
 // brennanmmeyer@gmail.com
 // S2 (docs/SKETCH.md 2, the key table): in Simple with 'sketch' on, keys.js remaps every shape
 // key to a sketch tool (L Line, A Arc, S and P Spline, C O Q Circle, R Rectangle; E and V
-// Select; M Rectangle, H and W the Point pen stay), each tool prints its first key, Help lists
+// Select; S3 finalize: M Rectangle and H / W Spline too, so no key brings back the Point pen or
+// the old Rectangle beside the sketch tools), each tool prints its first key, Help lists
 // each key once, and the "Switched to" toast names the sketch tool. With the flag off Simple is
 // exactly as before, and All tools never changes. visibility.js shows the five tools in Simple
 // only, never inside Fine-tune. Written to fail first (keys.js and visibility.js had no sketch).
@@ -24,7 +25,7 @@ const LETTERS = ['l', 'a', 's', 'p', 'c', 'o', 'q', 'r', 'e', 'v', 'm', 'h', 'w'
 const picks = (options) => Object.fromEntries(LETTERS.map((key) => [key, toolForKey(key, options)]));
 
 describe('Simple with the sketch on', () => {
-	it('every shape key makes a sketch; V and E are Select; M, H, W and the Brush keep theirs', () => {
+	it('every shape key makes a sketch (M, H and W too); V and E are Select; the Brush keeps B / N', () => {
 		expect(picks(WITH_SKETCH)).toEqual({
 			l: 'sketchLine',
 			a: 'sketchArc',
@@ -36,9 +37,9 @@ describe('Simple with the sketch on', () => {
 			r: 'sketchRectangle',
 			e: 'resize',
 			v: 'resize',
-			m: 'newRectangle',
-			h: 'newPath',
-			w: 'newPath',
+			m: 'sketchRectangle',
+			h: 'sketchSpline',
+			w: 'sketchSpline',
 			b: 'nib',
 			n: 'nib',
 			u: null,
@@ -63,13 +64,13 @@ describe('Simple with the sketch on', () => {
 		expect(byTool).toMatchObject({
 			sketchLine: ['L'],
 			sketchArc: ['A'],
-			sketchSpline: ['S', 'P'],
+			sketchSpline: ['S', 'P', 'H', 'W'],
 			sketchCircle: ['C', 'O', 'Q'],
-			sketchRectangle: ['R'],
+			sketchRectangle: ['R', 'M'],
 			resize: ['V', 'E'],
-			newPath: ['H', 'W'],
-			newRectangle: ['M'],
 		});
+		expect(byTool.newPath).toBeUndefined();
+		expect(byTool.newRectangle).toBeUndefined();
 		expect(byTool.pathEdit).toBeUndefined();
 		expect(byTool.newOval).toBeUndefined();
 		// the Brush first, then the sketch tools, then Select (the column's order)

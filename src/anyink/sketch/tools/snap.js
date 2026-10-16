@@ -28,9 +28,11 @@
 	     where the loop started closes it instead of making a second point there.
 	The edge rule (edge_rule.js): a Centerline point (use 'center' or 'helper') pinned to a
 	writing line goes where the ink's EDGE touches the line, its center half the thickness
-	inside (inkLines, edgeThickness keeps it in range); the pointer snaps only when near the real
-	line: the faint ink line is where the dot lands, never a second target (two targets made the
-	band around a line up to 17 px tall). It is stored on: <line>, inset: 'edge'; placeEdgePoints later moves a
+	inside (inkLines, edgeThickness keeps it in range); the pointer snaps when within the radius
+	of the real line on its outer side, or anywhere between the real line and its ink line (S3:
+	where the built ink's end lands, so a click on the ink's own end pins it); past the ink line
+	nothing pulls, the faint ink line is where the dot lands, never a second target with its own
+	radius (S2: that made the band up to 17 px tall). It is stored on: <line>, inset: 'edge'; placeEdgePoints later moves a
 	point the stroke crosses its line at onto the line itself, and adds the overshoot of round
 	tops (D-048: the rule decides from the geometry, so the tool always stores 'edge'). An
 	Outline point sits on the line itself.
@@ -370,8 +372,9 @@ function nearestLevelDatum(y, context, radius) {
 	const choices = [];
 	for (const name of LINE_NAMES) {
 		const at = center ? ink[name] : lines[name];
-		// only the real line pulls; the ink line is where the dot lands
-		const distance = Math.abs(y - lines[name]);
+		// the real line pulls, and so does the band between it and its ink line (S3: where the
+		// ink's end will be once it is built); past the ink line nothing more pulls
+		const distance = center ? bandDistance(y, lines[name], ink[name]) : Math.abs(y - lines[name]);
 		choices.push({
 			on: name,
 			distance,
@@ -421,6 +424,18 @@ function nearestPlumbDatum(x, sketch, context, radius) {
 	if (sketch?.mirror && Number.isFinite(Number(sketch.mirror.x)))
 		add('mirror', Number(sketch.mirror.x));
 	return pickNearest(choices, radius);
+}
+
+/**
+ * How far y is from a Centerline line's band: 0 between the line and its ink line, the distance
+ * to the line outside it, never a target past the ink line (it is where the dot lands)
+ */
+function bandDistance(y, line, inkLine) {
+	const lo = Math.min(line, inkLine);
+	const hi = Math.max(line, inkLine);
+	if (y >= lo && y <= hi) return 0;
+	const pastInk = inkLine >= line ? y > hi : y < lo;
+	return pastInk ? Infinity : Math.abs(y - line);
 }
 
 /** @returns {Object|null} the nearest choice within the radius */

@@ -17,7 +17,9 @@
 	                               top; the half-width row this file read before sank a y). null
 	                               with no ink
 	  seatPlan(item, font, { slant })   Sit on the line: the move that puts it where its class
-	                               sits (the writing line; 1.5 % under it when round)
+	                               sits (the writing line; 1.5 % under it when round). S3: a
+	                               Centerline sketch whose top is near its line gets Match size's
+	                               plan instead, so the move never pushes its top past the line
 	  sizePlan(item, font, { slant })   Match size: the scale that makes the body as tall as its
 	                               line (checks.js's line, round letters' overshoot included),
 	                               from the body bottom and the left ink edge, seated on the line
@@ -44,6 +46,15 @@
 	letter keeps the width of the pen that wrote it (keep_weight.js; the photo follows the map).
 	Match size's k and grow land the body on its line at the same stroke (weightPlan).
 	Components inside a letter are left as they are (they are another letter's shapes).
+
+	S3 (docs/SKETCH.md section 7): a sketched letter. applyPlan hands the same plan to the sketch
+	(sketch/follow.js followShapes, the matrix of { k, ox, oy, dx, dy } and the grow), so the
+	sketch moves with its ink inside the fix's step and is never set aside. A letter whose own ink
+	is all Centerline sketch (keep_weight.js sketchStroke) has one thickness that never scales:
+	Match size keeps it by weightPlan with that thickness as the stroke, and Shrink to fit
+	shrinks its center line from the writing line's ink line (half the thickness up) with the
+	same push, so the rebuilt ink lands where the plan said. Remove specks never takes a sketched
+	shape (a sketched dot is never a speck).
 */
 import { guideLines, lineTargets } from '../placement/classes.js';
 import { fitSpacing, sitsAtFit } from '../spacing/auto_space.js';
@@ -52,8 +63,12 @@ import { inkPaths, isStrayPath, pathContour } from '../spacing/outline.js';
 import { isAutomatic, markAuto } from '../spacing/owner.js';
 import { roundItemPoints, roundWidth, whole } from '../spacing/round.js';
 import { getTrace, setTrace } from '../trace/trace_model.js';
-import { measureLetter, speckPieces } from './checks.js';
-import { thickenShapes, weightPlan } from './keep_weight.js';
+import { followShapes } from '../sketch/follow.js';
+import { fromFixPlan } from '../sketch/follow_matrix.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
+import { LINE_SHARE, measureLetter, speckPieces } from './checks.js';
+import { topOffBy } from './sketch_top.js';
+import { sketchStroke, thickenShapes, weightPlan } from './keep_weight.js';
 
 /** The widest width the font file holds (fontcheck/validate.js MAX_WIDTH; a test keeps them equal) */
 export const MAX_WIDTH = 65535;
@@ -119,10 +134,34 @@ function seatLine(measures) {
  */
 export function seatPlan(item, font, { slant = 0 } = {}) {
 	const target = lineTargets(charOf(item), font);
-	const bottom = bodyBottom(item, font, { slant });
-	if (target.seat !== 'bottom' || bottom === null) return null;
-	const dy = whole(target.bottom - bottom);
-	return dy ? { k: 1, ox: 0, oy: 0, dx: 0, dy } : null;
+	const measures = measureLetter(item, font, { slant });
+	if (target.seat !== 'bottom' || !measures) return null;
+	const dy = whole(target.bottom - seatLine(measures));
+	if (!dy) return null;
+	// S3 follow fix: a Centerline sketch whose top is near its line keeps it there (scaled
+	// between the lines at its own thickness, sizePlan) rather than pushed past it by the move
+	if (keepsTop(item, font, measures, dy)) return sizePlan(item, font, { slant }) || null;
+	return { k: 1, ox: 0, oy: 0, dx: 0, dy };
+}
+
+/**
+ * S3 follow fix (the critic's B: a stem sketched just inside both lines, -52..1530 at 160,
+ * moved up 52 to stand 102 units over the capitals line): Sit on the line on a letter whose ink
+ * is all Centerline sketch, with no tail, whose body top is off its line (sketch_top.js
+ * topLine) by no more than the bottom is off the writing line plus LINE_SHARE of the letter box,
+ * when the move would leave the top further from its line than it was and by more than that
+ * share. The edge rule puts both ends on lines; the move alone keeps only one.
+ * @returns {Boolean}
+ */
+function keepsTop(item, font, measures, dy) {
+	if (measures.tail || sketchStroke(item, font) === null) return false;
+	const lines = guideLines(font);
+	const off = topOffBy(measures, lines);
+	if (off === null) return false;
+	const share = LINE_SHARE * lines.box;
+	const before = Math.abs(off);
+	const after = Math.abs(off + dy);
+	return before <= Math.abs(dy) + share && after > share && after > before;
 }
 
 /**
@@ -139,7 +178,10 @@ export function sizePlan(item, font, { slant = 0 } = {}) {
 	if (!(height > 0) || !(line.height > 0)) return null;
 	// B16: the letter changes size, never its pen (keep_weight.js): scaled by k, then pushed out
 	// by what the scale took off its stroke, so the body lands on its line at the same width
-	const { k, grow } = weightPlan({ height, line: line.height, stroke: measures.stroke });
+	// S3: a Centerline sketch's stroke is its thickness, which never scales
+	const sketched = sketchStroke(item, font);
+	const stroke = sketched ?? measures.stroke;
+	const { k, grow } = weightPlan({ height, line: line.height, stroke, exact: sketched !== null });
 	const target = lineTargets(charOf(item), font);
 	// B10 + B11 finalize: a tail letter's body is seated too (its bowl or joint), so Match size
 	// never leaves a lifted g floating
@@ -163,11 +205,21 @@ export function shrinkPlan(item, font) {
 	const ink = measureLetter(item, font)?.ink;
 	if (!ink) return null;
 	const lines = guideLines(font);
+	// S3: a Centerline sketch keeps its thickness; its center line shrinks from the writing
+	// line's ink line, and the ink is pushed back out by what the scale took (as Match size)
+	const r = (sketchStroke(item, font) ?? 0) / 2;
 	let k = 1;
-	if (ink.yMax > lines.top && ink.yMax > 0) k = Math.min(k, lines.top / ink.yMax);
+	if (ink.yMax > lines.top && ink.yMax > 0) {
+		k = Math.min(
+			k,
+			r && ink.yMax > 2 * r ? (lines.top - 2 * r) / (ink.yMax - 2 * r) : lines.top / ink.yMax
+		);
+	}
 	if (ink.yMin < lines.tail && ink.yMin < 0) k = Math.min(k, lines.tail / ink.yMin);
 	if (!(k > 0) || k >= 1) return null;
-	return { k, ox: ink.xMin, oy: 0, dx: 0, dy: 0 };
+	if (!r) return { k, ox: ink.xMin, oy: 0, dx: 0, dy: 0 };
+	const grow = (1 - k) * r;
+	return { k, ox: ink.xMin, oy: r, dx: grow, dy: 0, grow };
 }
 
 /**
@@ -216,6 +268,8 @@ export function applyPlan(item, plan) {
 		const scale = Number(trace.scale) * k;
 		changed = setTrace(item, { ...trace, x: mapX(trace.x), y: mapY(trace.y), scale }) || changed;
 	}
+	// S3: the sketch and the Brush strokes take the same plan, inside the same step
+	if (changed) followShapes(item, { matrix: fromFixPlan(plan), grow: Number(plan.grow) || 0 });
 	if (changed) item.changed?.();
 	return changed;
 }
@@ -235,7 +289,8 @@ export function speckShapeGroups(item) {
 	if (!specks.length) return [];
 	const own = new Map();
 	(item.shapes || []).forEach((shape) => {
-		if (shape?.objType !== 'Path') return;
+		// S3: a sketched shape is never a speck's (a sketched dot is his i's dot)
+		if (shape?.objType !== 'Path' || isBuiltShape(shape)) return;
 		const contour = pathContour(shape);
 		if (contour) own.set(contour, shape);
 	});

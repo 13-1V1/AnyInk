@@ -49,6 +49,8 @@
 	  lettersChangedSinceFontFile  how many letters changed since then
 	  turnsUsed        Try-it letters whose one turn is used (rule 15)
 	  skips            { key: stamp } from "Something else" (skips.js)
+	  sketch           S3, the letter view with 'sketch' on (sketch_facts.js): { pieceOpen, gap,
+	                   centerInk, thickness, fontThickness, differ, canUseOnAll, canClose }
 
 	The line: { rule, name, sentence, label, button, action, args, primary, somethingElse,
 	  skipKey, stamp, letter, fromTryIt }
@@ -68,6 +70,26 @@
 	  somethingElse   "Something else" would show another suggestion
 	  skipKey, stamp  what "Something else" remembers (skips.js)
 	  letter, fromTryIt   rule 15's letter, and whether it came from the Try-it text
+
+	  quiet       S3: a second, quiet button { label, action, args } beside the green one, or
+	              null (rule 25's [Just this one])
+
+	S3 (docs/SKETCH.md section 7, "Next line rules"), each with the 'sketch' flag, placed in
+	pick() order:
+	  19 pieceOpen        right after 1: a piece is open: "Finish the line: ..." [Done] (= Enter)
+	  20 outlineGap       before 7: an Outline piece was finished open: "The outline of small n has
+	                      a gap. ..." [Close it] once S7's action answers it (the sentence alone
+	                      until then: no dead button)
+	  24 thickness        after 7: Centerline ink built and the font's thickness never set: "Pull
+	                      the thickness until small n matches the gray guide letter." [Looks good]
+	  25 thicknessForAll  after 24: the slider's step on this letter is the newest change and
+	                      other sketched letters differ (sketch.offer, thickness_all.js): "Use this thickness on all 5 sketched letters?" [Use on
+	                      all] (green, only once the thickness track answers it), quiet [Just this
+	                      one] (the skip)
+	  Rule 8 with 'sketch' on: a sketch tool picked on an empty letter says what a click does
+	  (Line, Arc, Spline: the first point; Circle, Rectangle: their own tips' words); the
+	  empty line itself names [Sketch it] once the words exist (sketch.next.empty*), and keeps
+	  today's words until then. Rules 23, 26, 21, 22, 27 come with S5 and S7.
 
 	  RULES          [{ id, name, flags, match(state, on), live(state, on) }]; live lists the
 	                 suggestions the rule holds in the state behind it, whatever the screen
@@ -103,6 +125,7 @@ const EMPTY = Object.freeze({
 	stamp: '',
 	letter: null,
 	fromTryIt: false,
+	quiet: null,
 });
 
 /**
@@ -216,7 +239,16 @@ const TOOL_SENTENCES = Object.freeze({
 	newPath: 'coach.rule.drawFirstPoint',
 	newRectangle: 'coach.rule.drawRectangle',
 	newOval: 'coach.rule.drawOval',
+	// S3: the sketch tools (only in Simple with 'sketch' on): what a click on the paper does
+	sketchLine: 'coach.rule.drawFirstPoint',
+	sketchArc: 'coach.rule.drawFirstPoint',
+	sketchSpline: 'coach.rule.drawFirstPoint',
+	sketchCircle: 'sketch.tip.circle',
+	sketchRectangle: 'sketch.tip.rectangle',
 });
+
+/** S3: rule 8's empty line with 'sketch' on, once the words track has its sentences */
+const SKETCH_EMPTY = Object.freeze({ photo: 'sketch.next.emptyPhoto', plain: 'sketch.next.empty' });
 
 /**
  * Rule 8 on an empty letter: the picked drawing tool's sentence, else the ways to fill a letter
@@ -227,7 +259,14 @@ const TOOL_SENTENCES = Object.freeze({
  */
 function emptyLine(state, on) {
 	const tool = String(state?.tool || '');
-	if (Object.hasOwn(TOOL_SENTENCES, tool)) return { key: TOOL_SENTENCES[tool], stamp: tool };
+	const sketchTool = tool.startsWith('sketch');
+	if (Object.hasOwn(TOOL_SENTENCES, tool) && (!sketchTool || on('sketch'))) {
+		return { key: TOOL_SENTENCES[tool], stamp: tool };
+	}
+	if (on('sketch')) {
+		const sketchKey = on('photo') ? SKETCH_EMPTY.photo : SKETCH_EMPTY.plain;
+		if (hasWord(sketchKey)) return { key: sketchKey, stamp: '' };
+	}
 	const key =
 		on('photo') && on('brush')
 			? 'coach.rule.emptyPhotoBrush'
@@ -356,6 +395,61 @@ const wantsFontFile = (s) =>
  */
 const one = (condition, key, stamp = '') => (condition ? [[key, String(stamp ?? '')]] : []);
 
+/**
+ * S3 fix pass: the first letter the suggestion order would have him make (rule 15's order), or ''
+ * @param {Object} s - the state
+ * @returns {String}
+ */
+function firstLetterToMake(s) {
+	const letters = lettersOf(s);
+	const byChar = new Map(letters.map((l) => [l.char, l]));
+	const order = suggestionOrder({
+		tryItText: s.tryItText,
+		set: letters.map((l) => l.char),
+		turnsUsed: s.turnsUsed || [],
+	});
+	return order.find(({ char }) => !byChar.get(char)?.ink)?.char || '';
+}
+
+/** S3: the open letter's sketch facts (sketch_facts.js), or null */
+const sketchOfState = (s) => (openLetter(s) && s.sketch ? s.sketch : null);
+
+/** Rule 20: an Outline piece finished open, while no piece is being drawn */
+const outlineGap = (s) => {
+	const sketch = sketchOfState(s);
+	return !!sketch?.gap && !sketch.pieceOpen;
+};
+
+/**
+ * Rule 24: Centerline ink built, the font's thickness never set. S3 fix pass: never while the
+ * letter is plainly missing strokes (font_facts.js `unfinished`): no thickness makes a stem
+ * match a B
+ */
+const wantsThickness = (s) => {
+	const sketch = sketchOfState(s);
+	if (openLetter(s)?.unfinished) return false;
+	return !!sketch?.centerInk && !sketch.pieceOpen && !(sketch.fontThickness > 0);
+};
+
+/**
+ * Rule 25: the slider just moved on this letter (its step is the newest change) and other
+ * sketched letters differ (S3 integration: the thickness track's offer, thickness_all.js
+ * thicknessOffer, handed in as sketch.offer)
+ */
+const wantsForAll = (s) => {
+	const sketch = sketchOfState(s);
+	return (
+		!!sketch?.centerInk &&
+		!sketch.pieceOpen &&
+		!!sketch.canUseOnAll &&
+		Number(sketch.offer?.count) > 1 &&
+		sketch.thickness > 0
+	);
+};
+
+/** Rule 25's stamp: the thickness and how many letters it covers (a new move asks again) */
+const forAllStamp = (s) => `${s.sketch?.thickness ?? 0}:${s.sketch?.offer?.count ?? 0}`;
+
 /** @type {ReadonlyArray<{id: Number, name: String, flags: Array<String>,
  *   match: (state: Object, on: Function) => Suggestion | null,
  *   live: (state: Object, on: Function) => Array<[String, String]>}>} */
@@ -366,6 +460,21 @@ export const RULES = Object.freeze([
 		flags: ['coach'],
 		// The line is empty; the dialog has its own green button
 		match: (s) => (s.dialog ? { sentence: '', skipKey: '', label: false } : null),
+		live: () => [],
+	},
+	{
+		// S3: a piece is open; nothing else is said until it is finished (it isn't ink yet)
+		id: 19,
+		name: 'pieceOpen',
+		flags: ['coach', 'sketch'],
+		match: (s) =>
+			s.page === 'letter' && s.sketch?.pieceOpen
+				? {
+						sentence: word('sketch.next.pieceOpen'),
+						button: button('sketch.next.done', {}, 'sketchFinishPiece'),
+						skipKey: '',
+				  }
+				: null,
 		live: () => [],
 	},
 	{
@@ -437,6 +546,24 @@ export const RULES = Object.freeze([
 			}),
 	},
 	{
+		// S3: [Close it] once S7 answers it; the sentence says how to close it by hand meanwhile
+		id: 20,
+		name: 'outlineGap',
+		flags: ['letterView', 'sketch'],
+		match: (s) => {
+			if (!outlineGap(s)) return null;
+			const char = openLetter(s).char;
+			return {
+				sentence: word('sketch.next.outlineGap', { letter: letterPhrase(char) }),
+				button: s.sketch.canClose
+					? button('sketch.next.closeIt', {}, 'closeOutline', { char })
+					: null,
+				skipKey: `outlineGap:${char}`,
+			};
+		},
+		live: (s) => one(outlineGap(s), `outlineGap:${openLetter(s)?.char ?? ''}`),
+	},
+	{
 		id: 7,
 		name: 'letterNeedsLook',
 		flags: ['letterView', 'checks'],
@@ -468,6 +595,50 @@ export const RULES = Object.freeze([
 					`needsLook:${l.char}:${l.needsLook.id ?? ''}`,
 					String(l.needsLook.reason || ''),
 				]),
+	},
+	{
+		// S3: the slider is on the card; [Looks good] keeps this thickness as the font's
+		id: 24,
+		name: 'thickness',
+		flags: ['letterView', 'sketch'],
+		match: (s) => {
+			if (!wantsThickness(s)) return null;
+			const char = openLetter(s).char;
+			return {
+				sentence: word('sketch.next.thickness', { letter: letterPhrase(char) }),
+				button: button('sketch.next.looksGood', {}, 'sketchThicknessOk', {
+					char,
+					thickness: s.sketch.thickness,
+				}),
+				skipKey: `sketchThickness:${char}`,
+				stamp: String(s.sketch.thickness),
+			};
+		},
+		live: (s) =>
+			one(
+				wantsThickness(s),
+				`sketchThickness:${openLetter(s)?.char ?? ''}`,
+				String(s.sketch?.thickness ?? '')
+			),
+	},
+	{
+		// S3: [Just this one] is the skip, until the thickness or the letters change
+		id: 25,
+		name: 'thicknessForAll',
+		flags: ['letterView', 'sketch'],
+		match: (s) => {
+			if (!wantsForAll(s)) return null;
+			return {
+				sentence: word('sketch.next.thicknessForAll', { count: s.sketch.offer.count }),
+				button: button('sketch.thickness.useOnAll', {}, 'sketchUseOnAll', {
+					thickness: s.sketch.thickness,
+				}),
+				quiet: button('sketch.thickness.justThisOne', {}, 'sketchJustThisOne'),
+				skipKey: 'sketchForAll',
+				stamp: forAllStamp(s),
+			};
+		},
+		live: (s) => one(wantsForAll(s), 'sketchForAll', forAllStamp(s)),
 	},
 	{
 		id: 8,
@@ -561,14 +732,28 @@ export const RULES = Object.freeze([
 		id: 11,
 		name: 'firstPhoto',
 		flags: ['photo'],
-		match: (s) =>
-			!anyInk(s) && !s.hasPhoto
-				? {
-						sentence: word('coach.rule.firstPhoto'),
-						button: button('coach.button.how', {}, 'how'),
-						skipKey: 'firstPhoto',
-				  }
-				: null,
+		match: (s, on) => {
+			if (anyInk(s) || s.hasPhoto) return null;
+			// S3 fix pass: with 'sketch' on the first line names both ways in, sketching first (its
+			// green button opens the first letter), the photo's [How] as the quiet button
+			const first = on('sketch') ? firstLetterToMake(s) : '';
+			if (first) {
+				return {
+					sentence: word('sketch.next.firstLetter', { letter: letterPhrase(first) }),
+					button: button('coach.button.make', { letter: buttonLetter(first) }, 'goToLetter', {
+						char: first,
+					}),
+					quiet: button('coach.button.how', {}, 'how'),
+					skipKey: 'firstPhoto',
+					letter: first,
+				};
+			}
+			return {
+				sentence: word('coach.rule.firstPhoto'),
+				button: button('coach.button.how', {}, 'how'),
+				skipKey: 'firstPhoto',
+			};
+		},
 		live: (s) => one(!anyInk(s) && !s.hasPhoto, 'firstPhoto'),
 	},
 	{
@@ -744,6 +929,7 @@ function pick(state) {
 			stamp,
 			letter: found.letter ?? null,
 			fromTryIt: !!found.fromTryIt,
+			quiet: found.quiet ?? null,
 		};
 	}
 	return { ...EMPTY };

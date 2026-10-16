@@ -27,6 +27,20 @@
 	  isOpeningBrush(editor)                true while the Brush is picked only because the open
 	                                        letter opened with it
 	  resetOpeningToolForTests()
+
+	S3 (docs/SKETCH.md section 7, the empty letter's one green door): with 'sketch' on, every empty
+	letter opens on the Line (no longer the Brush), and a letter with ink on Select. The Line picked
+	this way is an opening tool as the Brush is: the door stays (its [Sketch it] or, with a photo
+	part waiting, [Use the same photo] is the green button) while a click on the paper starts a
+	piece at once; his own pick of any tool makes it his.
+
+	  isOpeningTool(editor)                 true while the picked tool (the Brush or, with 'sketch'
+	                                        on, the Line) is picked only because the open letter
+	                                        opened with it
+	  OPENING_TOOLS                         ['nib', 'sketchLine']
+	S3 fix pass: a letter with a live sketch (not set aside) opens on the Line even once it has
+	built ink, until S4 brings Select on the sketch: Select on built shapes sets the sketch aside.
+	With 'sketch' off, nothing here changes.
 */
 import { isEmptyLetter } from '../board/letter_set.js';
 import { isFeatureOn } from '../mode/features.js';
@@ -39,13 +53,23 @@ import { hasSketchPieces } from '../sketch/sketched.js';
  * @returns {'nib' | 'resize' | 'sketchLine' | null}
  */
 export function toolForOpenedLetter(item, { isOn = isFeatureOn, open = null } = {}) {
-	if (!isOn('brush')) return null;
-	if (!item || !isEmptyLetter(item, { open })) return item ? 'resize' : 'nib';
-	// S2 finalize: a letter he sketched (no ink until S3) opens on the Line, to go on sketching
-	return hasSketchPieces(item, { isOn }) ? 'sketchLine' : 'nib';
+	const sketch = isOn('sketch') === true;
+	if (!isOn('brush') && !sketch) return null;
+	const empty = isEmptyLetter(item, { open });
+	// S3 fix pass: a letter whose sketch is live opens on the Line even with ink. Select on its
+	// built shapes moves them behind the sketch's back and sets the sketch aside (found in Chrome:
+	// one drag of Capital B's bowl); S4's Select on the sketch lifts this
+	if (item && !empty && hasSketchPieces(item, { isOn })) return 'sketchLine';
+	if (!item || !empty) return item ? 'resize' : sketch ? 'sketchLine' : 'nib';
+	// S3: with 'sketch' on every empty letter opens on the Line (the door's [Sketch it] tool);
+	// S2 finalize: a letter he sketched (no ink yet) opens on it too, to go on sketching
+	return sketch || hasSketchPieces(item, { isOn }) ? 'sketchLine' : 'nib';
 }
 
-/** editor -> the letter id the Brush was picked for by opening it */
+/** The tools a letter can open with that keep the door on screen (S3: the Line too) */
+export const OPENING_TOOLS = Object.freeze(['nib', 'sketchLine']);
+
+/** editor -> { id: the letter id, tool: the tool } picked by opening it */
 let opening = new WeakMap();
 /** true while pickOpeningTool's own pick runs */
 let applying = false;
@@ -57,8 +81,8 @@ let applying = false;
  */
 export function pickOpeningTool(editor, tool, pick) {
 	if (!editor) return;
-	// remembered before the pick, so everyone who hears the pick reads it as the opening Brush
-	if (tool === 'nib') opening.set(editor, editor.selectedGlyphID);
+	// remembered before the pick, so everyone who hears the pick reads it as the opening tool
+	if (OPENING_TOOLS.includes(tool)) opening.set(editor, { id: editor.selectedGlyphID, tool });
 	else opening.delete(editor);
 	applying = true;
 	try {
@@ -81,8 +105,18 @@ export function notePickedTool(editor) {
  * @returns {Boolean}
  */
 export function isOpeningBrush(editor) {
-	if (!editor || editor.selectedTool !== 'nib' || !opening.has(editor)) return false;
-	return opening.get(editor) === editor.selectedGlyphID;
+	return editor?.selectedTool === 'nib' && isOpeningTool(editor);
+}
+
+/**
+ * S3: the Brush or the Line, picked only because the open letter opened with it.
+ * @param {Object} editor - ProjectEditor
+ * @returns {Boolean}
+ */
+export function isOpeningTool(editor) {
+	if (!editor || !opening.has(editor)) return false;
+	const { id, tool } = opening.get(editor);
+	return editor.selectedTool === tool && id === editor.selectedGlyphID;
 }
 
 export function resetOpeningToolForTests() {

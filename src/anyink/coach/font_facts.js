@@ -45,13 +45,22 @@
 	too), by the rule the rail and the letter card read (board/letter_set.js), and the state
 	lists every problem of the last font check (fontProblems), so a skip of one letter's problem
 	lasts while another letter's problem shows first.
+	S3 (docs/SKETCH.md section 7): with 'sketch' on, the letter view's state carries `sketch`
+	(sketch_facts.js: a piece open, an outline gap, Centerline ink, the thicknesses and which of
+	the sketch's Next line actions exist) for rules 19, 20, 24 and 25; null otherwise. The Line an
+	empty letter opens with is no pick of his, as the opening Brush is: no tool in the state, so
+	rule 8 still names the ways in.
+	S3 fix pass (door-coach): letterFacts reads a sketched letter plainly missing strokes
+	(board/sketch_unfinished.js: too narrow or too short beside the guide letter, i / j with no
+	dot) as "Needs a look" with `unfinished: true`, never Ready, when B11's checks have no look of
+	their own; the rail and the board read the same looks (board_page.js coachLooks).
 */
 import { charToHex, hexesToChars } from '../../common/character_ids.js';
 import { getSaveStatus, saveStatusWords } from '../files/save_status.js';
 import { isProjectFileHandle } from '../files/write_file.js';
 import { getLastFontCheck } from '../fontcheck/font_check.js';
 import { isFeatureOn } from '../mode/features.js';
-import { isOpeningBrush } from '../nib/default_tool.js';
+import { isOpeningTool } from '../nib/default_tool.js';
 import { photoSummaries } from '../photo/photo_registry.js';
 import { getPref } from '../prefs/prefs.js';
 import { canFixProblem } from '../preview/fix_it.js';
@@ -59,6 +68,11 @@ import { firstCheckProblem } from '../preview/font_status.js';
 import { collectReferencedAssetIds } from '../trace/trace_model.js';
 import { hasInk, isEmptyLetter } from '../board/letter_set.js';
 import { hasSketchPieces } from '../sketch/sketched.js';
+import { unfinishedLook } from '../board/sketch_unfinished.js';
+import { isPieceOpen } from '../sketch/tools/undo_gate.js';
+import { hasCoachAction } from './actions.js';
+import { sketchFacts } from './sketch_facts.js';
+import { thicknessOffer } from '../sketch/thickness_all.js';
 import { getBoardFilter } from '../board/filters.js';
 import { lettersInSet } from './letter_order.js';
 import { openPathOf, openShapeOf } from './open_shape.js';
@@ -129,7 +143,15 @@ export function letterFacts(
 			console.warn('ANY-INK coach: a letter check failed', error);
 		}
 	}
-	return { char, ink, shapes, ready: ink && !needsLook, needsLook, drawing: null };
+	// S3 fix pass: a sketched letter plainly missing strokes is never Ready (board/
+	// sketch_unfinished.js, until S5's missing parts); B11's own look comes first
+	const unfinished = ink
+		? unfinishedLook(item, char, { font: editor?.project?.settings?.font || null, open })
+		: null;
+	if (!needsLook && unfinished) needsLook = unfinished;
+	const facts = { char, ink, shapes, ready: ink && !needsLook, needsLook, drawing: null };
+	if (unfinished) facts.unfinished = true;
+	return facts;
 }
 
 /**
@@ -183,7 +205,9 @@ export function hasAnyPhoto(project) {
 export function firstProblem(editor, payload = getLastFontCheck(editor)) {
 	const problems = Array.isArray(payload?.problems) ? payload.problems : null;
 	const first = firstCheckProblem(
-		problems ? { ...payload, problems: problems.filter((p) => !saysInkWithNone(editor, p)) } : payload
+		problems
+			? { ...payload, problems: problems.filter((p) => !saysInkWithNone(editor, p)) }
+			: payload
 	);
 	if (!first) return null;
 	let fixable = false;
@@ -310,7 +334,14 @@ function mixText(hash, text) {
 }
 
 /** The guide lines a font file holds (settings.font) */
-const LINE_SETTINGS = Object.freeze(['upm', 'ascent', 'descent', 'capHeight', 'xHeight', 'lineGap']);
+const LINE_SETTINGS = Object.freeze([
+	'upm',
+	'ascent',
+	'descent',
+	'capHeight',
+	'xHeight',
+	'lineGap',
+]);
 
 /**
  * B6 + B7 fix pass: what a font file holds beside its letters, so a gap fix or a moved guide
@@ -366,6 +397,7 @@ export function deriveEditorState(
 	const page = pageOf(editor, appLevel);
 	let letter = null;
 	let tool = '';
+	let sketch = null;
 	if (page === 'letter') {
 		// by id: the selectedItem getter can make a record, and reading never changes the font
 		const id = editor.selectedItemID;
@@ -378,7 +410,16 @@ export function deriveEditorState(
 		// B10 + B11 finalize: only while the letter is empty; once it has ink he is drawing with
 		// it, so rule 15 says "When ... looks right" with its button outlined and rule 7 holds
 		// its green fix (rules.js brushingOpen)
-		if (isOpeningBrush(editor) && !letter?.ink) tool = '';
+		// S3: the Line an empty letter opens with ('sketch' on) is no pick of his either
+		if (isOpeningTool(editor) && !letter?.ink) tool = '';
+		if (isOn('sketch') && letter) {
+			sketch = sketchFacts(item, project, {
+				pieceOpen: isPieceOpen(),
+				actions: (name) => hasCoachAction(name),
+				// S3 integration: rule 25 stands only while the slider's step is the newest change
+				offer: thicknessOffer(editor),
+			});
+		}
 		// B6 + B7 fix pass: a Point pen shape still open is ink, but no letter yet (the Point pen
 		// draws only in the letter view, on the open letter)
 		const open = openShapeOf(editor);
@@ -408,6 +449,7 @@ export function deriveEditorState(
 		tool,
 		letter,
 		letters,
+		sketch,
 		// B10 + B11 integration: what the board shows (on Needs a look rule 9 takes the letters one
 		// at a time)
 		boardFilter: page === 'board' ? getBoardFilter(editor) : 'all',

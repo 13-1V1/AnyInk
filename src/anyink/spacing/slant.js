@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B3 fix: the slant of his handwriting (UX-BEGINNER 10, B3; 7.2). Pure.
 
@@ -35,6 +37,13 @@
 	  nextSlant(project)           the slant the font moves to, or null: only when the stems say
 	                               it leans more than SLANT_STEP degrees off fontSlant, so an
 	                               upright hand never gets one and a new letter rarely moves it
+	S3 (docs/SKETCH.md section 3): a sketched Centerline letter votes with its centerline, never
+	its swept ink, so its thickness can never move the font's slant (probe run3b: an n with a
+	leaning leg slid to the thick end turned the font to -24 degrees and its sides to 285 / -61).
+	The engine stays pure: sketch/slant_vote.js hands its runs in when it loads.
+	  setSlantVoter(fn)            (item, font, minHeight) => runs, or undefined to read the ink;
+	                               null takes it away
+	  slantVoter()                 the one handed in, or null
 */
 import { isPunctuation, tableSides } from './letter_classes.js';
 import { inkBounds, median } from './measure.js';
@@ -54,6 +63,19 @@ export const STEM_SHARE = 0.4;
 export const STRAIGHT_SHARE = 0.04;
 
 const STEEP = Math.tan((SLANT_LIMIT * Math.PI) / 180);
+
+/** @type {Function | null} the sketch's vote (sketch/slant_vote.js) */
+let voter = null;
+
+/** @param {Function | null} fn - (item, font, minHeight) => Array<{slope, height}> | undefined */
+export function setSlantVoter(fn) {
+	voter = typeof fn === 'function' ? fn : null;
+}
+
+/** @returns {Function | null} */
+export function slantVoter() {
+	return voter;
+}
 const LETTER_COLLECTIONS = ['glyphs', 'ligatures'];
 
 /**
@@ -134,12 +156,18 @@ export function letterSlant(item, font) {
 	if (!votes(item)) return null;
 	const xHeight = Number(font?.xHeight) > 0 ? Number(font.xHeight) : smallLetterStandIn(font);
 	const minHeight = STEM_SHARE * xHeight;
+	const sketched = voter?.(item, font, minHeight);
+	const runs = Array.isArray(sketched) ? sketched : inkRuns(item, minHeight);
+	return runs.length ? weightedMiddle(runs) : null;
+}
+
+/** @returns {Array<{slope: Number, height: Number}>} the stem runs of the letter's own ink */
+function inkRuns(item, minHeight) {
 	const own = { id: item.id, shapes: (item.shapes || []).filter(isPath) };
-	const runs = inkPaths(own)
+	return inkPaths(own)
 		.map(pathContour)
 		.filter(Boolean)
 		.flatMap((contour) => stemRuns(contour.points, minHeight));
-	return runs.length ? weightedMiddle(runs) : null;
 }
 
 /**

@@ -1,12 +1,16 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: holes made automatically (UX-BEGINNER.md 7.1 #5, 4.3, 2.1 "hole"). In Simple only, a
 	Rectangle, Oval or Point pen shape is made a hole or solid by what shows under it: drawn on
 	ink it is a hole, drawn on paper it is solid. Where shapes sit neatly inside each other that
 	is the spec's depth rule (odd depth = hole, even = solid): a shape inside an o is a hole, a
 	dot inside that hole is solid again, a bullseye alternates, and a shape that only overlaps
-	another stays solid. Brush strokes (B8) are always ink and are never changed here.
+	another stays solid. Brush strokes (B8) are always ink and are never changed here; neither are
+	shapes a sketch built (S3, docs/SKETCH.md section 4 step 5: the sketch's own build decides
+	their holes, one shape per loop, and auto-hole would turn, join or merge across its tags).
 
 	How it works: the canvas and the font file fill by the nonzero rule, so a shape is a hole
 	exactly when its direction cancels the ink of the shapes it sits inside (letter/outlines.js
@@ -31,6 +35,8 @@
 	Pure (no app state):
 	  isBrushStroke(shape)          true for a brush stroke: B8 tags each stroke's shape with
 	                                shape.anyink.strokeId (D-031: strokes stay separate shapes)
+	  isKeptInk(shape)              S3: a brush stroke or a sketch-built shape (sketch_record.js
+	                                isBuiltShape): never turned, joined or given a role here
 	  containersOf(item, shape)     the outlines the shape sits fully inside, outermost first:
 	                                [{ path, contour }] (component parts count, stray lines don't)
 	  nestingDepth(item, shape)     how many of them
@@ -73,6 +79,7 @@
 */
 import { isFeatureOn } from '../mode/features.js';
 import { isSimpleMode } from '../mode/mode.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 import { inkPaths } from '../spacing/outline.js';
 import { toast } from '../toast/toast.js';
 import { word } from '../words/words.js';
@@ -97,6 +104,14 @@ const MAX_JOINS = 8;
 export function isBrushStroke(shape) {
 	const id = shape?.anyink?.strokeId;
 	return id !== undefined && id !== null && id !== '' && id !== false;
+}
+
+/**
+ * @param {Object} shape
+ * @returns {Boolean} a brush stroke or a shape a sketch built: auto-hole never changes it
+ */
+export function isKeptInk(shape) {
+	return isBrushStroke(shape) || isBuiltShape(shape);
 }
 
 /**
@@ -172,7 +187,7 @@ export function shapeRole(item, shape) {
  * @returns {Boolean} true when one direction of the shape shows a hole
  */
 export function canBeHole(item, shape) {
-	if (isBrushStroke(shape) || !outlineOf(shape)) return false;
+	if (isKeptInk(shape) || !outlineOf(shape)) return false;
 	return Math.abs(inkUnder(containersOf(item, shape))) === 1;
 }
 
@@ -184,7 +199,7 @@ export function canBeHole(item, shape) {
  * @returns {Boolean} true when it changed
  */
 export function setShapeRole(item, shape, role) {
-	if (isBrushStroke(shape) || !outlineOf(shape)) return false;
+	if (isKeptInk(shape) || !outlineOf(shape)) return false;
 	if (shapeRole(item, shape) === role) return false;
 	turnRound(shape);
 	if (shapeRole(item, shape) === role) return true;
@@ -203,7 +218,7 @@ function turnRound(shape) {
  * @returns {Boolean} one of the letter's own shapes that auto-hole may change
  */
 function isOwnShape(item, path) {
-	return path?.objType === 'Path' && !isBrushStroke(path) && (item?.shapes || []).includes(path);
+	return path?.objType === 'Path' && !isKeptInk(path) && (item?.shapes || []).includes(path);
 }
 
 // --------------------------------------------------------------
@@ -337,7 +352,7 @@ function crossingHoles(item, around, containers) {
  *   blocked: Boolean} | null}
  */
 function settle(item, shape) {
-	if (isBrushStroke(shape)) return null;
+	if (isKeptInk(shape)) return null;
 	const own = outlineOf(shape);
 	if (!own) return null;
 	const drawn = signOf(own);

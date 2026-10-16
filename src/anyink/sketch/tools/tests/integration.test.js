@@ -24,6 +24,8 @@ import simpleExampleProject from '../../../../samples/simpleExampleProject.json'
 import { selectTool } from '../../../../edit_canvas/tools/tools.js';
 import { importGlyphrProjectFromText } from '../../../../project_editor/import_project.js';
 import { getCoach } from '../../../coach/coach_state.js';
+import { isBuiltShape } from '../../sketch_record.js';
+import { isOpeningTool, notePickedTool } from '../../../nib/default_tool.js';
 import { undoOffer } from '../../../history/undo_toast.js';
 import { overlayShows } from '../../../letter/empty_overlay.js';
 import {
@@ -147,7 +149,10 @@ describe('a piece left open is finished on its own letter', () => {
 		undoOffer(editor).action.run();
 		const now = editor.project.getItem(N);
 		expect(now).not.toBe(before);
-		expect(now.shapes).toHaveLength(0);
+		// S3: the traced square is gone with the undone step; the one shape left is the line's
+		// own built ink.
+		expect(now.shapes).toHaveLength(1);
+		expect(now.shapes.every((shape) => isBuiltShape(shape))).toBe(true);
 		expect(sketchOf(now)?.pieces).toHaveLength(1);
 		expect(topTitle(editor)).toBe('sketched a line on small n');
 	});
@@ -255,9 +260,27 @@ describe('the screen around the tools', () => {
 		});
 	});
 
+	it('S3 integration: the Line an empty letter opens on shows no tip', async () => {
+		const editor = letter(N, 'resize');
+		await settle();
+		const tipText = () => {
+			const tip = document.querySelector('anyink-coach .anyink-coach__tip');
+			return shownEl(tip) ? tip.querySelector('.anyink-coach__tip-text')?.textContent || '' : '';
+		};
+		expect(editor.selectedTool).toBe('sketchLine');
+		expect(isOpeningTool(editor)).toBe(true);
+		expect(tipText()).toBe('');
+		// his own pick of the Line shows it: the next test
+	});
+
 	it('Arc picked right after the Line: its own tip first (S2 finalize), then the Line tip back', async () => {
 		const editor = letter(N, 'resize');
 		await settle();
+		// S3: an empty letter opens on the Line by itself; this test starts from his own pick of
+		// another tool (tools.js switchToolTo notes it), so the Line below is his pick
+		editor.selectedTool = 'resize';
+		notePickedTool(editor);
+		expect(isOpeningTool(editor)).toBe(false);
 		const tipText = () => {
 			const tip = document.querySelector('anyink-coach .anyink-coach__tip');
 			return shownEl(tip) ? tip.querySelector('.anyink-coach__tip-text')?.textContent || '' : '';

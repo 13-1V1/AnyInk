@@ -16,6 +16,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { B, R, square, twoLetterEditor } from '../../history/tests/two_letters.js';
 import { setFeaturesForTests, isFeatureOn } from '../../mode/features.js';
+import { setModeForTests } from '../../mode/mode.js';
 import { inkSkeleton } from '../../nib/ink.js';
 import { strokePaths } from '../../nib/stroke_shapes.js';
 import { sweepRoundNib } from '../../nib/sweep.js';
@@ -293,11 +294,56 @@ describe('model + sketch_record + history_hook through History, flag off and on'
 		expect(at.redo.setAside).toBe(true);
 	});
 
-	// Probed 10/16/2026: in Simple the first step refits spacing after the hook (x 100 -> 40 on a
-	// built square), so the next step sets the sketch aside. Follow plans are S3's (section 11).
-	it.todo(
-		"S3: in Simple, spacing's refit inside a step moves the sketch with its ink and re-marks the hash"
-	);
+	// Probed 10/16/2026 (S1): in Simple the first step refits spacing after the hook (x 100 -> 40
+	// on a built square), so the next step set the sketch aside. S3's follow plan fixes it.
+	it("S3: in Simple, spacing's refit inside a step moves the sketch with its ink and re-marks the hash", () => {
+		setModeForTests('simple');
+		const editor = twoLetterEditor();
+		Object.assign(editor.project.settings.font, STORED_FONT);
+		showItem(editor, B);
+		const item = editor.selectedItem;
+		buildN(item);
+		const pinsBefore = JSON.stringify(
+			Object.values(sketchOf(item).points).map((point) => [point.on, point.inset, point.y])
+		);
+		const stemBefore = sketchOf(item).points.foot.x;
+		const inkBefore = item.shapes[0].pathPoints[0].p.x;
+		editor.history.addState('Sketched');
+		// the refit moved the ink sideways inside the step, and the sketch with it
+		const moved = item.shapes[0].pathPoints[0].p.x - inkBefore;
+		expect(moved).not.toBe(0);
+		expect(sketchOf(item).points.foot.x - stemBefore).toBe(moved);
+		expect(builtMatches(item)).toBe(true);
+		// a move sideways keeps every pin and every height
+		expect(
+			JSON.stringify(
+				Object.values(sketchOf(item).points).map((point) => [point.on, point.inset, point.y])
+			)
+		).toBe(pinsBefore);
+		// the next step finds the ink the sketch built: never set aside
+		editor.history.addState('Nothing changed');
+		expect(sketchOf(item).setAside).toBe(false);
+		expect(builtMatches(item)).toBe(true);
+		// the moved sketch builds the moved ink (within 1 unit)
+		const rebuilt = editor.project.glyphs[R];
+		buildN(rebuilt);
+		const now = sketchOf(item);
+		setSketch(rebuilt, now);
+		const ink = item.shapes.flatMap((shape) => shape.pathPoints.map((p) => [p.p.x, p.p.y]));
+		rebuilt.shapes = [];
+		for (const piece of now.pieces) {
+			const skeleton = pieceSkeleton(piece, now).map((c) =>
+				c.map(([x, y]) => [Math.round(x), Math.round(y)])
+			);
+			strokePaths(inkSkeleton(skeleton, now.thickness).contours, {}).forEach((path) =>
+				rebuilt.addOneShape(path)
+			);
+		}
+		const fresh = rebuilt.shapes.flatMap((shape) => shape.pathPoints.map((p) => [p.p.x, p.p.y]));
+		expect(fresh.length).toBe(ink.length);
+		fresh.forEach((point, i) => expect(near(point, ink[i])).toBeLessThanOrEqual(1));
+		setModeForTests('all');
+	});
 
 	it('the hook leaves a font with no sketch byte-for-byte as the step made it', () => {
 		const editor = twoLetterEditor();

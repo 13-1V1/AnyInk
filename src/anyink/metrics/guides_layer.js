@@ -58,7 +58,7 @@ import { guidesLayerState, resetGuidesLayerState } from './state.js';
 import { guideLinesMoving, isGuideLineLocked } from '../mode/locks.js';
 import { isSimpleMode } from '../mode/mode.js';
 import { markManual } from '../spacing/owner.js';
-import { followShapes } from '../spacing/trace_follow.js';
+import { followShapes, followSketchOnly } from '../spacing/trace_follow.js';
 import { traceHandleHasPriority } from '../trace/trace_layer.js';
 
 export { drawGuidesLayerOverlay } from './overlay.js';
@@ -468,11 +468,13 @@ export function keepWidth(item, current, target) {
 
 /**
  * B3: in Simple the faint photo moves with the shapes when the left edge moves them (7.2).
+ * S3 integration: a sketch follows in both modes (All tools' photo stays as before).
  * @param {Object} item - Glyph
  * @param {Number} moved - font units the shapes moved
  */
 function followShapesInSimple(item, moved) {
 	if (isSimpleMode()) followShapes(item, moved);
+	else followSketchOnly(item, moved);
 }
 
 function cursorFor(line) {

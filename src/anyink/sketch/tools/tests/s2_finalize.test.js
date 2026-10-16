@@ -63,11 +63,14 @@ describe('1. the words the tools waited for', () => {
 		expect(word('sketch.tag.bend')).toBe('click to set how far it bends');
 	});
 
-	it('the Arc tooltip covers the corner case; the Arc tip says the third click finishes it', () => {
+	// S3 fix (critic 15-arc-done.png): the bend click sets the arc and the piece stays open, so the
+	// tip says how to finish, never that the third click finishes it
+	it('the Arc tooltip covers the corner case; the Arc tip says how to finish after the bend', () => {
 		const hint = wordEntry('sketch.tool.arc').hint;
 		expect(hint).toMatch(/after a corner/);
 		expect(hint).toMatch(/how far it bends/);
-		expect(word('sketch.tip.arc')).toMatch(/that finishes the arc/);
+		expect(word('sketch.tip.arc')).not.toMatch(/finishes the arc/);
+		expect(word('sketch.tip.arc')).toMatch(/how far it bends. Press Enter or double-click to finish./);
 	});
 
 	it('the Line tip names the right-click', () => {

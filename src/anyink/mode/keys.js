@@ -20,7 +20,8 @@
 	shows (H and W say P), and the key of a tool inside Fine-tune opens Fine-tune (once B7's
 	'letterView' is on). On the board (B10): a letter opens its tile (Shift for
 	capitals), arrows move, Enter opens. S2 (SKETCH.md 2): in Simple with 'sketch' on, L Line,
-	A Arc, S and P Spline, C, O and Q Circle, R Rectangle, and E is Select (V too); All tools keeps
+	A Arc, S and P Spline (H and W too, S3), C, O and Q Circle, R Rectangle (M too, S3), and E is
+	Select (V too), so no key brings back the Point pen or the old Rectangle; All tools keeps
 	its keys, and Simple before the sketch is as above. Guide line locks are locks.js. Upstream's dev-mode console
 	clear (Ctrl+Q / Alt+Q) is not his key and stays in the handler as it is.
 
@@ -115,9 +116,9 @@ const SIMPLE_NO_SKETCH = Object.freeze({ modes: ['simple'], until: 'sketch' });
 const SKETCH_KEYS = [
 	['sketchLine', ['l']],
 	['sketchArc', ['a']],
-	['sketchSpline', ['s', 'p']],
+	['sketchSpline', ['s', 'p', 'h', 'w']],
 	['sketchCircle', ['c', 'o', 'q']],
-	['sketchRectangle', ['r']],
+	['sketchRectangle', ['r', 'm']],
 ];
 
 const ARROWS = {
@@ -185,10 +186,8 @@ const RULES = [
 	toolRule('pathEdit', ['b'], { until: 'brush', modes: ['all'] }),
 	toolRule('newPath', ['p', 'h', 'w'], { modes: ['all'] }),
 	toolRule('newPath', ['p', 'h', 'w'], SIMPLE_NO_SKETCH),
-	toolRule('newPath', ['h', 'w'], SIMPLE_SKETCH),
 	toolRule('newRectangle', ['r', 'm'], { modes: ['all'] }),
 	toolRule('newRectangle', ['r', 'm'], SIMPLE_NO_SKETCH),
-	toolRule('newRectangle', ['m'], SIMPLE_SKETCH),
 	toolRule('newOval', ['o', 'q'], { modes: ['all'] }),
 	toolRule('newOval', ['o', 'q'], SIMPLE_NO_SKETCH),
 	toolRule('pathAddPoint', ['u'], { modes: ['all'] }),

@@ -8,6 +8,7 @@
 */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getCoach } from '../coach_state.js';
+import { notePickedTool } from '../../nib/default_tool.js';
 import { letterPage, setUpScreenTests, settle, shownEl } from '../../letter/tests/simple_screen.js';
 import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
 import {
@@ -37,6 +38,10 @@ describe('a sketch tool picked on the letter page', () => {
 	it("Line's first pick: its tip beside the Next line; it stays while a piece is open", async () => {
 		const editor = letterPage({ id: 'glyph-0x6E' });
 		await settle();
+		// S3: an empty letter opens on the Line by itself (no tip); his own pick starts from
+		// another tool, as tools.js switchToolTo notes it
+		editor.selectedTool = 'resize';
+		notePickedTool(editor);
 		editor.selectedTool = 'sketchLine';
 		editor.publish('whichToolIsSelected', 'sketchLine');
 		await settle();

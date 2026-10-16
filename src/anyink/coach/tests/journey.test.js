@@ -30,8 +30,11 @@ beforeEach(() => {
 	localStorage.clear();
 	resetPrefsCache();
 	setModeForTests('simple');
-	// the whole journey: every feature it walks through is on (B16)
-	setFeaturesForTests(Object.fromEntries(FEATURE_NAMES.map((name) => [name, true])));
+	// the whole journey: every feature it walks through is on (B16); 'sketch' stays as it ships
+	// (off until S9: S3 integration gave rule 8 its sketch words)
+	setFeaturesForTests(
+		Object.fromEntries(FEATURE_NAMES.map((name) => [name, name !== 'sketch']))
+	);
 });
 
 describe("the beginner's journey (section 3)", () => {

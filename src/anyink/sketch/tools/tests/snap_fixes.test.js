@@ -8,7 +8,8 @@
 	     inference crosses the piece and both relations are stored (A's bar level and on both
 	     legs); under Shift's ray a piece the ray crosses still catches the point;
 	  3. a writing line pulls only within the snap radius of the real line; the faint ink line is
-	     where the dot lands, not a second target.
+	     where the dot lands, not a second target (S3 finalize: the band between the line and its
+	     ink line pulls too, nothing past it).
 	Written to fail first: every test here failed on snap.js before the fix.
 */
 import { describe, expect, it } from 'vitest';
@@ -157,9 +158,12 @@ describe('3. a writing line pulls only within the snap radius of the real line',
 	const at = (n) =>
 		snapPoint({ x: 1500, y: lines.writing + px(n) }, { font: FONT, view, thickness: 100, use: 'center' });
 
-	it('2, 4 and 6 px above the writing line snap; 8, 12 and 17 px do not', () => {
-		for (const n of [2, 4, 6]) expect(at(n).on).toBe('writing');
-		for (const n of [8, 12, 17]) expect(at(n).on).toBe(null);
+	// S3 finalize: between the line and its ink line (here 50 units, 10.9 px) a free center would
+	// put the ink across the line, so that band pins too; past the ink line and below the line
+	// only the radius counts (17 px above, 8 px below: free)
+	it('2 to 10 px above the writing line snap (inside its ink); 17 px above and 8 px below do not', () => {
+		for (const n of [2, 4, 6, 8, 10]) expect(at(n).on).toBe('writing');
+		for (const n of [12, 17, -8]) expect(at(n).on).toBe(null);
 	});
 
 	it('the dot still lands on the faint ink line (r above the writing line)', () => {

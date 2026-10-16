@@ -29,7 +29,7 @@ import {
 } from '../../anyink/fontcheck/export_list.js';
 import { makeGlyphWithResolvedLinks } from '../../project_editor/cross_item_actions.js';
 import { withLatinKern } from '../../anyink/install/kern_latin.js';
-import { mergedContours } from '../../anyink/install/merge_overlaps.js';
+import { hasKeptInk, mergedContours } from '../../anyink/install/merge_overlaps.js';
 import { writeGposKernDataToFont } from './tables/gpos.js';
 
 /**
@@ -1133,7 +1133,11 @@ function ensureBuildingBlock(name, item, buildingBlocks) {
 
 /**
  * Converts a Glyphr Studio Glyph directly to FontFlux contours format.
+ * ANY-INK (S3, docs/SKETCH.md section 3): a letter with sketch-built or Brush shapes always has
+ * its overlaps merged, on every export path (the File menu, Ctrl+E, Use in Word, the building
+ * blocks of composites, the live font preview); mergeOverlaps merges any other letter too.
  * @param {Glyph | Object} item - Item to convert
+ * @param {{mergeOverlaps?: Boolean}} [options]
  * @returns {Array<Array>} - Array of contours, each contour is an array of points
  */
 export function glyphToContours(item, { mergeOverlaps = false } = {}) {
@@ -1144,9 +1148,10 @@ export function glyphToContours(item, { mergeOverlaps = false } = {}) {
 		Array.isArray(item.shapes) &&
 		item.shapes.some((shape) => shape.objType === 'ComponentInstance');
 	const flatItem = hasComponents ? makeGlyphWithResolvedLinks(item) : item;
-	// ANY-INK (B14 + B15 integration): overlapping shapes made one outline (Use in Word)
-	if (mergeOverlaps) {
-		const paths = (flatItem.shapes || []).filter((shape) => shape.objType === 'Path');
+	// ANY-INK (B14 + B15 integration): overlapping shapes made one outline (Use in Word); S3: and
+	// always for a letter with sketch-built or Brush shapes
+	const paths = (flatItem.shapes || []).filter((shape) => shape.objType === 'Path');
+	if (mergeOverlaps || hasKeptInk(paths)) {
 		const merged = mergedContours(paths, pathToContour);
 		if (merged) return merged;
 	}

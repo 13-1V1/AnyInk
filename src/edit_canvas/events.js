@@ -4,6 +4,7 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+import { sliderOwnsKey } from '../anyink/controls/slider_keys.js';
 import { isTextEntryElement } from '../anyink/history/undo_shortcut.js';
 import { attachNib, Tool_Nib } from '../anyink/nib/nib_tool.js';
 import { installSketchTools } from '../anyink/sketch/tools/install.js';
@@ -233,11 +234,15 @@ export function handleCanvasContextMenu(event) {
 }
 
 /**
+ * ANY-INK (S3 finalize): a focused range slider keeps its own keys (the arrows, Home, End, Page
+ * Up / Down, and Esc while it is dragged: the Thickness slider takes its drag back), so Esc
+ * during a drag never picks Select and records the dragged value.
  * @param {'down' | 'up'} type
  * @param {KeyboardEvent} event
  */
 function routeSketchKey(type, event) {
 	if (isTextEntryElement(document.activeElement)) return;
+	if (sliderOwnsKey(document.activeElement, event)) return;
 	if (menuOrDialogOpen(document)) return;
 	const used = sketchKey(type, event, {
 		editor: getCurrentProjectEditor(),

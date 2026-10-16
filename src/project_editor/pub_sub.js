@@ -41,6 +41,9 @@ import { glyphChanged } from './cross_item_actions.js';
 		* - 'letterSpacing' - Try it's letter-spacing slider moved every letter: { extra, dragging }
 		*                 per drag tick (dragging true) and once on release (B12,
 		*                 src/anyink/tryit/letter_spacing.js)
+		* - 'sketchThickness' - the sketch Thickness slider moved on the open letter:
+		*                 { itemId, thickness, dragging } per drag tick (dragging true) and once
+		*                 on release (S3, src/anyink/sketch/thickness_drag.js)
 */
 const allTopics = [
 	'editCanvasView',
@@ -80,6 +83,8 @@ const allTopics = [
 	'fontCheck', // font check result { problems } (src/anyink/fontcheck/font_check.js)
 	// ANY-INK topics (B12)
 	'letterSpacing', // letter-spacing slider { extra, dragging } (src/anyink/tryit/letter_spacing.js)
+	// ANY-INK topics (S3)
+	'sketchThickness', // sketch Thickness slider { itemId, thickness, dragging } (src/anyink/sketch/thickness_drag.js)
 ];
 
 /**

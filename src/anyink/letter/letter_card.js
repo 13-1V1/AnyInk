@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: the letter card (UX-BEGINNER.md 4.3 "Letter card sections"), in the panel slot of the
 	Simple letter view (panels.js; nav.panel stays 'Attributes' or 'Trace'). A section shows only
@@ -54,6 +56,19 @@
 	                 Ready away. The fix button is the Next line's (rule 7), never repeated here.
 	                 Never while a Point pen shape on this letter is still open (it isn't judged),
 	                 nor while the photo card runs
+	S3 (docs/SKETCH.md sections 3, 5 and 7; Simple with 'sketch' on; sketch/card_section.js):
+	  Sketch         right under the header while a sketch tool is picked or the letter has a
+	                 sketch with Centerline ink: Thickness "thin --o-- thick" and its readout in
+	                 inches on 1 in capitals (one step on release)
+	  Fine-tune      opens on a sketched letter even before it has ink; first inside (after Photo):
+	                 Sketch, the letter's way, Ends: Round / Flat, [Use this thickness on all
+	                 letters] while another sketched letter differs
+	  Built shapes   (sketch_record.js isBuiltShape) are like brush strokes here: never Merged,
+	                 no Solid / Hole switch (the sketch says what is a hole)
+	  Clear letter   clears the sketch too, in the same step
+	  One slider     (S3 fix) a sketched letter has no [Draw over it] (S4 brings [Edit sketch]),
+	                 and the Brush section's slider reads "Size of new Brush strokes" beside
+	                 Thickness, so it never looks like a second thickness for the letter
 	Every change is one Undo step with a plain title (2.2): Merge, Flip, Clear letter and Back to
 	automatic name the letter (7.3); Solid / Hole and Smooth / Corner write the letter-tools
 	track's titles. Clear letter says so in a toast with [Undo] (7.3: destructive actions use an
@@ -71,9 +86,11 @@
 
 	Pure:
 	  letterCardState(editor)      what the card shows, read from the editor
-	  cardSections(state, isOn)    ['header', 'main'?, 'photo'?, 'brush'?, 'fineTune'?]
+	  cardSections(state, isOn)    ['header', 'sketch'?, 'look'?, 'main'?, 'photo'? | 'brush'?,
+	                               'fineTune'?]
 	  mainButtons(state, isOn)     ['traceAgain'?, 'drawOver'?]
-	  fineTuneParts(state)         ['photo'?, 'shapes', 'spacing', 'tail'?, 'point'?, 'moreTools']
+	  fineTuneParts(state)         ['photo'?, 'sketch'?, 'shapes'?, 'spacing', 'tail'?, 'point'?,
+	                               'moreTools'] (shapes only once there are shapes)
 	  shapeOptions(state)          ['merge'?, 'flipLeftRight', 'flipUpsideDown', 'clear']
 	  shapeKinds(item)             'solid' | 'hole' | 'part' per shape (auto_hole.js shapeRole;
 	                               'part' for a reusable part, More tools only)
@@ -116,8 +133,17 @@ import { getTrace } from '../trace/trace_model.js';
 import { letterName } from '../words/letter_name.js';
 import { word, wordEntry } from '../words/words.js';
 import { canBeHole, isBrushStroke, setShapeRole, shapeRole } from './auto_hole.js';
+import { flipLetter } from './flip_letter.js';
 import { pickedPoint, pointKind, setPickedPointKind } from './point_kind.js';
 import { isFineTuneOpen, setFineTuneOpen } from './view_switches.js';
+import {
+	makeSketchFineTune,
+	makeSketchSection,
+	showsSketchSection,
+	sketchCardState,
+} from '../sketch/card_section.js';
+import { setSketch } from '../sketch/model.js';
+import { isBuiltShape } from '../sketch/sketch_record.js';
 
 export const CARD_SUBSCRIBER = 'anyink.letter.card';
 export const TRACE_AGAIN_EVENT = 'anyink-trace-again';
@@ -193,8 +219,9 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 			index,
 			kind: known?.kinds[index] || '',
 			picked: shape === pickedShape,
-			// brush strokes are always ink (7.1 #5): no Solid / Hole switch
-			fixed: isBrushStroke(shape),
+			// brush strokes are always ink (7.1 #5): no Solid / Hole switch; S3: nor sketch-built
+			// shapes (the sketch says what is a hole)
+			fixed: isBrushStroke(shape) || isBuiltShape(shape),
 			// B6 + B7 integration: a shape with nothing around it can't show a hole either way
 			// round, so the picked one gets the switch only when Hole would do something
 			holeable: !!known && shape === pickedShape && isPath(shape) && holeable(known, item, shape),
@@ -224,7 +251,19 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 		point: point ? { kind: pointKind(point) } : null,
 		fineTuneOpen: isFineTuneOpen(),
 		shapeOptionsOpen,
+		// S3: the sketch's parts of the card (Simple with 'sketch' on), else null
+		sketch: sketchStateOf(editor),
 	};
+}
+
+/** S3: sketch/card_section.js's state, null when it can't be read */
+function sketchStateOf(editor) {
+	try {
+		return sketchCardState(editor);
+	} catch (error) {
+		console.warn('ANY-INK letter card: the sketch could not be read', error);
+		return null;
+	}
 }
 
 /**
@@ -270,6 +309,8 @@ export function spacingShown(item) {
  */
 export function cardSections(state, isOn = isFeatureOn) {
 	const sections = ['header'];
+	// S3: Thickness alone at the top, right under the header (SKETCH.md section 5)
+	if (isOn('sketch') && showsSketchSection(state.sketch)) sections.push('sketch');
 	// B10 + B11 integration: [Looks fine to me] and the soft notes, never beside the photo
 	// card's step C (its [Use it] is about the new trace, not the ink he has now)
 	if (!state.photoCardOpen && (state.look || state.notes?.length)) sections.push('look');
@@ -280,7 +321,7 @@ export function cardSections(state, isOn = isFeatureOn) {
 	// picked (the photo card is the one thing to do while it shows)
 	if (state.photoCardOpen && isOn('photo')) sections.push('photo');
 	else if (state.tool === BRUSH_TOOL && isOn('brush')) sections.push('brush');
-	if (state.hasShapes) sections.push('fineTune');
+	if (state.hasShapes || (isOn('sketch') && state.sketch?.pieces)) sections.push('fineTune');
 	return sections;
 }
 
@@ -293,8 +334,10 @@ export function mainButtons(state, isOn = isFeatureOn) {
 	if (!state.hasShapes || state.photoCardOpen) return [];
 	const buttons = [];
 	if (isOn('photo') && state.hasPhoto) buttons.push('traceAgain');
-	// B8 + B9 integration: [Draw over it] picks the Brush, so it goes while the Brush is picked
-	if (isOn('brush') && state.tool !== BRUSH_TOOL) buttons.push('drawOver');
+	// B8 + B9 integration: [Draw over it] picks the Brush, so it goes while the Brush is picked.
+	// S3 fix: never on a sketched letter (freehand ink over a sketch; S4 brings [Edit sketch])
+	const sketched = isOn('sketch') && !!state.sketch?.pieces;
+	if (isOn('brush') && state.tool !== BRUSH_TOOL && !sketched) buttons.push('drawOver');
 	return buttons;
 }
 
@@ -303,7 +346,11 @@ export function mainButtons(state, isOn = isFeatureOn) {
  * @returns {Array<'shapes' | 'spacing' | 'point' | 'moreTools'>}
  */
 export function fineTuneParts(state) {
-	const parts = state.photo ? ['photo', 'shapes', 'spacing'] : ['shapes', 'spacing'];
+	const parts = state.photo ? ['photo'] : [];
+	// S3: the sketch's letter-wide choices first; Shapes once there are shapes
+	if (state.sketch?.pieces) parts.push('sketch');
+	if (state.hasShapes || !state.sketch?.pieces) parts.push('shapes');
+	parts.push('spacing');
 	if (state.tail) parts.push('tail');
 	if (state.tool === POINT_TOOL && state.point) parts.push('point');
 	parts.push('moreTools');
@@ -395,8 +442,9 @@ function mergeablePaths(item, editor) {
 	const ink = new Set(letterInk(item, editor));
 	// B8 + B9 integration: a brush stroke stays its own shape (M10 re-inks it by its stroke id);
 	// strokes merge only at M10's "Turn into shapes"
+	// S3: nor a sketch-built shape (its sketch builds it again at every step)
 	return (item.shapes || []).filter(
-		(shape) => isPath(shape) && ink.has(shape) && !isBrushStroke(shape)
+		(shape) => isPath(shape) && ink.has(shape) && !isBrushStroke(shape) && !isBuiltShape(shape)
 	);
 }
 
@@ -516,7 +564,8 @@ function render(view) {
 		look: () => makeLookSection(state, editor),
 		main: () => makeMainButtons(state),
 		photo: () => makePhotoSection(),
-		brush: () => makeBrushSection(),
+		brush: () => brushSectionFor(state),
+		sketch: () => makeSketchSection(state.sketch, editor),
 		fineTune: () => makeFineTune(state, editor, view),
 	};
 	cardSections(state).forEach((section) => {
@@ -527,9 +576,25 @@ function render(view) {
 	});
 }
 
+/**
+ * The Brush's section; S3 fix: beside a sketched letter's Thickness its slider says it sizes new
+ * Brush strokes, so the two thin / thick sliders never read as the same thing
+ */
+function brushSectionFor(state) {
+	const section = makeBrushSection();
+	if (!(isFeatureOn('sketch') && showsSketchSection(state.sketch))) return section;
+	const control = section.querySelector('[data-anyink-brush="size"]');
+	const label = section.querySelector('.anyink-brush-size__label');
+	const slider = section.querySelector('input');
+	if (label) label.textContent = word('sketch.card.brushSize');
+	if (control) control.title = hintOf('sketch.card.brushSize');
+	slider?.setAttribute('aria-label', word('sketch.card.brushSlider'));
+	return section;
+}
+
 /** The flags the card reads, so turning one on in a test page draws it again */
 function flagsSeen() {
-	return ['brush', 'photo', 'checks'].map((flag) => isFeatureOn(flag));
+	return ['brush', 'photo', 'checks', 'sketch'].map((flag) => isFeatureOn(flag));
 }
 
 function makeHeader(state) {
@@ -639,6 +704,7 @@ function makeFineTune(state, editor, view) {
 	const body = makeElement({ tag: 'div', className: 'anyink-letter-card__fine-body' });
 	const parts = {
 		photo: () => makePhotoPart(state.photo, editor, { redraw: () => render(view) }),
+		sketch: () => makeSketchFineTune(state.sketch, editor),
 		shapes: () => makeShapes(state, editor, view),
 		spacing: () => makeSpacing(state, editor),
 		tail: () => makeTail(state),
@@ -924,12 +990,14 @@ function replaceShapes(item, paths, merged) {
 	item.changed();
 }
 
-/** Flips the whole letter about its middle; whole-number points (7.2). */
+/**
+ * Flips the whole letter about its middle; whole-number points (7.2). S3: its sketch and Brush
+ * strokes flip with it (flip_letter.js).
+ */
 function flip(editor, method, key) {
 	const item = openLetter(editor);
 	if (!item?.shapes?.length) return;
-	item[method]();
-	item.roundAll?.(0);
+	flipLetter(item, method === 'flipEW' ? 'leftRight' : 'upsideDown', { project: editor.project });
 	record(editor, item, key);
 }
 
@@ -940,6 +1008,9 @@ function clearLetter(editor) {
 	editor.multiSelect.points.clear();
 	editor.multiSelect.shapes.clear();
 	item.shapes = [];
+	// S3 (SKETCH.md section 7): in Simple the sketch goes too, in the same step, so the next step
+	// never finds its built shapes gone and sets it aside
+	if (isSimpleMode() && isFeatureOn('sketch')) setSketch(item, null);
 	record(editor, item, 'letter.step.cleared');
 	// B6 + B7 finalize: its [Undo] takes back this clear, and only while it is the newest change
 	toast('letter.toast.cleared', { name }, { kind: 'destructive', ...undoOffer(editor) });

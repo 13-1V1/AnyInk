@@ -6,6 +6,8 @@
 	in the step itself, and built shapes changed behind the sketch's back set the sketch aside, so
 	Undo brings back the sketch as it was. The tests through History.addState were written to fail
 	first (run with the call left out of history.js: 3 failed).
+	S3: the hook also rebuilds the open letter's ink from its sketch inside the step, so the two
+	stand-in squares are replaced by the full sketch's real ink; a pasted copy stays plain, last.
 */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { B, R, square, twoLetterEditor } from '../../history/tests/two_letters.js';
@@ -50,8 +52,12 @@ describe('beforeSketchStep on its own', () => {
 		const item = sketchB();
 		item.addOneShape(item.shapes[0].save());
 		expect(beforeSketchStep(editor)).toEqual({ untagged: 1, setAside: false });
-		expect(item.shapes.map(isBuiltShape)).toEqual([true, true, false]);
+		const built = item.shapes.map(isBuiltShape);
+		expect(built.at(-1)).toBe(false);
+		expect(built.slice(0, -1).every(Boolean)).toBe(true);
+		expect(built.length).toBeGreaterThan(3);
 		expect(sketchOf(item).setAside).toBe(false);
+		expect(builtMatches(item)).toBe(true);
 	});
 
 	it('sets the sketch aside when a built shape was changed, once', () => {
@@ -76,12 +82,14 @@ describe('inside History.addState', () => {
 		const item = sketchB();
 		editor.history.addState('Sketched');
 		item.addOneShape(item.shapes[0].save());
+		const count = item.shapes.length - 1;
 		editor.history.addState('Pasted shapes');
-		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual([true, true, false]);
+		const pasted = [...Array(count).fill(true), false];
+		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual(pasted);
 		editor.history.restoreState();
-		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual([true, true]);
+		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual(Array(count).fill(true));
 		editor.history.redoState();
-		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual([true, true, false]);
+		expect(editor.selectedItem.shapes.map(isBuiltShape)).toEqual(pasted);
 		expect(sketchOf(editor.selectedItem).setAside).toBe(false);
 	});
 

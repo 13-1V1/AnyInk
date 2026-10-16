@@ -177,10 +177,12 @@ export function sameSpot(a, b, radius = SAME) {
 /**
  * @param {Object} sketch - holds every point the piece uses, `to` included
  * @param {Object} piece - the open piece
- * @param {{tool: 'line'|'arc'|'spline', to: String, mode?: String, bulge?: Number, arc?: Boolean}} args
+ * @param {{tool: 'line'|'arc'|'spline', to: String, mode?: String, bulge?: Number, arc?: Boolean,
+ *   top?: String | null}} args - top (S3): the writing line the arc's top or bottom was snapped to;
+ *   stored as part.top = { on } so a thickness or line change puts it back on the line
  * @returns {{sketch: Object, piece: Object, added: Boolean}}
  */
-export function appendPart(sketch, piece, { tool, to, mode = 'corner', bulge, arc = false }) {
+export function appendPart(sketch, piece, { tool, to, mode = 'corner', bulge, arc = false, top = null }) {
 	const endId = lastId(piece);
 	const points = { ...(sketch.points || {}) };
 	const end = points[endId];
@@ -217,15 +219,21 @@ export function appendPart(sketch, piece, { tool, to, mode = 'corner', bulge, ar
 				to,
 				bulge: worked ?? (Number(bulge) || 0),
 				tangent: true,
+				...topTag(top),
 			});
 		} else {
-			parts.push({ type: 'arc', from: endId, to, bulge: Number(bulge) || 0 });
+			parts.push({ type: 'arc', from: endId, to, bulge: Number(bulge) || 0, ...topTag(top) });
 		}
 	} else {
 		parts.push({ type: 'line', from: endId, to });
 	}
 	const next = { ...sketch, points };
 	return { sketch: next, piece: giveWay({ ...piece, parts }, next), added: true };
+}
+
+/** S3: an arc's top snapped to a line, as the part stores it (build.js placeArcTops) */
+function topTag(top) {
+	return typeof top === 'string' && top ? { top: { on: top } } : {};
 }
 
 /** @returns {Boolean} `to` is the piece's first point (the click that closes a loop) */

@@ -143,7 +143,10 @@ export function storedSketchShows(
 	if (!isOn('sketch') || isSketchTool(tool)) return false;
 	const page = editor?.nav?.page;
 	if (page !== undefined && !LETTER_PAGES.includes(page)) return false;
-	const pieces = sketchOf(item)?.pieces;
+	const stored = sketchOf(item);
+	// S3 finalize: a set-aside sketch is no longer the letter's: never drawn as if it were
+	if (stored?.setAside === true) return false;
+	const pieces = stored?.pieces;
 	return Array.isArray(pieces) && pieces.some((piece) => piece && !piece.hidden);
 }
 
@@ -373,7 +376,8 @@ function readHints(raw, points) {
 export function sketchPicture(item, project, state = {}) {
 	const font = project?.settings?.font || {};
 	const openState = state.open || state.draft || null;
-	const sketch = state.sketch || sketchOf(item) || null;
+	const stored = sketchOf(item);
+	const sketch = state.sketch || (stored?.setAside === true ? null : stored) || null;
 	const openSketch = openState?.sketch || sketch;
 	const openPiece = openState?.piece || null;
 	const hotPoints = new Set(state.hot?.points || []);

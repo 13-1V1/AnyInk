@@ -4,6 +4,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK font metrics writes (Milestone 5, D-008 / D-009).
 	The one place that writes project.settings.font vertical metrics and custom guide
@@ -13,9 +15,15 @@
 	B15 fix: setMetricLimit(fn) lets Move the guide lines (fontinfo/move_lines.js) narrow a line's
 	move after the order clamp while it is on (the small-letter line kept clear of the capitals
 	line); null takes it away. Nothing else sets one, so All tools writes as before.
+	S3 (docs/SKETCH.md section 7): shiftItemPaths moves a sketched letter's sketch with its shapes
+	(sketch/follow.js followShapes), so moveBaseline's whole-font step never sets a sketch aside:
+	points pinned to a line that moves with the shapes keep their pin, the writing line's pins go
+	(the drawing stays where it was and only y = 0 moves).
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { isSimpleMode } from '../mode/mode.js';
+import { followShapes } from '../sketch/follow.js';
+import { translate } from '../sketch/follow_matrix.js';
 import {
 	clampBaselineDelta,
 	clampFontMetric,
@@ -132,10 +140,12 @@ export function forEachProjectItem(project, fn) {
  * Moves the Path shapes of one item straight up or down. ComponentInstances are left
  * alone on purpose: they follow their Component, whose own Paths move in the same pass,
  * so nothing moves twice.
+ * S3: the sketch moves with the shapes (its pins read against `font`, the lines after the move).
  * @param {Object} item - Glyph-like item with shapes
  * @param {Number} dy - Em delta
+ * @param {{font?: Object}} [options] - font: settings.font as it will be after the move
  */
-export function shiftItemPaths(item, dy) {
+export function shiftItemPaths(item, dy, { font } = {}) {
 	if (!item?.shapes || !dy) return;
 	item.shapes.forEach((shape) => {
 		if (shape.objType === 'Path') {
@@ -145,6 +155,7 @@ export function shiftItemPaths(item, dy) {
 			shape.cache = {};
 		}
 	});
+	followShapes(item, { matrix: translate(0, dy) }, { font });
 	if (typeof item.changed === 'function') item.changed();
 }
 
@@ -171,8 +182,10 @@ export function moveBaseline(deltaEm, { burst = null } = {}) {
 		...(isSimpleMode() ? { itemID: null } : {}),
 		burst,
 	});
-	forEachProjectItem(project, (item) => shiftItemPaths(item, -delta));
-	Object.assign(font, shiftedMetricsForBaseline(font, delta));
+	const shifted = shiftedMetricsForBaseline(font, delta);
+	const after = { ...font, ...shifted };
+	forEachProjectItem(project, (item) => shiftItemPaths(item, -delta, { font: after }));
+	Object.assign(font, shifted);
 	editor.history.addWholeProjectChangePostState();
 
 	editor.publish('fontMetrics', { key: 'baseline', value: delta, font });

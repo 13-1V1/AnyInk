@@ -83,10 +83,10 @@ describe('a sketched letter with no ink yet', () => {
 		expect(letterFacts(editor.selectedGlyph, 'B').shapes).toBe(false);
 	});
 
-	it('guard: an empty letter with no sketch is empty with the flag on', () => {
+	it('guard: an empty letter with no sketch is empty with the flag on (S3: it opens on the Line)', () => {
 		const editor = openB({ sketched: false });
 		expect(overlayShows(editor)).toBe(true);
-		expect(toolForOpenedLetter(editor.selectedGlyph)).toBe('nib');
+		expect(toolForOpenedLetter(editor.selectedGlyph)).toBe('sketchLine');
 		expect(letterFacts(editor.selectedGlyph, 'B').shapes).toBe(false);
 	});
 });

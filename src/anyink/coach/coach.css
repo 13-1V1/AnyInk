@@ -104,7 +104,8 @@ anyink-coach:is(*, #anyink-coach-weight)
 	background-color: var(--touch-soft);
 }
 
-anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else {
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else,
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__quiet {
 	flex: 0 0 auto;
 	font: inherit;
 	font-size: var(--text-sm);
@@ -116,7 +117,8 @@ anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__els
 	cursor: pointer;
 }
 
-anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else:hover {
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else:hover,
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__quiet:hover {
 	color: var(--chrome-text);
 }
 
@@ -169,6 +171,7 @@ anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__tip-label {
 
 anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__button:focus-visible,
 anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__else:focus-visible,
+anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__quiet:focus-visible,
 anyink-coach:is(*, #anyink-coach-weight) .anyink-coach__row > .anyink-coach__hide:focus-visible,
 button.anyink-coach-chip:is(*, #anyink-coach-weight):focus-visible {
 	outline: none;
