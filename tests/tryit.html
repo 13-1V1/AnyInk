@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK Try it (B12, the strip side)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/controls/dialogs/dialogs.css" />
+	<link rel="stylesheet" href="../src/controls/fancy-slider/fancy-slider.css" />
+	<style>
+		html, body { height: 100%; margin: 0; }
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); }
+		/* stands in for the Simple top bar and its Next line: Try it starts under it */
+		#app__top-bar { height: 76px; box-sizing: border-box; padding: var(--space-2) var(--space-5); border-bottom: var(--hairline); background: var(--chrome-bg-raised); display: flex; align-items: center; gap: var(--space-3); }
+		#app__top-bar b { font-size: var(--text-lg); }
+		#page { padding: var(--space-4) var(--space-5); height: calc(100% - 76px - var(--anyink-strip-height, 0px)); box-sizing: border-box; overflow: auto; }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-4) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button.page-button { font: inherit; font-size: var(--text-sm); background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		#log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); height: 120px; overflow-y: auto; white-space: pre-wrap; }
+	</style>
+</head>
+<body>
+	<div id="app__wrapper">
+		<div id="app__top-bar">
+			<b>ANY-INK</b><span>Two Letters</span>
+			<button class="page-button" id="step1">1 Letters</button>
+			<button class="page-button" id="step2">2 Try it</button>
+		</div>
+	</div>
+	<div id="page">
+		<p>
+			Simple, with the <b>tryIt</b> flag on, on a font whose letters are all empty. The strip
+			below shows letters not made yet as faint outlined stand-ins, with "gray = not made yet"
+			at the right until 5 letters are ready; double-click one to open it (logged). "2 Try it",
+			the strip's Big preview, or the Next line's button grow the strip into Try it under the
+			bar (the same strip, never rebuilt): his letters at 72 pt, the hint, the font check line.
+			Done, Esc or "1 Letters" (a page change) close it. While it is open, plain keys never
+			reach the letter under it (logged when they do).
+		</p>
+		<h2>Letters</h2>
+		<div class="row">
+			<button class="page-button" id="makeB">Make Capital B</button>
+			<button class="page-button" id="makeFive">Make B, r, a, n, e (5 ready)</button>
+			<button class="page-button" id="clearAll">Empty every letter</button>
+		</div>
+		<h2>Font check</h2>
+		<div class="row">
+			<button class="page-button" id="tooWide">Capital B too wide for the font file</button>
+			<button class="page-button" id="check">Run the font check now</button>
+		</div>
+		<h2>Try it</h2>
+		<div class="row">
+			<button class="page-button" id="coachTryIt">The Next line's [Try it] (letter spacing)</button>
+			<button class="page-button" id="close">Close Try it</button>
+		</div>
+		<h2>Log</h2>
+		<div id="log"></div>
+	</div>
+	<preview-strip></preview-strip>
+	<script type="module">
+		window.log = () => {};
+		import { initTheme } from '../src/anyink/theme/theme.js';
+		import { setModeForTests } from '../src/anyink/mode/mode.js';
+		import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { twoLetterEditor } from '../src/anyink/history/tests/two_letters.js';
+		import { Path } from '../src/project_data/path.js';
+		import { DisplayCanvas } from '../src/display_canvas/display_canvas.js';
+		import { FontPreview } from '../src/controls/font-preview/font_preview.js';
+		import { PreviewStrip } from '../src/anyink/preview/preview_strip.js';
+		import { runFontCheckNow } from '../src/anyink/fontcheck/font_check.js';
+		import { runCoachAction } from '../src/anyink/coach/actions.js';
+		import { openDoor, TRY_IT_EVENT } from '../src/anyink/topbar/doors.js';
+		import { closeTryIt, TRY_IT_CHANGE_EVENT } from '../src/anyink/tryit/expand.js';
+
+		const logEl = document.querySelector('#log');
+		const say = (m) => {
+			logEl.textContent = `${new Date().toLocaleTimeString()}  ${m}\n${logEl.textContent}`;
+		};
+		initTheme();
+		setModeForTests('simple');
+		setFeaturesForTests({ coach: true, tryIt: true });
+
+		const editor = twoLetterEditor();
+		editor.navigate = () => {
+			say(`navigate to ${editor.nav.page} / ${editor.selectedItemID}`);
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: editor.nav.page } }));
+		};
+		window.anyinkEditor = editor;
+
+		customElements.define('display-canvas', DisplayCanvas);
+		customElements.define('font-preview', FontPreview);
+		customElements.define('preview-strip', PreviewStrip);
+		const strip = document.querySelector('preview-strip');
+		window.anyinkStrip = strip;
+		strip.setText('Brennan Hand');
+
+		// a letter shape: a slab of the letter's own width, on the writing line
+		function ink(char, width = 520, height = 700) {
+			const id = `glyph-0x${char.codePointAt(0).toString(16)}`;
+			const item = editor.project.getItem(id, true);
+			item.shapes = [new Path({ pathPoints: [
+				{ p: { coord: { x: 60, y: 0 } } },
+				{ p: { coord: { x: 60, y: height } } },
+				{ p: { coord: { x: width - 60, y: height } } },
+				{ p: { coord: { x: width - 60, y: 0 } } },
+			] })];
+			item.advanceWidth = width;
+			editor.publish('currentItem', item);
+		}
+		const redraw = () => { strip.needsResize = true; strip.scheduleRedraw(); };
+		window.anyinkInk = (chars) => { [...chars].forEach((c) => ink(c, 520, c === c.toUpperCase() ? 700 : 500)); redraw(); };
+
+		document.querySelector('#makeB').onclick = () => window.anyinkInk('B');
+		document.querySelector('#makeFive').onclick = () => window.anyinkInk('Braen');
+		document.querySelector('#clearAll').onclick = () => {
+			Object.values(editor.project.glyphs).forEach((g) => { g.shapes = []; g.advanceWidth = 0; });
+			redraw();
+		};
+		document.querySelector('#tooWide').onclick = () => {
+			ink('B');
+			editor.project.getItem('glyph-0x42').advanceWidth = 70000;
+			runFontCheckNow(editor);
+			redraw();
+		};
+		document.querySelector('#check').onclick = () => runFontCheckNow(editor);
+		document.querySelector('#step2').onclick = () => openDoor(TRY_IT_EVENT, { cause: 'rail' });
+		document.querySelector('#step1').onclick = () => {
+			say('step 1: a page change');
+			window.dispatchEvent(new CustomEvent('anyink-page-change', { detail: { page: 'Overview' } }));
+		};
+		document.querySelector('#coachTryIt').onclick = () => runCoachAction('tryIt', { open: 'letterSpacing' }, { editor });
+		document.querySelector('#close').onclick = () => closeTryIt({ cause: 'page' });
+		window.addEventListener(TRY_IT_CHANGE_EVENT, (e) => say(`Try it ${JSON.stringify(e.detail)}`));
+		window.addEventListener('keydown', (e) => say(`the letter heard the key ${e.key}`));
+	</script>
+</body>
+</html>

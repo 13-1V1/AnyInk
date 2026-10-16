@@ -23,11 +23,6 @@
 	margin: 0;
 }
 
-/* B4 + B5 integration (UX-BEGINNER 2.2): sentence case in Simple */
-html[data-ui-mode='simple'] .anyink-recents__title {
-	text-transform: none;
-}
-
 .anyink-recents__clear {
 	background: none;
 	border: 0;

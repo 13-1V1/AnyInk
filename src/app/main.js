@@ -15,6 +15,7 @@ import { initFontCheck } from '../anyink/fontcheck/font_check.js';
 import { initPhotos } from '../anyink/photo/photo_app.js';
 import { initChecks } from '../anyink/checks/checks_app.js';
 import { installBoard } from '../anyink/board/board_page.js';
+import { installNewFont } from '../anyink/start/new_font.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -69,6 +70,8 @@ export function glyphrStudioOnLoad() {
 			// buttons and finished-section toasts before the board has ever been drawn
 			initChecks();
 			installBoard();
+			// ANY-INK (B12 + B13 integration): Menu > Start a new font... brings the start screen
+			installNewFont();
 			// ANY-INK (B1): the leave-site check decides when the page closes, so it is set once,
 			// here, for every way a font gets opened (the open page, a dropped font file, an SVG)
 			updateWindowUnloadEvent();

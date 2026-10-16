@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK recovery card (Milestone 6).
 	The "unsaved work found" card for the Open Project page, the Recover tab's
@@ -9,18 +11,18 @@
 
 	  makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now })
 	      One row per session (name, "n minutes ago", "from file" badge, Restore,
-	      Discard). Defaults call restoreSession / discardSession. In Simple (B4 fix
-	      track, until B13's crash card): the badge says "has a saved file", only the
-	      first Restore is green (principle 1), and Discard on unsaved work with no work
-	      file first asks the one start-screen confirm (UX-BEGINNER 7.4 #1,
-	      confirmThrowAway): that backup is the only copy of the work. A Restore whose
+	      Discard). Defaults call restoreSession / discardSession. B13: the card shows only
+	      on the tabs "Other ways to start..." opens (All tools under the More tools band),
+	      so B4's Simple words and its one-green rule are retired; Simple's start screen
+	      has its own crash card (src/anyink/start), with the one start-screen confirm
+	      (confirmThrowAway). A Restore whose
 	      snapshot is gone (isRecoveryGoneError: discarded elsewhere, restored in
 	      another tab, saved) drops the row instead of showing an error. When the
 	      last row goes, onEmpty(card) runs when given, otherwise the empty message
 	      replaces the rows. Callers only build it when sessions.length > 0.
 	  makeRecoverArea({ banner, list })
 	      A container that lists sessions asynchronously and fills itself with a
-	      card, or the empty message (tab; Simple says "backup copy", 2.4 G) / removes
+	      card, or the empty message (tab) / removes
 	      itself (banner). A listing that
 	      fails is not "nothing to recover": the tab says the snapshots could not be
 	      read (the banner removes itself). It re-lists on
@@ -31,7 +33,7 @@
 	  confirmForgetSnapshots()
 	      Modal "Forget crash-recovery snapshots?" -> Promise<Boolean>.
 	  confirmThrowAway()
-	      Simple: modal "Throw away this unsaved work? This can't be undone. [Throw it
+	      Simple's start screen (crash card, "Throw it away"): modal "Throw away this unsaved work? This can't be undone. [Throw it
 	      away] [Keep it]" -> Promise<Boolean>; Keep it is the green one, and closing the
 	      box any other way keeps the work.
 	  forgetSnapshotsWithFeedback()
@@ -57,10 +59,9 @@ import {
 	restoreSession,
 } from './recovery.js';
 import { formatAgo } from './snapshot.js';
-import { isSimpleMode } from '../mode/mode.js';
 import { word } from '../words/words.js';
 
-/** All tools' empty Recover tab (Simple: 'recover.nothing'). */
+/** The empty Recover tab. */
 export const EMPTY_MESSAGE =
 	'Nothing to recover. Unsaved work is snapshotted every few seconds while you edit.';
 export const LOADING_MESSAGE = 'Looking for unsaved work…';
@@ -101,8 +102,7 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 		}
 	}
 
-	const simple = isSimpleMode();
-	(sessions || []).forEach((session, index) => {
+	(sessions || []).forEach((session) => {
 		const row = makeElement({ tag: 'div', className: 'anyink-recovery-row' });
 		row.dataset.sessionId = session.id;
 
@@ -119,7 +119,7 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 				makeElement({
 					tag: 'span',
 					className: 'anyink-recovery-row__badge',
-					content: simple ? escapeHTML(word('recover.hasFile')) : 'from file',
+					content: 'from file',
 				})
 			);
 		}
@@ -131,8 +131,6 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 		const restoreButton = makeElement({
 			tag: 'fancy-button',
 			className: 'anyink-recovery-row__restore',
-			// Simple: one green button (principle 1), the newest backup's Restore
-			attributes: simple && index > 0 ? { secondary: '' } : {},
 			innerHTML: 'Restore',
 		});
 		const discardButton = makeElement({
@@ -174,11 +172,6 @@ export function makeRecoveryCard(sessions, { onRestore, onDiscard, onEmpty, now 
 		discardButton.addEventListener('click', async () => {
 			if (discardButton.hasAttribute('disabled')) return;
 			setBusy(true);
-			// Simple: unsaved work with no work file is the only copy, so ask first (7.4 #1)
-			if (simple && !session.hasFile && !(await confirmThrowAway())) {
-				setBusy(false);
-				return;
-			}
 			try {
 				await discard(session.id);
 				row.remove();
@@ -203,8 +196,7 @@ export function makeEmptyMessage() {
 	return makeElement({
 		tag: 'i',
 		className: 'anyink-recovery__empty',
-		// B4 fix track: Simple says "backup copy" (2.4 G), the editor's own word, never "snapshot"
-		content: isSimpleMode() ? escapeHTML(word('recover.nothing')) : EMPTY_MESSAGE,
+		content: EMPTY_MESSAGE,
 	});
 }
 
@@ -294,16 +286,11 @@ export function makeRecoverArea({ banner = false, list } = {}) {
  * @returns {HTMLElement} the tab's message for a failed listing
  */
 function makeListErrorMessage(error) {
-	const said = error?.message || error?.name || String(error);
-	const reason = escapeHTML(said);
+	const reason = escapeHTML(error?.message || error?.name || String(error));
 	return makeElement({
 		tag: 'i',
 		className: 'anyink-recovery__empty',
-		// B4 + B5 integration: Simple says it in house words (2.4 G: "backup copy", never
-		// "snapshot"), until B13's crash card
-		content: isSimpleMode()
-			? escapeHTML(word('start.backupsUnreadable', { reason: said }))
-			: `Could not read the crash-recovery snapshots (${reason}). Reload ANY-INK to try again.`,
+		content: `Could not read the crash-recovery snapshots (${reason}). Reload ANY-INK to try again.`,
 	});
 }
 
@@ -383,6 +370,7 @@ export function confirmThrowAway() {
 			resolve(value);
 		};
 		const content = makeElement({ tag: 'div', className: 'anyink-recovery-confirm' });
+		content.setAttribute('data-anyink-dialog', 'throwAway');
 		content.appendChild(
 			makeElement({ tag: 'p', content: escapeHTML(word('recover.throwAwayQuestion')) })
 		);

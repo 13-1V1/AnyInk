@@ -1831,3 +1831,81 @@ real Explorer drag of a .gs2 still needs a manual check (the headless check drop
 set `photo_flow.js`; `spacing/letter_classes.js`; `recovery/recovery.js`, `step_states.js`.
 **Revisit if:** Brennan reads an outlined fix as "nothing to do", a real photo's crossed-out letter
 is offered or a real letter is skipped as junk, or a backup write after a save goes past 100 ms.
+
+## D-044: B12 and B13 build choices (Try it, gap fixes, the start screen, the install offer)
+**Decided:** 10/15/2026, in the B12 + B13 tracks (tryit-strip, tryit-gaps, start, install), the
+integration and the finalize, after the critic pass and its verifiers (UX-BEGINNER.md principles
+1, 6, 8; 4.1, 4.6, 7.1, 7.3, 7.4, 7.5; D-026, D-034, D-035, D-036).
+**Chose:**
+- **Try it is the strip, grown** (`tryit/expand.js`): a class on the same strip, sheet and
+  renderer, never rebuilt; 72 pt by default; Esc, [Done] or step 1 closes it; the rail marks
+  step 2 as the current step while it is open. Opening it is never an Undo step.
+- **His letters never move under him** (`preview/preview_strip.js sheetHeight`): in Try it the
+  words are centered on the sheet's height when the canvas was last sized to it (opening, a
+  window resize, a new renderer), never the live height. Opening Letter spacing or Gaps you fixed
+  still makes the sheet shorter; the canvas keeps its size and is clipped by the sheet, so the
+  words stay where they were (a centered line sits a little low until the next resize). Chosen
+  over a fixed sheet with a scrolling page, which would push the sections off screen.
+- **Keys under Try it** (`expand.js`, `preview/strip_keys.js stripOwnsKey`): a plain key from
+  inside the strip reaches the letter under it only when the strip has no use for it (the text
+  field, a slider's arrows, Enter / Space on a button, Esc stay in the strip); Delete, arrows and
+  tool keys from a button, summary or switch are stopped. Ctrl / Alt / Meta presses (Undo, Redo,
+  Save) always reach the app.
+- **The stand-ins' legend in Try it** is a sentence after the hint under the sheet ("Gray
+  letters aren't made yet. Double-click one to make it."), at the hint's size and color; the
+  small strip keeps its corner tag. Both go once 5 letters are Ready.
+- **Gap fixes are his own** (`kerning/kern_lookup.js`): a fix made with the handle is a one-pair
+  kern group marked in `settings.anyink.gapFixes` by pair (`'0x65|0x6E'`), kept through save,
+  Undo copies and clones; "Gaps you fixed" lists only marked pairs of two single letters that
+  both have ink, so an imported font's own rules and joined-letter ids never show. Rows read
+  `"en" closer` / `"ol" further apart`, the letter names as the tooltip.
+- **How close a drag may bring two letters** (`tryit/gap_handle.js touchFloor`): where their ink
+  touches, read row by row over the height both letters share (512 rows), so a letter tucks under
+  an overhang (To, Ty, Wa, Yo); where no row is shared, where their boxes meet; a pair already
+  closer stays where it is. The letter-spacing slider keeps its own per-side floor.
+- **One step per drag, Undo waits** (`tryit/undo_hold.js`): Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z are
+  held while the gap handle or the letter-spacing slider is pressed; a font swapped mid-drag drops
+  the drag (the handle) or starts the step from the new font (the slider); the before copy
+  always gets its after copy, even if the write throws.
+- **The rows under the sheet keep their space**: the Word note and Gaps you fixed are hidden by
+  visibility, not removed, and change only on release, never mid-drag.
+- **The Word note before B14** reads "Word needs one setting for gap fixes. Nothing to do now:
+  you will be shown it when you put your font in Word." With `useInWord` on it ends "Use in Word
+  will show you." as the spec says.
+- **A toast's second, plain button** (`toast/toast.js options.dismiss`): for the install toast's
+  [Not now]; the first button stays the only colored one.
+- **Menu > Start a new font...** (`start/new_font.js`): with unsaved work, Ctrl+O's box first
+  ([Save] green, [Cancel]); then a backup copy, then the start screen; Create there makes the new
+  font in the same editor with no work file (`open_project.js` clears the old file handle) and an
+  empty Undo list.
+- **Which backup copy makes the crash card** (`start/start_state.js`, `card_facts.js`): Replace
+  it's copies (`replaced: true`, `keep_backup.js`) are kept under Other ways to start... >
+  Recover and never make a card; a copy as old as its work file or older (the recent-fonts time,
+  or the file's own `lastModified` when Chrome already lets ANY-INK read it) doesn't count (7.5);
+  when neither time is known, a copy with a work file still shows the card, the safe way.
+- **What Create may write over** (`start/replace_check.js`): a new or empty file at once; a work
+  file (Glyphr Studio 2 `settings.project` with a version, id or name, or Glyphr Studio 1
+  `projectsettings.versionnum`) with no letters that isn't a recent font at once; a recent font or
+  a work file with letters asks (confirmation 5, a backup copy first); anything else with
+  something in it (not JSON, or JSON that isn't a font, such as another program's settings file)
+  is never written over: the box says it stays as it is and offers only [Use a new name].
+- **"Other ways to start..."** opens All tools' open page on Load with the New tab hidden
+  (`open_project.js tabsFromStartScreen`), so there is no second Create; All tools on its own
+  still opens on New.
+- **One owner of Chrome's install offer** (`start/install_offer.js`, `pwa/register.js`): held in
+  both modes; the All tools notice, Simple's toast and Menu > Help all ask it there, and whichever
+  is pressed first uses it up and the others go (`onInstallOfferGone` closes the notice). Simple
+  never shows the notice: a switch to Simple puts it away (the Menu row holds the offer), and a
+  switch back to All tools offers it again while the offer is still held and Not now was never
+  chosen.
+**Open:** B14 calls `markWordGapStepShown()` (`tryit/word_note.js`) and `noteFontFile()`
+(`start/install_offer.js`) and turns `useInWord` on; the Recover list still shows a Replace it
+copy as an ordinary backup copy (`recovery/snapshot.js describeSession` could pass `replaced`
+through); the install toast's real trigger can't be raised on a dev server (unit tests cover it).
+**Why:** principles 1, 6, 8; 4.1, 4.6, 7.1, 7.3, 7.4 #5, 7.5.
+**Affects:** `src/anyink/tryit/*`, `src/anyink/start/*`, `preview/preview_strip.js`,
+`subscriptions.js`, `layout.js`, `kerning/kern_lookup.js`, `toast/toast.js`, `toast_view.js`,
+`topbar/simple_top_bar.js`, `files/open_font.js`, `pwa/register.js`, `app/open_project.js`,
+`app/main.js`; word sets `tryit.js`, `tryit_gaps.js`, `start.js`.
+**Revisit if:** Brennan reads a clipped sheet as a bug, wants a gap closer than touching, or a
+crash card comes back for a font he saved.

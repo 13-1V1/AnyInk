@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: one toast voice (UX-BEGINNER.md 2.2 "Toasts, one voice", 4.0 Toasts, 2.4 G). Every toast
 	goes through here, with a words.js key: ANY-INK code calls toast(key); upstream's showToast
@@ -18,6 +20,8 @@
 	  toast(key, vars, options)    a toast in house words; never throws (a missing key warns)
 	    options.kind     'undo' | 'destructive' | 'automatic' | 'info' (default)
 	    options.action   { key | label, run } one outlined button ("Redo", "Save")
+	    options.dismiss  { key | label, run } a plain second button after it ("Not now"); it
+	                     closes the toast like the first (B12 + B13 integration)
 	    options.group    toasts of one group replace each other instead of queueing (info
 	                     toasts of different groups wait their turn, queue.js)
 	    options.tone     'warning': the amber edge
@@ -175,7 +179,7 @@ function enqueue(entry) {
 	// and its stillGood speak for the newest change (two Undo presses that read the same, "Undid:
 	// added a rectangle", each take back another step), so the new toast is drawn in its place
 	const current = queue.current;
-	const ownsButton = !!entry.action || typeof entry.stillGood === 'function';
+	const ownsButton = !!entry.action || !!entry.dismiss || typeof entry.stillGood === 'function';
 	if (current && !ownsButton && isSameStream(current, entry) && current.text === entry.text) {
 		if (current.html === entry.html && current.refresh) {
 			current.refresh(entry.ms);
@@ -206,19 +210,30 @@ export function toast(key, vars = {}, options = {}) {
 		const parts = key ? wordParts(key, vars || {}, quotes) : [];
 		const text = key ? word(key, vars || {}) : '';
 		const action = buttonFor(options.action, stillGood);
+		const dismiss = buttonFor(options.dismiss, stillGood);
 		record.text = text;
 		if (mode === 'simple') {
 			if (!key) {
 				record.reason = 'all-tools only';
 			} else {
-				enqueue({ parts, text, kind, group, tone, action, stillGood, ms: ms ?? TOAST_MS });
+				enqueue({
+					parts,
+					text,
+					kind,
+					group,
+					tone,
+					action,
+					dismiss,
+					stillGood,
+					ms: ms ?? TOAST_MS,
+				});
 				Object.assign(record, { shown: true, reason: 'key' });
 			}
 		} else if (allTools === false || (!key && typeof allTools !== 'string')) {
 			record.reason = 'simple only';
 		} else {
 			const html = typeof allTools === 'string' ? allTools : partsHTML(parts);
-			showClassic(html, { duration: ms ?? CLASSIC_MS, action });
+			showClassic(html, { duration: ms ?? CLASSIC_MS, action, dismiss });
 			Object.assign(record, {
 				shown: true,
 				message: typeof allTools === 'string' ? allTools : '',

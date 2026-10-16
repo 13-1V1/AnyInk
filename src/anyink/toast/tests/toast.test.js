@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4: the one toast voice (UX-BEGINNER.md 2.2, 4.0 Toasts). Every toast goes through toast.js:
 // upstream's showToast is routed into it. All tools shows each toast the way it always has (one
 // #toast element, the caller's time, the newest replaces the last). Simple shows one toast at a
@@ -449,5 +451,70 @@ describe('the toast stylesheet', () => {
 			/#toast\[data-anyink-toast='simple'\]\s*\{[^}]*bottom:\s*calc\(\s*anchor\(--anyink-zoom-area top,/
 		);
 		expect(css).toMatch(/@supports \(anchor-name: --a\)/);
+	});
+});
+
+// B12 + B13 integration: the install offer's [Not now] (start/install_offer.js passes
+// options.dismiss). Written to fail first: the toast drew one button only.
+describe('a second, plain button: options.dismiss', () => {
+	it('Simple: [Install] then [Not now]; Not now runs once and closes the toast', () => {
+		setModeForTests('simple');
+		const install = vi.fn();
+		const notNow = vi.fn();
+		toast(
+			'notice.install',
+			{},
+			{
+				action: { key: 'notice.installButton', run: install },
+				dismiss: { key: 'notice.notNow', run: notNow },
+			}
+		);
+		const buttons = [...live().at(-1).querySelectorAll('button')];
+		expect(buttons.map((b) => b.textContent)).toEqual([
+			word('notice.installButton'),
+			word('notice.notNow'),
+		]);
+		expect(buttons[1].classList.contains('anyink-toast__dismiss')).toBe(true);
+		expect(buttons.some((b) => b.classList.contains('anyink-primary'))).toBe(false);
+		buttons[1].click();
+		buttons[1].click();
+		expect(notNow).toHaveBeenCalledTimes(1);
+		expect(install).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(200);
+		expect(live()).toEqual([]);
+	});
+
+	it('the dismiss button does nothing once stillGood says no', () => {
+		setModeForTests('simple');
+		const notNow = vi.fn();
+		let good = true;
+		toast(
+			'notice.install',
+			{},
+			{
+				stillGood: () => good,
+				action: { key: 'notice.installButton', run() {} },
+				dismiss: { key: 'notice.notNow', run: notNow },
+			}
+		);
+		good = false;
+		live().at(-1).querySelectorAll('button')[1].click();
+		expect(notNow).not.toHaveBeenCalled();
+	});
+
+	it('All tools: the classic toast shows both buttons too', () => {
+		const notNow = vi.fn();
+		toast(
+			'notice.install',
+			{},
+			{
+				action: { key: 'notice.installButton', run() {} },
+				dismiss: { key: 'notice.notNow', run: notNow },
+			}
+		);
+		const buttons = [...toasts().at(-1).querySelectorAll('button')];
+		expect(buttons).toHaveLength(2);
+		buttons[1].click();
+		expect(notNow).toHaveBeenCalledTimes(1);
 	});
 });

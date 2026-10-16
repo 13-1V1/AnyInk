@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Pub/sub wiring for the preview strip.
 	Three subscriber ids, none a substring of another (upstream's unsubscribe
@@ -24,9 +26,10 @@ export const REDRAW_TOPICS = [
 	'guides',
 	'previewOptions',
 	'whichGlyphIsSelected',
+	'letterSpacing',
 ];
 
-export const FONT_REBUILD_TOPICS = ['currentItem', 'kernPairs', 'fontMetrics'];
+export const FONT_REBUILD_TOPICS = ['currentItem', 'kernPairs', 'fontMetrics', 'letterSpacing'];
 
 /**
  * Subscribe the strip's callbacks to an editor.

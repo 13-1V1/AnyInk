@@ -1,17 +1,20 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix track (UX-BEGINNER.md 6.1, 2.2): a mode switch while the Open Project page shows
-// (an app-level page: no editor page is drawn) draws that page again, so its words follow the
-// mode: the Load tab's drop target and the Examples tab say Simple's words in Simple and Glyphr
-// Studio's in All tools. Nothing listened for 'anyink-mode-change', so they kept the old mode's
-// words. B6's More tools button and B13 switch from there.
+// (an app-level page: no editor page is drawn) draws that page again, so it follows the mode.
+// Nothing listened for 'anyink-mode-change', so it kept the old mode's page. B12 + B13
+// integration: in Simple that page is B13's start screen (.anyink-start, 4.1); All tools keeps
+// the four tabs in Glyphr Studio's words (B4 + B5's Simple words on the tabs are retired).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getGlyphrStudioApp } from '../../../app/main.js';
 import { makePage_OpenProject } from '../../../app/open_project.js';
+import { setFeaturesForTests } from '../features.js';
 import { setModeForTests } from '../mode.js';
 import { switchMode } from '../switch.js';
-import { word } from '../../words/words.js';
 
+const startScreen = () => document.querySelector('#open-project__page.anyink-start');
 const dropTarget = () =>
 	(document.querySelector('#open-project__drop-target')?.textContent || '').replace(/\s+/g, ' ');
 
@@ -31,21 +34,31 @@ afterEach(() => {
 });
 
 describe('a mode switch on the Open Project page', () => {
-	it('All tools -> Simple: the page is drawn again with Simple words', () => {
+	it('All tools -> Simple: the start screen in place of the tabs', () => {
 		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
 		expect(dropTarget()).toContain('ANY-INK project');
 		expect(switchMode('simple', { editor: null })).toBe(true);
 		expect(document.querySelectorAll('#open-project__page')).toHaveLength(1);
-		expect(dropTarget()).toContain(word('start.dropWorkFile'));
-		expect(dropTarget()).not.toContain('ANY-INK project');
+		expect(startScreen()).not.toBeNull();
+		expect(document.querySelector('.open-project__tab')).toBeNull();
+		expect(document.querySelector('#input__new-project-name')).not.toBeNull();
 	});
 
-	it('Simple -> All tools: back to Glyphr Studio words', () => {
+	it('Simple -> All tools: back to the tabs and Glyphr Studio words', () => {
 		setModeForTests('simple');
 		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
-		expect(dropTarget()).toContain(word('start.dropWorkFile'));
+		expect(startScreen()).not.toBeNull();
 		switchMode('all', { editor: null });
+		expect(startScreen()).toBeNull();
 		expect(dropTarget()).toContain('ANY-INK project');
+	});
+
+	it('before B13 (startScreen off), Simple keeps the tabs', () => {
+		setFeaturesForTests({ startScreen: false });
+		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
+		switchMode('simple', { editor: null });
+		expect(startScreen()).toBeNull();
+		expect(document.querySelector('.open-project__tab')).not.toBeNull();
 	});
 
 	it('another app-level page (Cross-project actions, one set of words) is left as it is', () => {
@@ -65,6 +78,9 @@ describe('a mode switch on the Open Project page', () => {
 // what he typed and the tab he was on.
 describe('a mode switch on the Open Project page keeps what he did there', () => {
 	it('the font name he typed and the tab he chose stay', () => {
+		// B12 + B13 integration: the tab is kept across All tools draws (startScreen off here, so
+		// Simple draws the tabs too)
+		setFeaturesForTests({ startScreen: false });
 		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
 		document.querySelector('#input__new-project-name').value = 'Keep Me';
 		document.querySelector('#open-project__tab-examples').click();
@@ -75,5 +91,13 @@ describe('a mode switch on the Open Project page keeps what he did there', () =>
 		);
 		expect(document.querySelector('#tab-content__examples').style.display).toBe('block');
 		expect(document.querySelector('#tab-content__new').style.display).toBe('none');
+	});
+
+	it('the start screen keeps the font name he typed in the tabs', () => {
+		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
+		document.querySelector('#input__new-project-name').value = 'Keep Me';
+		switchMode('simple', { editor: null });
+		expect(startScreen()).not.toBeNull();
+		expect(document.querySelector('#input__new-project-name').value).toBe('Keep Me');
 	});
 });

@@ -200,8 +200,33 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   record in the backup, written once ('state:<projectId>:<sessionId>:<n>'); the session record
   names them (`History.serializeForStorage({ stateRef })`); restore puts them back. A save keeps
   the live session's copies (only the record goes); writes save each copy as they go and yield.
+- `src/anyink/tryit` (B12) — Try it, the preview strip grown under the top bar (never rebuilt):
+  `expand.js` (open / close, Esc / [Done] / step 1, keys from the strip reach the letter only when
+  the strip has no use for them via `preview/strip_keys.js`, install / uninstall of the parts below),
+  `stand_ins.js` (faint outlines for letters not made yet; the legend a sentence on the hint line),
+  `font_check_line.js` (B1's check as one line, "Your font builds OK."), `gap_handle.js` (the purple
+  handle between two made letters; one-pair kern groups through `kerning/kern_lookup.js`, marked in
+  `settings.anyink.gapFixes`; `touchFloor` where the ink touches row by row; one whole-font step),
+  `letter_spacing.js` (Move all letters closer or further apart: `extra`, one step on release;
+  'letterSpacing' topic), `undo_hold.js` (Undo keys held while a handle or slider is pressed),
+  `gap_list.js` (Gaps you fixed: his marked pairs with ink, `"en" closer`), `word_note.js` (the
+  Word note; `markWordGapStepShown()` for B14). The strip centers Try it's words on the height the
+  canvas was sized to (`preview_strip.js sheetHeight`), so they never move under the pointer.
+  Test page `tests/tryit.html`; `tests/tryit_gaps.verify.mjs`.
+- `src/anyink/start` (B13) — the start screen (Simple's app page): `start_page.js` (the Continue
+  card and its crash versions with exactly one green button, other fonts, the name field, Create,
+  "Other ways to start..." to All tools' Load tab with no New), `start_state.js` (`chooseCard`,
+  `countLetters`), `card_facts.js` (a backup copy's `replaced`, work file and file time: copies as
+  old as their file and Replace it copies never make a crash card), `create_font.js` (the save box
+  started inside the click and never awaited; the board opens either way), `replace_check.js` (a
+  recent font or a work file with letters asks, with a backup copy first; a file that isn't a work
+  file is never written over), `keep_backup.js`, `new_font.js` (Menu > Start a new font...: Ctrl+O's
+  unsaved box, a backup copy, the start screen), `install_offer.js` (the one owner of Chrome's
+  install offer: the toast once after the first Ready letter, Menu > Help, and All tools' notice,
+  which goes when the offer is used anywhere and never shows in Simple; `noteFontFile()` for B14).
+  Test page `tests/start.html`; `tests/b1213.verify.mjs`.
 - Feature flags on: `coach` (B6), `letterView` (B7), `brush` (B8), `photo` (B9), `board` (B10),
-  `checks` (B11). Tests that check Simple "with no flag" (B5's
+  `checks` (B11), `tryIt` (B12), `startScreen` (B13). Tests that check Simple "with no flag" (B5's
   stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
@@ -246,8 +271,11 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/20
    bowls open or closed, the size check waits for 5 photo letters, Move the line inside the letter
    box, the board filter never sticks, the outlined fix while brushing, Something else ends on a
    tile or [Show me], stray dots and crossed-out letters in photos, the prefill after a skip, the
-   flip toast after Use it, the backup through a save; D-043; `verify:board-page`); B12 to B16 next,
-   then M9.
+   flip toast after Use it, the backup through a save; D-043; `verify:board-page`); B12 + B13 done
+   10/15/2026 (`src/anyink/tryit` and `src/anyink/start`: Try it with stand-ins, gap fixes and Letter
+   spacing; the start screen, the crash card, Start a new font..., the install toast; `tryIt` and
+   `startScreen` on; four tracks, the integration, critic, fix and finalize passes; D-044;
+   `verify:b1213`); B14 to B16 next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
 9. Handwriting sheet — pending (after B16; plugs into the letter board)

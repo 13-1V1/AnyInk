@@ -18,7 +18,8 @@
 	              principle 8, no door to an unbuilt room)
 	  rail        "1 Letters 7/58" (ready / total, ready_count.js), outlined green on the board or
 	              in a letter; "2 Try it" (B12) and "3 Use in Word" (B14) only once their flags are
-	              on. Nothing is ever locked. Below 1440 px the steps show their numbers and only
+	              on. While Try it is open, step 2 is the current step (B12 + B13 integration:
+	              tryit/expand.js 'anyink-try-it-change'). Nothing is ever locked. Below 1440 px the steps show their numbers and only
 	              the current step its name (simple_top_bar.css). The rail ends with the Next
 	              line's "Next" chip (coach_element.js makeNextChip), which shows only while he
 	              has hidden the line with its "x" (data-anyink-slot="next-chip").
@@ -60,6 +61,7 @@ import { turnOnMoreTools } from '../mode/band.js';
 import { openUseInWord } from '../mode/doors.js';
 import { isFeatureOn } from '../mode/features.js';
 import { isSimpleMode } from '../mode/mode.js';
+import { TRY_IT_CHANGE_EVENT } from '../tryit/expand.js';
 import { word, wordEntry } from '../words/words.js';
 import { FONT_DETAILS_EVENT, openDoor, TRY_IT_EVENT } from './doors.js';
 import { goToLetters } from './letters_page.js';
@@ -330,8 +332,13 @@ function refreshBar(bar, editor) {
 		const text = word('topbar.step.count', { ready, total });
 		if (count && count.textContent !== text) count.textContent = text;
 		letters.title = word('topbar.step.lettersTip', { ready, total });
-		if (LETTER_PAGES.includes(page)) letters.setAttribute('aria-current', 'step');
+		if (LETTER_PAGES.includes(page) && !tryItShowing) letters.setAttribute('aria-current', 'step');
 		else letters.removeAttribute('aria-current');
+	}
+	const tryItStep = bar.querySelector('[data-anyink-step="tryIt"]');
+	if (tryItStep) {
+		if (tryItShowing) tryItStep.setAttribute('aria-current', 'step');
+		else tryItStep.removeAttribute('aria-current');
 	}
 	refreshHistoryButtons(bar, editor);
 	updateStatusPill(bar.querySelector('[data-anyink-control="status"]'), editor);
@@ -381,12 +388,18 @@ export function refreshSimpleTopBar(doc = document) {
 }
 
 let listening = false;
+/** B12 + B13 integration: Try it is open (its change event says so) */
+let tryItShowing = false;
 
 /** One listener for the page: every History step, Undo and Redo sends a save status event. */
 function listenOnce() {
 	if (listening || typeof globalThis.addEventListener !== 'function') return;
 	listening = true;
 	globalThis.addEventListener(SAVE_STATUS_EVENT, () => refreshSimpleTopBar(globalThis.document));
+	globalThis.addEventListener(TRY_IT_CHANGE_EVENT, (event) => {
+		tryItShowing = !!event?.detail?.open;
+		refreshSimpleTopBar(globalThis.document);
+	});
 	// B10 + B11 integration: the checks' answers reach the Next line's state (a font check, a
 	// pass after a step); the count follows it, as the board does
 	try {

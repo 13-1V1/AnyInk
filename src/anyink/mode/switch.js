@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5: changing the mode on purpose (UX-BEGINNER.md 6.1): More tools, Back to simple, Back to my
 	letters. It sets the mode (mode.js mirrors it to html[data-ui-mode] and announces it) and calls
@@ -7,12 +9,13 @@
 	hides is left for Simple's home first (visibility.js simpleHome: the letter view now, the board
 	once B10 lands). An explicit switch ends a landing visit (band.js): the mode is now his choice.
 	While an app-level page shows (no editor page is drawn), the editor isn't navigated. The Open
-	Project page, the one app-level page with words per mode (its Load and Examples tabs, until
-	B13's start screen), is drawn again for the new mode instead (fix track: nothing listened for
+	Project page, the one app-level page that differs per mode (B13: Simple's start screen, All
+	tools' four tabs in Glyphr Studio's words), is drawn again for the new mode instead (fix track: nothing listened for
 	'anyink-mode-change', so it kept the old mode's words); an app-level page with one set of
 	words (Cross-project actions) is left as it is. The last 'anyink-page-change' event
 	(navigator.js, app.js) says which kind of page is showing. B4 + B5 finalize: the page drawn
-	again keeps the font name he typed and the tab he was on.
+	again keeps the font name he typed and the tab he was on (the start screen has no tabs; it
+	keeps the name).
 
 	  switchMode(mode, { editor, isOn, page })   true when anything changed
 	  pageAfterSwitch(page, mode, isOn)           the page to show in the new mode

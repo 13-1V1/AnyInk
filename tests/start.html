@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	B13 test page: the real app (src/app/main.js) in Simple with the 'startScreen' flag on, so the
+	start screen (UX-BEGINNER.md 4.1) shows on load. Chrome or Edge.
+	Query:
+	  ?state=none          no recent fonts, no backup copies (default)
+	  ?state=continue      two recent fonts (work files in this site's private storage, OPFS)
+	  ?state=crashFile     a backup copy newer than its work file
+	  ?state=crashNoFile   a backup copy with no work file
+	  ?picker=cancel       Windows' save box is cancelled (default: the real save box)
+	  ?picker=never        the save box never answers
+	  ?picker=new          the save box gives a new, empty file
+	  ?picker=existing     the save box gives the recent font "Brennan Hand.gs2" (confirmation 5)
+	Every load clears this site's recent fonts and backup copies first, then seeds the state.
+	window.__start has the seeded handles and helpers for tests/start checks.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>ANY-INK start screen (B13)</title>
+		<meta name="viewport" content="width=device-width" />
+		<link rel="stylesheet" type="text/css" href="../src/anyink/theme/tokens.css" />
+		<link rel="stylesheet" type="text/css" href="../src/app/app.css" />
+		<link rel="stylesheet" type="text/css" href="../src/common/resets.css" />
+		<link rel="stylesheet" type="text/css" href="../src/controls/dialogs/dialogs.css" />
+		<link rel="stylesheet" type="text/css" href="../src/controls/fancy-slider/fancy-slider.css" />
+		<link rel="stylesheet" type="text/css" href="../src/controls/tabs/tab-control.css" />
+		<link rel="stylesheet" type="text/css" href="../src/controls/progress-indicator/progress-indicator.css" />
+		<link rel="stylesheet" type="text/css" href="../src/project_editor/nav.css" />
+		<link rel="stylesheet" type="text/css" href="../src/pages/editor-pages.css" />
+		<link rel="stylesheet" type="text/css" href="../src/pages/content-pages.css" />
+		<link rel="stylesheet" type="text/css" href="../src/app/app-pages.css" />
+		<link rel="stylesheet" type="text/css" href="../src/panels/panels.css" />
+		<style>
+			body,
+			#app__wrapper {
+				height: 100%;
+				width: 100%;
+				position: absolute;
+				top: 0;
+				left: 0;
+				overflow: hidden;
+				margin: 0;
+				padding: 0;
+			}
+			body,
+			#app__wrapper {
+				background: var(--chrome-bg);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app__wrapper"></div>
+		<preview-strip></preview-strip>
+		<script type="module">
+			import { initTheme } from '../src/anyink/theme/theme.js';
+			import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+			import { setMode } from '../src/anyink/mode/mode.js';
+			import { kvSet, recClear, recEntries, recSet } from '../src/anyink/storage/kv.js';
+			import { RECENTS_KEY } from '../src/anyink/files/handles.js';
+			import { glyphrStudioOnLoad, getGlyphrStudioApp, log } from '../src/app/main.js';
+
+			initTheme();
+			window.log = log;
+			const query = new URLSearchParams(location.search);
+			const state = query.get('state') || 'none';
+			const picker = query.get('picker') || '';
+			const HOUR = 60 * 60 * 1000;
+
+			/** A work file with some letters, as the app writes one */
+			const workFile = (name, id, letters) => ({
+				settings: {
+					project: { name, id, latestVersion: '2.10.5', initialVersion: '2.10.5' },
+					font: { family: name },
+				},
+				glyphs: Object.fromEntries(
+					Array.from({ length: letters }, (_, i) => {
+						const hex = `0x${(0x61 + i).toString(16).toUpperCase()}`;
+						return [
+							`glyph-${hex}`,
+							{
+								id: `glyph-${hex}`,
+								advanceWidth: 500,
+								shapes: [
+									{
+										objType: 'Path',
+										pathPoints: [
+											{ p: { coord: { x: 50, y: 0 } }, type: 'corner' },
+											{ p: { coord: { x: 450, y: 0 } }, type: 'corner' },
+											{ p: { coord: { x: 450, y: 500 } }, type: 'corner' },
+											{ p: { coord: { x: 50, y: 500 } }, type: 'corner' },
+										],
+									},
+								],
+							},
+						];
+					})
+				),
+			});
+
+			async function writeOpfs(fileName, data) {
+				const root = await navigator.storage.getDirectory();
+				const handle = await root.getFileHandle(fileName, { create: true });
+				const writable = await handle.createWritable();
+				await writable.write(data === undefined ? '' : JSON.stringify(data));
+				await writable.close();
+				return handle;
+			}
+
+			async function seed() {
+				await recClear();
+				await kvSet(RECENTS_KEY, []);
+				const root = await navigator.storage.getDirectory();
+				for await (const name of root.keys()) await root.removeEntry(name);
+				const seeded = {};
+				const now = Date.now();
+				if (state === 'continue') {
+					seeded.brennan = await writeOpfs('Brennan Hand.gs2', workFile('Brennan Hand', 'p-bh', 12));
+					seeded.caps = await writeOpfs('Test Caps.gs2', workFile('Test Caps', 'p-tc', 3));
+					await kvSet(RECENTS_KEY, [
+						{ handle: seeded.brennan, name: 'Brennan Hand', time: now - 26 * HOUR },
+						{ handle: seeded.caps, name: 'Test Caps', time: now - 72 * HOUR },
+					]);
+				}
+				if (state === 'crashFile' || state === 'crashNoFile') {
+					const withFile = state === 'crashFile';
+					const name = withFile ? 'Brennan Hand' : 'Never Saved';
+					const id = withFile ? 'p-bh' : 'p-ns';
+					if (withFile) {
+						seeded.brennan = await writeOpfs('Brennan Hand.gs2', workFile(name, id, 10));
+						await kvSet(RECENTS_KEY, [{ handle: seeded.brennan, name, time: now - 3 * HOUR }]);
+					}
+					const key = `session:${id}:seeded`;
+					await recSet(key, {
+						id,
+						key,
+						sessionId: 'seeded',
+						lock: 'anyink-seeded-never-held',
+						name,
+						time: now - 2 * HOUR,
+						dirty: true,
+						hasFile: withFile,
+						fileHandle: withFile ? seeded.brennan : null,
+						fileVersion: null,
+						project: workFile(name, id, withFile ? 12 : 4),
+						assets: {},
+						history: null,
+					});
+				}
+				if (picker === 'cancel') {
+					window.showSaveFilePicker = async () => {
+						throw new DOMException('The user aborted a request.', 'AbortError');
+					};
+				} else if (picker === 'never') {
+					window.showSaveFilePicker = () => new Promise(() => {});
+				} else if (picker === 'new') {
+					window.showSaveFilePicker = async () => writeOpfs('New Font.gs2');
+				} else if (picker === 'existing') {
+					window.showSaveFilePicker = async () => seeded.brennan;
+				}
+				return seeded;
+			}
+
+			window.__start = {
+				ready: (async () => {
+					const seeded = await seed();
+					setMode('simple');
+					setFeaturesForTests({ startScreen: true });
+					glyphrStudioOnLoad();
+					window._GlyphrStudioApp = getGlyphrStudioApp();
+					return seeded;
+				})(),
+				recEntries,
+				async readOpfs(fileName) {
+					const root = await navigator.storage.getDirectory();
+					const file = await (await root.getFileHandle(fileName)).getFile();
+					return file.text();
+				},
+			};
+		</script>
+	</body>
+</html>

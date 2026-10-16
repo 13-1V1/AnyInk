@@ -26,7 +26,8 @@
 	                         words-fix) check B5's Simple, the stub every later B builds on: once the
 	                         app's start page has loaded, every feature flag is turned off in the
 	                         page (mode/features.js setFeaturesForTests), so Simple draws as it did
-	                         before B6 and B7. B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs
+	                         before B6 and B7, and the start page is drawn again without B13's start
+	                         screen. B6 and B7's Simple: b67.verify.mjs, b67-fixes.verify.mjs
 	  pinBeforeChecks(page)  B10 + B11 integration: B6 to B9's walkthroughs (b67, b67-fixes, b89,
 	                         b89_final) and B10's board_tiles draw toy letters (a square, a brush scribble, clicked
 	                         points) that B11's checks rightly call "Needs a look", which takes
@@ -45,7 +46,13 @@ export async function pinB5Simple(page) {
 	await page.evaluate(async () => {
 		const { FEATURE_NAMES, setFeaturesForTests } = await import('/anyink/mode/features.js');
 		setFeaturesForTests(Object.fromEntries(FEATURE_NAMES.map((name) => [name, false])));
+		// B12 + B13 finalize: the app opened on B13's start screen before the flags went off;
+		// draw the start page again, as B5 drew it (tabs New / Load / Recover / Examples)
+		const { getGlyphrStudioApp } = await import('/app/main.js');
+		const { makePage_OpenProject } = await import('/app/open_project.js');
+		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
 	});
+	await page.locator('#open-project__tab-new').waitFor({ timeout: 30000 });
 }
 
 /**

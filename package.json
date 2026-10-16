@@ -48,7 +48,8 @@
 		"verify:board-tiles": "node tests/board_tiles.verify.mjs",
 		"verify:b1011": "node tests/b1011.verify.mjs",
 		"verify:board-page": "node tests/board_page.verify.mjs",
-		"verify:b1011-final": "node tests/b1011_final.verify.mjs"
+		"verify:b1011-final": "node tests/b1011_final.verify.mjs",
+		"verify:b1213": "node tests/b1213.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

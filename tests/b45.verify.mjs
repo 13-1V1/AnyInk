@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 integration real-browser check (docs/UX-BEGINNER.md 2.2, 2.3, 4.0, 4.9 to 4.11, 6, 7.6,
 // 7.7, section 10 B4 and B5), in the real app on Vite dev servers, Chrome with a throwaway profile,
 // 1600 x 900:
@@ -511,14 +513,9 @@ try {
 	await page.goto(`${after.origin}/?ui=simple`);
 	await pinB5Simple(page);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
-	const startHits = {};
-	for (const tab of ['new', 'load', 'recover', 'examples']) {
-		await page.locator(`#open-project__tab-${tab}`).click();
-		await settle(300);
-		startHits[tab] = await scanSimple('body');
-		if (tab === 'load' || tab === 'examples') await shot(`B-simple-01-start-${tab}`);
-	}
-	Object.entries(startHits).forEach(([tab, hits]) => assert.deepEqual(hits, [], `start page ${tab}`));
+	// B12 + B13 finalize: Simple's start page is B13's start screen now (its words are scanned
+	// strict in b1213.verify.mjs A); the B5 start-page words were retired with it, so the page
+	// pinB5Simple draws again is only the way in to B5's Simple here, not a screen to scan
 	await page.locator('#open-project__tab-new').click();
 	await page.locator('#input__new-project-name').fill('B45 Simple');
 	await page.locator('#button__create-new-project').click();
@@ -531,7 +528,7 @@ try {
 	// B5 fix track: Simple keeps the page chooser until B6's rail
 	assert.deepEqual((await controls()).nav, ['l1'], 'the page chooser on the Overview');
 	await shot('B-simple-02-overview');
-	pass('Simple start page (New, Load, Examples, Recover) and Overview: 0 banned-word or capitals hits; the page chooser stays (until B6)');
+	pass('Simple Overview: 0 banned-word or capitals hits; the page chooser stays (until B6); the start page is B13 start screen (b1213.verify A)');
 
 	await openSmallA();
 	let c = await controls();
@@ -856,21 +853,13 @@ try {
 	// ----------------------------------------------------------
 	// D. B4 + B5 finalize
 	// ----------------------------------------------------------
-	// the start page: one green button on each tab (UX-BEGINNER.md 4.1, principle 1)
+	// the start page's one green button is B13's start screen now (b1213.verify.mjs A); B5's Simple
+	// start page and its words were retired with it, so the page pinB5Simple draws again is only
+	// the way in to the Load tab below (B12 + B13 finalize)
 	await page.evaluate(() => (window.onbeforeunload = null));
 	await page.goto(`${after.origin}/?ui=simple`);
 	await pinB5Simple(page);
 	await page.locator('#input__new-project-name').waitFor({ timeout: 30000 });
-	const greens = {};
-	for (const tab of ['new', 'load', 'examples']) {
-		await page.locator(`#open-project__tab-${tab}`).click();
-		await settle(200);
-		greens[tab] = await page.$$eval('#open-project__right-area fancy-button', (list) =>
-			list.filter((b) => !b.hasAttribute('secondary') && b.checkVisibility()).map((b) => b.textContent.trim())
-		);
-		assert.equal(greens[tab].length, 1, `start page ${tab}: ${JSON.stringify(greens[tab])}`);
-	}
-	pass(`Simple start page: one green button per tab ${JSON.stringify(greens)}`);
 
 	// a font file brought in on the Load tab: every progress line in house words
 	const fontBytes = readFileSync(resolve(src, 'formats_io/otf/tests/ObleggExtendedTestRegular.otf'));
@@ -889,7 +878,9 @@ try {
 		}).observe(document.body, { childList: true, subtree: true, characterData: true });
 	}, fontBytes.toString('base64'));
 	await page.locator('#open-project__tab-load').click();
-	await page.locator('#tab-content__load fancy-button', { hasText: 'Or open a font file' }).click();
+	// B12 + B13 finalize: B5's Simple Load words were retired with its start page (B13), so the
+	// button says upstream's words here
+	await page.locator('#tab-content__load fancy-button', { hasText: /open a font file|import a font/i }).click();
 	await page.locator('#progress-indicator__message').waitFor({ timeout: 15000 });
 	// the screenshot while letters come in (the first line is upstream's "Working...")
 	await waitUntil(

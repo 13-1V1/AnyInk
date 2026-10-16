@@ -38,6 +38,9 @@ import { glyphChanged } from './cross_item_actions.js';
 		*                 2 s after the last change (B1, src/anyink/fontcheck/font_check.js).
 		*                 itemId is a letter ('glyph-0x61'), joined letters ('liga-...') or a
 		*                 kern pair ('kern-0'); letters come first, kern pairs last
+		* - 'letterSpacing' - Try it's letter-spacing slider moved every letter: { extra, dragging }
+		*                 per drag tick (dragging true) and once on release (B12,
+		*                 src/anyink/tryit/letter_spacing.js)
 */
 const allTopics = [
 	'editCanvasView',
@@ -75,6 +78,8 @@ const allTopics = [
 	'autoTrace', // auto-trace preview session changed (src/anyink/autotrace/autotrace_session.js)
 	// ANY-INK topics (B1)
 	'fontCheck', // font check result { problems } (src/anyink/fontcheck/font_check.js)
+	// ANY-INK topics (B12)
+	'letterSpacing', // letter-spacing slider { extra, dragging } (src/anyink/tryit/letter_spacing.js)
 ];
 
 /**

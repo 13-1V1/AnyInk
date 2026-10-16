@@ -1,25 +1,18 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 fix pass: the words the critic findings need, in sets/ (the words track owns them; the
 	page, files, import and history tracks put them on screen in Simple).
-	- "Simple start page tells him to drop 'A drawing (.svg)', but the Load tab only takes SVG font
-	  files": the line names a font file (2.4 E: an SVG font is a font file; a plain drawing goes
-	  on a letter).
+	(B12 + B13 integration: the start page's tab words, and the .svg line's test, retired with
+	B13's start screen.)
 	- Every key another track was handed exists and says no banned or never-shown word (strict),
 	  so a typo in a key fails here and never on a screen.
 */
 import { describe, expect, it } from 'vitest';
 import { findBanned } from '../banned.js';
 import { hasWord, word, wordEntry } from '../words.js';
-
-describe("the start page's .svg line", () => {
-	it('names a font file, not a drawing', () => {
-		expect(word('start.dropDrawing')).toMatch(/font file/);
-		expect(word('start.dropDrawing')).not.toBe('A drawing');
-		expect(wordEntry('start.dropDrawing').hint).toMatch(/drawing goes on a letter/);
-	});
-});
 
 /** The keys handed to other tracks in the fix pass (see the words track's report). */
 const HANDED_OVER = [
@@ -45,17 +38,6 @@ const HANDED_OVER = [
 	'menu.fontFileNextStep',
 	'menu.fontFolder',
 	// pages track: the start page, Help, About, the letter-set switch
-	'start.newFontTitle',
-	'start.fontName',
-	'start.createFont',
-	'start.openWorkFile',
-	'start.openFontFile',
-	'start.examplesTitle',
-	'start.exampleSimpleButton',
-	'start.exampleObleggButton',
-	'start.recentOpen',
-	'start.recentForgetAll',
-	'start.recentRemove',
 	'file.workFileType',
 	'error.drawingNotFont',
 	'error.fontFileUnreadable',
@@ -102,7 +84,8 @@ describe('the keys handed to other tracks', () => {
 	});
 
 	it('Simple Help and the start page name the work file and the font, never "project"', () => {
-		['start.newFontTitle', 'start.fontName', 'start.openWorkFile', 'file.workFileType'].forEach(
+		// B12 + B13 integration: the start page's words are B13's start screen now (sets/start.js)
+		['startScreen.newTitle', 'startScreen.workFileNote', 'file.workFileType'].forEach(
 			(key) => expect(word(key)).toMatch(/font|work file/i)
 		);
 	});

@@ -80,3 +80,9 @@
 .anyink-toast-dropped {
 	display: none;
 }
+
+/* B12 + B13 integration: the plain second button ("Not now"): no border, quieter than the first */
+.anyink-toast__action.anyink-toast__dismiss {
+	border-color: transparent;
+	color: var(--chrome-text-muted);
+}

@@ -17,16 +17,16 @@ import { getMode, setModeForTests } from '../mode.js';
 describe('the vitest setup pins All tools', () => {
 	it('a test may switch to Simple and turn a flag on (and not clean up)', () => {
 		setModeForTests('simple');
-		// B10 + B11 integration: tryIt, a flag that hasn't landed ('board' is on in the app now)
-		setFeaturesForTests({ tryIt: true });
+		// B12 + B13 integration: useInWord, a flag that hasn't landed ('tryIt' is on in the app now)
+		setFeaturesForTests({ useInWord: true });
 		expect(getMode()).toBe('simple');
-		expect(isFeatureOn('tryIt')).toBe(true);
+		expect(isFeatureOn('useInWord')).toBe(true);
 	});
 
 	it('the next test starts in All tools with every flag off again', () => {
 		expect(getMode()).toBe('all');
 		expect(document.documentElement.getAttribute('data-ui-mode')).toBe('all');
-		expect(isFeatureOn('tryIt')).toBe(false);
+		expect(isFeatureOn('useInWord')).toBe(false);
 	});
 
 	it('the setup file says so', () => {

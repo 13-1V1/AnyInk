@@ -1,0 +1,258 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B12 Try it (UX-BEGINNER.md 4.6): the preview strip grown to fill the page area under the top
+	bar. The strip, its sheet and its letters stay the same elements; only this layout changes.
+	Also the strip's Big preview button, the stand-ins' legend and the font check line.
+	Tokens only. Keep angle brackets out of these comments: CSS set through innerHTML becomes
+	markup.
+*/
+
+/* Try it's own parts show only while it is open */
+preview-strip:not(.is-try-it) .anyink-tryit__head,
+preview-strip:not(.is-try-it) .anyink-tryit__hint,
+preview-strip:not(.is-try-it) .anyink-tryit__slot--note,
+preview-strip:not(.is-try-it) .anyink-tryit__slot--spacing,
+preview-strip:not(.is-try-it) .anyink-tryit__slot--gaps,
+preview-strip:not(.is-try-it) .anyink-tryit-check {
+	display: none;
+}
+
+preview-strip.is-try-it {
+	top: var(--anyink-tryit-top, 0px);
+	height: auto;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: auto minmax(120px, 1fr) auto auto auto auto auto auto;
+	grid-template-areas: 'head' 'sheet' 'hint' 'note' 'controls' 'spacing' 'gaps' 'check';
+	row-gap: var(--space-2);
+	padding: var(--space-3) var(--space-5) var(--space-4);
+	border-top: var(--hairline);
+	background-color: var(--chrome-bg);
+}
+
+preview-strip.is-try-it .anyink-tryit__head {
+	grid-area: head;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.anyink-tryit__title {
+	margin: 0;
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--chrome-text);
+}
+
+preview-strip .anyink-tryit__done {
+	height: 32px;
+	padding: 0 var(--space-5);
+	border-radius: var(--radius);
+	font-size: var(--text-base);
+	cursor: pointer;
+}
+
+preview-strip .anyink-tryit__done.anyink-primary {
+	background-color: var(--touch);
+	border: 1px solid var(--touch);
+	color: var(--chrome-text-inverse);
+	font-weight: 600;
+}
+
+preview-strip .anyink-tryit__done.anyink-primary:hover {
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+preview-strip .anyink-tryit__done.anyink-outlined {
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	color: var(--chrome-text);
+	font-weight: normal;
+}
+
+preview-strip .anyink-tryit__done:focus-visible,
+preview-strip .anyink-tryit__big:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+preview-strip.is-try-it .preview-strip__canvas-wrapper {
+	grid-area: sheet;
+	min-height: 120px;
+}
+
+preview-strip.is-try-it .anyink-tryit__hint {
+	grid-area: hint;
+	margin: 0;
+	font-size: var(--text-base);
+	color: var(--chrome-text);
+}
+
+/* The stand-ins' legend in Try it: a sentence after the hint, at the hint's size and color */
+preview-strip.is-try-it .anyink-tryit__legend-line {
+	margin-left: var(--space-2);
+}
+
+preview-strip.is-try-it .anyink-tryit__legend-line[hidden] {
+	display: none;
+}
+
+preview-strip.is-try-it .anyink-tryit__slot--note {
+	grid-area: note;
+}
+
+preview-strip.is-try-it .anyink-tryit__slot--spacing {
+	grid-area: spacing;
+}
+
+preview-strip.is-try-it .anyink-tryit__slot--gaps {
+	grid-area: gaps;
+}
+
+preview-strip.is-try-it .anyink-tryit__slot:empty {
+	display: none;
+}
+
+/* The strip's controls in one row: the text field, Samples, Size, Guide lines */
+preview-strip.is-try-it .preview-strip__controls {
+	grid-area: controls;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+preview-strip.is-try-it .preview-strip__eyebrow {
+	display: none;
+}
+
+preview-strip.is-try-it .preview-strip__text {
+	flex: 1 1 260px;
+	max-width: 480px;
+	height: 32px;
+}
+
+preview-strip.is-try-it .preview-strip__row {
+	flex: 0 1 380px;
+}
+
+preview-strip.is-try-it .anyink-tryit__big {
+	display: none;
+}
+
+/* The layer over the letters for the gap handle: presses go through it to the letters */
+.anyink-tryit__slot--sheet {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* The strip's Big preview button (Simple, closed strip) */
+.anyink-tryit__big {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	height: 26px;
+	margin: 0;
+	padding: 0 var(--space-2);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: transparent;
+	color: var(--chrome-text);
+	font-size: var(--text-sm);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.anyink-tryit__big:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-tryit__big[hidden] {
+	display: none;
+}
+
+/* an expand mark: two corners pointing out */
+.anyink-tryit__big-icon {
+	position: relative;
+	width: 10px;
+	height: 10px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-left-color: transparent;
+	transform: rotate(-45deg) scale(0.8);
+}
+
+/* The stand-ins' legend on the small strip: small, at the right end of the sheet (Try it puts
+   it on the hint line instead) */
+.anyink-standin-legend {
+	position: absolute;
+	top: var(--space-1);
+	right: var(--space-2);
+	z-index: 1;
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-sm);
+	background-color: var(--canvas-bg);
+	color: var(--canvas-ink-faint);
+	font-family: var(--font-ui);
+	font-size: var(--text-xs);
+	line-height: 16px;
+	pointer-events: none;
+	user-select: none;
+}
+
+.anyink-standin-legend[hidden] {
+	display: none;
+}
+
+/* The font check line at the foot of Try it */
+preview-strip.is-try-it .anyink-tryit-check {
+	grid-area: check;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-height: 28px;
+	font-size: var(--text-sm);
+	color: var(--chrome-text-muted);
+}
+
+.anyink-tryit-check[data-kind='problem'] {
+	color: var(--chrome-text);
+}
+
+.anyink-tryit-check[data-kind='problem']::before {
+	content: '';
+	flex: none;
+	width: 3px;
+	align-self: stretch;
+	border-radius: 2px;
+	background-color: var(--warning);
+}
+
+.anyink-tryit-check__more {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-tryit-check__more[hidden],
+.anyink-tryit-check__button[hidden] {
+	display: none;
+}
+
+preview-strip .anyink-tryit-check__button {
+	height: 26px;
+	margin: 0;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: transparent;
+	color: var(--chrome-text);
+	font-size: var(--text-sm);
+	cursor: pointer;
+}
+
+preview-strip .anyink-tryit-check__button:hover {
+	background-color: var(--chrome-bg-hover);
+}

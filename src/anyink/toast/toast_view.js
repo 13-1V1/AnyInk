@@ -1,19 +1,23 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: drawing toasts. toast.js decides what shows; this file only puts it on the page.
 
-	  showClassic(html, { duration, fancy, action })
+	  showClassic(html, { duration, fancy, action, dismiss })
 	      All tools: upstream's toast exactly as it has always looked and behaved. One #toast
 	      element (reused while it shows), the message as HTML, the caller's time (3 s by
 	      default), fancy kept. Each toast owns its timer (M7 finalize: upstream never cleared
 	      the earlier toast's timer, so a 3 s hint removed the toast after it); a toast fading
 	      out is marked data-leaving and the next one gets a fresh element. action: a button
-	      { label, run } after the message, for a toast both modes share.
+	      { label, run } after the message, for a toast both modes share; dismiss: a plain
+	      second button after it ("Not now").
 	  renderSimple(entry, { onDone })
 	      Simple: a fresh #toast marked data-anyink-toast="simple" (toast.css puts it bottom
 	      right above the strip), role status, its words as text (or, for a message another
-	      track still owns, its HTML), and at most one outlined button. It lasts entry.ms; the
+	      track still owns, its HTML), at most one outlined button and,
+	      after it, one plain dismiss button ("Not now"). It lasts entry.ms; the
 	      pointer over it pauses the time. onDone(entry) runs once when the time is up or the
 	      button was pressed. An entry drawn again (an offer pushed aside comes back) is
 	      timed by its newest element only.
@@ -51,12 +55,15 @@ export function fadeOut(element) {
 /**
  * @param {{label: String, run: Function}} action
  * @param {Function} after - runs once the action ran
+ * @param {String} [extraClass] - 'anyink-toast__dismiss' for the plain second button
  * @returns {HTMLButtonElement}
  */
-function makeButton(action, after) {
+const DISMISS_CLASS = 'anyink-toast__dismiss';
+
+function makeButton(action, after, extraClass = '') {
 	const button = document.createElement('button');
 	button.type = 'button';
-	button.className = 'anyink-toast__action';
+	button.className = extraClass ? `anyink-toast__action ${extraClass}` : 'anyink-toast__action';
 	button.textContent = action.label;
 	let pressed = false;
 	button.addEventListener('click', (event) => {
@@ -80,7 +87,10 @@ function makeButton(action, after) {
  * @param {String} html - the message (HTML, as upstream's showToast took it)
  * @param {{duration?: Number, fancy?: Boolean, action?: Object}} [options]
  */
-export function showClassic(html, { duration = 3000, fancy = false, action = null } = {}) {
+export function showClassic(
+	html,
+	{ duration = 3000, fancy = false, action = null, dismiss = null } = {}
+) {
 	/** @type {HTMLElement} */
 	let element = document.querySelector('#toast:not([data-leaving]):not([data-anyink-toast])');
 	if (element) {
@@ -102,6 +112,7 @@ export function showClassic(html, { duration = 3000, fancy = false, action = nul
 		fadeOut(element);
 	};
 	if (action) element.append(' ', makeButton(action, leave));
+	if (dismiss) element.append(' ', makeButton(dismiss, leave, DISMISS_CLASS));
 	element.style.display = 'block';
 	const timer = window.setTimeout(leave, duration);
 	timers.set(element, timer);
@@ -164,6 +175,7 @@ export function renderSimple(entry, { onDone }) {
 		onDone(entry);
 	};
 	if (entry.action) element.append(' ', makeButton(entry.action, finish));
+	if (entry.dismiss) element.append(' ', makeButton(entry.dismiss, finish, DISMISS_CLASS));
 
 	// The time left; the pointer over the toast stops it (4.0: hover pauses them)
 	entry.left = entry.ms;

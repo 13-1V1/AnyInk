@@ -4,6 +4,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { noteImportedFontFile } from '../anyink/files/export_folder.js';
 import {
 	hasFileSystemAccess,
@@ -13,13 +15,14 @@ import {
 import { makeRecentFilesCard } from '../anyink/files/recents_ui.js';
 import { runFileCommand } from '../anyink/files/run_command.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
+import { bandState, makeBand, turnOnMoreTools } from '../anyink/mode/band.js';
+import { isFeatureOn } from '../anyink/mode/features.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
+import { switchMode } from '../anyink/mode/switch.js';
 import { makeRecoverArea } from '../anyink/recovery/recovery_ui.js';
-import { QUOTE_CLASS } from '../anyink/words/banned.js';
+import { makeStartPage } from '../anyink/start/start_page.js';
 import { sayError } from '../anyink/words/error_box.js';
 import { startFileErrorWords } from '../anyink/words/error_words.js';
-import { escapeWordHTML } from '../anyink/words/word_html.js';
-import { word } from '../anyink/words/words.js';
 import { addAsChildren, makeElement } from '../common/dom.js';
 import logoVertical from '../common/graphics/anyink-wordmark-vertical.svg?raw';
 import { closeEveryTypeOfDialog, showToast } from '../controls/dialogs/dialogs.js';
@@ -48,6 +51,15 @@ import {
 let isSecondProject;
 
 /**
+ * ANY-INK (B13 fix pass): the tabs were reached from Simple's start screen by "Other ways to
+ * start...". They are for bringing in a file, the backups list and the examples (UX-BEGINNER.md
+ * 4.1), so they open on Load and have no New tab: a second Create there made "My Font" in All
+ * tools. Set by the start screen's door; kept while the tabs show under the More tools band;
+ * cleared when a font opens or the start screen comes back.
+ */
+let tabsFromStartScreen = false;
+
+/**
  * Page Maker for the Open Project page
  * @param {Boolean} secondProjectFlag - true if it's not the currently selected project
  * @returns {Element}
@@ -56,6 +68,14 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 	// log(`makePage_OpenProject`, 'start');
 	// log(`secondProjectFlag: ${secondProjectFlag}`);
 	isSecondProject = secondProjectFlag;
+	// ANY-INK (B13, UX-BEGINNER.md 4.1): Simple's start screen in place of the four tabs. It keeps
+	// both ids (#input__new-project-name, #button__create-new-project); Create reads the name
+	// field through importProjectDataAndNavigate, as the New tab does.
+	if (usesStartScreen()) {
+		tabsFromStartScreen = false;
+		return makeSimpleStartScreen();
+	}
+	if (isSecondProject || bandState()?.kind !== 'moreTools') tabsFromStartScreen = false;
 	const app = getGlyphrStudioApp();
 
 	const content = makeElement({
@@ -81,13 +101,17 @@ export function makePage_OpenProject(secondProjectFlag = false) {
 
 	// Tabs
 	const tableRight = content.querySelector('#open-project__right-area');
+	// ANY-INK (B13): reached from Simple by "Other ways to start...", the tabs are All tools
+	// under the purple More tools band, whose [Back to simple] brings the start screen back
+	if (!isSecondProject) {
+		const band = makeBand({ onBack: backToStartScreen });
+		if (band) content.prepend(band); // above the page's grid, not a cell of it
+	}
 	// ANY-INK (M6): unsaved work from a crashed or closed tab is offered right here,
 	// above the tabs, so nobody has to go looking for the Recover tab.
 	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(content);
-	// ANY-INK (B4 + B5 finalize): Simple keeps one green button however the banner changes
-	if (isSimpleMode()) watchStartGreens(tableRight);
 
 	// Drag over handlers
 	const page = content.querySelector('#open-project__page');
@@ -113,7 +137,7 @@ export function makePage_OpenProject(secondProjectFlag = false) {
  * @param {Document | HTMLElement} node - wrapper for the tab
  */
 function showDefaultTab(node) {
-	if (isSecondProject) {
+	if (isSecondProject || tabsFromStartScreen) {
 		/** @type {HTMLElement} */
 		const loadArea = node.querySelector('#tab-content__load');
 		loadArea.style.display = 'block';
@@ -131,53 +155,51 @@ function showDefaultTab(node) {
  * the user needs a second try to specify how to start their project.
  */
 export function resetOpenProjectTabs() {
+	// ANY-INK (B13): a file the start screen couldn't take brings the start screen back
+	if (usesStartScreen()) {
+		getGlyphrStudioApp().appPageNavigate(makePage_OpenProject);
+		return;
+	}
 	const tableRight = document.querySelector('#open-project__right-area');
 	tableRight.innerHTML = '';
 	if (!isSecondProject) tableRight.appendChild(makeRecoverArea({ banner: true }));
 	tableRight.appendChild(makeOpenProjectTabs());
 	showDefaultTab(document);
-	if (isSimpleMode()) syncStartGreens(tableRight);
 }
 
 // --------------------------------------------------------------
-// ANY-INK (B4 + B5 finalize): Simple's start page until B13's start screen
+// ANY-INK (B13): Simple's start screen (src/anyink/start). B4 + B5's Simple words on the tabs
+// are retired: in Simple the tabs show only under the More tools band, in Glyphr Studio's words.
 // --------------------------------------------------------------
 
-/** The buttons that are a tab's one green (UX-BEGINNER.md 4.1, principle 1) */
-const START_PRIMARY_CLASS = 'anyink-start-primary';
+/** @returns {Boolean} the start screen, not the tabs: Simple, 'startScreen' on, the first font */
+function usesStartScreen() {
+	return !isSecondProject && isSimpleMode() && isFeatureOn('startScreen');
+}
 
-/**
- * While the Recover banner offers a backup copy, its Restore is the one green button, so every
- * tab's own green is outlined; with no banner each tab has its green again. The Recover tab
- * hides the banner (its list shows the same copy).
- * @param {Element} rightArea - #open-project__right-area
- */
-function syncStartGreens(rightArea) {
-	const banner = rightArea.querySelector('.anyink-recovery-area--banner');
-	const offers = !!banner?.querySelector('fancy-button');
-	const onRecover = !!rightArea.querySelector('#open-project__tab-recover[selected]');
-	if (banner) banner.hidden = onRecover;
-	rightArea.querySelectorAll(`.${START_PRIMARY_CLASS}`).forEach((button) => {
-		if (offers && !onRecover) button.setAttribute('secondary', '');
-		else button.removeAttribute('secondary');
+/** @returns {Element} the start screen, wired to this page's loaders */
+function makeSimpleStartScreen() {
+	return makeStartPage({
+		load: loadPickedProject,
+		create: () => {
+			// B12 + B13 integration: a new font has no work file yet, even in an editor that held
+			// one (Menu > Start a new font...); set before the project, as every open path does
+			const target = getProjectEditorImportTarget();
+			if (target) target.loadedFileHandle = false;
+			importProjectDataAndNavigate();
+			return getCurrentProjectEditor();
+		},
+		openFiles: (items) => handleOpenProjectPageFileInput(items),
+		moreTools: () => {
+			tabsFromStartScreen = true;
+			turnOnMoreTools();
+		},
 	});
 }
 
-/**
- * Keeps syncStartGreens current: the banner fills itself in later and removes itself when its
- * last copy goes, and a tab press changes which tab shows.
- * @param {Element} rightArea
- */
-function watchStartGreens(rightArea) {
-	syncStartGreens(rightArea);
-	if (typeof MutationObserver !== 'function') return;
-	const observer = new MutationObserver(() => syncStartGreens(rightArea));
-	observer.observe(rightArea, {
-		childList: true,
-		subtree: true,
-		attributes: true,
-		attributeFilter: ['selected'],
-	});
+/** The band's [Back to simple] on the tabs: the start screen again. */
+function backToStartScreen() {
+	switchMode('simple');
 }
 
 /**
@@ -202,18 +224,11 @@ export function makeOpenProjectTabs() {
 	// Make contents for each tab
 	// --------------------------------------------------------------
 
-	// ANY-INK (B4 + B5 finalize): Simple says font and work file (start.*), never project, and
-	// each tab has one green button (the rest outlined), until B13's start screen
-	const simple = isSimpleMode();
-	const say = (key) => escapeWordHTML(word(key));
-
 	// Content for New Project tab
 	const tabContentNew = makeElement({
 		id: 'tab-content__new',
 		className: 'open-project__tab-content',
-		innerHTML: simple
-			? `<h2>${say('start.newFontTitle')}</h2>\n${say('start.fontName')}: &nbsp;`
-			: '<h2>Start a new project</h2>\nProject name: &nbsp;',
+		innerHTML: '<h2>Start a new project</h2>\nProject name: &nbsp;',
 		style: 'display: none;',
 	});
 
@@ -226,8 +241,7 @@ export function makeOpenProjectTabs() {
 	const buttonStartNewProject = makeElement({
 		tag: 'fancy-button',
 		id: 'button__create-new-project',
-		className: START_PRIMARY_CLASS,
-		innerHTML: simple ? say('start.createFont') : 'Create a new font from scratch',
+		innerHTML: 'Create a new font from scratch',
 		onClick: handleNewProject,
 	});
 
@@ -244,9 +258,7 @@ export function makeOpenProjectTabs() {
 
 	const dropTarget = makeElement({
 		id: 'open-project__drop-target',
-		innerHTML: isSimpleMode()
-			? simpleDropTargetHTML()
-			: `
+		innerHTML: `
 			ANY-INK project &ensp;(.gs2, .txt)<br>
 			Open Type, True Type, or WOFF&ensp;(.otf, .ttf, .woff)<br>
 			SVG Font &ensp;(.svg)
@@ -264,25 +276,17 @@ export function makeOpenProjectTabs() {
 			makeElement({
 				tag: 'fancy-button',
 				id: 'button__open-project-file',
-				className: START_PRIMARY_CLASS,
-				innerHTML: simple ? say('start.openWorkFile') : 'Open a project file...',
+				innerHTML: 'Open a project file...',
 				// A picker or loader failure shows in the error box, not as an unhandled rejection.
 				onClick: () => runFileCommand(() => openProjectFromPicker({ load: loadPickedProject })),
 			})
 		);
 	}
 
-	// Simple: the font file button is outlined beside the green work file one; with no file
-	// picker it is the only button, so it stays the tab's green
 	const openFileChooser = makeElement({
 		tag: 'fancy-button',
-		className: simple && !fileSystemAccess ? START_PRIMARY_CLASS : '',
-		attributes: simple && fileSystemAccess ? { dark: '', secondary: '' } : { dark: '' },
-		innerHTML: simple
-			? say('start.openFontFile')
-			: fileSystemAccess
-			? 'or, import a font or SVG file...'
-			: 'or, open file chooser...',
+		attributes: { dark: '' },
+		innerHTML: fileSystemAccess ? 'or, import a font or SVG file...' : 'or, open file chooser...',
 		onClick: async () => {
 			getFilesFromFilePicker(handleOpenProjectPageFileInput);
 		},
@@ -311,39 +315,29 @@ export function makeOpenProjectTabs() {
 	const tabContentExamples = makeElement({
 		id: 'tab-content__examples',
 		className: 'open-project__tab-content',
-		innerHTML: simple
-			? `<h2>${say('start.examplesTitle')}</h2>`
-			: `<h2>Load an example project</h2>`,
+		innerHTML: `<h2>Load an example project</h2>`,
 		style: 'display: none;',
 	});
 
-	// ANY-INK (B4 + B5 integration): Simple says the examples in house words, until B13
 	const contentSimpleProject = makeElement({
 		tag: 'div',
-		innerHTML: isSimpleMode()
-			? `${word('start.exampleSimple')}<br><br>`
-			: `The Simple v2 Project has a few characters and things to show off basic functionality:<br><br>`,
+		innerHTML: `The Simple v2 Project has a few characters and things to show off basic functionality:<br><br>`,
 	});
 
 	const buttonSimpleProject = makeElement({
 		tag: 'fancy-button',
-		className: START_PRIMARY_CLASS,
-		innerHTML: simple ? say('start.exampleSimpleButton') : 'Simple v2 project',
+		innerHTML: 'Simple v2 project',
 		onClick: () => handleLoadSample('simpleProject'),
 	});
 
 	const contentOblegg = makeElement({
 		tag: 'div',
-		innerHTML: isSimpleMode()
-			? `${word('start.exampleOblegg')}<br><br>`
-			: `Oblegg is the upstream sample project that exercises every editor feature:<br><br>`,
+		innerHTML: `Oblegg is the upstream sample project that exercises every editor feature:<br><br>`,
 	});
 
-	// Simple: Oblegg (every editor feature) is outlined beside the simple example
 	const buttonOblegg = makeElement({
 		tag: 'fancy-button',
-		attributes: simple ? { secondary: '' } : {},
-		innerHTML: simple ? say('start.exampleObleggButton') : 'Oblegg',
+		innerHTML: 'Oblegg',
 		onClick: () => handleLoadSample('oblegg'),
 	});
 
@@ -405,6 +399,9 @@ export function makeOpenProjectTabs() {
 			tabContentExamples.style.display = 'block';
 		},
 	});
+
+	// ANY-INK (B13 fix pass): reached from Simple's start screen, no second Create (see above)
+	if (tabsFromStartScreen) tabNew.style.display = 'none';
 
 	const tabs = makeElement({ className: 'open-project__tabs' });
 	let tabControls = [tabNew, tabLoad, tabExamples];
@@ -575,6 +572,7 @@ export function importProjectDataAndNavigate(
 	editor = getProjectEditorImportTarget()
 ) {
 	// log(`importProjectDataAndNavigate`, 'start');
+	tabsFromStartScreen = false; // ANY-INK (B13 fix pass): a font opened; the tabs are left
 	closeEveryTypeOfDialog();
 	setCurrentProjectEditor(editor);
 	// ANY-INK (M6, D-012): binary assets live on the editor, not in the project, so a
@@ -636,8 +634,7 @@ function handleDragEnter(event) {
 	const dropNote = document.querySelector('#open-project__drop-note');
 	dropNote.style.animation = 'var(--animate-fade-in)';
 	dropNote.style.opacity = '1';
-	// ANY-INK (B4 + B5 finalize): Simple says it with no exclamation mark (2.2)
-	dropNote.innerHTML = isSimpleMode() ? escapeWordHTML(word('start.dropNote')) : `Drop it!`;
+	dropNote.innerHTML = `Drop it!`;
 	dropNote.style.display = 'block';
 	// log(`handleDragEnter`, 'end');
 }
@@ -676,12 +673,8 @@ function handleNewProject() {
  */
 function handleLoadSample(name) {
 	if (isSecondProject) addProjectEditorAndSetAsImportTarget();
-	// ANY-INK (B4 + B5 finalize): Simple says it in house words
-	document.querySelector('#tab-content__examples').innerHTML = isSimpleMode()
-		? `<h2>${escapeWordHTML(word('start.examplesTitle'))}</h2>${escapeWordHTML(
-				word('start.loadingExample')
-		  )}`
-		: '<h2>Load an example project</h2>Loading example project...';
+	document.querySelector('#tab-content__examples').innerHTML =
+		'<h2>Load an example project</h2>Loading example project...';
 
 	let project = simpleExampleProject;
 	if (name === 'oblegg') project = obleggExampleProject;
@@ -690,20 +683,4 @@ function handleLoadSample(name) {
 
 		importProjectDataAndNavigate(project);
 	}, 100);
-}
-
-/**
- * ANY-INK (B4 + B5 integration, UX-BEGINNER 2.3, 2.4 E): the kinds of file the Load tab takes, in
- * Simple's words, the file types as quotes (exact file name endings), until B13's start screen.
- * @returns {String} HTML
- */
-function simpleDropTargetHTML() {
-	const quote = (key) => `<span class="${QUOTE_CLASS}">${word(key)}</span>`;
-	return [
-		`${word('start.dropWorkFile')} &ensp;(${quote('start.typeWorkFile')})`,
-		`${word('start.dropFontFile')} &ensp;(${['menu.typeOtf', 'menu.typeTtf', 'menu.typeWoff']
-			.map(quote)
-			.join(', ')})`,
-		`${word('start.dropDrawing')} &ensp;(${quote('menu.typeSvg')})`,
-	].join('<br>');
 }

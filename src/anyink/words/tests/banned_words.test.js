@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: the banned-word scan (UX-BEGINNER.md 2.3, principle 2). No word on the banned list may
 	appear on the Simple main path: in the visible text, title and aria-label of a Simple screen,
@@ -329,7 +331,9 @@ describe('shared display points', () => {
 		return { root: null, texts: { 'save status': states } };
 	});
 
-	scanStrict('the app notices: ready offline and the install offer', () => {
+	// B12 + B13 integration: in Simple the install offer is a toast now (start/install_offer.js),
+	// scanned in start/tests/install_offer.test.js; Simple puts up no install notice
+	scanStrict('the app notices: ready offline, and no install notice', () => {
 		announceOfflineReady();
 		expect(document.querySelectorAll('.anyink-pwa-notice')).toHaveLength(1);
 		const shown = document.body.cloneNode(true);
@@ -340,7 +344,7 @@ describe('shared display points', () => {
 		event.prompt = async () => {};
 		event.userChoice = Promise.resolve({ outcome: 'dismissed', platform: 'web' });
 		offerInstall(event);
-		expect(document.querySelectorAll('.anyink-pwa-notice')).toHaveLength(1);
+		expect(document.querySelectorAll('.anyink-pwa-notice')).toHaveLength(0);
 		document.body.append(...shown.childNodes);
 		return document.body;
 	});

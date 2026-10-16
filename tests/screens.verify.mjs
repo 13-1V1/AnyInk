@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 display-points track, real-browser check (docs/UX-BEGINNER.md 2.2 to 2.4, 4.0, 4.1, 4.11,
 // section 10 B4). In Chrome with a throwaway profile, on a Vite dev server over src/, in All tools
 // (the launch default) and in Simple (?ui=simple), the display points both modes share say the
@@ -11,7 +13,8 @@
 //   2. the File menu: "Make a font file (.otf)" and the rest, file names and types as quotes
 //   3. the preview strip: "Preview" in sentence case, "Type anything", "Samples", "Guide lines";
 //      the Samples menu ("small a with its neighbors", "26 letters")
-//   4. the save status, and the app notices: offline, install, a new version
+//   4. the save status, and the app notices: offline, install (All tools; Simple's is a toast since
+//      B13), a new version
 // Every place is scanned with banned.js in the page (scanDom, findUppercase, scanTexts).
 // Usage: node tests/screens.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
@@ -21,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import { toOverview } from './verify_standins.mjs';
+import { pinB5Simple, toOverview } from './verify_standins.mjs';
 
 const src = fileURLToPath(new URL('../src/', import.meta.url));
 const shots = resolve(process.argv[2] || resolve(tmpdir(), 'anyink-screens'));
@@ -94,6 +97,10 @@ async function checkMode(mode) {
 	const result = {};
 
 	await page.goto(`${origin}/${mode === 'simple' ? '?ui=simple' : ''}`);
+	// B12 + B13 finalize: like the other B4 / B5-era walkthroughs (b45, wiring, mode-fixes,
+	// words-fix), Simple here is B5's, the stub every later B builds on: the File menu, the
+	// labeled edges. B6 to B13's Simple: b67, b89, b1011 and b1213.verify.mjs
+	if (mode === 'simple') await pinB5Simple(page);
 	await page.locator('#input__new-project-name').fill('Brennan Hand');
 	await page.locator('#button__create-new-project').click();
 	await page.locator('#input__new-project-name').waitFor({ state: 'detached' });
@@ -277,7 +284,7 @@ async function checkMode(mode) {
 	// ----------------------------------------------------------
 	// 4. The save status and the app notices
 	// ----------------------------------------------------------
-	const notices = await page.evaluate(async () => {
+	const notices = await page.evaluate(async (simple) => {
 		const { scanDom, scanTexts, findUppercase, formatHit } = await import(
 			'/anyink/words/banned.js'
 		);
@@ -302,10 +309,12 @@ async function checkMode(mode) {
 		const install = new Event('beforeinstallprompt', { cancelable: true });
 		install.prompt = async () => {};
 		install.userChoice = Promise.resolve({ outcome: 'dismissed', platform: 'web' });
-		await show(() => register.offerInstall(install));
+		// B12 + B13 integration: Simple's install offer is a toast (start/install_offer.js, its own
+		// scan), so only All tools puts up the install notice
+		if (!simple) await show(() => register.offerInstall(install));
 		await show(() => register.showAppNotice(register.makeUpdateNotice(async () => {})));
 		return { status, shown, hits };
-	});
+	}, mode === 'simple');
 	await shot('7-update-notice');
 	assert.deepEqual(notices.hits, []);
 	// B4 + B5 fix pass (4.11): Simple says one of four states, never the backup copy
@@ -323,9 +332,10 @@ async function checkMode(mode) {
 	}
 	assert.ok(notices.shown[0].startsWith('ANY-INK works offline now.'), notices.shown[0]);
 	assert.ok(
-		notices.shown[2].startsWith('A new version of ANY-INK is ready. Your work is kept.'),
-		notices.shown[2]
+		notices.shown.at(-1).startsWith('A new version of ANY-INK is ready. Your work is kept.'),
+		notices.shown.at(-1)
 	);
+	assert.equal(notices.shown.length, mode === 'simple' ? 2 : 3);
 	await page.evaluate(async () => (await import('/anyink/pwa/notices.js')).resetNotices());
 	result.saveStatus = notices.status;
 	result.notices = notices.shown;

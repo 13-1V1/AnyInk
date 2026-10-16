@@ -4,9 +4,19 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { getGlyphrStudioApp } from '../../app/main.js';
-import { isSimpleMode } from '../mode/mode.js';
+import { isSimpleMode, MODE_EVENT } from '../mode/mode.js';
 import { getPref, setPref } from '../prefs/prefs.js';
+import {
+	holdInstallEvent,
+	INSTALL_NOT_NOW_PREF,
+	installEvent,
+	onInstallOfferGone,
+	promptHeldInstall,
+	resetInstallOfferForTests,
+} from '../start/install_offer.js';
 import { getRecoveryStatus, snapshotNow } from '../recovery/recovery.js';
 import { peekProject } from '../recovery/snapshot.js';
 import { isPersistent } from '../storage/kv.js';
@@ -21,7 +31,8 @@ import './pwa.css';
 
 // B1 (UX-BEGINNER 7.1): app prefs that keep notices from coming back every launch.
 export const OFFLINE_READY_PREF = 'pwaOfflineReadyShown';
-export const INSTALL_NOT_NOW_PREF = 'pwaInstallNotNow';
+// B13: one Not now for the notice and the install toast (start/install_offer.js)
+export { INSTALL_NOT_NOW_PREF };
 // Set when the worker first reports the offline copy ready, so a later launch can say so when
 // the launch it happened in was taken by the install offer.
 export const OFFLINE_COPY_READY_PREF = 'pwaOfflineCopyReady';
@@ -73,39 +84,41 @@ export function announceOfflineReadyFromEarlierLaunch(workerActive) {
 	return announceOfflineReady();
 }
 
-/** Tests only: forget which notice this launch showed (a fresh launch). */
+/** Tests only: forget which notice this launch showed (a fresh launch), and Chrome's install
+ * offer the install toast holds (a fresh launch has none until Chrome offers again). */
 export function resetLaunch() {
 	launchNotice = null;
-	heldInstallEvent = null;
+	resetInstallOfferForTests();
 }
 
-// B4 + B5 finalize (UX-BEGINNER.md 7.1): in Simple the install offer waits until a font is open;
-// on the start page it would be one more thing to decide before he has made anything (B13 moves it
-// to after the first ready letter). The last 'anyink-page-change' (navigator.js, app.js) says
-// whether an app-level page (the start page) shows. All tools offers at once, as before.
-let onAppLevelPage = false;
-let heldInstallEvent = null;
-window.addEventListener('anyink-page-change', (event) => {
-	onAppLevelPage = !!event?.detail?.appLevel;
-	if (onAppLevelPage || !heldInstallEvent) return;
-	const held = heldInstallEvent;
-	heldInstallEvent = null;
-	offerInstall(held);
-});
+// B13 (UX-BEGINNER.md 4.1, 7.1): in Simple the install offer is no notice. It moves to the
+// toast, once, after the first Ready letter (start/install_offer.js), which holds Chrome's event
+// and decides when; it never shows on the start page or during a dialog. All tools offers the
+// notice at once, as before.
 
 /**
- * The install offer, unless Not now was already chosen (here or in Chrome's own install box),
- * or "ready to open offline" already took this launch (Chrome offers again next launch).
- * In Simple, while the start page shows, it is held until a font opens (B4 + B5 finalize).
+ * The install offer, unless Not now was already chosen (here, in the toast, or in Chrome's own
+ * install box), or "ready to open offline" already took this launch (Chrome offers again next
+ * launch). In Simple it is handed to the install toast (B13) and no notice shows.
  * @param {Event} event - Chrome's beforeinstallprompt event
- * @returns {String | null} the notice key, or null when not offered (or held)
+ * @returns {String | null} the notice key, or null when not offered here
  */
 export function offerInstall(event) {
+	// One owner of Chrome's offer (start/install_offer.js), in both modes: the notice, the toast
+	// and Menu > Help all ask it there, so whichever is pressed first uses it up and the others
+	// go. Chrome answers one prompt per offer; a second ask would be a button that does nothing.
+	holdInstallEvent(event);
+	return offerInstallNotice();
+}
+
+/**
+ * The All tools notice for the held offer: never in Simple (B13: the toast and Menu > Help say
+ * it there), never after Not now, never once the offer is used up.
+ * @returns {String | null} the notice key, or null when not offered here
+ */
+function offerInstallNotice() {
+	if (isSimpleMode() || !installEvent()) return null;
 	if (getPref(INSTALL_NOT_NOW_PREF)) return null;
-	if (isSimpleMode() && onAppLevelPage) {
-		heldInstallEvent = event;
-		return null;
-	}
 	// Another notice took this launch; Chrome offers again next launch
 	if (launchNotice && launchNotice !== 'install') return null;
 	return showAppNotice({
@@ -113,15 +126,22 @@ export function offerInstall(event) {
 		kind: 'offer',
 		message: word('notice.install'),
 		actionLabel: word('notice.installButton'),
-		action: async () => {
-			await event.prompt();
-			const choice = await event.userChoice;
-			if (choice?.outcome === 'dismissed') setPref(INSTALL_NOT_NOW_PREF, Date.now());
-		},
+		// Asks the held offer (a No is remembered there like Not now); when Menu > Help used it
+		// up first, nothing is asked and the notice just goes
+		action: () => promptHeldInstall(),
 		dismissLabel: word('notice.notNow'),
 		onDismiss: () => setPref(INSTALL_NOT_NOW_PREF, Date.now()),
 	});
 }
+
+// Finalize: one install button per offer on screen. Whichever button uses the offer (the
+// notice, the toast, Menu > Help), the notice goes with it; Simple puts the notice away (its
+// Menu row holds the offer), and All tools offers it again while the offer is still held.
+onInstallOfferGone(() => closeNotice('install'));
+globalThis.addEventListener?.(MODE_EVENT, () => {
+	if (isSimpleMode()) closeNotice('install');
+	else offerInstallNotice();
+});
 
 export function activateWaiting(worker) {
 	if (!worker || worker.state === 'activated') return Promise.resolve();

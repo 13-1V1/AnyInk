@@ -34,6 +34,8 @@
 	  openDroppedFont({ editor, file, handle, unsaved })   'opened' | 'asked' | 'failed'; handle:
 	                                         the promise getAsFileSystemHandle gave (or null)
 	Buttons carry data-anyink-choice (save, cancel, open) for tests and later Bs.
+	B12 + B13 integration: button(choice, key, outlined, run) and showBox(buttons, key) are
+	exported for Menu > Start a new font... (start/new_font.js), the same box.
 */
 import { hasInkNotInItsFile } from '../../app/app.js';
 import { getCurrentProjectEditor, getGlyphrStudioApp } from '../../app/main.js';
@@ -212,7 +214,7 @@ function loadInto(editor) {
  * @param {Function} run
  * @returns {Element}
  */
-function button(choice, key, outlined, run) {
+export function button(choice, key, outlined, run) {
 	return makeElement({
 		tag: 'fancy-button',
 		attributes: { 'data-anyink-choice': choice, ...(outlined ? { secondary: '' } : {}) },
@@ -226,7 +228,7 @@ function button(choice, key, outlined, run) {
  * @param {Array<Element>} buttons
  * @param {String} [key] - the sentence
  */
-function showBox(buttons, key = 'open.unsaved') {
+export function showBox(buttons, key = 'open.unsaved') {
 	const content = makeElement({ tag: 'div', className: BOX_CLASS });
 	content.appendChild(makeElement({ tag: 'p', content: word(key) }));
 	const row = makeElement({ tag: 'div', className: `${BOX_CLASS}__buttons` });

@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	<preview-strip> (Milestone 5, D-011): the always-visible sample-text strip fixed
 	to the bottom of the window. It is mounted in index.html next to #app__wrapper,
@@ -33,6 +35,15 @@
 	  The strip follows 'anyink-mode-change'.
 	- B6 + B7 finalize (4.0 Preview strip): in Simple with the Next line on, the text starts as the
 	  font's name until he types or picks a sample (followTryItText), as the coach reads it.
+	- B12 (UX-BEGINNER.md 4.0, 4.6; Simple with 'tryIt'): the strip grows into Try it
+	  (src/anyink/tryit/expand.js; the same element, sheet and letters, never rebuilt). Try it has
+	  its own size (72 pt to start, pref 'tryItPt'), its Guide lines switch, one line centered or
+	  wrapped lines (layout.js tryItLayout) and B1's check as one line (tryit/font_check_line.js)
+	  instead of the corner line. [Big preview] opens it. Letters not made yet show as faint
+	  outlined stand-ins (tryit/stand_ins.js): the sheet is laid out on a view of the font in which
+	  they are a letter wide; a double-click opens one; a legend says "gray = not made yet" until 5
+	  letters are ready. After each redraw of its letters the strip says STRIP_REDRAW_EVENT
+	  { textBlock } on itself, for the gap handle.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { makeElement } from '../../common/dom.js';
@@ -40,6 +51,18 @@ import { makeCrisp } from '../../common/functions.js';
 import { closeAllContextMenus, makeContextMenu } from '../../controls/dialogs/dialogs.js';
 import { FontPreview } from '../../controls/font-preview/font_preview.js';
 import { DisplayCanvas } from '../../display_canvas/display_canvas.js';
+import { TextBlock } from '../../display_canvas/text_block.js';
+import { openPathOf } from '../coach/open_shape.js';
+import { readyCount } from '../topbar/ready_count.js';
+import { makeTryIt, TRY_IT_DEFAULT_PT, TRY_IT_PT_PREF } from '../tryit/expand.js';
+import { fontCheckLineState, makeFontCheckLine } from '../tryit/font_check_line.js';
+import {
+	drawStandIns,
+	legendShows,
+	makeLayoutProject,
+	makeMeasure,
+	standInsWanted,
+} from '../tryit/stand_ins.js';
 import { defaultTryItText } from '../coach/font_facts.js';
 import { SAVE_STATUS_EVENT } from '../files/save_status.js';
 import { getLastFontCheck, runFontCheckNow } from '../fontcheck/font_check.js';
@@ -49,13 +72,18 @@ import { isSimpleMode, MODE_EVENT } from '../mode/mode.js';
 import { isShown } from '../mode/visibility.js';
 import { getPref, setPref } from '../prefs/prefs.js';
 import { onThemeChange, token } from '../theme/theme.js';
-import { labelCase, word } from '../words/words.js';
+import { labelCase, word, wordEntry } from '../words/words.js';
 import { canFixProblem, fixProblem } from './fix_it.js';
 import { firstCheckProblem, hintFor, isGapId, moreText } from './font_status.js';
 import { findCharAtPoint, navigationTargetForChar } from './hit_test.js';
 import { injectStyleOnce } from './inject_style.js';
 import { stripLetterTooltip } from './letter_tooltip.js';
-import { centeringLineGap, nativeFirstLineView } from './layout.js';
+import {
+	centeringLineGap,
+	nativeFirstLineView,
+	tryItLayout,
+	writtenOffSheet,
+} from './layout.js';
 import { metricLineYs } from './metric_lines.js';
 import { makePointsSlider } from './points_slider.js';
 import style from './preview-strip.css?inline';
@@ -74,6 +102,8 @@ export const PAGE_CHANGE_EVENT = 'anyink-page-change';
 export const FONT_REBUILD_MS = 400;
 /** B1: px of clear sheet kept around the font check line's corner (preview-strip.css). */
 export const CHECK_GAP = 4;
+/** B12: said on the strip after every redraw of its letters, detail { textBlock } */
+export const STRIP_REDRAW_EVENT = 'anyink-strip-redraw';
 const PAGE_PADDING = 10;
 const STYLE_ID = 'anyink-preview-strip-style';
 const NOTICE_STYLE_ID = 'anyink-preview-notice-style';
@@ -119,6 +149,8 @@ export class PreviewStrip extends HTMLElement {
 		/** @type {HTMLCanvasElement | null} */
 		this.overlay = null;
 		this.needsResize = true;
+		/** B12: the sheet's height when the letters were last sized to it (see sheetHeight) */
+		this.sheetArea = 0;
 		this.fontDirty = true;
 		this.editor = null;
 		this.unsubscribeThemeChange = null;
@@ -129,6 +161,15 @@ export class PreviewStrip extends HTMLElement {
 		this.sheetSaysCantShow = false;
 		/** true while the corner under the check line is cut out of the letters' page */
 		this.hasCheckCorner = false;
+		/** B12: Try it's controller (tryit/expand.js), made in build() */
+		this.tryIt = null;
+		/** B12: the last 'fontCheck' result for this editor, null before the first */
+		this.checkPayload = null;
+		/** B12: how many stand-ins the last redraw drew */
+		this.standInCount = 0;
+		/** B12: true while Try it's words wrap onto more lines (layout.js tryItLayout) */
+		this.tryItWraps = false;
+		this.measureStandIn = makeMeasure(this.ownerDocument);
 
 		this.tracker = makeEditorTracker({
 			onRedraw: () => this.scheduleRedraw(),
@@ -136,7 +177,10 @@ export class PreviewStrip extends HTMLElement {
 				this.fontDirty = true;
 				if (this.realFontOn) this.scheduleFontRebuild();
 			},
-			onFontCheck: (payload) => this.setCheckProblem(firstCheckProblem(payload)),
+			onFontCheck: (payload) => {
+				this.checkPayload = payload || null;
+				this.setCheckProblem(firstCheckProblem(payload));
+			},
 		});
 		this.scheduleRedraw = makeFrameCoalescer(() => this.redrawNow());
 		this.scheduleFontRebuild = makeTrailingDebounce(() => this.rebuildFontNow(), FONT_REBUILD_MS);
@@ -165,7 +209,22 @@ export class PreviewStrip extends HTMLElement {
 
 	/** B4 integration: guide lines are on, and the mode shows their switch (6.2 Strip). */
 	get metricsOn() {
-		return !!this.options.metrics && isShown('strip', 'guideLines');
+		return !!this.options.metrics && this.guideLinesShown;
+	}
+
+	/** B12: Try it shows the Guide lines switch in Simple too (4.6) */
+	get guideLinesShown() {
+		return isShown('strip', 'guideLines') || this.tryItOpen;
+	}
+
+	/** B12: Try it is open */
+	get tryItOpen() {
+		return !!this.tryIt?.isOpen;
+	}
+
+	/** B12: letters not made yet are drawn as stand-ins (Simple, 'tryIt', the canvas sheet) */
+	get standInsOn() {
+		return standInsWanted() && !this.realFontOn;
 	}
 
 	/**
@@ -178,10 +237,17 @@ export class PreviewStrip extends HTMLElement {
 			[this.realFontToggle, 'realFont'],
 			[this.metricsToggle, 'guideLines'],
 		].forEach(([toggle, id]) => {
-			const hidden = !isShown('strip', id);
+			const hidden = id === 'guideLines' ? !this.guideLinesShown : !isShown('strip', id);
 			toggle.label.toggleAttribute('hidden', hidden);
 			toggle.label.toggleAttribute(HIDDEN_ATTRIBUTE, hidden);
 		});
+		// B12: [Big preview] opens Try it (Simple, 'tryIt'); not inside Try it itself
+		const big = this.tryIt?.elements.bigPreview;
+		if (big) {
+			const hidden = !isShown('strip', 'bigPreview') || this.tryItOpen;
+			big.hidden = hidden;
+			big.toggleAttribute(HIDDEN_ATTRIBUTE, hidden);
+		}
 		this.updateCheckLine();
 		this.fontDirty = true;
 		this.needsResize = true;
@@ -203,12 +269,15 @@ export class PreviewStrip extends HTMLElement {
 		window.addEventListener(SAVE_STATUS_EVENT, this.handleChange);
 		window.addEventListener('resize', this.handleWindowResize);
 		this.addEventListener('keydown', this.handleKeyDown);
+		this.tryIt?.install();
 		if (this.unsubscribeThemeChange) this.unsubscribeThemeChange();
 		this.unsubscribeThemeChange = onThemeChange(() => this.scheduleRedraw());
 		this.syncToApp();
 	}
 
 	disconnectedCallback() {
+		this.tryIt?.close({ cause: 'gone' });
+		this.tryIt?.uninstall();
 		window.removeEventListener(PAGE_CHANGE_EVENT, this.handlePageChange);
 		window.removeEventListener(MODE_EVENT, this.handleModeChange);
 		window.removeEventListener(SAVE_STATUS_EVENT, this.handleChange);
@@ -285,6 +354,10 @@ export class PreviewStrip extends HTMLElement {
 		toggles.appendChild(this.realFontToggle.label);
 		toggles.appendChild(this.metricsToggle.label);
 		controls.appendChild(toggles);
+		// B12: Try it's own parts (shown only while it is open) and [Big preview]
+		this.tryIt = makeTryIt(this, { doc: this.ownerDocument });
+		toggles.appendChild(this.tryIt.elements.bigPreview);
+		this.appendChild(this.tryIt.elements.head);
 		this.appendChild(controls);
 
 		// Right: the sheet
@@ -311,7 +384,25 @@ export class PreviewStrip extends HTMLElement {
 		});
 		this.checkLine.element.classList.add('preview-strip__check');
 		this.canvasWrapper.appendChild(this.checkLine.element);
+		// B12: the layer over the letters for the gap handle, and the stand-ins' legend
+		this.canvasWrapper.appendChild(this.tryIt.slots.sheet);
+		this.legend = makeElement({
+			className: 'anyink-standin-legend',
+			content: escapeHTML(word('tryit.legend')),
+			attributes: { title: wordHint('tryit.legend') },
+		});
+		this.legend.hidden = true;
+		this.canvasWrapper.appendChild(this.legend);
 		this.appendChild(this.canvasWrapper);
+		// B12: Try it's lines under the sheet, then B1's check as one line
+		this.appendChild(this.tryIt.elements.hint);
+		['note', 'spacing', 'gaps'].forEach((name) => this.appendChild(this.tryIt.slots[name]));
+		this.tryItCheck = makeFontCheckLine({
+			doc: this.ownerDocument,
+			onShowMe: (itemId) => showItem(this.editor, itemId),
+			onFixIt: (problem) => this.fixCheckProblem(problem),
+		});
+		this.appendChild(this.tryItCheck.element);
 		this.applyMode();
 	}
 
@@ -408,7 +499,8 @@ export class PreviewStrip extends HTMLElement {
 		if (changed) {
 			this.fontDirty = true;
 			// The old font's problems are not this font's: show this font's last check, if any.
-			this.setCheckProblem(firstCheckProblem(getLastFontCheck(this.editor)));
+			this.checkPayload = getLastFontCheck(this.editor);
+			this.setCheckProblem(firstCheckProblem(this.checkPayload));
 			this.scheduleRedraw();
 		}
 		return changed;
@@ -454,7 +546,9 @@ export class PreviewStrip extends HTMLElement {
 		if (!this.checkLine) return;
 		// B6 + B7 integration: in Simple the Next line says the problem (rule 6, 4.0), so the
 		// strip doesn't say it again (visibility.js strip.checkLine, replaced by 'coach')
-		const said = !this.sheetSaysCantShow && isShown('strip', 'checkLine');
+		// B12: Try it says the check in its own line (tryit/font_check_line.js), never twice
+		this.updateTryItCheck();
+		const said = !this.sheetSaysCantShow && isShown('strip', 'checkLine') && !this.tryItOpen;
 		const problem = said ? this.checkProblem : null;
 		if (problem) {
 			const fixable = canFixProblem(this.editor?.project, problem);
@@ -470,6 +564,38 @@ export class PreviewStrip extends HTMLElement {
 			this.checkLine.hide();
 		}
 		this.setCheckCorner(!!problem);
+	}
+
+	/** B12: Try it's font check line, from the last check of this font */
+	updateTryItCheck() {
+		if (!this.tryItCheck) return;
+		this.tryItCheck.update(
+			fontCheckLineState(this.checkPayload, { project: this.editor?.project || null })
+		);
+	}
+
+	/**
+	 * B12: Try it opened or closed (tryit/expand.js calls this). Try it keeps its own size; the
+	 * letters are laid out again for the sheet's new size, in the same renderer. Opening checks
+	 * the font at once, so the line never waits 2 s with nothing to say.
+	 * @param {Boolean} open
+	 */
+	onTryItChange(open) {
+		const pt = open
+			? clampPt(getPref(TRY_IT_PT_PREF, TRY_IT_DEFAULT_PT))
+			: clampPt(getPref(PREF_KEYS.pt, DEFAULT_PT));
+		this.options.pt = pt;
+		if (this.slider) this.slider.set(pt);
+		this.tryItWraps = false;
+		this.needsResize = true;
+		this.publishOptions();
+		this.applyMode();
+		this.updateLegend();
+		if (open && this.editor) {
+			this.checkPayload = runFontCheckNow(this.editor) || getLastFontCheck(this.editor);
+			this.updateCheckLine();
+		}
+		this.scheduleRedraw();
 	}
 
 	/**
@@ -551,7 +677,8 @@ export class PreviewStrip extends HTMLElement {
 	 */
 	setPoints(pt, { persist = true } = {}) {
 		const next = clampPt(pt);
-		if (persist) setPref(PREF_KEYS.pt, next);
+		// B12: the size picked in Try it is Try it's; the strip keeps its own
+		if (persist) setPref(this.tryItOpen ? TRY_IT_PT_PREF : PREF_KEYS.pt, next);
 		if (next === this.options.pt) return;
 		this.options.pt = next;
 		if (this.slider) this.slider.set(next);
@@ -599,8 +726,36 @@ export class PreviewStrip extends HTMLElement {
 	 * @returns {Number}
 	 */
 	lineGapFor(px) {
-		const area = this.page?.clientHeight || STRIP_HEIGHT - 2 * 8;
+		const area = this.sheetHeight() || STRIP_HEIGHT - 2 * 8;
+		if (this.tryItOpen) return this.tryItLayoutFor(px, area).lineGap;
 		return centeringLineGap(area, PAGE_PADDING, px);
+	}
+
+	/**
+	 * B12: the height the letters are centered in. In Try it this is the sheet's height when the
+	 * canvas was last sized to it (opening, a window resize, a new renderer), never the live
+	 * height: a section opening under the sheet or a row settling never moves his letters, and
+	 * the canvas, which keeps its size until then, stays the box they are centered in.
+	 * @returns {Number}
+	 */
+	sheetHeight() {
+		const live = this.page?.clientHeight || 0;
+		if (this.tryItOpen && this.sheetArea > 0) return this.sheetArea;
+		return live;
+	}
+
+	/** @returns {Number} the room around the letters on the sheet */
+	get pagePadding() {
+		return this.tryItOpen ? this.tryItLayoutFor(this.fontSizePx).pagePadding : PAGE_PADDING;
+	}
+
+	/**
+	 * B12: Try it's layout: one line centered, or wrapped lines with an ordinary gap.
+	 * @param {Number} px
+	 * @param {Number} [area]
+	 */
+	tryItLayoutFor(px, area = this.sheetHeight() || STRIP_HEIGHT) {
+		return tryItLayout({ areaHeight: area, fontSizePx: px, wraps: this.tryItWraps });
 	}
 
 	/** Makes sure the right renderer for the current mode is in the sheet. */
@@ -638,14 +793,89 @@ export class PreviewStrip extends HTMLElement {
 			text: this.options.text,
 			fontSize: px,
 			lineGap: this.lineGapFor(px),
-			pagePadding: PAGE_PADDING,
+			pagePadding: this.pagePadding,
 			pageWidth: 'fit',
 			pageHeight: 'fit',
 			showPlaceholderMessage: true,
 		});
 		canvas.setAttribute('hi-dpi', '');
 		canvas.showMetricLines = this.metricsOn;
+		// B12: the layout knows the stand-ins' widths, and they are drawn after the letters
+		canvas.updateTextBlock = () => this.layOutLetters(canvas);
+		canvas.redraw = () => {
+			DisplayCanvas.prototype.redraw.call(canvas);
+			this.afterLettersDrawn(canvas);
+		};
 		return canvas;
+	}
+
+	/**
+	 * B12: the DisplayCanvas's own layout, on the stand-ins' view of the font while they show;
+	 * in Try it, a second pass with wrapped lines when one centered line leaves letters off.
+	 * @param {DisplayCanvas} canvas
+	 */
+	layOutLetters(canvas) {
+		const project = this.editor?.project;
+		if (!this.standInsOn || !project) {
+			DisplayCanvas.prototype.updateTextBlock.call(canvas);
+		} else {
+			const view = makeLayoutProject(project, {
+				open: openPathOf(this.editor),
+				measure: this.measureStandIn,
+			});
+			canvas.textBlock = new TextBlock({
+				options: canvas.textBlockOptions,
+				canvasMaxes: canvas.calculatePageMaxes(),
+				ctx: canvas.ctx,
+				drawPageExtras: canvas.drawDisplayPageExtras,
+				drawLineExtras: canvas.drawDisplayLineExtras,
+				drawCharacterExtras: canvas.drawDisplayCharacterExtras,
+				drawCharacter: canvas.drawDisplayCharacter,
+				project: view,
+			});
+		}
+		if (this.tryItOpen && !this.tryItWraps && writtenOffSheet(canvas.textBlock)) {
+			this.tryItWraps = true;
+			canvas.textBlockOptions.lineGap = this.lineGapFor(this.fontSizePx);
+			canvas.textBlockOptions.pagePadding = this.pagePadding;
+			this.layOutLetters(canvas);
+		}
+	}
+
+	/**
+	 * B12: after the letters: the stand-ins and their legend, then the redraw is told.
+	 * @param {DisplayCanvas} canvas
+	 */
+	afterLettersDrawn(canvas) {
+		const block = canvas.textBlock;
+		let drawn = 0;
+		if (this.standInsOn && block && canvas.ctx) {
+			drawn = drawStandIns(canvas.ctx, block, {
+				color: token('--canvas-ink'),
+				font: this.editor?.project?.settings?.font,
+			});
+		}
+		this.standInCount = drawn;
+		this.updateLegend();
+		this.dispatchEvent(new CustomEvent(STRIP_REDRAW_EVENT, { detail: { textBlock: block } }));
+	}
+
+	/**
+	 * B12: "gray = not made yet" while a stand-in shows and fewer than 5 letters are ready: at the
+	 * small strip's right end, or in Try it as a sentence on the hint line under the sheet.
+	 */
+	updateLegend() {
+		if (!this.legend) return;
+		let show = false;
+		if (this.standInsOn && this.standInCount > 0 && this.editor?.project) {
+			const { ready } = readyCount(this.editor.project, { open: openPathOf(this.editor) });
+			show = legendShows({ drawn: this.standInCount, ready });
+		}
+		// Try it says it as a sentence on its hint line, under the words he reads
+		const inTryIt = !!this.tryIt?.isOpen;
+		this.legend.hidden = !show || inTryIt;
+		const line = this.tryIt?.elements?.legendLine;
+		if (line) line.hidden = !show;
 	}
 
 	makeFontRenderer() {
@@ -670,14 +900,23 @@ export class PreviewStrip extends HTMLElement {
 	redrawNow() {
 		if (!this.visible || !this.isConnected) return;
 		this.measureCheckCorner(); // the sheet may have changed size since the line came
+		// B12: the canvas is sized to the sheet now, so this is the height to center in
+		if (this.needsResize || !this.renderer?.isConnected || !this.sheetArea)
+			this.sheetArea = this.page?.clientHeight || 0;
 		const renderer = this.ensureRenderer();
 		const options = renderer.textBlockOptions;
 		if (!options) return;
 		const px = this.fontSizePx;
+		if (this.tryItOpen) this.tryIt.measureTop(); // the Next line may have come or gone
+		// a new text, size or sheet: try one centered line again
+		if (options.text !== this.options.text || options.fontSize !== px || this.needsResize)
+			this.tryItWraps = false;
 		options.text = this.options.text;
 		options.fontSize = px;
 		options.lineGap = this.lineGapFor(px);
-		options.pagePadding = PAGE_PADDING;
+		options.pagePadding = this.pagePadding;
+		// B12: stand-ins say it themselves; the sentence stays only for an empty field
+		options.showPlaceholderMessage = !this.standInsOn || !String(this.options.text).trim();
 
 		if (renderer instanceof FontPreview) {
 			if (this.fontDirty) {
@@ -894,6 +1133,14 @@ export function currentGlyphInfo(editor) {
 		}
 	}
 	return { char, stored: item?.contextCharacters || '' };
+}
+
+/**
+ * @param {String} key
+ * @returns {String} the words key's hint, '' for none
+ */
+function wordHint(key) {
+	return wordEntry(key)?.hint || '';
 }
 
 /**

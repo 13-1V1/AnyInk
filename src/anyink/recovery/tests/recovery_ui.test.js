@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { showError } from '../../../controls/dialogs/dialogs.js';
 import { recClear, recDel, recSet, setStorageDriver } from '../../storage/kv.js';
@@ -9,6 +11,7 @@ import { RECOVERY_CHANGE_EVENT, setRecoveryDeps } from '../recovery.js';
 import {
 	EMPTY_MESSAGE,
 	LOADING_MESSAGE,
+	confirmThrowAway,
 	forgetSnapshotsWithFeedback,
 	makeEmptyMessage,
 	makeRecoverArea,
@@ -246,10 +249,12 @@ describe('recover areas stay in sync', () => {
 });
 
 // --------------------------------------------------------------
-// Simple (B4 fix track, until B13's start screen and crash card)
+// B13: the card shows only under More tools (All tools), so B4's Simple words and its one-green
+// rule are retired; the one start-screen confirm (7.4 #1) is the start screen's crash card's
+// "Throw it away" (src/anyink/start), through confirmThrowAway
 // --------------------------------------------------------------
 
-describe('Simple: the card in house words, and the one start-screen confirm', () => {
+describe('B13: the card says its own words in either mode', () => {
 	beforeEach(() => {
 		if (!Element.prototype.animate) Element.prototype.animate = () => ({});
 		setModeForTests('simple');
@@ -267,111 +272,63 @@ describe('Simple: the card in house words, and the one start-screen confirm', ()
 		hasFile: false,
 	};
 	const withFile = { id: 'f', name: 'Brennan Hand', time: now - 60000, dirty: true, hasFile: true };
+
+	it('"from file", every Restore green, Discard at once (no B4 Simple branch)', async () => {
+		const onDiscard = vi.fn(async () => undefined);
+		const card = makeRecoveryCard([withFile, neverSaved], { now, onDiscard, onRestore: vi.fn() });
+		expect(card.querySelector('.anyink-recovery-row__badge').textContent).toBe('from file');
+		expect(
+			[...card.querySelectorAll('.anyink-recovery-row__restore')].map((b) =>
+				b.hasAttribute('secondary')
+			)
+		).toEqual([false, false]);
+		card.querySelectorAll('.anyink-recovery-row__discard')[1].click();
+		await flush();
+		expect(onDiscard).toHaveBeenCalledWith('n');
+		expect(makeEmptyMessage().textContent).toBe(EMPTY_MESSAGE);
+	});
+});
+
+describe('confirmThrowAway: the one start-screen confirm (UX-BEGINNER 7.4 #1)', () => {
+	beforeEach(() => {
+		if (!Element.prototype.animate) Element.prototype.animate = () => ({});
+		setModeForTests('simple');
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+		setModeForTests('all');
+		document.body.innerHTML = '';
+	});
 	/** The newest box (one that was answered fades out for 110 ms first). */
 	const dialog = () =>
 		[...document.querySelectorAll('dialog#modal-dialog')].filter((box) => box.isConnected).at(-1) ??
 		null;
 	const choice = (name) => dialog()?.querySelector(`[data-anyink-choice="${name}"]`);
 
-	it('Discard on unsaved work with no work file asks first (UX-BEGINNER 7.4 #1)', async () => {
-		// fix track: the only copy of a never-saved font went with one press, no confirm, no undo
-		const onDiscard = vi.fn(async () => undefined);
-		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
-		document.body.append(card);
-		card.querySelector('.anyink-recovery-row__discard').click();
-		await flush();
-		expect(onDiscard).not.toHaveBeenCalled();
+	it('asks in house words; Keep it is the one green button', async () => {
+		const answer = confirmThrowAway();
 		expect(dialog().textContent).toContain("Throw away this unsaved work? This can't be undone.");
+		expect(dialog().querySelector('[data-anyink-dialog="throwAway"]')).not.toBeNull();
 		expect(choice('throw-away').textContent).toBe('Throw it away');
 		expect(choice('keep').textContent).toBe('Keep it');
-		// one green button: Keep it; Throw it away is outlined (principle 1)
 		expect(choice('keep').hasAttribute('secondary')).toBe(false);
 		expect(choice('throw-away').hasAttribute('secondary')).toBe(true);
-
 		choice('keep').click();
-		await flush();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(card.querySelectorAll('.anyink-recovery-row')).toHaveLength(1);
-
-		card.querySelector('.anyink-recovery-row__discard').click();
-		await flush();
-		choice('throw-away').click();
-		await flush();
-		expect(onDiscard).toHaveBeenCalledWith('n');
-		expect(card.querySelector('.anyink-recovery-row')).toBeNull();
+		expect(await answer).toBe(false);
 	});
 
-	it('closing the box by its x keeps the work, and the row can be pressed again', async () => {
+	it('Throw it away answers yes', async () => {
+		const answer = confirmThrowAway();
+		choice('throw-away').click();
+		expect(await answer).toBe(true);
+	});
+
+	it('closing the box by its x keeps the work', async () => {
 		vi.useFakeTimers({ toFake: ['setTimeout'] });
-		const onDiscard = vi.fn(async () => undefined);
-		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
-		document.body.append(card);
-		const discard = card.querySelector('.anyink-recovery-row__discard');
-		discard.click();
-		await flush();
+		const answer = confirmThrowAway();
 		dialog().querySelector('.modal-dialog__close-button').click();
 		vi.advanceTimersByTime(200); // the box fades out, then leaves the page
 		await flush();
-		vi.useRealTimers();
-		expect(dialog()).toBeNull();
-		expect(onDiscard).not.toHaveBeenCalled();
-		expect(discard.hasAttribute('disabled')).toBe(false);
-		expect(card.querySelectorAll('.anyink-recovery-row')).toHaveLength(1);
-	});
-
-	it('Discard on a backup with a work file goes at once, as before', async () => {
-		const onDiscard = vi.fn(async () => undefined);
-		const card = makeRecoveryCard([withFile], { now, onDiscard, onRestore: vi.fn() });
-		card.querySelector('.anyink-recovery-row__discard').click();
-		await flush();
-		expect(onDiscard).toHaveBeenCalledWith('f');
-		expect(dialog()).toBeNull();
-	});
-
-	it('All tools discards at once, as before', async () => {
-		setModeForTests('all');
-		const onDiscard = vi.fn(async () => undefined);
-		const card = makeRecoveryCard([neverSaved], { now, onDiscard, onRestore: vi.fn() });
-		card.querySelector('.anyink-recovery-row__discard').click();
-		await flush();
-		expect(onDiscard).toHaveBeenCalledWith('n');
-	});
-
-	it('the Recover tab says "backup copy", never any form of "snapshot" (2.4 G)', async () => {
-		// fix track: "Unsaved work is snapshotted every few seconds" slipped past the scan,
-		// which matches whole words and plurals only
-		const tab = makeRecoverArea({ list: async () => [] });
-		await tab.ready;
-		expect(tab.textContent).toBe(
-			'Nothing to recover. ANY-INK keeps a backup copy every few seconds while you work.'
-		);
-		expect(tab.textContent).not.toMatch(/snapshot/i);
-		const card = makeRecoveryCard([neverSaved], {
-			now,
-			onDiscard: async () => undefined,
-			onRestore: vi.fn(),
-		});
-		card.querySelector('.anyink-recovery-row__discard').click();
-		await flush();
-		choice('throw-away').click();
-		await flush();
-		expect(card.textContent).not.toMatch(/snapshot/i);
-		setModeForTests('all');
-		expect(makeEmptyMessage().textContent).toBe(EMPTY_MESSAGE); // All tools keeps its words
-	});
-
-	it('the badge says "has a saved file"; only the first Restore is green (principle 1)', () => {
-		const card = makeRecoveryCard([withFile, { ...withFile, id: 'g' }], { now });
-		expect(card.querySelector('.anyink-recovery-row__badge').textContent).toBe('has a saved file');
-		const restores = [...card.querySelectorAll('.anyink-recovery-row__restore')];
-		expect(restores.map((button) => button.hasAttribute('secondary'))).toEqual([false, true]);
-		setModeForTests('all');
-		const classic = makeRecoveryCard([withFile, { ...withFile, id: 'g' }], { now });
-		expect(classic.querySelector('.anyink-recovery-row__badge').textContent).toBe('from file');
-		expect(
-			[...classic.querySelectorAll('.anyink-recovery-row__restore')].map((b) =>
-				b.hasAttribute('secondary')
-			)
-		).toEqual([false, false]);
+		expect(await answer).toBe(false);
 	});
 });

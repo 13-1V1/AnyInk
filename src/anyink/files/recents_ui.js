@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK recent projects card (Milestone 6, D-012).
 	Owner: FILES track (open / save / recents).
@@ -23,14 +25,20 @@
 	options: { load } is forwarded to openProjectFromHandle (a loader that does not
 	navigate, for test pages); { openHandle } replaces openProjectFromHandle in tests;
 	{ now } is a clock for the relative time labels.
+
+	B13: the card shows only on the tabs "Other ways to start..." opens, which are All tools
+	under the More tools band, so it says Glyphr Studio's words again (B4 + B5's Simple words are
+	retired; Simple's start screen, src/anyink/start, lists recent fonts its own way).
+	  openRecentHandle(entry, { load, openHandle })   the open on its own, shared with the start
+	      screen's Continue and other fonts: permission inside the click ('readwrite', so the next
+	      Save doesn't ask again), then openHandle. Resolves 'opened' | 'denied' | 'prompt' |
+	      'missing' | 'invalid'; says nothing (each caller words it)
 */
 
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { addAsChildren, makeElement } from '../../common/dom.js';
 import { showToast } from '../../controls/dialogs/dialogs.js';
-import { isSimpleMode } from '../mode/mode.js';
 import { injectStyleOnce } from '../preview/inject_style.js';
-import { word } from '../words/words.js';
 import { hasFileSystemAccess } from './file_api.js';
 import {
 	clearRecentProjects,
@@ -58,26 +66,24 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 	injectStyleOnce(STYLE_ID, style);
 
 	const card = makeElement({ tag: 'div', className: 'anyink-recents' });
-	// B4 + B5 integration: Simple says "Recent fonts" (sentence case, recents.css)
 	const title = makeElement({
 		tag: 'h3',
 		className: 'anyink-recents__title',
-		content: isSimpleMode() ? word('start.recentFonts') : 'Recent projects',
+		content: 'Recent projects',
 	});
-	// B4 + B5 finalize: Simple's tooltips say font (2.1), All tools as before
-	const simple = isSimpleMode();
 	const clear = makeElement({
 		tag: 'button',
 		className: 'anyink-recents__clear',
 		content: 'Clear',
-		attributes: {
-			type: 'button',
-			title: simple ? word('start.recentForgetAll') : 'Forget every recent project',
-		},
+		attributes: { type: 'button', title: 'Forget every recent project' },
 	});
 	const head = makeElement({ tag: 'div', className: 'anyink-recents__head' });
 	addAsChildren(head, [title, clear]);
-	const list = makeElement({ tag: 'div', className: 'anyink-recents__list', attributes: { role: 'list' } });
+	const list = makeElement({
+		tag: 'div',
+		className: 'anyink-recents__list',
+		attributes: { role: 'list' },
+	});
 	addAsChildren(card, [head, list]);
 
 	async function refresh() {
@@ -106,16 +112,11 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 	 */
 	async function openRecent(entry) {
 		const label = entry.name || entry.handle?.name || 'this project';
-		const permission = await ensurePermission(entry.handle, 'readwrite');
-		if (permission === 'prompt') {
+		const status = await openRecentHandle(entry, { load, openHandle });
+		if (status === 'prompt') {
 			showToast(`Click once more to let ANY-INK open ${label}.`);
 			return 'prompt';
 		}
-		if (permission === 'denied') {
-			await dropEntry(entry, `Access to ${label} was refused.<br>Removed from recent projects.`);
-			return 'denied';
-		}
-		const status = await openHandle(entry.handle, { mode: 'readwrite', load });
 		if (status === 'missing') {
 			await dropEntry(entry, `${label} could not be found.<br>Removed from recent projects.`);
 		} else if (status === 'denied') {
@@ -132,12 +133,13 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 			attributes: {
 				role: 'listitem',
 				tabindex: '0',
-				title: simple
-					? word('start.recentOpen', { file: fileName || entry.name })
-					: `Open ${fileName || entry.name}`,
+				title: `Open ${fileName || entry.name}`,
 			},
 		});
-		const name = makeElement({ className: 'anyink-recents__name', content: entry.name || fileName });
+		const name = makeElement({
+			className: 'anyink-recents__name',
+			content: entry.name || fileName,
+		});
 		const meta = makeElement({ className: 'anyink-recents__meta' });
 		const file = makeElement({ className: 'anyink-recents__file', content: fileName });
 		const time = makeElement({
@@ -151,7 +153,7 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 			content: '&times;',
 			attributes: {
 				type: 'button',
-				title: simple ? word('start.recentRemove') : 'Remove from recent projects',
+				title: 'Remove from recent projects',
 			},
 		});
 		remove.addEventListener('click', (event) => {
@@ -196,6 +198,20 @@ export function makeRecentFilesCard({ load, openHandle = openProjectFromHandle, 
 	card.lastAction = Promise.resolve();
 	card.ready = refresh();
 	return card;
+}
+
+/**
+ * @param {{handle: FileSystemFileHandle}} entry - a recents entry
+ * @param {Object} [options]
+ * @param {Function} [options.load] - forwarded to openHandle
+ * @param {Function} [options.openHandle] - default openProjectFromHandle
+ * @returns {Promise<'opened' | 'denied' | 'prompt' | 'missing' | 'invalid'>}
+ */
+export async function openRecentHandle(entry, { load, openHandle = openProjectFromHandle } = {}) {
+	// Asked first, inside the click that called this: the open itself reads the file after awaits
+	const permission = await ensurePermission(entry?.handle, 'readwrite');
+	if (permission !== 'granted') return permission;
+	return openHandle(entry.handle, { mode: 'readwrite', load });
 }
 
 function safeCurrentEditor() {

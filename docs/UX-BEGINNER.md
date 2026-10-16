@@ -1631,8 +1631,8 @@ folder. Nothing is committed without Brennan's go. Days are rough working days.
 | B9 | Photos: How card, photo dialog, photo card (**done 10/15/2026**) | `photo/` | 4 | One photo makes many letters |
 | B10 | Letter board (**done 10/15/2026**) | `board/` | 3 | Home with progress |
 | B11 | Checks and fixes (**done 10/15/2026**) | `checks/` | 2.5 | Needs a look, with one-click fixes |
-| B12 | Try it and gap fixes | `tryit/` | 3 | Test and fix gaps visually |
-| B13 | Start screen | `start/` | 2.5 | Create, Continue, crash card |
+| B12 | Try it and gap fixes (**done 10/15/2026**) | `tryit/` | 3 | Test and fix gaps visually |
+| B13 | Start screen (**done 10/15/2026**) | `start/` | 2.5 | Create, Continue, crash card |
 | B14 | Use in Word | `install/` | 2.5 | The full loop to Word |
 | B15 | Font details, guide lines, Help | `fontinfo/`, `help/` | 2 | Settings and help in plain words |
 | B16 | Turn Simple on, and Gate 2 | (mode default, docs) | 2.5 | Simple is the default |
@@ -2115,6 +2115,12 @@ the photo, Move the line only inside the letter box) are in D-043. Pokes is a so
 
 ### B12. Try it and gap fixes
 
+**DONE 10/15/2026** (tryit-strip and tryit-gaps tracks, then the B12 + B13 integration, which turned
+`tryIt` on, and the critic, fix and finalize passes; D-044). The strip grows into Try it under the top
+bar; stand-ins with the legend as a sentence under the sheet; the purple gap handle, its floor where the
+ink touches row by row; one step per drag with Undo held while pressed; Gaps you fixed lists only his
+own fixes; the Word note says nothing is needed until B14; the words never move under the pointer.
+
 - `src/anyink/tryit/`: `expand.js` (the strip grows; never rebuilt), `letter_spacing.js` (the closed
   section; `extra` for every letter, the per-side floor, the photo follows; one whole-project step on
   release), `gap_handle.js` (hover hit test via `preview/hit_test.js`; one-pair kern groups through
@@ -2132,6 +2138,13 @@ the photo, Move the line only inside the letter box) are in D-043. Pokes is a so
 - **Done when:** these pass. Days: 3.
 
 ### B13. Start screen
+
+**DONE 10/15/2026** (start and install tracks, then the B12 + B13 integration, which turned
+`startScreen` on, and the critic, fix and finalize passes; D-044). The start screen with one green
+button; Create with the save box never awaited; the replace check that never writes over a file it
+can't keep a copy of; the crash card only for copies newer than their work file; Menu > Start a new
+font...; "Other ways to start..." on Load; one owner of Chrome's install offer (the toast, Menu > Help,
+and All tools' notice, which never shows in Simple).
 
 - `src/anyink/start/`: `start_page.js` (the Continue card and its crash versions, other fonts with "Open a
   saved font..." always, the name field with a non-colliding default, Create with the picker not awaited,

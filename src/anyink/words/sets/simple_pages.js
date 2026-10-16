@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration word set: the upstream pages Simple shows today, until the B that replaces
 	each one lands (UX-BEGINNER.md 6.2 "Kept in Simple": the Overview until B10's letter board, the
@@ -12,16 +14,13 @@
 	              "not made yet", from its ink)
 	  overview.*  the Overview's welcome card and its preview's tooltip (pages/overview.js)
 	  help.*      the Help page's first tab (pages/help.js)
-	  start.*     the start page's Load and Examples tabs and the recent fonts card (app/
-	              open_project.js, files/recents_ui.js), until B13's start screen; file types
-	              show as quotes (menu.type*)
+	  start.*     only the progress while a font file is brought in (start.importing,
+	              start.importReading); B13's start screen retired the tabs' and the recent fonts
+	              card's Simple words (B12 + B13 integration)
 	B4 + B5 fix pass (critic findings; the words track adds them, the page owners put them on
 	screen in Simple):
-	  start.*     also the New tab ("Make a new font", "Font name"), the Load tab's buttons
-	              ("Open a work file...", "Or open a font file..."), the Examples tab, the
-	              progress while a font file is brought in ("Bringing in letters... 3 of 111"), and
-	              the recent fonts card's buttons; the work file is "work file" (2.1), never
-	              "project"
+	  start.*     the progress while a font file is brought in ("Bringing in letters... 3 of
+	              111"); the work file is "work file" (2.1), never "project"
 	  file.*      the type name the Windows Save and Open dialogs show for a work file
 	  help.*      also Simple's Help in a few sentences until B15 (4.10): pick a letter, the tools
 	              and their keys, Undo, Save, the font file, the full manual
@@ -41,44 +40,10 @@ const SIMPLE_PAGES = {
 	},
 	'overview.previewHint': { text: 'Your letters, in a sample sentence' },
 
-	'start.dropWorkFile': { text: 'An ANY-INK work file' },
-	'start.typeWorkFile': { text: '.gs2', quote: true, hint: 'The ending of an ANY-INK work file.' },
-	'start.dropFontFile': { text: 'A font file' },
-	// B4 + B5 fix pass: the start page takes an SVG font here, not a drawing (2.4 E: an SVG font is
-	// a font file); a drawing goes on a letter (toast.dropHint)
-	'start.dropDrawing': {
-		text: 'A font file made of drawings',
-		hint: 'An older kind of font file. A plain drawing goes on a letter instead.',
-	},
-	'start.recentFonts': { text: 'Recent fonts' },
-	'start.backupsUnreadable': {
-		text: "Couldn't read the backup copies ({reason}). Reload ANY-INK to try again.",
-	},
-	'start.exampleOblegg': {
-		text: 'Oblegg is the original Glyphr Studio sample font. Every editor feature is in it.',
-	},
-	'start.exampleSimple': { text: 'The simple example font has a few letters to try things on.' },
-
-	// B4 + B5 fix pass: the rest of the start page in Simple, until B13
-	'start.newFontTitle': { text: 'Make a new font' },
-	'start.fontName': { text: 'Font name', hint: 'Your font shows under this name in Word.' },
-	'start.createFont': { text: 'Make the font' },
-	'start.openWorkFile': { text: 'Open a work file...' },
-	'start.openFontFile': {
-		text: 'Or open a font file...',
-		hint: 'Brings the letters of a font file into a new work file.',
-	},
-	'start.examplesTitle': { text: 'Open an example font' },
-	'start.exampleSimpleButton': { text: 'Simple example font' },
-	'start.exampleObleggButton': { text: 'Oblegg' },
+	// B12 + B13 integration: B13's start screen (sets/start.js) retired the tabs' Simple words; the
+	// progress while a font file is brought in stays (formats_io)
 	'start.importing': { text: 'Bringing in letters... {done} of {total}' },
-	// B4 + B5 finalize: the drag note and an example while it opens (2.2: no exclamation marks)
-	'start.dropNote': { text: 'Drop it here' },
-	'start.loadingExample': { text: 'Opening the example font...' },
 	'start.importReading': { text: 'Reading your font file...' },
-	'start.recentOpen': { text: 'Open {file}' },
-	'start.recentForgetAll': { text: 'Forget every recent font' },
-	'start.recentRemove': { text: 'Remove from recent fonts' },
 	'file.workFileType': {
 		text: 'ANY-INK work file',
 		hint: 'What the Windows Save and Open boxes call a .gs2 file.',

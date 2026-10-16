@@ -15,10 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { makePage_OpenProject } from '../../../app/open_project.js';
-import { resetFileApi, setFileApi } from '../../files/file_api.js';
-import { fakeApi } from '../../files/tests/fakes.js';
-import { makeRecoverArea, makeRecoveryCard } from '../../recovery/recovery_ui.js';
+import { resetFileApi } from '../../files/file_api.js';
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { sampleEditor } from './controls_probe.js';
 import { noFlags } from './no_flags.js';
@@ -150,42 +147,9 @@ describe('Simple: the other pages it shows today say no banned word', () => {
 		return page;
 	});
 
-	scanSimpleScreen("the start page's tabs, every one shown (before B13)", () => {
-		hush();
-		const style = document.createElement('style');
-		style.dataset.scan = 'anyink/files/recents.css';
-		style.textContent = css('anyink/files/recents.css');
-		document.head.appendChild(style);
-		setFileApi(fakeApi({ open: [], save: undefined }));
-		sampleEditor();
-		const page = makePage_OpenProject();
-		document.body.appendChild(page);
-		page.querySelectorAll('.open-project__tab-content').forEach((tab) => (tab.style.display = ''));
-		expect(page.querySelector('.anyink-recents__title').textContent).toBe('Recent fonts');
-		expect(page.querySelectorAll('#open-project__drop-target .anyink-quote')).toHaveLength(5);
-		return page;
-	});
-
-	scanSimpleScreen('the Recover tab: unsaved work found, and a list that failed (before B13)', async () => {
-		hush();
-		const style = document.createElement('style');
-		style.dataset.scan = 'anyink/recovery/recovery.css';
-		style.textContent = css('anyink/recovery/recovery.css');
-		document.head.appendChild(style);
-		const card = makeRecoveryCard(
-			[{ id: 's1', name: 'Brennan Hand', time: Date.now() - 60000, dirty: true, hasFile: true }],
-			{ onRestore: async () => {}, onDiscard: async () => {} }
-		);
-		const failed = makeRecoverArea({
-			list: async () => {
-				throw new Error('the browser said no');
-			},
-		});
-		document.body.append(card, failed);
-		await new Promise((resolve) => setTimeout(resolve, 20));
-		expect(failed.textContent).toContain("Couldn't read the backup copies");
-		return document.body;
-	});
+	// B12 + B13 integration: the start page's tabs and the Recover tab, scanned here before B13,
+	// are retired in Simple: the start screen is scanned in start/tests/start_page.test.js, and
+	// the tabs show only under the More tools band, in Glyphr Studio's words
 
 	scanSimpleScreen('About', () => {
 		hush();

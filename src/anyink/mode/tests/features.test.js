@@ -39,9 +39,9 @@ const SPEC_FLAGS = [
 
 /**
  * The flags the Bs that have landed turned on (B6 + B7 integration; B8 brush, B9 photo; B10 + B11
- * integration: board, checks).
+ * integration: board, checks; B12 + B13 integration: tryIt, startScreen).
  */
-const LANDED = ['coach', 'letterView', 'brush', 'photo', 'board', 'checks'];
+const LANDED = ['coach', 'letterView', 'brush', 'photo', 'board', 'checks', 'tryIt', 'startScreen'];
 
 describe('feature flags', () => {
 	it("are the spec's flags, in its order", () => {
@@ -52,7 +52,7 @@ describe('feature flags', () => {
 	});
 
 	// B6 + B7 integration: each B turned on only its own flag; every later one is still off
-	it('are on for the Bs that have landed (B6 to B11) and off for the rest', () => {
+	it('are on for the Bs that have landed (B6 to B13) and off for the rest', () => {
 		SPEC_FLAGS.forEach((name) => {
 			const on = LANDED.includes(name);
 			expect(FEATURES[name], name).toBe(on);
@@ -100,17 +100,17 @@ describe('feature flags', () => {
 
 describe('test overrides', () => {
 	it('turn a flag on for isFeatureOn until reset, and hand back what they replaced', () => {
-		// B10 + B11 integration: tryIt and startScreen are flags that haven't landed (board and
-		// checks have)
-		expect(setFeaturesForTests({ tryIt: true })).toEqual({});
-		expect(isFeatureOn('tryIt')).toBe(true);
-		expect(isFeatureOn('startScreen')).toBe(false);
-		expect(setFeaturesForTests({ startScreen: true })).toEqual({ tryIt: true });
-		expect(isFeatureOn('tryIt')).toBe(true);
-		expect(isFeatureOn('startScreen')).toBe(true);
+		// B12 + B13 integration: useInWord and fontDetails are flags that haven't landed (tryIt and
+		// startScreen have)
+		expect(setFeaturesForTests({ useInWord: true })).toEqual({});
+		expect(isFeatureOn('useInWord')).toBe(true);
+		expect(isFeatureOn('fontDetails')).toBe(false);
+		expect(setFeaturesForTests({ fontDetails: true })).toEqual({ useInWord: true });
+		expect(isFeatureOn('useInWord')).toBe(true);
+		expect(isFeatureOn('fontDetails')).toBe(true);
 		resetFeaturesForTests();
-		expect(isFeatureOn('tryIt')).toBe(false);
-		expect(isFeatureOn('startScreen')).toBe(false);
+		expect(isFeatureOn('useInWord')).toBe(false);
+		expect(isFeatureOn('fontDetails')).toBe(false);
 	});
 
 	it('turn a landed flag off for isFeatureOn until reset (a "before this B" guard)', () => {
@@ -128,8 +128,8 @@ describe('test overrides', () => {
 	});
 
 	it('never change FEATURES itself', () => {
-		setFeaturesForTests({ tryIt: true, coach: false });
-		expect(FEATURES.tryIt).toBe(false);
+		setFeaturesForTests({ useInWord: true, coach: false });
+		expect(FEATURES.useInWord).toBe(false);
 		expect(FEATURES.coach).toBe(true);
 		resetFeaturesForTests();
 	});

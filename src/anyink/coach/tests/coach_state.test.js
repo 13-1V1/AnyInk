@@ -657,7 +657,10 @@ describe('Something else, hide, facts and sources', () => {
 		resetFeaturesForTests();
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
-		expect(coach.state().flags).toEqual(flags('letterView', 'brush', 'photo', 'board', 'checks'));
+		// B12 + B13 integration: Try it and the start screen too
+		expect(coach.state().flags).toEqual(
+			flags('letterView', 'brush', 'photo', 'board', 'checks', 'tryIt', 'startScreen')
+		);
 		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
 		// before B9 (photo off) the same font says rule 15, as it did
 		setFeaturesForTests({ photo: false });

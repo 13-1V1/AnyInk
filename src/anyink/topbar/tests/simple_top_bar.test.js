@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B6 (UX-BEGINNER.md 4.0 "Top bar", 4.11): in Simple, once the 'coach' flag is on, makeAppTopBar
 // draws the Simple top bar: the logo (goes to the letters), the font name, the rail "1 Letters
 // 0/58" (2 Try it and 3 Use in Word only once their Bs land), Undo and Redo (named, and saying why
@@ -13,13 +15,14 @@ import { SaveStatusElement } from '../../files/save_status_element.js';
 import { setSaveStatus } from '../../files/save_status.js';
 import { getCoach, resetCoachForTests } from '../../coach/coach_state.js';
 import { B, R, square, traceInto, twoLetterEditor } from '../../history/tests/two_letters.js';
-import { setFeaturesForTests } from '../../mode/features.js';
+import { resetFeaturesForTests, setFeaturesForTests } from '../../mode/features.js';
 import { USE_IN_WORD_EVENT } from '../../mode/doors.js';
 import { getMode, setModeForTests } from '../../mode/mode.js';
 import { showItem } from '../../preview/show_item.js';
 import { resetToastsForTests } from '../../toast/toast.js';
 import { word } from '../../words/words.js';
 import { FONT_DETAILS_EVENT, TRY_IT_EVENT } from '../doors.js';
+import { TRY_IT_CHANGE_EVENT } from '../../tryit/expand.js';
 import { makeSimpleTopBar, refreshSimpleTopBar, useSimpleTopBar } from '../simple_top_bar.js';
 
 const $ = (bar, control) => bar.querySelector(`[data-anyink-control="${control}"]`);
@@ -209,9 +212,15 @@ describe('the rail', () => {
 	});
 
 	it('no doors to unbuilt rooms: Try it and Use in Word show only once their Bs land', () => {
-		const { bar } = simpleBar();
+		// B12 + B13 integration: Try it has landed; before B12 its step was not there
+		const { bar } = simpleBar({ flags: { tryIt: false } });
 		expect(step(bar, 'tryIt')).toBeNull();
 		expect(step(bar, 'useInWord')).toBeNull();
+		document.body.innerHTML = '';
+		resetFeaturesForTests(); // the flags as the app has them
+		const now = simpleBar().bar;
+		expect(step(now, 'tryIt').textContent).toBe('2Try it');
+		expect(step(now, 'useInWord')).toBeNull();
 		document.body.innerHTML = '';
 		const later = simpleBar({ flags: { tryIt: true, useInWord: true } }).bar;
 		expect(
@@ -229,6 +238,25 @@ describe('the rail', () => {
 		window.removeEventListener(USE_IN_WORD_EVENT, useInWord);
 		expect(tryIt).toHaveBeenCalledTimes(1);
 		expect(useInWord.mock.calls[0][0].detail).toEqual({ cause: 'rail' });
+	});
+
+	// B12 + B13 integration (4.6: "top bar: step 2 outlined green"): while Try it is open, step 2
+	// is the current step, not step 1. Written to fail first: Letters stayed current.
+	it('while Try it is open, step 2 is the current step', () => {
+		const { bar } = simpleBar();
+		const current = () =>
+			[...bar.querySelectorAll('[data-anyink-step][aria-current="step"]')].map(
+				(el) => el.dataset.anyinkStep
+			);
+		expect(current()).toEqual(['letters']);
+		window.dispatchEvent(
+			new CustomEvent(TRY_IT_CHANGE_EVENT, { detail: { open: true, section: '', cause: 'rail' } })
+		);
+		expect(current()).toEqual(['tryIt']);
+		window.dispatchEvent(
+			new CustomEvent(TRY_IT_CHANGE_EVENT, { detail: { open: false, section: '', cause: 'done' } })
+		);
+		expect(current()).toEqual(['letters']);
 	});
 
 	it("the rail ends with the Next line's chip, hidden while the line shows; x hides the line, the chip brings it back", () => {

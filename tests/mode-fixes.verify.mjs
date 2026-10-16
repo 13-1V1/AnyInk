@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix track (mode) real-browser check, in the real app on a Vite dev server over src/,
 // Chrome with a throwaway profile, 1600 x 900, Simple (?ui=simple) unless it says otherwise:
 //   1. the page chooser stays until B6's rail: on the Overview, a letter, Help and About, with
@@ -451,13 +453,19 @@ try {
 	const before = await text('#open-project__drop-target');
 	await page.evaluate(async () => (await import('/anyink/mode/switch.js')).switchMode('simple'));
 	await settle(300);
-	await page.locator('#open-project__tab-load').click();
-	const after = await text('#open-project__drop-target');
+	// B12 + B13 finalize: Simple's app page is B13's start screen now (no tabs; its words are
+	// b1213.verify.mjs A's), so the switch draws that instead of B5's Load tab
+	await page.locator('.anyink-start').waitFor({ timeout: 10000 });
+	const after = {
+		tabs: await page.locator('#open-project__tab-load').count(),
+		create: (await text('#button__create-new-project')).trim(),
+	};
 	assert.match(before, /ANY-INK project/);
-	assert.match(after, /An ANY-INK work file/);
+	assert.equal(after.tabs, 0, 'no tabs on the start screen');
+	assert.equal(after.create, 'Create my font');
 	await shot('8-open-project-after-switch');
 	numbers.openProject = { before, after };
-	pass(`Open Project page, All tools -> Simple: the Load tab's drop target went from "${before}" to "${after}"`);
+	pass(`Open Project page, All tools -> Simple: the Load tab ("${before}") gave way to the start screen [${after.create}]`);
 
 	assert.deepEqual(errors, [], 'no page errors');
 	pass('no page errors');

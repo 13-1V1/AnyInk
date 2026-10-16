@@ -1,0 +1,292 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* B13: Simple's start screen (UX-BEGINNER.md 4.1) and the replace question (7.4 #5). Tokens
+   only. One solid green button per state (.anyink-primary); every other button is outlined
+   (.anyink-outlined) or a link. The id rules from app-pages.css (#open-project__page, its right
+   area and drop note) are taken back here for .anyink-start only. */
+
+#open-project__page.anyink-start {
+	display: block;
+	position: relative;
+	top: 0;
+	width: 100%;
+	height: 100vh;
+	overflow-y: auto;
+	background: var(--chrome-bg);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+}
+
+.anyink-start #open-project__right-area.anyink-start__main {
+	box-sizing: border-box;
+	max-width: 760px;
+	margin: 0 auto;
+	padding: var(--space-6) var(--space-5);
+	font-size: var(--text-base);
+}
+
+.anyink-start__logo {
+	margin: 0 0 var(--space-5);
+	text-align: center;
+	font-size: var(--text-xl);
+	font-weight: 600;
+	letter-spacing: var(--eyebrow-spacing);
+	color: var(--chrome-text);
+}
+
+.anyink-start__heading {
+	margin: 0 0 var(--space-2);
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--chrome-text);
+}
+
+.anyink-start__card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-4);
+	background: var(--chrome-bg-raised);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-card);
+}
+
+.anyink-start__card--crash {
+	border-color: var(--warning);
+	background: var(--warning-soft);
+}
+
+.anyink-start__card-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+
+.anyink-start__font-name {
+	flex: 1 1 auto;
+	font-size: var(--text-lg);
+	font-weight: 600;
+}
+
+.anyink-start__when {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-start__crash-text {
+	margin: 0;
+	font-size: var(--text-base);
+}
+
+.anyink-start__card--crash .anyink-start__card-row {
+	justify-content: space-between;
+}
+
+.anyink-start__note {
+	margin: var(--space-2) 0 0;
+	color: var(--warning);
+}
+
+.anyink-start__note[hidden],
+.anyink-start__hint[hidden] {
+	display: none;
+}
+
+.anyink-start__hint {
+	margin: var(--space-1) 0 0;
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+.anyink-start__others {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-4);
+	margin-top: var(--space-3);
+}
+
+.anyink-start__font-list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--space-1) var(--space-3);
+}
+
+.anyink-start__label {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-start__open-saved {
+	margin-left: auto;
+}
+
+.anyink-start__rule {
+	border: 0;
+	border-top: var(--hairline);
+	margin: var(--space-5) 0;
+}
+
+.anyink-start__name-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.anyink-start__name-row label {
+	color: var(--chrome-text);
+}
+
+.anyink-start #input__new-project-name {
+	flex: 1 1 240px;
+	min-width: 0;
+	box-sizing: border-box;
+	padding: var(--space-2) var(--space-3);
+	font: inherit;
+	font-size: var(--text-base);
+	color: var(--field-text);
+	background: var(--field-bg);
+	border: 1px solid var(--field-border);
+	border-radius: var(--radius);
+}
+
+.anyink-start #input__new-project-name:hover {
+	border-color: var(--field-border-hover);
+}
+
+.anyink-start #input__new-project-name:focus {
+	outline: none;
+	border-color: var(--field-border-focus);
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-start__foot {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-4);
+}
+
+.anyink-start__credit {
+	color: var(--chrome-text-faint);
+	font-size: var(--text-sm);
+}
+
+/* Buttons: the one green, the outlined rest, and links */
+.anyink-start button,
+.anyink-replace-box button {
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	cursor: pointer;
+}
+
+.anyink-start .anyink-primary,
+.anyink-start .anyink-outlined,
+.anyink-replace-box .anyink-primary,
+.anyink-replace-box .anyink-outlined {
+	flex: 0 0 auto;
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius);
+}
+
+.anyink-start .anyink-primary,
+.anyink-replace-box .anyink-primary {
+	background-color: var(--touch);
+	color: var(--chrome-text-inverse);
+	border: 1px solid var(--touch);
+	font-weight: 600;
+}
+
+.anyink-start .anyink-primary:hover,
+.anyink-replace-box .anyink-primary:hover {
+	background-color: var(--touch-hover);
+	border-color: var(--touch-hover);
+}
+
+.anyink-start .anyink-primary:active,
+.anyink-replace-box .anyink-primary:active {
+	background-color: var(--touch-active);
+}
+
+.anyink-start .anyink-outlined,
+.anyink-replace-box .anyink-outlined {
+	background-color: transparent;
+	color: var(--chrome-text);
+	border: 1px solid var(--chrome-border-strong);
+}
+
+.anyink-start .anyink-outlined:hover,
+.anyink-replace-box .anyink-outlined:hover {
+	background-color: var(--chrome-bg-hover);
+}
+
+.anyink-start__link {
+	padding: 0;
+	background: none;
+	border: 0;
+	color: var(--chrome-text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.anyink-start__link:hover {
+	color: var(--touch-hover);
+}
+
+.anyink-start button:focus-visible,
+.anyink-replace-box button:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* The drop note covers the page while a file is dragged over it */
+#open-project__page.anyink-start #open-project__drop-note.anyink-start__drop {
+	display: none;
+	position: fixed;
+	inset: 0;
+	width: auto;
+	height: auto;
+	padding: 0;
+	align-items: center;
+	justify-content: center;
+	font-size: var(--text-xl);
+	color: var(--chrome-text);
+	background-color: var(--overlay);
+	backdrop-filter: blur(2px);
+	z-index: 10;
+}
+
+#open-project__page.anyink-start #open-project__drop-note.anyink-start__drop--on {
+	display: flex;
+}
+
+/* The replace question (confirmation 5) */
+.anyink-replace-box {
+	font-family: var(--font-ui);
+	color: var(--chrome-text);
+}
+
+.anyink-replace-box p {
+	margin: 0 0 var(--space-4);
+	font-size: var(--text-base);
+}
+
+.anyink-replace-box__buttons {
+	display: flex;
+	gap: var(--space-3);
+	justify-content: flex-end;
+}
+
+/* The tabs "Other ways to start..." opens: the More tools band sits above the page's grid, at
+   the top of the window (the page itself is drawn 40px up, app-pages.css) */
+#app__page > .anyink-band:first-child {
+	margin-top: -40px;
+}
+
+#app__page > .anyink-band + #open-project__page {
+	top: 0;
+	height: calc(100vh - 32px);
+}
