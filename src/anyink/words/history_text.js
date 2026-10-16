@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4: Undo titles in plain words (UX-BEGINNER.md 2.2 "Undo titles, one rule", 2.4 G).
 	Existing code keeps the titles it records (More tools' auto-trace still writes "Auto-traced
@@ -30,12 +32,17 @@
 	  name ('Latin Small Letter B'); otherwise "this letter".
 	- HTML in a title (upstream's cross-project titles carry <br>) and a final period are
 	  dropped; numbers inside a title are never shown, except a count of shapes or points.
+	- S1 (docs/SKETCH.md section 7): the sketch's Undo titles are written from their words
+	  (sets/sketch.js 'sketch.step.*', "sketched a line on small n") and mapped back to their key,
+	  with {letter} / {part} / {number} as vars, by rules made from those same words, so a title
+	  and its rule never drift apart. They come right after B1's rules.
 */
 import { getUnicodeName, getUnicodeShortName } from '../../lib/unicode/unicode_names.js';
 import { WHOLE_PROJECT_POST_TITLE } from '../history/history_helpers.js';
 import { findBanned } from './banned.js';
 import { letterPhrase } from './letter_name.js';
-import { word } from './words.js';
+import { SKETCH_STEPS } from './sets/sketch.js';
+import { word, wordEntry } from './words.js';
 
 /**
  * @typedef {Object} HistoryStep
@@ -187,6 +194,39 @@ const COMBINE_KEYS = {
 	intersect: 'history.keptOverlap',
 };
 
+// --------------------------------------------------------------
+// Sketch (S1): rules made from the Undo titles' own words
+// --------------------------------------------------------------
+
+/** What each placeholder of a sketch title may be: a number only for {number}. */
+const SKETCH_HOLES = Object.freeze({ number: '(\\d+)' });
+
+/**
+ * One rule for a 'sketch.step.*' title: its words with each {name} as a capture.
+ * @param {String} key
+ * @returns {[RegExp, Function]}
+ */
+function sketchRule(key) {
+	const text = wordEntry(key).text;
+	const names = [];
+	const source = text
+		.split(/(\{[a-zA-Z][a-zA-Z0-9]*\})/)
+		.map((part) => {
+			const hole = part.match(/^\{([a-zA-Z][a-zA-Z0-9]*)\}$/);
+			if (!hole) return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			names.push(hole[1]);
+			return SKETCH_HOLES[hole[1]] || '(.+)';
+		})
+		.join('');
+	const mapping = (m) => [key, Object.fromEntries(names.map((name, i) => [name, m[i + 1]]))];
+	return [new RegExp(`^${source}$`), mapping, text.replace(/\{[^}]*\}/g, '').length];
+}
+
+/** Longest fixed words first, so "made a piece an outline on" wins over "made {letter} an outline". */
+const SKETCH_RULES = SKETCH_STEPS.map(sketchRule)
+	.sort((a, b) => b[2] - a[2])
+	.map(([pattern, mapping]) => [pattern, mapping]);
+
 /** @type {Array<[RegExp, String | Function, Boolean?]>} */
 // prettier-ignore
 const RULES = [
@@ -199,6 +239,9 @@ const RULES = [
 	[/^fixed the width of (.+)$/, (m) => ['history.fixedWidth', { letter: m[1] }]],
 	[/^removed (a|\d+) stray shapes? from (.+)$/, (m) => ['history.removedStray', { ...count(m[1]), letter: m[2] }]],
 	[/^traced (.+)$/, (m) => ['history.traced', { letter: m[1] }]],
+
+	// S1: the sketch (docs/SKETCH.md section 7)
+	...SKETCH_RULES,
 
 	// The photo
 	[/^Added a trace image$/, 'history.photoAdded'],

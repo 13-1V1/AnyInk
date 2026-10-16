@@ -44,6 +44,7 @@ import {
 import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
 import { beforeStrokeStep } from '../anyink/nib/history_hook.js';
+import { beforeSketchStep } from '../anyink/sketch/history_hook.js';
 import { carryPhotos } from '../anyink/photo/photo_registry.js';
 import { markDirty } from '../anyink/recovery/recovery.js';
 import { upstreamToast } from '../anyink/toast/toast.js';
@@ -306,6 +307,8 @@ export class History {
 		const editor = getCurrentProjectEditor();
 		// ANY-INK (B8 + B9 finalize): pasted brush strokes sorted out inside this step too
 		if (!itemWasDeleted) beforeStrokeStep(editor);
+		// ANY-INK (S1): the sketch's tags and built-shape hash checked inside this step too
+		if (!itemWasDeleted) beforeSketchStep(editor);
 		const spacing = beforeItemStep(this, editor, { itemWasDeleted });
 		const entry = makeHistoryEntry({ title: title, itemWasDeleted: itemWasDeleted });
 		// ANY-INK (B3 fix): letters refit with the open one are parts of this item step

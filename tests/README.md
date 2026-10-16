@@ -318,3 +318,11 @@ the page once its start page loads (`verify_standins.mjs` pinB5Simple); `b67.ver
 Rectangle by its key where Simple keeps it inside Fine-tune.
 The B6 and B7 test pages: `topbar.html` (the bar on a bare editor), `coach.html` (every Next line
 rule, flag toggles, the section 3 journey) and `letter.html` (the letter view on the sample font).
+
+Since S1 (10/16/2026, docs/SKETCH.md, D-047) `sketch.html` shows the sketch model with no app
+screen: five stored sketches (`src/anyink/sketch/tests/fixtures/stored_sketches.js`) placed by the
+edge rule, built by `curves.js` and swept with the Brush's round nib, with toggles for ink lines,
+extremes, ink and handles. `sketch.verify.mjs` (`npm run verify:sketch-page`) checks in Chrome that
+it draws, that the curves pass through every point and that every given direction is met; it
+starts its own server, or uses a running `npm run pages` with `SKETCH_ORIGIN=http://localhost:5174`.
+The `sketch` flag stays off until S9.

@@ -71,7 +71,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   `drop_toasts.js`: a work file or an empty drawing dropped. Test page `tests/toast.html`.
 - `src/anyink/mode` (B2 + B5) — `mode.js` (B16: `'simple'` by default, `LAUNCH_MODE`; `?ui=all` or
   More tools for All tools, `?ui=simple` still works; mirrored
-  to `html[data-ui-mode]`, `anyink-mode-change`, `setModeForTests`), `features.js` (14 flags, all
+  to `html[data-ui-mode]`, `anyink-mode-change`, `setModeForTests`), `features.js` (15 flags, all
   off; each B turns on only its own), `visibility.js` (6.2's tables: `isShown(area, id)`; screens
   filter where they are drawn), `keys.js` (the one key map, 7.6), `band.js` (purple band, landing
   rule `arriveAt` at the top of `Navigator.navigate`), `switch.js` (`switchMode`: mode changes from
@@ -274,6 +274,23 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   build) with `tests/beginner_weight.mjs` and `tests/fixtures/brenna-loose.*`, `brenna-tight.*`;
   B16 real-Chrome checks `close_soon`, `rail_words`, `drawing_tools_lines`, `start_name`. Brennan's
   own session: `docs/GATE2.md`.
+- `src/anyink/sketch` (S1, docs/SKETCH.md, D-047 + D-048) — sketched letters' pure core, flag
+  `sketch` off, nothing on screen yet: `model.js` (`glyph.anyink.sketch` v1: points, pieces, parts
+  line / arc / curve / spline, relations, `ON_PLACES`; `sketchOf` repairs a damaged v1 in place, an
+  unreadable `v` is kept untouched; `validateSketch(sketch, { project })`; `sketchThickness` /
+  `setSketchThickness`, `thicknessRange`), `hobby.js` (in-house Hobby / MetaPost spline with
+  directions and per-side tension, `gripTension` / `gripPull`), `arc.js` (ends + bulge, tangent
+  arcs up to 300 degrees), `curves.js` (`pieceSkeleton`: a piece as Brush skeleton cubics; give-way,
+  locks, aims, live circles and let-go ovals; `pointsMap`), `extremes.js` (`lockFor`: level / plumb
+  only where the curve touches and runs near it), `edge_rule.js` (the ink edge on the line:
+  `inkLines`, overshoot, `edgeThickness`, a crossing point on the line itself, `placeEdgePoints`),
+  `bumpy.js` (the Bumpy measure per 2,048-unit letter box; pass `{ font }`), `outline_order.js`
+  (loop depth and turn), `sketch_record.js` (tags, `reconcile`, `hashBuilt`), `history_hook.js`
+  (`beforeSketchStep`, called by `history.js` in both modes; never throws). Words in
+  `words/sets/sketch.js`. Tests `sketch/tests` (Hobby fixture from a port of mp.w, no `mpost` here;
+  the dead-end replay `dead_end_a.gs2.json`); test page `tests/sketch.html`, `npm run
+  verify:sketch-page`. S3 owes: Simple's spacing refit moves built ink after `beforeSketchStep`
+  (an `it.todo`), the sweep uses `edgeThickness`, Flip / Mirror turn `aim.dir`.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -330,7 +347,9 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — DONE 10/16/2026, Gate 2 next 
    it keeps the photo, two touching letters need a look, Try it before the photo's next part, the
    install offer waits out a photo walk, the gap handle at small sizes, straight Brush legs, the name
    field; every real-Chrome check run one at a time; the launch default flipped to Simple; D-046).
-   Gate 2 (Brennan's own session, docs/GATE2.md) next, then M9.
+   Gate 2 (Brennan's own session, docs/GATE2.md) run 10/16/2026: the Brush-only letter was a dead
+   end, so sketched letters come first (docs/SKETCH.md, D-047, S1 to S9, flag `sketch`). S1 (model,
+   curves and measures) done 10/16/2026 (D-048); S2 (Draw) next; then Gate 2b, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Since B16 Simple is the launch default; All tools is `?ui=all` or More tools.
 9. Handwriting sheet — pending, next after Gate 2 (plugs into the letter board)

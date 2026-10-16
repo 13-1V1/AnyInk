@@ -163,6 +163,22 @@ of an o or an arch is the point itself, and the curve flows over it the way a So
 with a horizontal relation does. A drag 3x the snap radius off the line releases it ("let go of the
 level").
 
+As built in S1 (`sketch/extremes.js lockFor`, D-048):
+
+- **Touch, not cross.** A point on a line locks only where the curve **touches** the line (both
+  neighbors on one side). Where the stroke **crosses** the line (a diagonal through the
+  small-letter line) the point keeps on-a-line but gets no lock, and the edge rule puts it on the
+  line itself (section 6).
+- **Only near level or plumb.** A level or plumb lock is added only where the curve built without
+  it already runs within 25 degrees of level / plumb there, and both chords to its neighbors lie
+  within 75 degrees of it (SolidWorks adds a horizontal relation only to a line already close to
+  it). So a narrow peak (a teardrop's point, a pointed arch) stays free; forced level, it would
+  balloon. A peak that sharp wants a corner point.
+- **Every bowl's own extremes,** not only the piece's: the upper bowl of an s locks plumb on its
+  left although the lower end reaches further left.
+- **The Mirror line and the letter's middle lock level,** not plumb: a curve that is its own mirror
+  image crosses its mirror line level (the top of an O, the bottom of a U).
+
 ### Tips (`coach/tips.js`)
 
 - **First Line pick, on hover of the Line button, and whenever Arc is picked right after a Line
@@ -431,10 +447,14 @@ only the stretch between them is redrawn.
    - **Measure:** sample the centerline every quarter thickness, smooth it over a window of half
      the thickness, and count **bumps**: places where the curve's turn changes side (left to
      right or back) after turning at least 8 degrees since the last change.
-   - **Bumpy** when a piece has **3 or more bumps and more than 4 bumps per 1,000 font units**,
+   - **Bumpy** when a piece has **3 or more bumps and more than 4 bumps per 1,000 font units**
+     (units of a 2,048-unit letter box: a font at another upm has its length scaled by 2,048 /
+     upm first, so the same drawing gets the same verdict in any font),
      and only for Brush strokes and sketch pieces longer than 6x the thickness (so the ear of r,
      a short tail, a dot, the end of a and the hook of f never count).
    - Tested on clean sketched a, r, s, e, B (0 bumpy) and on the replay's two strokes (both bumpy).
+   - Every caller passes the font (`bumpyPieces(sketch, skeleton, { font: project.settings.font })`);
+     without it the rate assumes a 2,048-unit letter box.
    - "Needs a look: bumpy line". Fix button: [Make it a sketch] (Brush) or [Fewer points]
      (sketch). [Looks fine to me] still works.
 4. **No fake Ready.** A letter with an open Bumpy check is amber, not Ready, like every other B11
@@ -484,7 +504,16 @@ One rule, written down as decision D-047 point 3:
 - **Round tops and bottoms overshoot** on top of that: a smooth point with a level lock on the
   writing, small-letter or capitals line moves outward by `guideLines(font).overshoot` (the
   code's `ROUND_OVERSHOOT` share, the same value the B11 checks and fixes use). Ends and corners
-  never overshoot. Never shown as a number.
+  never overshoot. Decided per point: a point inside a closed piece or between an open piece's
+  ends overshoots even when it also starts another piece (the bowl bottom where q's tail
+  starts). Never shown as a number.
+- **The thickness the rule uses** is kept at or under the slider's thick end (`thicknessRange`)
+  and the small-letter height (`edge_rule.js edgeThickness`), so the ink lines never cross,
+  even after the small-letter line is moved. **The S3 sweep uses the same `edgeThickness`,** never
+  the raw stored thickness, so the ink width always matches the pinned points.
+- **A point where the stroke crosses its line** (its neighbors along the piece on both sides of
+  the line) is not an edge: it sits on the line itself, no inset, no overshoot, whatever it stores
+  (`edge_rule.js crossingPoints`, D-048). Only points that touch the line are edges.
 - **Outline** points snapped to a line sit on the line itself (they are already the edge), plus
   the same overshoot for level-locked round points.
 - **Checks agree:** `checks/body_bottom.js penAllowance` gives sketch-built Centerline shapes 0
@@ -841,7 +870,20 @@ glyph.anyink.sketch = {
   line moves. Tangency is implied by `kind: 'smooth'`, `lock` and `aim`; Joined by shared ids.
 - `aim` is the S1 decision that depends on the spline engine (section 9): a direction in degrees
   and a tension per side (MetaPost's `{dir}` and `tension a and b`; 1 = normal, 0.75 to 4). The
-  arrow grip's pull maps to tension (longer pull, lower tension).
+  arrow grip's pull maps to tension (longer pull, lower tension) through `hobby.js gripTension`
+  and back through `gripPull`: a handle runs from 1/4 to 1/0.75 of its normal length (measured
+  about 0.34 to 1.38), and S4 draws the grip at `gripPull(gripTension(pull))`. An aim more than 90
+  degrees off the way the piece runs is read turned round (`curves.js alongRun`), so it never makes
+  a loop. S3's Flip and Mirror must still turn `aim.dir` (a left-right mirror makes it 180 - dir).
+- **A tangent arc turns at most 300 degrees** (`arc.js MAX_TANGENT_SWEEP`); past that, or where it
+  would miss a smooth join that already has a direction by more than 0.1 degree, it is built as a
+  curve. "Never flips or blows up" holds for stored bulges.
+- **A circle that is let go stays an oval** while its points remain locked tops and sides
+  (`curves.js ellipseRing`: a quarter ellipse between each pair); one free point more and it is an
+  ordinary Hobby loop.
+- **`on` names** (`model.js ON_PLACES`, D-048): `top`, `capitals`, `small`, `writing`, `tail` (the
+  only ones that take `inset: 'edge'`), `halfSmall`, `halfCapitals` (the half-way lines), `left`,
+  `right`, `middle` (letter edges and middle, only while spacing is set by him) and `mirror`.
 - **Built ink is saved too.** The shapes are ordinary letter shapes tagged
   `{ sketchId: pieceId, sketchKey, sketchPart }`. Opening a file never rebuilds; only an edit does.
 - **`build` version.** When the engine changes in a way that would change the ink, `build` goes
@@ -928,7 +970,7 @@ S3).
 
 | S | Scope | New / changed files | Tests and checks | Size |
 |---|---|---|---|---|
-| **S1** Model, curves and measures | Fixture copy; sketch format and migration; in-house Hobby spline with directions and tensions; arc (ends + bulge) and curve parts to cubics; extremes and level / plumb locks; the edge rule math (ink lines, overshoot, re-place on thickness); Bumpy measure; outline depth and orientation (no clipper yet); tags, reconcile, `builtHash`; `beforeSketchStep` hook; words and Undo titles; flag | see S1 below | vitest on all pure math; `tests/sketch.html` draws a stored sketch and its built centerline | L |
+| **S1** Model, curves and measures (**done 10/16/2026**) | Fixture copy; sketch format and migration; in-house Hobby spline with directions and tensions; arc (ends + bulge) and curve parts to cubics; extremes and level / plumb locks; the edge rule math (ink lines, overshoot, re-place on thickness); Bumpy measure; outline depth and orientation (no clipper yet); tags, reconcile, `builtHash`; `beforeSketchStep` hook; words and Undo titles; flag | see S1 below | vitest on all pure math; `tests/sketch.html` draws a stored sketch and its built centerline | L |
 | **S2** Draw | Line (click-drag single line, pull-back arc, readout), Arc (A), Spline, Circle (live circle, between two lines, half-way snap), Rectangle; autotransition chaining and give-way; level locks; Enter / double-click / Esc / second Esc; the undo gate for open pieces at every entry; snaps, ink lines and hints; Simple key remaps; printed keys; tips; draw layer | `sketch/tools/line.js`, `arc_tool.js`, `spline_tool.js`, `circle_tool.js`, `rect_tool.js`, `chain.js`, `snap.js`, `draw_layer.js`, `undo_gate.js`; `edit_canvas/events.js`, `events_mouse.js`, `edit_canvas.js redrawGlyphEdit`, `tools/tools.js`, `mode/visibility.js`, `mode/keys.js`, `topbar/undo_buttons.js`, `history/undo_toast.js`, `history/simple_undo.js`, `coach/tips.js` | vitest: snaps, chaining angle rule, give-way, Escape order, undo gate; `tests/sketch_draw.verify.mjs` (n's stem and arch, corners where it left at an angle) | L |
 | **S3** Build and stay in sync | Centerline build (edge rule, Round / Flat, Flat cut along a line, dots, closed loops), Outline build (clipper on crossings), rebuild per step; `followShapes` plans for spacing, line shifts, Sit on the line, Match size (`grow`), Shrink to fit, refit fix, Flip; `followLine` for B15; hash detach and Simple key routing; paste reconcile; `penAllowance` 0; export merge on every path; thickness slider (real-sweep preview, font thickness, Use on all in chunks); top card section; empty-letter door; rules 19, 20, 24, 25; See-through rename | `sketch/build.js`, `build_center.js`, `build_outline.js`, `thickness.js`, `follow.js`, `detach.js`, `card_section.js`; `letter/letter_card.js`, `letter/empty_overlay.js`, `letter/open_tool.js`, `letter/auto_hole.js`, `nib/default_tool.js`, `coach/rules.js`, `spacing/trace_follow.js`, `metrics/font_metrics.js`, `checks/fixes.js`, `checks/fix_shapes.js`, `checks/body_bottom.js`, `board/tile_state.js`, `formats_io/otf/font_export.js`, `words/sets/mode.js` | vitest: o / B hole counts, o / n / v / A through B11 `measureLetter`, every follow (sketch and ink within 1 unit), outline o Match size widths, hash detach, Flat corners kept; `tests/sketch_build.verify.mjs` incl. File-menu export; B3 / B10 / B11 / B14 suites green | L |
 | **S4** Edit | Select on the sketch: window and Ctrl picks, move / scale picks, drag point, Bend (arcs keep bulge), grips, Let it flow, circle resize, add / delete point, Smooth / Corner, nudge; drag rules and the can't-keep-both toast; picked point / piece card with More | `sketch/select_tool.js`, `pick.js`, `rules.js`, `bend.js`, `grips.js`, `piece_card.js`; `letter/point_kind.js`, `letter/delete_toast.js` | vitest per drag rule and order, n arch with unequal stems, window picks; `tests/sketch_edit.verify.mjs` (K5, K6) | L |
@@ -943,6 +985,12 @@ can edit it). S5 answers "looked horrible, what next" (what's missing, how it co
 the Brush dead end. S7 and S8 round it out. Roughly 7 weeks for one developer; S1-S4 about 4.
 
 ### S1 in detail
+
+**Done 10/16/2026** (D-048): `src/anyink/sketch` model, hobby, arc, curves, extremes, edge rule,
+bumpy, outline order, record, History hook; words; flag `sketch` off; `tests/sketch.html` and
+`npm run verify:sketch-page`. Known for S3: in Simple the spacing refit moves built ink after
+`beforeSketchStep` in the same step (an `it.todo` in `sketch/tests/integration.test.js`); S3's
+follow plans fix it.
 
 **Goal:** everything later S's stand on, pure and tested, with no new screen in Simple. Nothing
 visible changes with the flag off.

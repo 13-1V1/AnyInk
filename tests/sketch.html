@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<!--
+	ANY-INK sketch test page (S1, docs/SKETCH.md section 11 step 14, src/anyink/sketch). Loads a
+	stored sketch (src/anyink/sketch/tests/fixtures/stored_sketches.js: n, o, s, A, a circle),
+	places its edge points with the edge rule, builds every piece with curves.js and draws it on
+	the five guide lines: the points (square = corner, round = smooth, filled = stuck: pinned to a line, on another
+	piece, or shared by two pieces, SKETCH.md section 6),
+	the parts, the built centerline, the cubic handles, and the ink the Brush's round nib would
+	lay along it. Every label (point names, piece names, lock answers, extreme tags) is placed
+	where it covers no point, mark or other label; state.checks.labelOverlaps counts any that
+	could not be. Toggles: ink lines (each line moved half the thickness to its ink side), extremes
+	(where each piece reaches furthest, with the lock rule's answer), ink, handles. Nothing here
+	is in the app; S1 has no screen. tests/sketch.verify.mjs drives it in Chrome.
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ANY-INK sketch (S1)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<style>
+		body { font-family: var(--font-ui); background: var(--chrome-bg); color: var(--chrome-text); margin: 0; padding: var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-4) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-3); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); }
+		button { font: inherit; background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		button:hover { background: var(--chrome-bg-hover); }
+		button[aria-pressed='true'] { background: var(--touch); color: var(--chrome-text-inverse); border-color: var(--touch); font-weight: 600; }
+		button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+		label { display: inline-flex; gap: var(--space-1); align-items: center; }
+		.stage { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+		canvas { display: block; max-width: 100%; border-radius: var(--radius); box-shadow: 0 0 0 1px var(--chrome-border); background: var(--canvas-bg); }
+		table { border-collapse: collapse; font-size: var(--text-sm); }
+		th, td { padding: var(--space-1) var(--space-2); text-align: left; border-bottom: 1px solid var(--chrome-border); }
+		th { color: var(--chrome-text-muted); font-weight: 600; }
+		td { font-family: var(--font-mono); }
+		#checks { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; margin: 0; }
+		.ok { color: var(--touch); }
+		.bad { color: var(--warning); }
+	</style>
+</head>
+<body>
+	<h1>Sketched letters: model, curves and measures (S1)</h1>
+	<p>
+		A stored sketch, its edge points placed by the edge rule, every piece built by curves.js
+		(Hobby splines, arcs, curves, live circles), drawn on the five guide lines at its thickness.
+		The ink is the Brush's own round nib swept along the built centerline. Font units, y up;
+		thickness 99 on a 2,048 letter box.
+	</p>
+	<div class="row" id="pick" role="group" aria-label="Stored sketch"></div>
+	<div class="row">
+		<label><input type="checkbox" id="inkLines" /> Ink lines</label>
+		<label><input type="checkbox" id="extremes" /> Extremes</label>
+		<label><input type="checkbox" id="ink" checked /> Ink</label>
+		<label><input type="checkbox" id="handles" /> Handles</label>
+	</div>
+	<div class="stage">
+		<canvas id="view" width="760" height="760" aria-label="The sketch on the guide lines"></canvas>
+		<div>
+			<h2>Checks</h2>
+			<pre id="checks">loading...</pre>
+			<h2>Points</h2>
+			<table id="points"></table>
+		</div>
+	</div>
+
+	<script type="module">
+		window.log = () => {};
+		import { sweepRoundNib } from '../src/anyink/nib/sweep.js';
+		import { guideLines } from '../src/anyink/placement/classes.js';
+		import { bumpyPieces } from '../src/anyink/sketch/bumpy.js';
+		import { endDirection, pieceSkeleton, startDirection } from '../src/anyink/sketch/curves.js';
+		import { inkLines, placeEdgePoints } from '../src/anyink/sketch/edge_rule.js';
+		import { lockFor, pieceExtremes } from '../src/anyink/sketch/extremes.js';
+		import { isJoined, piecePointIds, validateSketch } from '../src/anyink/sketch/model.js';
+		import { STORED_FONT, STORED_NAMES, storedSketch } from '../src/anyink/sketch/tests/fixtures/stored_sketches.js';
+		import { token, withAlpha } from '../src/anyink/theme/theme.js';
+
+		const $ = (id) => document.getElementById(id);
+		const LINES = guideLines(STORED_FONT);
+		const LINE_ORDER = ['top', 'capitals', 'small', 'writing', 'tail'];
+		const canvas = $('view');
+		const ctx = canvas.getContext('2d');
+		const CSS = 760;
+		const DPR = window.devicePixelRatio || 1;
+		canvas.width = CSS * DPR;
+		canvas.height = CSS * DPR;
+		canvas.style.width = `${CSS}px`;
+		canvas.style.height = `${CSS}px`;
+		// font units -> canvas: 1,990 units tall (tail to top) plus a margin
+		const MARGIN = 50;
+		const SCALE = (CSS - 2 * MARGIN) / (LINES.top - LINES.tail + 60);
+		const X0 = 140;
+		const cx = (x) => MARGIN + (x + X0) * SCALE;
+		const cy = (y) => CSS - MARGIN - (y - LINES.tail + 30) * SCALE;
+		const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+		const apart = (a, b) => Math.abs(((((a - b) % 360) + 540) % 360) - 180);
+
+		let current = 'n';
+		const state = { name: null, drawn: false, checks: null };
+
+		/** Every piece: its cubics, and how far the curve misses each of its points */
+		function build(sketch) {
+			return sketch.pieces.map((piece) => {
+				const cubics = pieceSkeleton(piece, sketch);
+				const ends = cubics.flatMap((c) => [c[0], c[3]]);
+				const ids = piecePointIds(piece);
+				const misses = ids.map((id) => {
+					const p = [sketch.points[id].x, sketch.points[id].y];
+					return Math.min(...ends.map((e) => near(e, p)));
+				});
+				// given directions: a lock (level / plumb) or an aim, met where the curve leaves and arrives
+				const dirErrors = [];
+				for (const id of ids) {
+					const point = sketch.points[id];
+					const wants = [];
+					if (point.aim) wants.push([point.aim.dir, false]);
+					else if (point.lock === 'level') wants.push([0, true]);
+					else if (point.lock === 'plumb') wants.push([90, true]);
+					if (!wants.length) continue;
+					const p = [point.x, point.y];
+					const dirs = [];
+					const leaving = cubics.find((c) => near(c[0], p) < 1e-6);
+					const arriving = cubics.find((c) => near(c[3], p) < 1e-6);
+					if (leaving) dirs.push(startDirection(leaving));
+					if (arriving) dirs.push(endDirection(arriving));
+					for (const [want, eitherWay] of wants) {
+						for (const dir of dirs) {
+							const off = eitherWay ? Math.min(apart(dir, want), apart(dir, want + 180)) : apart(dir, want);
+							dirErrors.push({ id, off });
+						}
+					}
+				}
+				return { piece, cubics, misses, dirErrors };
+			});
+		}
+
+		// Labels: every draw step queues its text and marks the boxes its points and marks cover;
+		// placeLabels then puts each label, in queue order, at the first of its spots that covers
+		// nothing already there (points, marks, guide names, labels placed before it).
+		let obstacles = [];
+		let labelQueue = [];
+		let labelOverlaps = 0;
+		const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+		const box = (x, y, r) => ({ x: x - r, y: y - r, w: 2 * r, h: 2 * r });
+		/** Spots around a point for a label w wide, h tall: [dx, baseline dy] */
+		const around = (w, h, r = 7) => [
+			[r, -r + 1], [-w - r, -r + 1], [r, r + h - 1], [-w - r, r + h - 1],
+			[r + 2, -r - h + 1], [-w - r - 2, -r - h + 1], [r + 2, r + 2 * h], [-w - r - 2, r + 2 * h],
+			[-w / 2, -r - 4], [-w / 2, r + h + 2],
+		];
+		/** order: point names first, then lock answers, piece names, extreme tags */
+		function queueLabel(text, x, y, { size = 11, color = '--chrome-text-muted', spots = around, order = 0 } = {}) {
+			labelQueue.push({ text, x, y, size, color, spots, order });
+		}
+		function placeLabels() {
+			const placed = [...obstacles];
+			const queue = [...labelQueue].sort((a, b) => a.order - b.order);
+			for (const { text, x, y, size, color, spots } of queue) {
+				ctx.font = `${size}px ${token('--font-mono')}`;
+				const w = ctx.measureText(text).width;
+				const h = size;
+				const tries = spots(w, h).map(([dx, dy]) => ({ x: x + dx, y: y + dy - h + 2, w, h, dx, dy }));
+				const spot = tries.find((t) => !placed.some((b) => overlap(b, t))) || (labelOverlaps++, tries[0]);
+				placed.push(spot);
+				ctx.fillStyle = token(color);
+				ctx.fillText(text, x + spot.dx, y + spot.dy);
+			}
+		}
+
+		function line(x0, y0, x1, y1) {
+			ctx.beginPath();
+			ctx.moveTo(x0, y0);
+			ctx.lineTo(x1, y1);
+			ctx.stroke();
+		}
+
+		function drawGuides(sketch) {
+			ctx.font = `12px ${token('--font-ui')}`;
+			ctx.lineWidth = 1;
+			for (const name of LINE_ORDER) {
+				ctx.strokeStyle = token('--canvas-guide');
+				ctx.setLineDash([]);
+				line(0, cy(LINES[name]), CSS, cy(LINES[name]));
+				ctx.fillStyle = token('--canvas-guide-label');
+				ctx.fillText(name, 6, cy(LINES[name]) - 4);
+				obstacles.push({ x: 6, y: cy(LINES[name]) - 16, w: ctx.measureText(name).width, h: 13 });
+			}
+			if ($('inkLines').checked) {
+				const ink = inkLines(STORED_FONT, sketch.thickness);
+				ctx.strokeStyle = token('--canvas-guide-muted');
+				ctx.setLineDash([6, 4]);
+				for (const name of LINE_ORDER) line(0, cy(ink[name]), CSS, cy(ink[name]));
+				ctx.setLineDash([]);
+			}
+		}
+
+		function drawInk(sketch, built) {
+			if (!$('ink').checked) return 0;
+			let outlines = 0;
+			ctx.fillStyle = withAlpha(token('--canvas-ink'), 0.18);
+			for (const { cubics } of built) {
+				for (const outline of sweepRoundNib(cubics, sketch.thickness)) {
+					outlines++;
+					ctx.beginPath();
+					outline.forEach(([x, y], i) => (i ? ctx.lineTo(cx(x), cy(y)) : ctx.moveTo(cx(x), cy(y))));
+					ctx.closePath();
+					ctx.fill('nonzero');
+				}
+			}
+			return outlines;
+		}
+
+		function drawCenterlines(built) {
+			for (const { piece, cubics } of built) {
+				ctx.strokeStyle = piece.use === 'helper' ? token('--canvas-guide-muted') : token('--canvas-ink-outline');
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				cubics.forEach(([p0, h1, h2, p3], i) => {
+					if (i === 0) ctx.moveTo(cx(p0[0]), cy(p0[1]));
+					ctx.bezierCurveTo(cx(h1[0]), cy(h1[1]), cx(h2[0]), cy(h2[1]), cx(p3[0]), cy(p3[1]));
+				});
+				ctx.stroke();
+				if ($('handles').checked) {
+					ctx.strokeStyle = token('--canvas-handle');
+					ctx.lineWidth = 1;
+					for (const [p0, h1, h2, p3] of cubics) {
+						line(cx(p0[0]), cy(p0[1]), cx(h1[0]), cy(h1[1]));
+						line(cx(p3[0]), cy(p3[1]), cx(h2[0]), cy(h2[1]));
+						for (const h of [h1, h2]) {
+							ctx.beginPath();
+							ctx.arc(cx(h[0]), cy(h[1]), 2.5, 0, 2 * Math.PI);
+							ctx.fillStyle = token('--canvas-handle');
+							ctx.fill();
+						}
+					}
+				}
+				// the piece's name beside the middle of its middle cubic (not at a point)
+				const mid = cubics[Math.floor(cubics.length / 2)];
+				if (mid) {
+					const at = (i) => 0.125 * (mid[0][i] + 3 * mid[1][i] + 3 * mid[2][i] + mid[3][i]);
+					queueLabel(`piece ${piece.id}: ${piece.parts.map((p) => p.type).join(' + ')}${piece.circle ? ' (circle)' : ''}`, cx(at(0)), cy(at(1)), { color: '--canvas-guide-label', spots: (w, h) => around(w, h, 10), order: 2 });
+				}
+			}
+		}
+
+		/** Stuck points draw filled (SKETCH.md section 6): on a guide line, on another piece
+		 * (an onPiece relation), or shared by two pieces */
+		const isStuck = (sketch, id) => !!sketch.points[id].on || isJoined(sketch, id);
+
+		function drawPoints(sketch) {
+			const filled = [];
+			for (const [id, point] of Object.entries(sketch.points)) {
+				const x = cx(point.x);
+				const y = cy(point.y);
+				const stuck = isStuck(sketch, id);
+				if (stuck) filled.push(id);
+				ctx.lineWidth = 1.5;
+				ctx.strokeStyle = token('--canvas-point');
+				ctx.fillStyle = stuck ? token('--canvas-point') : token('--canvas-point-fill');
+				ctx.beginPath();
+				if (point.kind === 'corner') ctx.rect(x - 4, y - 4, 8, 8);
+				else ctx.arc(x, y, 4.5, 0, 2 * Math.PI);
+				ctx.fill();
+				ctx.stroke();
+				obstacles.push(box(x, y, 5));
+				queueLabel(id, x, y);
+			}
+			return filled;
+		}
+
+		function drawExtremes(sketch, built) {
+			if (!$('extremes').checked) return 0;
+			let marks = 0;
+			const extremeTags = [];
+			ctx.strokeStyle = token('--warning');
+			ctx.fillStyle = token('--warning');
+			ctx.lineWidth = 1.5;
+			for (const { piece } of built) {
+				const found = pieceExtremes(piece, sketch);
+				for (const [side, at] of Object.entries(found)) {
+					if (!at) continue;
+					marks++;
+					const x = cx(at.x);
+					const y = cy(at.y);
+					ctx.beginPath();
+					ctx.moveTo(x, y - 7);
+					ctx.lineTo(x + 7, y);
+					ctx.lineTo(x, y + 7);
+					ctx.lineTo(x - 7, y);
+					ctx.closePath();
+					ctx.stroke();
+					obstacles.push(box(x, y, 7));
+					extremeTags.push([side, x, y]);
+				}
+				// the lock rule's answer beside each point it locks
+				for (const id of piecePointIds(piece)) {
+					const lock = lockFor(id, piece, sketch);
+					if (!lock) continue;
+					const p = sketch.points[id];
+					queueLabel(lock, cx(p.x), cy(p.y), { size: 10, color: '--warning', order: 1 });
+				}
+			}
+			// the tags are placed last, so a point's name and lock keep their spots
+			for (const [side, x, y] of extremeTags) {
+				queueLabel(side, x, y, { size: 10, color: '--warning', spots: (w, h) => around(w, h, 9), order: 3 });
+			}
+			return marks;
+		}
+
+		function fillTable(sketch, built) {
+			const head = '<tr><th>point</th><th>x</th><th>y</th><th>kind</th><th>on</th><th>lock</th><th>rule</th></tr>';
+			const rows = Object.entries(sketch.points).map(([id, p]) => {
+				const piece = built.find((b) => piecePointIds(b.piece).includes(id))?.piece;
+				const rule = piece ? lockFor(id, piece, sketch) : null;
+				return `<tr><td>${id}</td><td>${p.x}</td><td>${p.y}</td><td>${p.kind}</td><td>${p.on || ''}</td><td>${p.lock || ''}</td><td>${rule || ''}</td></tr>`;
+			});
+			$('points').innerHTML = head + rows.join('');
+		}
+
+		function background() {
+			ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+			ctx.fillStyle = token('--canvas-bg');
+			ctx.fillRect(0, 0, CSS, CSS);
+		}
+
+		function show(name = current) {
+			current = name;
+			for (const button of $('pick').querySelectorAll('button')) {
+				button.setAttribute('aria-pressed', String(button.dataset.name === name));
+			}
+			const stored = storedSketch(name);
+			const sketch = placeEdgePoints(stored, STORED_FONT);
+			const built = build(sketch);
+			obstacles = [];
+			labelQueue = [];
+			labelOverlaps = 0;
+			background();
+			drawGuides(sketch);
+			const outlines = drawInk(sketch, built);
+			drawCenterlines(built);
+			const filled = drawPoints(sketch);
+			const marks = drawExtremes(sketch, built);
+			placeLabels();
+			fillTable(sketch, built);
+			const valid = validateSketch(stored);
+			const moved = Object.keys(stored.points).filter((id) => sketch.points[id].y !== stored.points[id].y);
+			const maxMiss = Math.max(0, ...built.flatMap((b) => b.misses));
+			const dirErrors = built.flatMap((b) => b.dirErrors);
+			const maxDirError = Math.max(0, ...dirErrors.map((e) => e.off));
+			const bumpy = bumpyPieces(sketch, pieceSkeleton, { font: STORED_FONT });
+			const checks = {
+				name,
+				valid: valid.ok,
+				problems: valid.problems,
+				placed: moved.length === 0,
+				pieces: built.length,
+				cubics: built.reduce((sum, b) => sum + b.cubics.length, 0),
+				points: built.reduce((sum, b) => sum + b.misses.length, 0),
+				maxMiss,
+				directions: dirErrors.length,
+				maxDirError,
+				bumpy: bumpy.length,
+				inkOutlines: outlines,
+				extremeMarks: marks,
+				filled,
+				labels: labelQueue.length,
+				labelOverlaps,
+			};
+			const okLine = (ok, text) => `<span class="${ok ? 'ok' : 'bad'}">${ok ? 'ok ' : 'NO '}</span>${text}`;
+			$('checks').innerHTML = [
+				okLine(checks.valid, `valid v1 sketch${checks.problems.length ? ': ' + checks.problems.join('; ') : ''}`),
+				okLine(checks.placed, 'edge points already where the edge rule puts them'),
+				okLine(maxMiss < 1e-6, `through all ${checks.points} points (worst miss ${maxMiss.toExponential(1)} units)`),
+				okLine(maxDirError < 0.1, `${checks.directions} given directions met (worst ${maxDirError.toFixed(4)} degrees)`),
+				okLine(checks.bumpy === 0, `${checks.bumpy} bumpy pieces`),
+				okLine(labelOverlaps === 0, `${checks.labels} labels, ${labelOverlaps} over another`),
+				`${checks.pieces} pieces, ${checks.cubics} cubics, ${outlines} ink outlines, ${marks} extremes`,
+			].join('\n');
+			Object.assign(state, { name, drawn: true, checks });
+			return checks;
+		}
+
+		for (const name of STORED_NAMES) {
+			const button = document.createElement('button');
+			button.textContent = name;
+			button.dataset.name = name;
+			button.addEventListener('click', () => show(name));
+			$('pick').append(button);
+		}
+		for (const id of ['inkLines', 'extremes', 'ink', 'handles']) $(id).addEventListener('change', () => show());
+
+		/** For tests/sketch.verify.mjs */
+		window.anyinkSketchPage = {
+			names: [...STORED_NAMES],
+			state,
+			show,
+			setToggles(values) {
+				for (const [id, on] of Object.entries(values)) $(id).checked = !!on;
+				return show();
+			},
+		};
+		show('n');
+		window.anyinkSketchPage.ready = true;
+	</script>
+</body>
+</html>

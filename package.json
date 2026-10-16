@@ -55,7 +55,8 @@
 		"verify:drawing-tools-lines": "node tests/drawing_tools_lines.verify.mjs",
 		"verify:close-soon": "node tests/close_soon.verify.mjs",
 		"verify:rail-words": "node tests/rail_words.verify.mjs",
-		"verify:start-name": "node tests/start_name.verify.mjs"
+		"verify:start-name": "node tests/start_name.verify.mjs",
+		"verify:sketch-page": "node tests/sketch.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

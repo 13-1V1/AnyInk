@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 word set: the glossary (UX-BEGINNER.md 2.1) and the house words of 2.2.
 	Owner: B4 core (src/anyink/words). Other tracks use these keys and never redefine them: the
@@ -17,6 +19,7 @@
 	'roughen' are M11, M12 and M13), or null for words live from B4. "More tools" is null: the
 	switch is B5's and every screen that shows the word comes after it.
 */
+import { SKETCH_GLOSSARY } from './sketch.js';
 
 /** @type {Object<String, Object>} */
 const CORE = {
@@ -253,7 +256,10 @@ const CORE = {
 
 export default CORE;
 
-/** Help's "What these words mean" (4.10): the 2.1 table, in its order. */
+/**
+ * Help's "What these words mean" (4.10): the 2.1 table, in its order. The sketch's lines
+ * (docs/SKETCH.md section 7, flag 'sketch') follow the brush; sets/sketch.js owns them.
+ */
 export const GLOSSARY = Object.freeze([
 	'term.letter',
 	'term.letterSet',
@@ -279,6 +285,7 @@ export const GLOSSARY = Object.freeze([
 	'term.photo',
 	'term.inkCutoff',
 	'term.brush',
+	...SKETCH_GLOSSARY,
 	'term.versions',
 	'term.boldness',
 	'term.inkTexture',

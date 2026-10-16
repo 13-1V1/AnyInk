@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md principle 8, section 10 "Feature flags"): one flag per feature, each turned on
 // by the B that builds it, all off until then, so no screen shows a door to a later B. The flag
 // names are the ones words.js entries carry, so Help's glossary (B4) and the visibility tables
@@ -19,7 +21,7 @@ import {
 } from '../features.js';
 import { wordEntry, wordKeys } from '../../words/words.js';
 
-/** UX-BEGINNER section 10 lists these, then M11 to M13 (words.js uses all three). */
+/** UX-BEGINNER section 10 lists these, then M11 to M13 (words.js uses all three), then S1's sketch (D-047). */
 const SPEC_FLAGS = [
 	'coach',
 	'letterView',
@@ -35,6 +37,7 @@ const SPEC_FLAGS = [
 	'alternates',
 	'weight',
 	'roughen',
+	'sketch',
 ];
 
 /**
@@ -90,6 +93,7 @@ describe('feature flags', () => {
 			alternates: 'M11',
 			weight: 'M12',
 			roughen: 'M13',
+			sketch: 'S1',
 		});
 		FEATURE_LIST.forEach((f) => expect(f.what, f.name).toMatch(/\w/));
 	});

@@ -2109,3 +2109,34 @@ Fine-tune (the Gate 2 failure); per-piece thickness in v1; tucking only pinned e
 **Left for later:** solver, equal-size relation, fillet, trim, curvature combs, G2 joins,
 thickness along a stroke, flat / angled nibs (M10), pasting a letter with its sketch, reusable
 parts across letters.
+
+## D-048: S1 build choices (sketch model, curves and measures)
+**Decided:** 10/16/2026, at the end of S1 (critic, fix and finalize passes). Design:
+docs/SKETCH.md sections 2, 6, 8 and 11.
+**Chose:**
+1. **Touch, not cross.** A point pinned to a writing line is an edge of the ink (inset half a
+   thickness, overshoot when round) only where the stroke touches the line. Where its neighbors
+   along a piece lie on both sides of the line, the stroke crosses there: the point sits on the
+   line itself with no inset, no overshoot and no lock, whatever it stores
+   (`edge_rule.js crossingPoints`, `extremes.js lockFor`). This refines D-047 point 3.
+2. **Locks only near level or plumb.** `lockFor` adds a level / plumb lock only where the free
+   curve runs within 25 degrees of it and both chords within 75 degrees; every bowl's own top,
+   bottom and sides lock (not only the piece's); the Mirror line and the letter's middle lock
+   level, not plumb (SKETCH.md section 2 said plumb; that would kink every symmetric letter).
+3. **Stored `on` names** (`model.js ON_PLACES`): the five writing lines (the only ones with
+   `inset: 'edge'`), `halfSmall`, `halfCapitals`, `left`, `right`, `middle`, `mirror`.
+4. **One thickness for the rule and the sweep:** `edge_rule.js edgeThickness` (at most the
+   slider's thick end and the small-letter height). `validateSketch(sketch, { project })` flags a
+   stored thickness outside `thicknessRange`.
+5. **Bumpy is per 2,048-unit letter box:** length scaled by 2,048 / upm; callers pass the font.
+6. **Curves:** a tangent arc turns at most 300 degrees, then becomes a curve; a let-go circle whose
+   points stay locked tops and sides is a true quarter-ellipse ring; an aim against the run is read
+   turned round; Hobby's solver scales each row (any size of coordinates); the grip's pull maps to
+   tension 0.75 to 4 through `gripTension` / `gripPull` (handles about 0.34x to 1.38x).
+7. **MetaPost:** not on the machine. The direction and tension cases are checked against a port of
+   mp.w's `solve_choices` (`tests/fixtures/hobby_reference.mjs`), hobby-curve 0.2.1 for the rest;
+   remake the fixture with real `mpost` where it exists.
+**Rejected:** asking S2's tool to store crossing points without `inset` (the rule decides from the
+geometry, so a stored sketch can never be wrong about it); plumb locks on the Mirror line.
+**Left for S3:** the spacing refit moving built ink after `beforeSketchStep` in Simple (follow plans),
+the sweep using `edgeThickness`, Flip / Mirror turning `aim.dir`.

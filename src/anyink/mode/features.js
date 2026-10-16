@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	Feature flags for the Simple screens (UX-BEGINNER.md principle 8 and section 10): one flag per
 	feature. Every button, menu row, coach rule, tip, key and Help entry names its flag and stays
@@ -43,6 +45,7 @@ export const FEATURE_LIST = Object.freeze(
 		{ name: 'alternates', by: 'M11', what: 'versions of a letter' },
 		{ name: 'weight', by: 'M12', what: 'boldness' },
 		{ name: 'roughen', by: 'M13', what: 'ink texture' },
+		{ name: 'sketch', by: 'S1', what: 'sketched letters' },
 	].map((feature) => Object.freeze(feature))
 );
 
@@ -65,6 +68,8 @@ export const FEATURES = Object.freeze({
 	alternates: false,
 	weight: false,
 	roughen: false,
+	// S1 (D-047, docs/SKETCH.md): off until S9 turns it on
+	sketch: false,
 });
 
 /** Test overrides: { name: Boolean } */

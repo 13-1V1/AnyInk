@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4: the one vocabulary file (UX-BEGINNER.md 2.1, 2.2). words.js only gathers the key sets in
 // words/sets/*.js, so each track owns its own set file; a key defined twice, a misspelled field
 // or a broken {placeholder} stops the load. Code asks for words by key and never inline.
@@ -27,7 +29,10 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const SRC = join(here, '../../..');
 
-/** The feature flags of UX-BEGINNER section 10, and the later milestones' (M11 to M13). */
+/**
+ * The feature flags of UX-BEGINNER section 10, the later milestones' (M11 to M13), and the
+ * sketch's (S1, docs/SKETCH.md).
+ */
 const FEATURE_NAMES = [
 	'coach',
 	'letterView',
@@ -43,6 +48,7 @@ const FEATURE_NAMES = [
 	'alternates',
 	'weight',
 	'roughen',
+	'sketch',
 ];
 
 describe('word', () => {
@@ -170,9 +176,11 @@ describe('pro words', () => {
 });
 
 describe('glossary (2.1)', () => {
+	// The sketch's lines (S1) sit after the brush; sketch_words.test.js checks them.
 	it('lists the 2.1 table in its order', () => {
+		const table = GLOSSARY.filter((key) => wordEntry(key).feature !== 'sketch');
 		// prettier-ignore
-		expect(GLOSSARY.map((key) => word(key))).toEqual([
+		expect(table.map((key) => word(key))).toEqual([
 			'letter', 'letter set', 'shape', 'hole', 'point', 'curve handle', 'smooth', 'corner',
 			'guide lines', 'writing line', 'small-letter line', 'capitals line', 'top line',
 			'tail line', 'letter box', 'units', 'left space', 'right space', 'letter width',
