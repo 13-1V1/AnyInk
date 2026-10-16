@@ -12,9 +12,12 @@
 
 	  NOTCH_TURN                       degrees; a sharper right turn at one point is a corner
 	  refitTolerance(size)             { tidy, fit, step } in font units, scaled to the nib
-	  refitOutline(outline, { size })  [[start, handle, handle, end], ...]: a closed chain (the last
-	                                   curve ends where the first starts), whole numbers; [] when
-	                                   less than 3 points are left
+	  refitOutline(outline, { size, bothWays })  [[start, handle, handle, end], ...]: a closed
+	                                   chain (the last curve ends where the first starts), whole
+	                                   numbers; [] when less than 3 points are left. bothWays
+	                                   (B14 + B15 integration, install/merge_overlaps.js): a sharp
+	                                   left turn is a corner too, for outlines drawn with square
+	                                   corners (a rectangle), not by a round nib
 */
 import { dedupe, densify, scale, sub, turnAt, unit, wholePoint } from './geometry.js';
 import { fitLine, fitLineWith } from './fit.js';
@@ -37,10 +40,10 @@ export function refitTolerance(size) {
 
 /**
  * @param {Array<[Number, Number]>} outline - closed (the last point joins the first)
- * @param {{size: Number}} options
+ * @param {{size: Number, bothWays?: Boolean}} options
  * @returns {Array<Array<[Number, Number]>>}
  */
-export function refitOutline(outline, { size }) {
+export function refitOutline(outline, { size, bothWays = false }) {
 	const tolerance = refitTolerance(size);
 	const points = tidy(outline, tolerance.tidy);
 	if (points.length < 3) return [];
@@ -48,7 +51,7 @@ export function refitOutline(outline, { size }) {
 	const corners = [];
 	for (let i = 0; i < count; i++) {
 		const turn = turnAt(points[(i - 1 + count) % count], points[i], points[(i + 1) % count]);
-		if (turn < -NOTCH_TURN) corners.push(i);
+		if (turn < -NOTCH_TURN || (bothWays && turn > NOTCH_TURN)) corners.push(i);
 	}
 	const curves = corners.length
 		? cornerRuns(points, corners).flatMap((run) => fitRun(run, tolerance))

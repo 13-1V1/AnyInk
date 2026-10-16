@@ -23,10 +23,13 @@
 	                           step C starts on the open letter (subscribers
 	                           'anyink.letter.openTool', 'anyink.letter.stepCTool')
 	  OPEN_TOOL_SUBSCRIBER
+	B14 + B15 finalize: while the guide lines are unlocked (fontinfo/move_lines.js), every letter
+	opens on Select, so a drag on a line moves the line, never draws a stroke.
 */
 import { selectTool } from '../../edit_canvas/tools/tools.js';
 import { openPathOf } from '../coach/open_shape.js';
 import { isOpeningBrush, pickOpeningTool, toolForOpenedLetter } from '../nib/default_tool.js';
+import { guideLinesMoving } from '../mode/locks.js';
 import { getFlow } from '../photo/photo_flow_state.js';
 import { isLetterViewOn } from './view_switches.js';
 
@@ -51,6 +54,8 @@ export function applyOpenTool(editor) {
 	if (!tool) return null;
 	const flow = getFlow(editor);
 	if (flow && flow.itemId === id) tool = 'resize';
+	// B14 + B15 finalize: while Move the guide lines has them unlocked, a drag on a line moves it
+	if (guideLinesMoving()) tool = 'resize';
 	// nothing to tell: the tool is already the one, and an opening Brush already this letter's
 	if (editor.selectedTool === tool && (tool !== 'nib' || isOpeningBrush(editor))) return tool;
 	try {

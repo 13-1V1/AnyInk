@@ -2163,6 +2163,17 @@ and All tools' notice, which never shows in Simple).
 
 ### B14. Use in Word
 
+**DONE 10/16/2026** (factcheck, dialog and names tracks, then the B14 + B15 integration, which turned
+`useInWord` on, and the critic, fix and finalize passes; D-045). Ctrl+E, rail step 3, Menu > Make my
+font file... and the Next line's [Use in Word] open one dialog; the font check first, the folder
+picked by the dialog itself, one build at a time and quiet behind the dialog (every folder problem,
+a lapsed permission and a Cancel on a same-named file said in the dialog); the card's fact-checked
+steps, step 4 as short steps only when the file holds a gap fix, the old name's tests after a
+rename; test families cut once at a word, the final font whole up to 31 characters; overlapping
+shapes and self-crossing outlines made plain outlines and gap fixes listed under Latin in the file
+only; a name with no plain letters still gets a PostScript name of its own. Brennan's own PC checks
+(section 8's FACTCHECK list) stay with B16.
+
 - `src/anyink/install/`: `use_in_word_dialog.js`, `build_names.js` (the test number from `kv` and a scan
   of the folder, only counting up; the 31-character limit; final names), `install_card.js` (numbered
   steps; step 4, and step 5 after M11, highlighted and only when needed; the uninstall line; "When you're
@@ -2180,6 +2191,14 @@ and All tools' notice, which never shows in Simple).
   Days: 2.5.
 
 ### B15. Font details, guide lines, Help
+
+**DONE 10/16/2026** (fontinfo and help tracks, then the B14 + B15 integration, which turned
+`fontDetails` and `help` on, and the critic, fix and finalize passes; D-045). Font details writes
+each field as one settings step and says quietly when Word will shorten the name; Move the guide
+lines unlocks the lines on Select, keeps the small-letter line a tenth of the letter box under the
+capitals line and moves a line in one whole-font step with every automatic letter refit; Help's five
+sections show only what is on, with Use in Word's own steps and labels (one way to install, the gap
+fix as short steps, the old name after a rename) and Look at an example font in a new window.
 
 - `src/anyink/fontinfo/`: `font_details_dialog.js`, `move_lines.js` (the unlock banner; one
   whole-project step that also refits every automatic letter, through B11's helper; checks rerun and a

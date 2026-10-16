@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5: what each mode shows (UX-BEGINNER.md 6.2), as data tables with a small query API. Screens
 	filter only where they are drawn (6.3: the page and panel choosers, getActionData, the tool
@@ -272,7 +274,10 @@ const MENU_ROWS = [
 			'(fix track: the Projects menu is hidden, so nothing else on screen opens a font)',
 	},
 	both('file.heading-font-file'),
-	both('file.font-otf', { why: '4.9: "Make my font file..." opens Use in Word once B14 lands' }),
+	both('file.font-otf', {
+		replacedBy: 'useInWord',
+		why: '4.9: "Make my font file..." opens Use in Word once B14 lands',
+	}),
 	allOnly('file.font-ttf', `${WHY.menus}: TTF font export`),
 	allOnly('file.font-woff', `${WHY.menus}: WOFF font export`),
 	allOnly('file.font-woff2', `${WHY.menus}: WOFF2 font export`),
@@ -313,7 +318,7 @@ const MENU_ROWS = [
 		why: '4.9 Help: How to photograph your letters',
 	}),
 	simpleOnly('menu.help-words', ['coach', 'help'], { why: '4.9 Help: What these words mean' }),
-	simpleOnly('menu.help-word', ['coach', 'help'], { why: '4.9 Help: Use your font in Word' }),
+	simpleOnly('menu.help-word', ['coach', 'help', 'useInWord'], { why: '4.9 Help: Use your font in Word' }),
 	simpleOnly('menu.help-keys', ['coach', 'help'], { why: '4.9 Help: Keyboard keys' }),
 	simpleOnly('menu.tips-again', 'coach', { why: '4.9 Help: Show tips again' }),
 	simpleOnly('menu.install', 'coach', {

@@ -6,6 +6,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /* Web Components */
 import { PreviewStrip } from '../anyink/preview/preview_strip.js';
 import { SaveStatusElement } from '../anyink/files/save_status_element.js';
@@ -16,6 +18,10 @@ import { initPhotos } from '../anyink/photo/photo_app.js';
 import { initChecks } from '../anyink/checks/checks_app.js';
 import { installBoard } from '../anyink/board/board_page.js';
 import { installNewFont } from '../anyink/start/new_font.js';
+import { installUseInWord } from '../anyink/install/use_in_word_dialog.js';
+import { installFontDetails } from '../anyink/fontinfo/font_details_dialog.js';
+import { installMoveLines } from '../anyink/fontinfo/move_lines.js';
+import { openExampleIfAsked } from '../anyink/help/example_font.js';
 import { FancyButton } from '../controls/fancy-button/fancy_button.js';
 import { FontPreview } from '../controls/font-preview/font_preview.js';
 import { GlyphTile } from '../controls/glyph-tile/glyph_tile.js';
@@ -72,6 +78,13 @@ export function glyphrStudioOnLoad() {
 			installBoard();
 			// ANY-INK (B12 + B13 integration): Menu > Start a new font... brings the start screen
 			installNewFont();
+			// ANY-INK (B14 + B15 integration): Use in Word (Ctrl+E, rail step 3, Menu > Make my font
+			// file..., the Next line's button), Font details and Move the guide lines answer their doors
+			installUseInWord();
+			installFontDetails();
+			installMoveLines();
+			// ANY-INK (B14 + B15 finalize): Help's "Look at an example font" opened this window
+			openExampleIfAsked();
 			// ANY-INK (B1): the leave-site check decides when the page closes, so it is set once,
 			// here, for every way a font gets opened (the open page, a dropped font file, an SVG)
 			updateWindowUnloadEvent();

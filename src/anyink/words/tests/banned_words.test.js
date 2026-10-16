@@ -429,6 +429,9 @@ describe('toasts', () => {
 		'making the font file when a letter needs fixing',
 		async ({ toasts }) => {
 			openBroken();
+			// B14 + B15 integration: the stand-in .otf row is Simple's before B14; Use in Word's own
+			// blocked state is scanned in src/anyink/install/tests/install_words.test.js
+			setFeaturesForTests({ useInWord: false });
 			setFileApi(fakeApi({ open: [], save: undefined, directory: fakeDirectoryHandle('Fonts') }));
 			openFileMenu();
 			const rows = [...document.querySelectorAll('#context-menu .context-menu-row')];
@@ -447,8 +450,8 @@ describe('toasts', () => {
 			expect(toasts.flush()).toEqual(
 				expect.arrayContaining([
 					'Making the font file...',
-					'Exported "…" to "…"',
-					'Exported "…" to "…", but the question mark and small a need fixing. Show me',
+					'Made "…" in "…"',
+					'Made "…" in "…", but the question mark and small a need fixing. Show me',
 				])
 			);
 			return check();

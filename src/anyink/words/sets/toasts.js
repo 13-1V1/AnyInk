@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 word set: toasts (UX-BEGINNER.md 2.2 "Toasts, one voice", 2.4 G, 4.0 Toasts, 7.7).
 	Owner: the B4 toast track: src/anyink/toast/toast.js (one queue, priorities), upstream_map.js
@@ -101,7 +103,8 @@ const TOASTS = {
 	// {file} and {folder} show as quotes (.anyink-quote): exact Windows names.
 	// --------------------------------------------------------------
 	'toast.fontFileMaking': { text: 'Making the font file...' },
-	'toast.fontFileExported': { text: 'Exported {file} to {folder}' },
+	// B14 + B15 finalize: "Made", as Use in Word's card says it (no "Exported")
+	'toast.fontFileExported': { text: 'Made {file} in {folder}' },
 	'toast.fontFileDownloading': { text: 'Downloading {file}' },
 	'toast.fontFileNoLongerAllowed': {
 		text: "ANY-INK can't write to {folder} anymore, so it's downloading {file} instead.",
@@ -111,9 +114,10 @@ const TOASTS = {
 	},
 	'toast.fontFileCancelled': { text: 'No font file was made' },
 	'toast.fontFolderPressAgain': { text: 'Press again to let ANY-INK write to {folder}.' },
-	'toast.fontFolderChooseAgain': { text: 'Press again to choose where font files go.' },
+	// B14 + B15 integration: the folder now lives in Use in Word, so these say what to do there
+	'toast.fontFolderChooseAgain': { text: 'Press again to pick a folder for your font files.' },
 	'toast.fontFolderRefused': {
-		text: "ANY-INK wasn't allowed to write to {folder}. Choose where font files go.",
+		text: "ANY-INK wasn't allowed to write to {folder}. Pick a different folder.",
 	},
 
 	// --------------------------------------------------------------

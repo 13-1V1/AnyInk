@@ -225,7 +225,8 @@ const SCREENS = {
 	'check.madeAnyway': { text: 'The font file was made' },
 	'check.butNeedsFixing': { text: '{where}, but {clause}' },
 	// B4 integration: Simple's export check toast, one sentence with the names as quotes
-	'check.exportedButNeedsFixing': { text: 'Exported {file} to {folder}, but {clause}' },
+	// B14 + B15 finalize: "Made", as Use in Word's card says it
+	'check.exportedButNeedsFixing': { text: 'Made {file} in {folder}, but {clause}' },
 	'check.downloadingButNeedsFixing': { text: 'Downloading {file}, but {clause}' },
 	'check.hintPoint': { text: 'Show me, then drag the far point back near the letter.' },
 	'check.hintGap': { text: 'Show me, then set the gap to a smaller number.' },

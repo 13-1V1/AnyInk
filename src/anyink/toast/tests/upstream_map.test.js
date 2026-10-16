@@ -193,7 +193,7 @@ describe('the font file toasts (File menu > Make a font file)', () => {
 		const made = simple('Exported BrennanHand-Regular.otf to Fonts');
 		expect(made).toMatchObject({
 			key: 'toast.fontFileExported',
-			text: 'Exported BrennanHand-Regular.otf to Fonts',
+			text: 'Made BrennanHand-Regular.otf in Fonts',
 			vars: { file: 'BrennanHand-Regular.otf', folder: 'Fonts' },
 			quotes: ['file', 'folder'],
 			group: 'export',

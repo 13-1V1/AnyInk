@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 wiring (UX-BEGINNER.md 7.6, 6.2 "Keys", section 10 B5 "the Simple key gates"): the real key
 // handler (edit_canvas/events_keyboard.js) asks the one key map (keys.js) in both modes. All
 // tools: P picks the Point pen and E Edit points (both modes, 7.6), the rest as upstream;
@@ -253,6 +255,7 @@ describe('Ctrl+E (the font file)', () => {
 		'%s with no flag: makes the font file, as today',
 		async (mode) => {
 			setModeForTests(mode);
+			setFeaturesForTests({ useInWord: false }); // B14 + B15 integration: "with no flag"
 			onLetter();
 			const event = ctrl('e');
 			expect(event.defaultPrevented).toBe(true);

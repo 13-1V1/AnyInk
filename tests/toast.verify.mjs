@@ -233,7 +233,8 @@ try {
 		// file names as quotes
 		await click('upstream-5');
 		t = await readToast();
-		assert.equal(t.text, 'Exported BrennanHand-Regular.otf to Fonts');
+		// B14 + B15 finalize: Simple says "Made", as Use in Word's card does
+		assert.equal(t.text, 'Made BrennanHand-Regular.otf in Fonts');
 		assert.deepEqual(t.quotes, ['BrennanHand-Regular.otf', 'Fonts']);
 		await shot('t06-simple-quotes');
 		pass('Simple: the font file toast shows its file and folder as quotes');

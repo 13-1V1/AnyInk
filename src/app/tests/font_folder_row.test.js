@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 finalize, the File menu's "Choose where font files go..." row:
 //   - Simple keeps it until B14's Use in Word holds it (words track's hand-off: with the row
 //     hidden, a folder picked once could never be changed in Simple)
@@ -10,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { forgetExportFolder } from '../../anyink/files/export_folder.js';
 import { resetFileApi, setFileApi } from '../../anyink/files/file_api.js';
 import { clearDialogs, fakeApi, fakeDirectoryHandle } from '../../anyink/files/tests/fakes.js';
+import { setFeaturesForTests } from '../../anyink/mode/features.js';
 import { setModeForTests } from '../../anyink/mode/mode.js';
 import { kvClear } from '../../anyink/storage/kv.js';
 import { resetToastsForTests, toast } from '../../anyink/toast/toast.js';
@@ -68,10 +71,16 @@ afterEach(() => {
 });
 
 describe('Choose where font files go', () => {
-	it('Simple shows the row (until Use in Word, B14)', () => {
+	it('Simple shows the row (until Use in Word, B14), and not once it lands', () => {
 		setModeForTests('simple');
+		setFeaturesForTests({ useInWord: false }); // B14 + B15 integration: before B14
 		openFileMenu();
 		expect(row('font-folder')).toBeTruthy();
+		// once B14 lands the folder lives in Use in Word, and the row goes
+		document.body.innerHTML = '';
+		setFeaturesForTests({ useInWord: true });
+		openFileMenu();
+		expect(row('font-folder')).toBeFalsy();
 	});
 
 	it('All tools shows it, as before', () => {
@@ -81,6 +90,7 @@ describe('Choose where font files go', () => {
 
 	it('Simple: picking a folder says so at once, in place of an export toast', async () => {
 		setModeForTests('simple');
+		setFeaturesForTests({ useInWord: false }); // B14 + B15 integration: before B14
 		const folder = fakeDirectoryHandle('Fonts');
 		// an export toast arrives while the folder picker is open (opening the menu cleared the
 		// toasts, so this is the one in the way)

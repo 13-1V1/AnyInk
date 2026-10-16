@@ -746,7 +746,8 @@ try {
 	assert.equal(checkToast.simple, 'simple');
 	assert.equal(checkToast.button, 'Show me');
 	assert.equal(checkToast.tone, 'warning');
-	assert.match(checkToast.text, /^Exported .+\.otf to Fonts, but small a needs fixing\.$/);
+	// B14 + B15 finalize: Simple says "Made", as Use in Word's card does
+	assert.match(checkToast.text, /^Made .+\.otf in Fonts, but small a needs fixing\.$/);
 	await page.waitForTimeout(3000); // the export's own 2.5 s close leaves it alone
 	assert.match((await toastNow()) ?? '', /small a needs fixing/);
 	for (let i = 0; i < 12; i++) await tap('Control+z');
@@ -771,10 +772,11 @@ try {
 	await settle(500);
 	assert.equal((await state()).page, 'Help');
 	assert.deepEqual(await scanSimple('body'), [], 'Help');
+	// B14 + B15 finalize: B5's one-tab stand-in Help was retired by B15's Help page (pages/help.js,
+	// anyink/help/help_page.js), which shows only the entries of the flags that are on
 	const helpTabs = await page.$$eval('.tab-control__tab', (list) => list.map((t) => t.textContent));
-	assert.deepEqual(helpTabs, ['Help']);
-	const helpText = await page.locator('.content-page__right-area').innerText();
-	assert.match(helpText, /Rectangle \(R\)/);
+	assert.deepEqual(helpTabs, []);
+	assert.equal(await page.locator('[data-anyink-help]').count(), 1, "B15's Help page");
 	await shot('B-simple-12-help');
 	// B4 + B5 finalize: a way back from Help and About (principle 7)
 	await page.locator('[data-anyink-choice="backToLetters"]').click();
@@ -791,7 +793,7 @@ try {
 	await page.locator('[data-anyink-choice="backToLetters"]').click();
 	await settle(500);
 	assert.equal((await state()).page, 'Characters', 'Back to my letters from About');
-	pass('Simple Help (one "Help" tab: the tools with their keys) and About (every tab): 0 hits, strict; [Back to my letters] on both returns to the letter page');
+	pass("Simple Help (B15's Help page, no tabs) and About (every tab): 0 hits, strict; [Back to my letters] on both returns to the letter page");
 
 	// ----------------------------------------------------------
 	// C. The landing rule, real clicks and keys

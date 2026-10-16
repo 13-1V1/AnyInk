@@ -2,12 +2,17 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK font metrics writes (Milestone 5, D-008 / D-009).
 	The one place that writes project.settings.font vertical metrics and custom guide
 	positions: validates and clamps, writes, publishes the narrow 'fontMetrics' or
 	'guides' topic, and (when asked) records a settings history entry. The guides layer
 	drag, the keyboard nudge, and the Settings and Guides panel readouts all route here.
+	B15 fix: setMetricLimit(fn) lets Move the guide lines (fontinfo/move_lines.js) narrow a line's
+	move after the order clamp while it is on (the small-letter line kept clear of the capitals
+	line); null takes it away. Nothing else sets one, so All tools writes as before.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { isSimpleMode } from '../mode/mode.js';
@@ -21,6 +26,16 @@ import {
 } from './metrics_math.js';
 
 let warnedNoSettingsHistory = false;
+
+/** B15 fix: (font, key, value, current) -> value, while Move the guide lines is on */
+let metricLimit = null;
+
+/**
+ * @param {Function | null} limit - (font, key, value, current) -> the value the line may take
+ */
+export function setMetricLimit(limit) {
+	metricLimit = typeof limit === 'function' ? limit : null;
+}
 
 /**
  * Records a lightweight settings history entry (D-018). History.addSettingsState is
@@ -61,7 +76,8 @@ export function setFontMetric(key, value, { history = true, verb = 'Set', burst 
 	const editor = getCurrentProjectEditor();
 	const font = editor.project.settings.font;
 	const current = metricValue(font, key);
-	const applied = clampFontMetric(font, key, value);
+	let applied = clampFontMetric(font, key, value);
+	if (metricLimit) applied = metricLimit(font, key, applied, current);
 	if (applied === current) return applied;
 
 	font[key] = applied;

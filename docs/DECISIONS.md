@@ -1909,3 +1909,78 @@ through); the install toast's real trigger can't be raised on a dev server (unit
 `app/main.js`; word sets `tryit.js`, `tryit_gaps.js`, `start.js`.
 **Revisit if:** Brennan reads a clipped sheet as a bug, wants a gap closer than touching, or a
 crash card comes back for a font he saved.
+
+## D-045: B14 and B15 build choices (Use in Word, its names, Font details, the guide lines, Help)
+**Decided:** 10/16/2026, in the B14 + B15 tracks (factcheck, dialog, names, fontinfo, help), the
+integration and the finalize, after the critic pass and its verifiers (UX-BEGINNER.md principles
+1, 2, 6, 7, 8; 4.7, 4.8, 4.10, 7.3, 7.7, section 8; FACTCHECK_LOG section 8; D-012, D-027, D-035,
+D-044).
+**Chose:**
+- **The font file is made only from Use in Word in Simple** (`install/use_in_word_dialog.js`):
+  Ctrl+E, rail step 3, Menu > Make my font file... and the Next line's [Use in Word] are one door;
+  Simple's old .otf row retires (`visibility.js replacedBy: 'useInWord'`). All tools keeps its
+  File menu export and Ctrl+E as before.
+- **The build is quiet behind the dialog** (`font_export.js exportOptions.quiet`, `export_folder.js
+  quiet`): no progress, folder or "Exported" toast while the dialog has stepped aside; the dialog
+  says every folder problem, a permission that lapses during the write ([Try again]) and a Cancel
+  on a same-named file ("No font file was made. ..."). A download in place of the folder still
+  says why. Nothing is cleared afterwards, so a toast from that time (Delete's [Undo]) stays.
+  Chosen over clearing the export group after the build, which still flashed toasts behind the
+  modal.
+- **The dialog picks the folder itself** (`chooseExportFolder`): a cancel says it once, in the
+  dialog; [Change] closed with a folder remembered changes nothing; a click Chrome let expire says
+  "Press again to pick a folder for your font files." in the dialog.
+- **Names** (`install/build_names.js`): test families share one base cut once at a word boundary to
+  leave room for " Test 999" (22 characters), so every test, the card's and Help's "search <name>
+  Test" agree; the final font keeps a name that fits Windows' 31 characters whole and cuts a longer
+  one at a word to 31 (`finalFamily`), so two names that share a test base never become one font in
+  Word. Test builds are remembered per work file by name, so after a rename step 2 names the old
+  name's last test and both cards' "Remove old test fonts: how" (and Help's clean-up step) also say
+  "search <old name> Test too" (at most 3 names). A name with no plain (ASCII) letters gets the
+  PostScript name "AnyInk<8 hex of the family><what is left>" (FNV-1a), the same each time; a name
+  in plain letters is as before, in both modes.
+- **The font file only** (FACTCHECK 8.20, 8.12): each letter's overlapping shapes, and an outline
+  that crosses itself, are united under nonzero and refit to whole-unit curves
+  (`merge_overlaps.js`); a letter with nothing overlapping goes in byte for byte; a shape with no
+  area of its own is never dropped. Gap fixes are listed under 'latn' as well as 'DFLT'
+  (`kern_latin.js`). The work file never changes.
+- **Quotes on screens of steps are bold by one shared rule** (`common/resets.css
+  [data-anyink-quotes='bold'] .anyink-quote`), turned on by Help, Use in Word and its card; lines
+  that held a quote are no longer bold all the way through. Other quotes keep the words' own look.
+- **Simple's leftover export toasts say "Made <file> in <folder>"** (`toast.fontFileExported`,
+  `check.exportedButNeedsFixing`), as the card does; All tools keeps Glyphr Studio's words.
+- **An ANY-INK dialog takes any open menu away at once** (`photo_dialog.js openModal`), the way a
+  Menu row press does (`simple_menu.js closeAtOnce`).
+- **Move the guide lines** (`fontinfo/move_lines.js`, `line_gap.js`): the lines unlock on Select,
+  and every letter opens on Select while they are unlocked (`letter/open_tool.js`), so a drag on
+  an empty letter moves the line instead of drawing a stroke. A hand drag keeps the small-letter
+  line a tenth of the letter box under the capitals line. **Not** applied to B11's "Move the line
+  to fit your writing" (`checks/fit_lines_to_writing.js linePlan`): that line follows his measured
+  writing, and pushing the other line by the gap would leave his letters off their lines (tried,
+  6 of B11's tests broke for that reason). The top, capitals and tail lines keep only the order
+  rule. The History stand-in that routes a line's release to `commitDraggedLine` stays (the
+  fontinfo track's optional direct call from `guides_layer.js finishDrag` was not needed).
+- **Font details** says, quietly and only once Use in Word is on, what Word will call a long
+  name's first test font.
+- **Help** (`help/help_page.js`): Install it gives one way (the double-click), as the card does; the
+  right-click way is under Restart Word for a font not in Word's list; the gap-fix step is the
+  card's four short steps (one copy of the words); Look at an example font opens `?ui=simple&
+  example=1` in a new window, where `main.js` opens the Simple example (`help/example_font.js`).
+- **The Help door starts listening once every module has loaded** (`pages/help.js` queues
+  `listenForHelpDoor`): it and `help/help_door.js` import each other through `main.js`.
+- **`pickFontFolder` stays** (`export_folder.js`): no screen calls it now, but tests and test pages
+  use it to remember a folder the way a click would.
+**Open:** Brennan's PC (B16): FACTCHECK section 8's list (the Install window, a per-user install in
+Word, gap fixes before / after 'latn', merged strokes, tall ink clipping, missing letters, Set As
+Default). The example window's font is a scratch font: its Next line asks to save it like any other.
+Two older real-Chrome checks already failed at the last commit, before B14 + B15: `words.verify`
+(the edge readout on the real canvas) and `toast.verify` (Simple toast height above the taller
+strip); TEST_LOG has them.
+**Why:** principles 1, 2, 6, 7, 8; 4.7, 4.8, 4.10, 7.3, 7.7, section 8.
+**Affects:** `src/anyink/install/*`, `src/anyink/fontinfo/*`, `src/anyink/help/*`,
+`files/export_folder.js`, `formats_io/otf/font_export.js`, `photo/photo_dialog.js`,
+`letter/open_tool.js`, `topbar/simple_menu.js`, `metrics/*` (hooks), `nib/refit.js` (`bothWays`),
+`common/resets.css`, `app/main.js`, `pages/help.js`, `mode/features.js`, `mode/visibility.js`,
+`mode/keys.js`; word sets `install.js`, `fontinfo.js`, `help.js`, `toasts.js`, `screens.js`.
+**Revisit if:** Word shows a merged letter differently from the screen, a name cut at a word reads
+wrong to Brennan, or he wants fit-to-writing to keep the lines apart anyway.

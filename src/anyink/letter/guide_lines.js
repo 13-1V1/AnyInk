@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 letter view, the canvas side: Simple's guide lines (UX-BEGINNER.md 4.3 Canvas, 7.1 #3).
 	In Simple with the letter view on, the five guide lines span the whole canvas and are labeled
@@ -21,6 +23,8 @@
 	                                   baseline in canvas px, place 'above' or 'below' its line
 	  drawSimpleGuideLines(ctx, view, font, { width, height, alpha, thickness })
 	                                   the lines across the canvas, then their labels
+	  labelColumnRight(ctx)            B15 fix: canvas x right of the widest label (and a gap);
+	                                   the drag readout (metrics/overlay.js) starts there
 */
 import { guideColorDark, guideLevelOpacity } from '../../project_editor/guide.js';
 import { isFeatureOn } from '../mode/features.js';
@@ -69,6 +73,25 @@ export function simpleGuideLines(font) {
 		level: line.level,
 		heavy: !!line.heavy,
 	}));
+}
+
+/** Space between the label column and a readout beside it, canvas px */
+const COLUMN_GAP = 12;
+
+/**
+ * B15 fix: where the line labels' column ends, so a readout never sits on a label.
+ * @param {CanvasRenderingContext2D} ctx
+ * @returns {Number} canvas x
+ */
+export function labelColumnRight(ctx) {
+	const texts = LINES.map((line) => labelCase(word(line.wordKey)));
+	ctx.save();
+	ctx.font = LABEL_FONT;
+	const widest = Math.max(
+		...texts.map((text) => (ctx.measureText ? ctx.measureText(text).width : 0) || text.length * 7)
+	);
+	ctx.restore();
+	return Math.ceil(LABEL_X + widest + COLUMN_GAP);
 }
 
 /**

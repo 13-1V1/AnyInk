@@ -282,6 +282,21 @@ function showTipsAgain() {
 }
 
 /**
+ * A press on a working row (one with data-anyink-row, not disabled) takes the menu out of the
+ * page now, with no fade; the row's own click still runs (the event's path is already set).
+ * Headings and rules are left to upstream's close.
+ * @param {HTMLElement} menu
+ * @param {Event} event
+ */
+function closeAtOnce(menu, event) {
+	const target = /** @type {Element} */ (event.target);
+	const box = [...menu.children].find((child) => child.contains(target));
+	if (!box || box.hasAttribute('disabled') || !box.querySelector('[data-anyink-row]')) return;
+	menu.getAnimations?.().forEach((animation) => animation.cancel());
+	menu.remove();
+}
+
+/**
  * @param {HTMLElement} button - the Menu button
  * @param {Object} [editor]
  * @returns {HTMLElement} the menu
@@ -301,6 +316,9 @@ export function openSimpleMenu(button, editor) {
 	const left = Math.max(EDGE, Math.min(rect.right - width, room - width - EDGE));
 	menu.style.left = `${Math.round(left)}px`;
 	menu.style.borderRadius = 'var(--radius) 0 var(--radius) var(--radius)';
+	// A row takes the Menu away at once, before its own click opens a dialog: upstream's 120 ms
+	// fade left the faded rows showing behind a dialog that answers at once (B14 + B15 fix pass)
+	menu.addEventListener('click', (event) => closeAtOnce(menu, event), { capture: true });
 	const closed = new MutationObserver(() => {
 		if (menu.isConnected) return;
 		button.setAttribute('aria-expanded', 'false');

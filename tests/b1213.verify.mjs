@@ -14,7 +14,7 @@
 //      as he wrote it; typing "Brennan Hand today" shows stand-ins for t, o and y with the
 //      legend; one green button; no banned word
 //   E. The e|n gap: the purple handle, a real mouse drag closer: one whole-font step, a toast with
-//      [Undo], "Word needs one setting for gap fixes. Nothing to do now: ..." and "Gaps you fixed (1)"; Ctrl+Z puts the
+//      [Undo], "Word needs one setting for gap fixes. Use in Word will show you." (B14 on) and "Gaps you fixed (1)"; Ctrl+Z puts the
 //      gap back and the page, the letter and Try it stay where they were
 //   F. Move all letters closer or further apart: the slider dragged closer, live, one step on
 //      release ("moved all letters closer")
@@ -466,10 +466,8 @@ try {
 	assert.equal(fixed.steps, where0.steps + 1, 'one Undo step');
 	assert.equal(fixed.title, 'moved small e and small n closer');
 	assert.ok(!fixed.itemID, 'a whole-font step about no letter');
-	assert.equal(
-		fixed.note,
-		'Word needs one setting for gap fixes. Nothing to do now: you will be shown it when you put your font in Word.'
-	);
+	// B14 + B15 integration: Use in Word is on now, so the note points at it
+	assert.equal(fixed.note, 'Word needs one setting for gap fixes. Use in Word will show you.');
 	assert.equal(fixed.list, 'Gaps you fixed (1)');
 	assert.match(s.toast || '', /small e and small n closer/);
 	assert.deepEqual(s.toastButtons, ['Undo']);

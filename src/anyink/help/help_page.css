@@ -1,0 +1,165 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/* B15: Simple's Help page (UX-BEGINNER.md 4.10). Tokens only; no uppercase transforms (2.2). */
+
+.anyink-help {
+	max-width: 800px;
+	color: var(--chrome-text);
+	line-height: 1.5;
+}
+
+.anyink-help__title,
+.anyink-help__heading,
+.anyink-help__subheading {
+	text-transform: none;
+	scroll-margin-top: var(--space-4);
+}
+
+.anyink-help__title:focus,
+.anyink-help__heading:focus {
+	outline: none;
+}
+
+.anyink-help__title:focus-visible,
+.anyink-help__heading:focus-visible {
+	box-shadow: var(--focus-ring);
+	border-radius: var(--radius-sm);
+}
+
+.anyink-help__contents {
+	margin: var(--space-3) 0 var(--space-5) 0;
+	padding: var(--space-3) var(--space-4);
+	background-color: var(--chrome-bg-raised);
+	border: var(--hairline);
+	border-radius: var(--radius);
+}
+
+.anyink-help__contents-title {
+	margin: 0 0 var(--space-2) 0;
+	color: var(--chrome-text-faint);
+}
+
+.anyink-help .anyink-help__contents-list li {
+	margin: 0;
+}
+
+.anyink-help__contents-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.anyink-help__link,
+.anyink-help__button {
+	display: inline-block;
+	padding: var(--space-1) var(--space-3);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius);
+	background-color: transparent;
+	color: var(--chrome-text);
+	font: inherit;
+	text-decoration: none;
+	text-transform: none;
+	cursor: pointer;
+}
+
+.anyink-help__link:hover,
+.anyink-help__button:hover {
+	background-color: var(--chrome-bg-hover);
+	border-color: var(--field-border-hover);
+}
+
+.anyink-help__link:focus-visible,
+.anyink-help__button:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-help__section {
+	padding-top: var(--space-4);
+	margin-bottom: var(--space-5);
+	border-top: var(--hairline);
+}
+
+.anyink-help__subheading {
+	margin: var(--space-4) 0 var(--space-2) 0;
+}
+
+.anyink-help__steps {
+	margin: 0;
+	padding-left: 1.6em;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.anyink-help__step::marker {
+	color: var(--chrome-text-muted);
+	font-weight: 600;
+}
+
+.anyink-help__glossary {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	column-gap: var(--space-5);
+	row-gap: var(--space-3);
+	margin: 0;
+}
+
+.anyink-help__term {
+	font-weight: 600;
+}
+
+.anyink-help__meaning {
+	margin: 0;
+}
+
+.anyink-help .anyink-help__meaning p {
+	margin: 0 0 var(--space-1) 0;
+}
+
+.anyink-help__like {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-help__pro {
+	font-size: 0.85em;
+	color: var(--chrome-text-faint);
+}
+
+.anyink-help__keys {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	column-gap: var(--space-4);
+	row-gap: var(--space-2);
+	margin: 0;
+	align-items: baseline;
+}
+
+.anyink-help__key-cell,
+.anyink-help__key-label {
+	margin: 0;
+}
+
+.anyink-help__key {
+	display: inline-block;
+	padding: 0 var(--space-2);
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius-sm);
+	background-color: var(--menu-key-bg);
+	color: var(--menu-key-text);
+	font-family: inherit;
+	white-space: nowrap;
+}
+
+.anyink-help__more {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+/* Windows' and Word's own labels, and the file and font names (section 8's bold words): the one
+   shared rule, common/resets.css [data-anyink-quotes='bold'] (B14 + B15 finalize) */

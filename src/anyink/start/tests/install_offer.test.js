@@ -176,6 +176,8 @@ describe('when the install toast comes', () => {
 	});
 
 	it('the first font file brings it only once Use in Word (B14) is on', () => {
+		// B14 + B15 integration: Use in Word is on in the app; before B14 a font file brought nothing
+		setFeaturesForTests({ useInWord: false });
 		holdInstallEvent(installEvent());
 		noteFontFile();
 		expect(shown).toEqual([]);

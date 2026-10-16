@@ -658,8 +658,20 @@ describe('Something else, hide, facts and sources', () => {
 		twoLetterEditor({ page: 'Overview' });
 		startCoach();
 		// B12 + B13 integration: Try it and the start screen too
+		// B14 + B15 integration: Use in Word, Font details and Help too
 		expect(coach.state().flags).toEqual(
-			flags('letterView', 'brush', 'photo', 'board', 'checks', 'tryIt', 'startScreen')
+			flags(
+				'letterView',
+				'brush',
+				'photo',
+				'board',
+				'checks',
+				'tryIt',
+				'startScreen',
+				'useInWord',
+				'fontDetails',
+				'help'
+			)
 		);
 		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
 		// before B9 (photo off) the same font says rule 15, as it did

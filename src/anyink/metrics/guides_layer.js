@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK guides layer (Milestone 5, D-008 / D-009).
 	An always-active layer that gets first look at pointer events on the edit canvas,
@@ -36,6 +38,9 @@
 	B6 + B7 integration: in the letter view the side edges move only while Fine-tune shows them,
 	and never while a drawing tool is picked (the press draws); both gates pass the tool to
 	mode/locks.js.
+	B15 fix (first-timer H1): while Move the guide lines is on, the line he let go stays the one
+	hovered (and named by the readout) until the pointer moves, even when it stopped short of the
+	pointer on another line.
 */
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { setCursor } from '../../edit_canvas/cursors.js';
@@ -50,7 +55,7 @@ import {
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from './hit_test.js';
 import { clampBaselineDelta, METRIC_LABELS, metricValue, snapToTen } from './metrics_math.js';
 import { guidesLayerState, resetGuidesLayerState } from './state.js';
-import { isGuideLineLocked } from '../mode/locks.js';
+import { guideLinesMoving, isGuideLineLocked } from '../mode/locks.js';
 import { isSimpleMode } from '../mode/mode.js';
 import { markManual } from '../spacing/owner.js';
 import { followShapes } from '../spacing/trace_follow.js';
@@ -152,16 +157,24 @@ function onMouseMove(editor, event, pos) {
 function onMouseUp(editor, event, pos) {
 	const state = guidesLayerState;
 	if (!state.dragging) return false;
+	const dragged = state.line;
 
 	finishDrag(editor);
 
-	// Whatever is under the pointer now is hovered
-	const line = findLineAt(editor, pos);
+	// Whatever is under the pointer now is hovered (B15 fix: while the lines are unlocked, the
+	// line he let go, so the readout never names another line he didn't touch)
+	const line = keptLine(editor, dragged) || findLineAt(editor, pos);
 	state.hover = line ? line.id : false;
 	state.line = line;
 	if (line) setCursor(cursorFor(line));
 	editor.publish('editCanvasView', editor.view);
 	return true;
+}
+
+/** B15 fix: the guide line just let go while Move the guide lines is on, or null */
+function keptLine(editor, dragged) {
+	if (!guideLinesMoving() || dragged?.kind !== 'metric') return null;
+	return { ...dragged, value: metricValue(editor.project.settings.font, dragged.key) };
 }
 
 /** A release outside the canvas still ends the drag. */

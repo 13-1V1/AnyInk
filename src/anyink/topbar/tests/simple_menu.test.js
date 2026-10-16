@@ -50,7 +50,8 @@ describe('the rows that show', () => {
 	it('with only the top bar landed: File, View and Help, and the two rows Simple keeps until B14 / B15', () => {
 		// B8 + B9 integration: before B9 (photos on in the app now; the next test). B12 + B13
 		// integration: Start a new font... shows with the start screen ('startScreen' on)
-		setFeaturesForTests({ photo: false });
+		// B14 + B15 integration: before B14 / B15 (on in the app now; the later-B test below)
+		setFeaturesForTests({ photo: false, useInWord: false, fontDetails: false, help: false });
 		const editor = twoLetterEditor();
 		expect(rowIds(menuRows(editor))).toEqual([
 			'# File',
@@ -72,7 +73,8 @@ describe('the rows that show', () => {
 		]);
 	});
 
-	it('B9 landed (the flags as the app has them): Help gains How to photograph your letters', () => {
+	it('B9 landed (before B14 / B15): Help gains How to photograph your letters', () => {
+		setFeaturesForTests({ useInWord: false, fontDetails: false, help: false });
 		const editor = twoLetterEditor();
 		const ids = rowIds(menuRows(editor));
 		expect(ids.slice(ids.indexOf('# Help'))).toEqual([
@@ -139,7 +141,15 @@ describe('the rows that show', () => {
 		);
 		expect(notes.save).toEqual(['Ctrl', 's']);
 		expect(notes['open-font']).toEqual(['Ctrl', 'o']);
-		expect(notes['font-otf']).toEqual(['Ctrl', 'e']);
+		// B14 + B15 integration: Ctrl+E sits beside Make my font file...; before B14, the .otf row
+		expect(notes['make-font-file']).toEqual(['Ctrl', 'e']);
+		setFeaturesForTests({ useInWord: false });
+		const before = Object.fromEntries(
+			menuRows(twoLetterEditor())
+				.filter((row) => row.note)
+				.map((row) => [/data-anyink-row="([\w-]+)"/.exec(row.name)[1], row.note])
+		);
+		expect(before['font-otf']).toEqual(['Ctrl', 'e']);
 	});
 });
 
@@ -178,6 +188,7 @@ describe('what the rows do', () => {
 	});
 
 	it('Help (until B15) opens the Help page; About opens About', () => {
+		setFeaturesForTests({ help: false });
 		const editor = twoLetterEditor();
 		editor.navigate = vi.fn();
 		run(editor, 'help-page');

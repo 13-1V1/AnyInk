@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration (UX-BEGINNER.md 4.0 Toasts, 7.7 "Font file can't be built"): in Simple
 	the Menu's font file row (B6's Menu; the File menu before B6; Ctrl+E until B14) ends with one toast in the one queue: "Exported
@@ -14,6 +16,7 @@ import { getCurrentProjectEditor, setCurrentProjectEditor } from '../../../app/m
 import { forgetExportFolder } from '../../files/export_folder.js';
 import { resetFileApi, setFileApi } from '../../files/file_api.js';
 import { clearDialogs, fakeApi, fakeDirectoryHandle } from '../../files/tests/fakes.js';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { kvClear } from '../../storage/kv.js';
 import { clearToasts, resetToastsForTests } from '../../toast/toast.js';
@@ -31,6 +34,8 @@ function openBroken() {
 
 /** The font file row: in B6's Menu (Simple's top bar), or in the File menu before B6 */
 function clickFontFileRow() {
+	// B14 + B15 integration: the stand-in .otf row is Simple's before B14 (Use in Word replaces it)
+	setFeaturesForTests({ useInWord: false });
 	document.querySelectorAll('#app__top-bar').forEach((el) => el.remove());
 	const topBar = makeAppTopBar();
 	document.body.appendChild(topBar);
@@ -82,7 +87,7 @@ describe('Simple: the export check is one toast with [Show me]', () => {
 		clickFontFileRow();
 		expect(await waitFor(() => words(showing()).includes('small a'))).toBe(true);
 		const toast = showing();
-		expect(words(toast)).toMatch(/^Exported .+-Regular\.otf to Fonts, but small a needs fixing\.$/);
+		expect(words(toast)).toMatch(/^Made .+-Regular\.otf in Fonts, but small a needs fixing\.$/); // B14 + B15 finalize: "Made"
 		expect([...toast.querySelectorAll('.anyink-quote')].map((q) => q.textContent)).toEqual([
 			expect.stringMatching(/-Regular\.otf$/),
 			'Fonts',

@@ -140,7 +140,8 @@ describe('logo and font name', () => {
 	});
 
 	it('the font name is words only until Font details (B15) lands; then it opens it', () => {
-		const { bar } = simpleBar();
+		// B14 + B15 integration: Font details is on in the app; before B15 the name was words only
+		const { bar } = simpleBar({ flags: { fontDetails: false } });
 		const name = $(bar, 'fontName');
 		expect(name.textContent).toBe('Two Letters');
 		expect(name.tagName).not.toBe('BUTTON');
@@ -213,12 +214,12 @@ describe('the rail', () => {
 
 	it('no doors to unbuilt rooms: Try it and Use in Word show only once their Bs land', () => {
 		// B12 + B13 integration: Try it has landed; before B12 its step was not there
-		const { bar } = simpleBar({ flags: { tryIt: false } });
+		const { bar } = simpleBar({ flags: { tryIt: false, useInWord: false } });
 		expect(step(bar, 'tryIt')).toBeNull();
 		expect(step(bar, 'useInWord')).toBeNull();
 		document.body.innerHTML = '';
-		resetFeaturesForTests(); // the flags as the app has them
-		const now = simpleBar().bar;
+		resetFeaturesForTests(); // before B14 (B14 + B15 integration: Use in Word is on in the app)
+		const now = simpleBar({ flags: { useInWord: false } }).bar;
 		expect(step(now, 'tryIt').textContent).toBe('2Try it');
 		expect(step(now, 'useInWord')).toBeNull();
 		document.body.innerHTML = '';

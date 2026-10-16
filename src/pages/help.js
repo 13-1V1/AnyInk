@@ -4,6 +4,11 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { getCurrentProjectEditor } from '../app/main.js';
+import { listenForHelpDoor } from '../anyink/help/help_door.js';
+import { makeHelpPage } from '../anyink/help/help_page.js';
 import { makeBackToLettersButton } from '../anyink/mode/back_to_letters.js';
 import { keysShown } from '../anyink/mode/keys.js';
 import { makeElement, textToNode } from '../common/dom.js';
@@ -12,7 +17,12 @@ import { cursors } from '../edit_canvas/cursors.js';
 import { makeToolButtonSVG } from '../edit_canvas/tools/tools.js';
 import { makeNavButton, toggleNavDropdown } from '../project_editor/navigator.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
-import { word } from '../anyink/words/words.js';
+
+// ANY-INK (B15): the top bar's Menu > Help rows open this page at a section ('anyink-open-help').
+// B14 + B15 finalize: once every module has loaded, never during: help_door.js and this file
+// import each other through main.js, and a page that loads the door first (tests/help.html)
+// stopped with "Cannot access 'stop' before initialization"
+queueMicrotask(() => listenForHelpDoor());
 
 /**
  * Page > Help
@@ -43,57 +53,25 @@ export function makePage_Help() {
 	});
 
 	const rightArea = content.querySelector('.content-page__right-area');
-	const tabControl = new TabControl(rightArea);
-
-	// ANY-INK (B4 + B5 finalize): Simple's Help is one "Help" tab in house words, with the keys
-	// Simple has (UX-BEGINNER 4.10, until B15's Help page), and [Back to my letters]; Glyphr
-	// Studio's key table says its own words (items, paths, kern groups), so it is All tools only
-	const simple = isSimpleMode();
-	const firstTab = simple ? word('help.title') : 'Overview';
-	tabControl.registerTab(firstTab, simple ? makeSimpleHelp : makeHelpOverview);
-	if (!simple) tabControl.registerTab('Keyboard shortcuts', makeKeyboardShortcutReference);
-	tabControl.selectTab(firstTab);
-
 	const panelArea = content.querySelector('#content-page__panel');
+
+	// ANY-INK (B15, UX-BEGINNER.md 4.10): Simple's Help is one page in house words, five
+	// sections, each entry shown only while its feature's flag is on (anyink/help/help_page.js),
+	// with [Back to my letters]. It retires B5's stand-in (one "Help" tab of a few sentences).
+	// Glyphr Studio's key table says its own words (items, paths, kern groups), so it is All
+	// tools only, with the Overview tab, as before.
+	if (isSimpleMode()) {
+		rightArea.appendChild(makeHelpPage({ editor: getCurrentProjectEditor() }));
+		panelArea.appendChild(makeBackToLettersButton());
+		return content;
+	}
+
+	const tabControl = new TabControl(rightArea);
+	tabControl.registerTab('Overview', makeHelpOverview);
+	tabControl.registerTab('Keyboard shortcuts', makeKeyboardShortcutReference);
+	tabControl.selectTab('Overview');
 	panelArea.appendChild(tabControl.makeTabs());
-	if (simple) panelArea.appendChild(makeBackToLettersButton());
 
-	return content;
-}
-
-/**
- * ANY-INK (B4 + B5 finalize, UX-BEGINNER 4.10): Simple's Help in a few sentences, until B15:
- * pick a letter, the tools and their keys (keys.js: the keys Simple has), Undo, Save and Open,
- * the font file, and the full manual (Glyphr Studio's help site, said to use pro words).
- * @returns {Element}
- */
-function makeSimpleHelp() {
-	const content = document.createElement('div');
-	const title = document.createElement('h1');
-	title.textContent = word('help.title');
-	content.appendChild(title);
-	const tools = keysShown({ mode: 'simple' })
-		.filter((key) => key.action === 'selectTool' && key.keys.length)
-		.map((key) => word('help.toolKey', { tool: word(`tool.${key.tool}`), key: key.keys[0] }))
-		.join(', ');
-	[
-		word('help.howPick'),
-		word('help.howDraw', { tools }),
-		word('help.howUndo'),
-		word('help.howSave'),
-		word('help.howFontFile'),
-	].forEach((sentence) => {
-		const paragraph = document.createElement('p');
-		paragraph.textContent = sentence;
-		content.appendChild(paragraph);
-	});
-	const manual = document.createElement('p');
-	const link = document.createElement('a');
-	link.href = 'https://www.glyphrstudio.com/help';
-	link.target = '_blank';
-	link.textContent = word('help.fullManual');
-	manual.appendChild(link);
-	content.appendChild(manual);
 	return content;
 }
 

@@ -1,0 +1,69 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B15: the purple banner while the guide lines are unlocked (UX-BEGINNER.md 4.8), purple =
+	structure, the B5 band's look. Its one button is outlined: the green belongs to the screen
+	(principle 1). Sentence case, no uppercase transform (2.2). Tokens only.
+
+	It is a child of #app__wrapper right after the Simple top bar. The Simple bar makes the
+	wrapper's grid two rows (simple_top_bar.css: the bar's own height, then the page); while the
+	banner is there it takes a row of its own between them, so the page moves down by its height
+	instead of the banner falling into a row past the bottom (the wrapper hides overflow).
+*/
+
+.anyink-move-lines {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-height: 36px;
+	padding: var(--space-1) var(--space-4);
+	background-color: var(--structure-deep);
+	color: var(--chrome-text);
+	font-family: var(--font-ui);
+	font-size: var(--text-sm);
+	line-height: 1.4;
+	text-transform: none;
+	box-sizing: border-box;
+}
+
+.anyink-move-lines__text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.anyink-move-lines__done {
+	flex: 0 0 auto;
+	font: inherit;
+	font-weight: 600;
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-text);
+	border-radius: var(--radius);
+	padding: 2px var(--space-4);
+	cursor: pointer;
+	text-transform: none;
+}
+
+.anyink-move-lines__done:hover {
+	color: var(--chrome-text-inverse);
+	background-color: var(--structure-strong);
+	border-color: var(--structure-strong);
+}
+
+.anyink-move-lines__done:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+#app__wrapper:has(> #app__top-bar.anyink-topbar):has(> .anyink-move-lines) {
+	grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+#app__wrapper:has(> #app__top-bar.anyink-topbar):has(> .anyink-move-lines) > .anyink-move-lines {
+	grid-row: 2;
+}
+
+#app__wrapper:has(> #app__top-bar.anyink-topbar):has(> .anyink-move-lines) > #app__main-content {
+	grid-row: 3;
+	min-height: 0;
+}

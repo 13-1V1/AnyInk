@@ -1,0 +1,86 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B14: Use in Word before the file is made (UX-BEGINNER.md 4.7), inside the shared ANY-INK modal
+	shell (photo/photo_dialog.css: the head, the x, the buttons and the one green button). The
+	folder line, its tip, the amber notes (a letter that stops the build has the stronger amber
+	edge). Sentence case (2.2). Tokens only.
+*/
+
+.anyink-use-in-word {
+	width: 560px;
+}
+
+.anyink-use-in-word__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.anyink-use-in-word__body > p {
+	margin: 0;
+	line-height: 1.45;
+}
+
+.anyink-use-in-word__folder {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1) var(--space-2);
+	/* not bold: the folder name in it is (the shared quote rule) */
+	font-weight: normal;
+}
+
+.anyink-use-in-word__none {
+	font-weight: normal;
+	color: var(--chrome-text-muted);
+}
+
+.anyink-use-in-word__tip {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+.anyink-use-in-word__note {
+	display: flex;
+	gap: var(--space-2);
+	align-items: baseline;
+	padding: var(--space-1) var(--space-2);
+	border-left: 3px solid var(--warning);
+	background-color: var(--warning-soft);
+	border-radius: var(--radius-sm);
+}
+
+.anyink-use-in-word__note.is-stop {
+	border-left-width: 6px;
+	font-weight: 600;
+}
+
+.anyink-use-in-word__mark {
+	color: var(--warning);
+	font-weight: 700;
+}
+
+.anyink-modal .anyink-use-in-word__link {
+	padding: 0 var(--space-1);
+	font: inherit;
+	font-weight: normal;
+	color: var(--touch);
+	background: transparent;
+	border: none;
+	text-decoration: underline;
+	cursor: pointer;
+	text-transform: none;
+}
+
+.anyink-modal .anyink-use-in-word__pick {
+	font-weight: normal;
+}
+
+.anyink-use-in-word .anyink-modal__button:disabled {
+	opacity: 0.7;
+	cursor: progress;
+}
+
+/* Chrome's and Windows' own labels and the folder name: bold by the one shared rule
+   (common/resets.css [data-anyink-quotes='bold'], B14 + B15 finalize) */

@@ -2,6 +2,10 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { FontFlux, initWoff2 } from 'font-flux-js';
 import { getCurrentProject } from '../../app/main.js';
 import { parseCharsInputAsHex } from '../../common/character_ids.js';
@@ -24,6 +28,8 @@ import {
 	shouldExportItem as shouldExportItemInProject,
 } from '../../anyink/fontcheck/export_list.js';
 import { makeGlyphWithResolvedLinks } from '../../project_editor/cross_item_actions.js';
+import { withLatinKern } from '../../anyink/install/kern_latin.js';
+import { mergedContours } from '../../anyink/install/merge_overlaps.js';
 import { writeGposKernDataToFont } from './tables/gpos.js';
 
 /**
@@ -112,6 +118,12 @@ export async function ioFont_exportDefaultFormat() {
  *   settings.font.family
  * @param {String} [exportOptions.fileName] - file name instead of the PostScript name
  *   (the extension is added when missing)
+ * @param {Boolean} [exportOptions.mergeOverlaps] - ANY-INK (B14 + B15 integration): each
+ *   letter's overlapping shapes made one outline in this file (anyink/install/merge_overlaps.js)
+ * @param {Boolean} [exportOptions.kernForLatin] - ANY-INK (B14 + B15 integration): the gap
+ *   fixes listed for Latin text as well as the default script (anyink/install/kern_latin.js)
+ * @param {Boolean} [exportOptions.quiet] - ANY-INK (B14 + B15 finalize): no progress, folder or
+ *   "Exported" toast (export_folder.js quiet); the caller says what happened
  * @returns {Promise<ArrayBuffer | String | false>} - ArrayBuffer if testing, otherwise
  *   'folder' | 'download' | 'cancelled' | 'prompt' (export_folder.js writeExport),
  *   or false when the build failed (an error box was shown)
@@ -122,13 +134,20 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		addSpaceIfMissing = false,
 		familyName = '',
 		fileName = '',
+		mergeOverlaps = false,
+		kernForLatin = false,
+		quiet = false,
 	} = exportOptions || {};
+	// ANY-INK (B14 + B15 finalize): quiet, Use in Word's dialog says what happened; no progress
+	// toast, no "Exported ..." and no folder toast behind it (a download's reason still shows)
+	const say = quiet ? () => {} : showToast;
 	// log('ioFont_exportFont', 'start');
 	let destination = null;
 	if (!testing) {
 		// ANY-INK (B4 + B5 finalize): Simple's [Pick a folder...] after a cancelled picker makes
 		// this same font file again (export_folder.js)
 		destination = await prepareExportDestination({
+			quiet,
 			retry: () =>
 				runFileCommand(exportWithFontCheck, () => ioFont_exportFont(suffix, false, exportOptions)),
 		});
@@ -136,7 +155,7 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		if (destination.kind !== 'folder' && destination.kind !== 'download') {
 			return destination.kind;
 		}
-		showToast(`Exporting ${suffix.toUpperCase()} font file...`);
+		say(`Exporting ${suffix.toUpperCase()} font file...`);
 	}
 	const options = createOptionsObject(undefined, { familyName });
 	const exportLists = getExportList(getCurrentProject(), {
@@ -177,6 +196,8 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		buildingBlocks,
 		plannedCharacterNames,
 		testing,
+		mergeOverlaps,
+		quiet,
 	};
 
 	// Add .notdef
@@ -202,7 +223,7 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 	}
 
 	if (!testing) {
-		showToast('Exporting...');
+		say('Exporting...');
 		await pause(0);
 	}
 
@@ -212,7 +233,7 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 	buildingBlocks.forEach((glyphObject) => {
 		options.glyphs.push(glyphObject);
 	});
-	if (!testing) showToast('Finalizing...');
+	if (!testing) say('Finalizing...');
 
 	// log(`\n⮟options.glyphs⮟`);
 	// log(options.glyphs);
@@ -319,7 +340,7 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		try {
 			const format = suffix === 'otf' ? 'sfnt' : suffix;
 			const arrayBuffer = font.export({ format });
-			return arrayBuffer;
+			return kernForLatin && format === 'sfnt' ? withLatinKern(arrayBuffer) : arrayBuffer;
 		} catch (e) {
 			console.error(e);
 			throw e;
@@ -332,7 +353,9 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		suffix,
 		destination,
 		project?.settings?.project?.id,
-		fileName
+		fileName,
+		kernForLatin,
+		quiet
 	);
 	// await pause();
 	if (typeof result === 'string') {
@@ -346,7 +369,7 @@ export async function ioFont_exportFont(suffix = 'otf', testing = false, exportO
 		// The destination toast came from writeExport; leave it up briefly (without
 		// holding the caller: the export itself is done). ANY-INK (B1): a message
 		// shown after it (the font check's) keeps its own time.
-		closeToastLater(2500);
+		if (!quiet) closeToastLater(2500);
 		// log('ioFont_exportFont', 'end');
 		return result;
 	}
@@ -438,6 +461,7 @@ function exportFileName(fileName, suffix) {
  * @param {String} [projectId] - the exporting project: a same-named export from
  *   another project is never replaced without asking
  * @param {String} [requestedFileName] - ANY-INK (B1): exportOptions.fileName
+ * @param {Boolean} [kernForLatin] - ANY-INK (B14 + B15 integration): exportOptions.kernForLatin
  * @returns {Promise<String | Error>} writeExport's result, or the error that stopped the build
  */
 async function saveFontFile(
@@ -445,7 +469,9 @@ async function saveFontFile(
 	suffix = 'otf',
 	destination,
 	projectId = null,
-	requestedFileName = ''
+	requestedFileName = '',
+	kernForLatin = false,
+	quiet = false
 ) {
 	let result;
 	try {
@@ -463,13 +489,15 @@ async function saveFontFile(
 		const baseName = font.info.postScriptName || `${familyName.replace(/\s/g, '')}-${styleName}`;
 		const fileName =
 			exportFileName(requestedFileName, suffix) || `${baseName}.${suffix.toLowerCase()}`;
-		const arrayBuffer = font.export({ format: suffix });
+		const built = font.export({ format: suffix });
+		// ANY-INK (B14 + B15 integration): only the plain font file formats (.otf, .ttf)
+		const arrayBuffer = kernForLatin && ['otf', 'ttf'].includes(suffix) ? withLatinKern(built) : built;
 		const dataView = new DataView(arrayBuffer);
 		const blob = new Blob([dataView], { type: 'font/opentype' });
 
 		// ANY-INK (D-012): into the export folder settled before the build, else the
 		// download. It shows its own 'Exported <file> to <folder>' toast.
-		result = await writeExport(destination, blob, fileName, { projectId });
+		result = await writeExport(destination, blob, fileName, { projectId, quiet });
 	} catch (e) {
 		console.error(e);
 		result = e;
@@ -541,9 +569,31 @@ function makePostScriptName(family, style) {
 			.replace(/[^\x20-\x7e]/g, '') // ASCII only
 			.replace(/[[\](){}<>/%]/g, '') // characters illegal in PostScript names
 			.replace(/\s+/g, ''); // no spaces
-	const f = clean(family) || 'Font';
+	// ANY-INK (B14 + B15 finalize): letters ASCII can't spell (手書き, an emoji) would leave every
+	// such font one name ("Test10-Regular"); they get 'AnyInk' and a short hash of the family name
+	// first, the same each time for one name. A name spelled in plain letters is as before.
+	const dropped = /[\p{L}\p{N}\p{So}]/u.test(
+		String(family || '')
+			.normalize('NFKD')
+			.replace(/[ -~]/g, '')
+	);
+	const f = dropped ? `AnyInk${shortHash(family)}${clean(family)}` : clean(family) || 'Font';
 	const s = clean(style) || 'Regular';
 	return `${f}-${s}`.substring(0, 63);
+}
+
+/**
+ * ANY-INK (B14 + B15 finalize): 8 hex digits from a name (FNV-1a), the same every time.
+ * @param {String} text
+ * @returns {String}
+ */
+function shortHash(text) {
+	let hash = 0x811c9dc5;
+	for (const char of String(text || '')) {
+		hash ^= char.codePointAt(0);
+		hash = Math.imul(hash, 0x01000193) >>> 0;
+	}
+	return hash.toString(16).padStart(8, '0');
 }
 
 /**
@@ -865,7 +915,7 @@ async function generateOneGlyph(currentExportItem, compositeContext) {
 	// glyph is pure dead time that adds up to tens of seconds for large fonts;
 	// throttling lets the export run at full speed while the glyph name still
 	// appears to whiz by. Skipped entirely under test.
-	if (!compositeContext?.testing && isUIUpdateDue()) {
+	if (!compositeContext?.testing && !compositeContext?.quiet && isUIUpdateDue()) {
 		showToast('Exporting<br>' + glyph.name, 999999);
 		await pause(0);
 	}
@@ -902,7 +952,7 @@ async function generateOneLigature(currentExportItem, compositeContext) {
 		ligatureSubstitutions.push({ components: componentNames, ligature: thisLigature.name });
 	}
 
-	if (!compositeContext?.testing && isUIUpdateDue()) {
+	if (!compositeContext?.testing && !compositeContext?.quiet && isUIUpdateDue()) {
 		showToast('Exporting<br>' + liga.name, 999999);
 		await pause(0);
 	}
@@ -976,7 +1026,7 @@ function buildGlyphOutline(item, compositeContext) {
 		const components = getCompositeComponents(item, compositeContext);
 		if (components) return { components };
 	}
-	return { contours: glyphToContours(item) };
+	return { contours: glyphToContours(item, { mergeOverlaps: !!compositeContext?.mergeOverlaps }) };
 }
 
 /**
@@ -1086,7 +1136,7 @@ function ensureBuildingBlock(name, item, buildingBlocks) {
  * @param {Glyph | Object} item - Item to convert
  * @returns {Array<Array>} - Array of contours, each contour is an array of points
  */
-export function glyphToContours(item) {
+export function glyphToContours(item, { mergeOverlaps = false } = {}) {
 	// Resolving component links rebuilds the whole glyph, which is expensive.
 	// Only pay that cost for glyphs that actually contain component instances;
 	// path-only glyphs (the vast majority in most fonts) can be read directly.
@@ -1094,6 +1144,12 @@ export function glyphToContours(item) {
 		Array.isArray(item.shapes) &&
 		item.shapes.some((shape) => shape.objType === 'ComponentInstance');
 	const flatItem = hasComponents ? makeGlyphWithResolvedLinks(item) : item;
+	// ANY-INK (B14 + B15 integration): overlapping shapes made one outline (Use in Word)
+	if (mergeOverlaps) {
+		const paths = (flatItem.shapes || []).filter((shape) => shape.objType === 'Path');
+		const merged = mergedContours(paths, pathToContour);
+		if (merged) return merged;
+	}
 	const contours = [];
 
 	flatItem.shapes.forEach((shape) => {

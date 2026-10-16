@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK Help page (B15)</title>
+	<!-- the app's own order (src/index.html) -->
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<link rel="stylesheet" href="../src/panels/panels.css" />
+	<link rel="stylesheet" href="../src/pages/content-pages.css" />
+	<style>
+		html, body { margin: 0; height: 100%; background: var(--chrome-bg); color: var(--chrome-text); font-family: var(--font-ui); }
+		body { display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
+		#controls { padding: var(--space-4); border-right: var(--hairline); overflow-y: auto; }
+		#controls h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		#controls h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-4) 0 var(--space-2); }
+		#controls p { color: var(--chrome-text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-2); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-sm); }
+		label { display: inline-flex; gap: 4px; align-items: center; }
+		#page { margin: 10px; }
+	</style>
+</head>
+<body>
+	<div id="controls">
+		<h1>Help page (B15)</h1>
+		<p>
+			Simple's Help page (UX-BEGINNER.md 4.10), the real <code>makeHelpPage</code>, for a font
+			named "Brennan Hand". Five sections: how a font gets made with the How card's text, the
+			glossary, the steps for Windows and Word, the keys, and more. Each entry shows only while
+			its feature's flag is on: turn flags off and on to watch entries come and go. The door
+			buttons send the top bar's <code>anyink-open-help</code> event, as Menu &gt; Help rows do.
+		</p>
+		<h2>The top bar's door</h2>
+		<div class="row" id="doors"></div>
+		<h2>Feature flags</h2>
+		<div class="row" id="flags"></div>
+		<h2>Log</h2>
+		<p id="log"></p>
+	</div>
+	<div id="page" class="content-page__right-area"></div>
+
+	<script type="module">
+		window.log = () => {};
+		import { openHelp } from '../src/anyink/help/help_door.js';
+		import { HELP_SECTIONS, makeHelpPage } from '../src/anyink/help/help_page.js';
+		import { FEATURE_NAMES, isFeatureOn, setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { getMode, setMode } from '../src/anyink/mode/mode.js';
+		import { HELP_EVENT, openDoor } from '../src/anyink/topbar/doors.js';
+
+		if (getMode() !== 'simple') setMode('simple');
+		const $ = (selector) => document.querySelector(selector);
+
+		// A bare editor: the font's name, and a navigate that draws the Help page here
+		const editor = {
+			project: { settings: { project: { name: 'Brennan Hand' }, font: {} } },
+			nav: { page: 'Help' },
+			navigate() {
+				$('#page').innerHTML = '';
+				if (editor.nav.page !== 'Help') {
+					$('#page').textContent = `Page: ${editor.nav.page}`;
+					return;
+				}
+				$('#page').appendChild(makeHelpPage({ editor }));
+			},
+		};
+		window.anyinkHelpPage = { editor };
+
+		// The door, answered for this bare editor (the app's listenForHelpDoor uses the current one)
+		window.addEventListener(HELP_EVENT, (event) => {
+			const section = event.detail?.section;
+			openHelp(section, { editor });
+			$('#log').textContent = `opened Help at "${section}" (${document.activeElement?.textContent})`;
+		});
+
+		HELP_SECTIONS.forEach((id) => {
+			const button = document.createElement('button');
+			button.textContent = id;
+			button.onclick = () => openDoor(HELP_EVENT, { section: id });
+			$('#doors').appendChild(button);
+		});
+		const back = document.createElement('button');
+		back.textContent = 'Go to another page';
+		back.onclick = () => {
+			editor.nav.page = 'Characters';
+			editor.navigate();
+		};
+		$('#doors').appendChild(back);
+
+		FEATURE_NAMES.forEach((name) => {
+			const label = document.createElement('label');
+			const box = document.createElement('input');
+			box.type = 'checkbox';
+			box.checked = isFeatureOn(name);
+			box.dataset.flag = name;
+			box.onchange = () => {
+				setFeaturesForTests({ [name]: box.checked });
+				editor.navigate();
+			};
+			label.append(box, name);
+			$('#flags').appendChild(label);
+		});
+
+		editor.navigate();
+	</script>
+</body>
+</html>

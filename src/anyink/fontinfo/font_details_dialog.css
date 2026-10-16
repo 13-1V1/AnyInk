@@ -1,0 +1,81 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B15: Font details (UX-BEGINNER.md 4.8), inside the shared ANY-INK modal shell
+	(photo/photo_dialog.css: the head, the x, the buttons and the one green Done). Labels in a
+	column beside their fields; the Numbers & symbols switch is outlined, green only while it is
+	on (green = what you're touching). Sentence case (2.2). Tokens only.
+*/
+
+.anyink-font-details {
+	width: 520px;
+}
+
+.anyink-font-details__fields {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	align-items: center;
+	gap: var(--space-2) var(--space-3);
+}
+
+.anyink-font-details__label {
+	color: var(--chrome-text);
+	font-weight: 600;
+	cursor: default;
+}
+
+.anyink-font-details__input {
+	box-sizing: border-box;
+	width: 100%;
+	height: 2.2em;
+	padding: 0 var(--space-2);
+	font-family: var(--font-ui);
+	font-size: var(--text-base);
+	color: var(--field-text);
+	background-color: var(--field-bg);
+	border: 1px solid var(--field-border);
+	border-radius: var(--radius);
+}
+
+.anyink-font-details__input:focus {
+	border-color: var(--field-border-focus);
+}
+
+.anyink-font-details__row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.anyink-modal .anyink-font-details__switch {
+	min-width: 4em;
+	padding: 2px var(--space-3);
+	font: inherit;
+	color: var(--chrome-text);
+	background-color: transparent;
+	border: 1px solid var(--chrome-border-strong);
+	border-radius: var(--radius-lg);
+	cursor: pointer;
+	text-transform: none;
+}
+
+.anyink-modal .anyink-font-details__switch[aria-checked='true'] {
+	color: var(--touch);
+	border-color: var(--touch);
+}
+
+.anyink-modal .anyink-font-details__switch:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-font-details__note {
+	margin: 0;
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+/* Move the guide lines... sits on its own line, under the note, as 4.8 draws it */
+.anyink-modal .anyink-font-details .anyink-modal__button[data-anyink-fontinfo-action='moveLines'] {
+	align-self: flex-start;
+}

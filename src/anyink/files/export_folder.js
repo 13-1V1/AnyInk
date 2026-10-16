@@ -2,6 +2,10 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK export folder (Milestone 6, D-012, D-027).
 	Owner: FILES track (shared with the OTF export hand-off in font_export.js).
@@ -60,6 +64,19 @@
 	                                   | { status: 'needsClick' } (SecurityError: the
 	                                   click's activation expired) | { status: 'unavailable' }.
 	  pickExportFolder()               chooseExportFolder() -> the directory handle or false.
+	  pickFontFolder({ retry })        B14's Use in Word [Pick a folder...]: chooseExportFolder(),
+	                                   and in Simple a picker that came back with nothing says
+	                                   7.7's "No folder picked. ..." with [Pick a folder...] (retry,
+	                                   default: pick again). Resolves as chooseExportFolder.
+	  { quiet: true }                  B14 + B15 fix pass: pickFontFolder, prepareExportDestination
+	                                   and writeExport ask for no toast about the folder (picked
+	                                   first, refused, cancelled, one more click, Export cancelled):
+	                                   Use in Word draws those words in its own dialog, and a toast
+	                                   behind its modal would be inert and say them twice. Where the
+	                                   file went is still recorded (getLastExportMessage). B14 +
+	                                   B15 finalize: quiet also leaves out "Exported <file> to
+	                                   <folder>" and a plain "Downloading <file>" (the card says
+	                                   it); a download in place of the folder still says why.
 	  noteImportedFontFile(handle)     a font file was imported: it is a source again, so
 	                                   the next export over it asks first.
 	  forgetExportFolder()             next export asks for a folder again.
@@ -179,45 +196,53 @@ export async function pickExportFolder() {
  * Settles where an export goes. Call first thing in the click or keydown that
  * starts the export, before the font is built, so the permission prompt and the
  * folder picker still have the gesture's transient activation.
- * @param {{retry?: Function}} [options] - retry: the export again, for Simple's
- *   [Pick a folder...] after a cancelled picker (B4 + B5 finalize)
+ * @param {{retry?: Function, quiet?: Boolean}} [options] - retry: the export again, for
+ *   Simple's [Pick a folder...] after a cancelled picker (B4 + B5 finalize); quiet: no toast at
+ *   all, the caller says what happened (B14's Use in Word)
  * @returns {Promise<{kind: 'folder', dir: FileSystemDirectoryHandle} |
  *   {kind: 'download' | 'cancelled' | 'prompt'}>} only 'folder' and 'download'
- *   mean "build the font"; the other two already showed a toast.
+ *   mean "build the font"; the other two already showed a toast (unless quiet).
  */
-export async function prepareExportDestination({ retry } = {}) {
+export async function prepareExportDestination({ retry, quiet = false } = {}) {
 	if (!hasFileSystemAccess() || !hasDirectoryPicker()) return { kind: 'download' };
 	const remembered = await preloadExportFolder();
 	const simple = isSimpleMode();
+	const say = quiet ? () => {} : (speak) => speak();
 	if (remembered) {
 		const permission = await ensurePermission(remembered, 'readwrite');
 		if (permission === 'granted') return { kind: 'folder', dir: remembered };
 		if (permission === 'prompt') {
-			showToast(clickAgainToWrite(remembered));
+			say(() => showToast(clickAgainToWrite(remembered)));
 			return { kind: 'prompt' };
 		}
 		// 'denied': this folder was refused. Choose another (the picker starts there).
-		if (simple) sayFolderWords(exportFolderWords('refused', remembered.name));
-		else showToast(`ANY-INK was not allowed to write to ${remembered.name}. Choose an export folder.`);
+		if (simple) say(() => sayFolderWords(exportFolderWords('refused', remembered.name)));
+		else {
+			say(() =>
+				showToast(`ANY-INK was not allowed to write to ${remembered.name}. Choose an export folder.`)
+			);
+		}
 	} else if (simple) {
 		// B4 + B5 finalize: say what to pick before the picker opens the first time
-		toast('menu.pickFolderFirst', {}, { group: 'export' });
+		say(() => toast('menu.pickFolderFirst', {}, { group: 'export' }));
 	}
 	const choice = await chooseExportFolder();
 	if (choice.status === 'picked') return { kind: 'folder', dir: choice.dir };
 	if (choice.status === 'cancelled') {
 		if (simple) {
-			sayFolderWords(exportFolderWords('cancelled'), {
-				key: 'error.button.pickFolder',
-				run: retry || (() => chooseFolderFromToast()),
-			});
+			say(() =>
+				sayFolderWords(exportFolderWords('cancelled'), {
+					key: 'error.button.pickFolder',
+					run: retry || (() => chooseFolderFromToast()),
+				})
+			);
 		} else {
-			showToast('Export cancelled');
+			say(() => showToast('Export cancelled'));
 		}
 		return { kind: 'cancelled' };
 	}
 	if (choice.status === 'needsClick') {
-		showToast('Click Export again to choose an export folder.');
+		say(() => showToast('Click Export again to choose an export folder.'));
 		return { kind: 'prompt' };
 	}
 	return { kind: 'download' };
@@ -236,6 +261,28 @@ function sayFolderWords(words, action) {
 		quotes: words.quotes,
 		...(action ? { action } : {}),
 	});
+}
+
+/**
+ * B14 (UX-BEGINNER.md 4.7): Use in Word's own [Pick a folder...], outside an export. Call inside a
+ * click. When the picker comes back with nothing (cancelled, or Chrome refused a system folder
+ * such as Documents and the picker was closed), Simple says 7.7's "No folder picked. ..." with
+ * [Pick a folder...], which runs retry (default: this again). A picked folder says nothing: the
+ * dialog shows the folder line itself. With quiet (B14 + B15 fix pass: the dialog draws "No folder
+ * picked" and its tip itself) nothing is said.
+ * @param {{retry?: Function, quiet?: Boolean}} [options]
+ * @returns {Promise<{status: 'picked', dir: FileSystemDirectoryHandle} |
+ *   {status: 'cancelled' | 'needsClick' | 'unavailable'}>} as chooseExportFolder
+ */
+export async function pickFontFolder({ retry, quiet = false } = {}) {
+	const choice = await chooseExportFolder();
+	if (choice.status === 'cancelled' && isSimpleMode() && !quiet) {
+		sayFolderWords(exportFolderWords('cancelled'), {
+			key: 'error.button.pickFolder',
+			run: retry || (() => pickFontFolder()),
+		});
+	}
+	return choice;
 }
 
 /** [Pick a folder...] with no export to run again: chooses the folder and says where. */
@@ -258,15 +305,22 @@ async function chooseFolderFromToast() {
  * @param {Object} [options]
  * @param {String} [options.projectId] - the exporting project's settings.project.id: a
  *   same-named export from another project is not replaced without asking
+ * @param {Boolean} [options.quiet] - B14 + B15 fix pass: no "Click Export again" or "Export
+ *   cancelled" toast; the caller (Use in Word) says it in its own dialog
  * @returns {Promise<'folder' | 'download' | 'cancelled' | 'prompt'>}
  */
-export async function writeExport(destination, blob, fileName, { projectId = null } = {}) {
+export async function writeExport(
+	destination,
+	blob,
+	fileName,
+	{ projectId = null, quiet = false } = {}
+) {
 	const kind = destination?.kind;
 	if (kind === 'cancelled' || kind === 'prompt') return kind;
 	if (kind === 'folder' && isDirectoryHandle(destination.dir)) {
-		return writeIntoFolder(destination.dir, blob, fileName, projectId ?? null);
+		return writeIntoFolder(destination.dir, blob, fileName, projectId ?? null, quiet);
 	}
-	download(blob, fileName, `Downloading ${fileName}`);
+	download(blob, fileName, `Downloading ${fileName}`, quiet);
 	return 'download';
 }
 
@@ -289,9 +343,9 @@ export function getLastExportMessage() {
 }
 
 /** Shows where the file went and records it (getLastExportMessage). */
-function sayWhere(result, fileName, folder, message) {
+function sayWhere(result, fileName, folder, message, quiet = false) {
 	lastExportMessage = { result, fileName, folder, message };
-	showToast(message);
+	if (!quiet) showToast(message);
 }
 
 /**
@@ -305,11 +359,11 @@ export async function exportFontToFolder(blob, fileName, options = {}) {
 	return writeExport(await prepareExportDestination(), blob, fileName, options);
 }
 
-async function writeIntoFolder(dir, blob, fileName, projectId) {
+async function writeIntoFolder(dir, blob, fileName, projectId, quiet = false) {
 	// The build may have taken a while; make sure the folder is still ours to write.
 	const permission = await ensurePermission(dir, 'readwrite');
 	if (permission === 'prompt') {
-		showToast(clickAgainToWrite(dir));
+		if (!quiet) showToast(clickAgainToWrite(dir));
 		return 'prompt';
 	}
 	if (permission !== 'granted') {
@@ -335,7 +389,7 @@ async function writeIntoFolder(dir, blob, fileName, projectId) {
 					keepBothName,
 				});
 				if (choice === 'cancel') {
-					showToast('Export cancelled');
+					if (!quiet) showToast('Export cancelled');
 					return 'cancelled';
 				}
 				if (choice === 'keepBoth') {
@@ -359,7 +413,8 @@ async function writeIntoFolder(dir, blob, fileName, projectId) {
 		return writeFailed(dir, blob, fileName, error, target);
 	}
 	await rememberExport(file, projectId);
-	sayWhere('folder', target, dir.name, `Exported ${target} to ${dir.name}`);
+	// B14 + B15 finalize: quiet, Use in Word's card says "Made ..." itself
+	sayWhere('folder', target, dir.name, `Exported ${target} to ${dir.name}`, quiet);
 	return 'folder';
 }
 
@@ -504,8 +559,9 @@ export async function forgetExportFolder() {
 	await forgetHandle(EXPORT_FOLDER_KEY);
 }
 
-function download(blob, fileName, message) {
+/** quiet: only a plain download goes unsaid; a download in place of the folder says why */
+function download(blob, fileName, message, quiet = false) {
 	const fallback = getFileApi().download || saveFile;
 	fallback(blob, fileName);
-	sayWhere('download', fileName, null, message);
+	sayWhere('download', fileName, null, message, quiet);
 }

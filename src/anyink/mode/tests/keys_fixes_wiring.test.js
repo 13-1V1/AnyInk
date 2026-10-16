@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix track, through the real key handler (edit_canvas/events_keyboard.js) and the real
 // History (UX-BEGINNER.md 7.3 "no press that does nothing", 7.6, 6.2 "Keys", 6.3):
 //   - Delete and Backspace act only on a picked shape or point (7.6): with nothing picked they
@@ -23,7 +25,7 @@ import { kvClear } from '../../storage/kv.js';
 import { resetToastsForTests } from '../../toast/toast.js';
 import { word } from '../../words/words.js';
 import { arriveAt, backToSimple, bandState, makeBand } from '../band.js';
-import { flagsOn } from '../features.js';
+import { flagsOn, setFeaturesForTests } from '../features.js';
 import { getVisit, setModeForTests } from '../mode.js';
 import { sampleEditor } from './controls_probe.js';
 
@@ -188,6 +190,7 @@ describe('Ctrl+E on a font imported from a .woff', () => {
 
 	it('Simple: makes the .otf, the one font file row Simple shows', async () => {
 		setModeForTests('simple');
+		setFeaturesForTests({ useInWord: false }); // B14 + B15 integration: Simple before B14
 		onLetter();
 		expect(ctrl('e').defaultPrevented).toBe(true);
 		expect(await waitFor(() => api.calls.download.length > 0)).toBe(true);

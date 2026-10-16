@@ -144,8 +144,9 @@ describe('All tools: showToast looks and behaves as today', () => {
 			{ file: 'A.otf', folder: 'Fonts' },
 			{ quotes: ['file', 'folder'] }
 		);
+		// B14 + B15 finalize: "Made", as Use in Word's card says it
 		expect(toasts()[0].innerHTML).toBe(
-			'Exported <span class="anyink-quote">A.otf</span> to <span class="anyink-quote">Fonts</span>'
+			'Made <span class="anyink-quote">A.otf</span> in <span class="anyink-quote">Fonts</span>'
 		);
 	});
 });
@@ -336,7 +337,7 @@ describe('Simple: one toast at a time, in house words', () => {
 
 	it('a message another track still owns shows as it came', () => {
 		upstreamToast('Exported BrennanHand-Regular.otf to Fonts');
-		expect(shownText()).toBe('Exported BrennanHand-Regular.otf to Fonts');
+		expect(shownText()).toBe('Made BrennanHand-Regular.otf in Fonts');
 	});
 
 	it('a toast only All tools shows (key null) says nothing in Simple', () => {
@@ -383,8 +384,8 @@ describe('Simple: one toast at a time, in house words', () => {
 		recorder.stop();
 		const quotes = [...live()[0].querySelectorAll('.anyink-quote')].map((q) => q.textContent);
 		expect(quotes).toEqual(['BrennanHand-Regular.otf', 'Fonts']);
-		expect(shownText()).toBe('Exported BrennanHand-Regular.otf to Fonts');
-		expect(recorder.messages).toEqual(['Exported "…" to "…"']);
+		expect(shownText()).toBe('Made BrennanHand-Regular.otf in Fonts');
+		expect(recorder.messages).toEqual(['Made "…" in "…"']);
 		expect(scanState({ toasts: recorder.messages })).toEqual([]);
 		// the export's group, as upstream_map gives it: the newer export toast takes the place
 		toast(
@@ -405,7 +406,7 @@ describe('Simple: one toast at a time, in house words', () => {
 		vi.advanceTimersByTime(TOAST_MS * 3);
 		expect(live()).toEqual([first]); // 999999 ms now, as upstream asked
 		upstreamToast('Exported A-Regular.otf to Fonts');
-		expect(shownText()).toBe('Exported A-Regular.otf to Fonts');
+		expect(shownText()).toBe('Made A-Regular.otf in Fonts');
 		expect(live()).not.toContain(first);
 	});
 

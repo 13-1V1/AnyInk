@@ -225,8 +225,37 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   install offer: the toast once after the first Ready letter, Menu > Help, and All tools' notice,
   which goes when the offer is used anywhere and never shows in Simple; `noteFontFile()` for B14).
   Test page `tests/start.html`; `tests/b1213.verify.mjs`.
+- `src/anyink/install` (B14) — Use in Word: `use_in_word_dialog.js` (font check first, folder,
+  build, the card; Ctrl+E, rail step 3, Menu > Make my font file..., the Next line's [Use in Word];
+  `installUseInWord` in `main.js`; one build at a time; the build is quiet (`font_export.js`
+  `quiet`: no progress, folder or "Exported" toast behind the dialog, the dialog says it: no
+  folder, a lapsed permission, a Cancel on a same-named file, "Press again"); the install offer
+  hears of a font file once the card is back), `install_card.js` (numbered steps, step 4's short
+  steps, after a rename "search <old name> Test too"), `build_names.js` ("<name> Test <n>" /
+  "<Stem>-Test<n>.otf"; test families share one base cut at a word to leave room for " Test 999"
+  (`familyBase`), the final font keeps a name that fits 31 whole (`finalFamily`); the test number
+  in `kv`, never in the work file; each work file's test builds by name, `renamedTestNames`),
+  `word_export.js` (the letters and gap fixes the file really holds), `merge_overlaps.js` (the
+  export copy's overlapping shapes and self-crossing outlines made plain outlines),
+  `kern_latin.js` (gap fixes listed under 'latn' too). Quotes bold by the one shared rule
+  (`common/resets.css [data-anyink-quotes='bold']`). Test page `tests/getfont.html`.
+- `src/anyink/fontinfo` (B15) — `font_details_dialog.js` (font name, your name, copyright, each one
+  settings step; a quiet line when Word will shorten the name) and `move_lines.js` (unlocked guide
+  lines on Select (`letter/open_tool.js` opens every letter on Select meanwhile); a moved line is
+  one whole-font step through B11's `moveLine`; `line_gap.js` keeps the small-letter line a tenth
+  of the letter box under the capitals line, hand drags only; the readout's words through
+  `metrics/overlay.js setReadoutWords`, the limit through `metrics/font_metrics.js
+  setMetricLimit`). Test page `tests/fontinfo.html`.
+- `src/anyink/help` (B15) — Simple's Help page (`help_page.js`, `help_door.js` for
+  'anyink-open-help', `help_keys.js`, `help_word_steps.js` with Use in Word's labels, names and
+  step-4 short steps, and the old names after a rename; `example_font.js`: Look at an example font
+  opens `?ui=simple&example=1` in a new window, opened at boot by `main.js`). Test page
+  `tests/help.html`. The first full loop in real Chrome: `tests/b1415.verify.mjs`.
+- `src/anyink/photo/photo_dialog.js openModal` takes any open menu away at once when an ANY-INK
+  dialog opens (Menu open, then Ctrl+E).
 - Feature flags on: `coach` (B6), `letterView` (B7), `brush` (B8), `photo` (B9), `board` (B10),
-  `checks` (B11), `tryIt` (B12), `startScreen` (B13). Tests that check Simple "with no flag" (B5's
+  `checks` (B11), `tryIt` (B12), `startScreen` (B13), `useInWord` (B14), `fontDetails` and `help`
+  (B15). Tests that check Simple "with no flag" (B5's
   stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
@@ -275,7 +304,10 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — IN PROGRESS: B0 done 10/14/20
    10/15/2026 (`src/anyink/tryit` and `src/anyink/start`: Try it with stand-ins, gap fixes and Letter
    spacing; the start screen, the crash card, Start a new font..., the install toast; `tryIt` and
    `startScreen` on; four tracks, the integration, critic, fix and finalize passes; D-044;
-   `verify:b1213`); B14 to B16 next, then M9.
+   `verify:b1213`); B14 + B15 done 10/16/2026 (`src/anyink/install`, `src/anyink/fontinfo`,
+   `src/anyink/help`: Use in Word and its install card, Font details, Move the guide lines, Help;
+   `useInWord`, `fontDetails` and `help` on; five tracks (factcheck, dialog, names, fontinfo, help),
+   the integration, critic, fix and finalize passes; D-045; `verify:b1415`); B16 next, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Simple screens stay behind `?ui=simple` and per-feature flags until B16 flips the default.
 9. Handwriting sheet — pending (after B16; plugs into the letter board)

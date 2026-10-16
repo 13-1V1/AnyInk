@@ -1,0 +1,111 @@
+/* Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
+/*
+	B14: the install card (UX-BEGINNER.md 4.7 "After making it"), inside the shared ANY-INK modal
+	shell (photo/photo_dialog.css). Numbered steps; the gap-fix step (and the versions step after
+	M11) highlighted with the green tint, as 4.7 draws it, its short steps a list of their own; the closed parts quiet under [Done].
+	Sentence case (2.2). Tokens only.
+*/
+
+.anyink-install-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.anyink-install-card p {
+	margin: 0;
+	line-height: 1.45;
+}
+
+.anyink-install-card__made {
+	/* not bold: the file name in it is (the shared quote rule) */
+	font-weight: normal;
+}
+
+.anyink-install-card__name {
+	color: var(--chrome-text-muted);
+}
+
+.anyink-install-card__steps {
+	margin: var(--space-2) 0 0;
+	padding-left: 1.6em;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.anyink-install-card__step {
+	padding: var(--space-1) var(--space-2);
+	border: 1px solid transparent;
+	border-radius: var(--radius);
+}
+
+.anyink-install-card__step.is-highlight {
+	background-color: var(--touch-soft);
+	border-color: var(--touch);
+}
+
+.anyink-install-card__subs {
+	margin: var(--space-1) 0 0;
+	padding-left: 1.2em;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	list-style: disc;
+}
+
+/*
+	Windows' and Word's own labels, and the file, folder and font names: bold by the one shared
+	rule (common/resets.css [data-anyink-quotes='bold'], B14 + B15 finalize).
+*/
+
+.anyink-install-card__earlier {
+	margin-top: var(--space-1);
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+.anyink-modal .anyink-install-card__how {
+	padding: 0 var(--space-1);
+	font: inherit;
+	color: var(--touch);
+	background: transparent;
+	border: none;
+	text-decoration: underline;
+	cursor: pointer;
+	text-transform: none;
+}
+
+.anyink-install-card__more {
+	color: var(--chrome-text-muted);
+	font-size: var(--text-sm);
+}
+
+.anyink-install-card__more[open] {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.anyink-install-card__inner {
+	margin-left: var(--space-3);
+}
+
+.anyink-install-card__summary {
+	cursor: pointer;
+	color: var(--chrome-text);
+}
+
+.anyink-install-card__summary:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+.anyink-install-card__note {
+	margin-left: var(--space-3);
+}
+
+.anyink-modal .anyink-install-card__more .anyink-modal__button {
+	align-self: flex-start;
+}

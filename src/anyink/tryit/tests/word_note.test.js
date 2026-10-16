@@ -33,6 +33,7 @@ afterEach(() => {
 	setModeForTests('all');
 });
 
+const NOW = 'Word needs one setting for gap fixes. Use in Word will show you.';
 const LATER =
 	'Word needs one setting for gap fixes. Nothing to do now: you will be shown it when you put your font in Word.';
 /** Shown, or keeping its place with nothing in it (never display: none). */
@@ -60,7 +61,8 @@ describe('the Word note', () => {
 		fix(editor);
 		expect(shouldShowWordNote(editor.project)).toBe(true);
 		expect(isEmpty(note.element)).toBe(false);
-		expect(note.element.textContent).toBe(LATER);
+		// B14 + B15 integration: Use in Word is on in the app, so the note points at it
+		expect(note.element.textContent).toBe(NOW);
 		removeGapFix(editor, 'e', 'n');
 		expect(isEmpty(note.element)).toBe(true);
 		note.detach();
@@ -80,9 +82,9 @@ describe('the Word note', () => {
 	});
 
 	it('says where to look only once Use in Word is built (B14)', () => {
+		expect(wordNoteText()).toBe(NOW);
+		setFeaturesForTests({ useInWord: false });
 		expect(wordNoteText()).toBe(LATER);
-		setFeaturesForTests({ useInWord: true });
-		expect(wordNoteText()).toBe('Word needs one setting for gap fixes. Use in Word will show you.');
 	});
 });
 
@@ -116,6 +118,7 @@ describe('the Word note keeps its place and comes on release', () => {
 	});
 
 	it('says nothing is needed now before Use in Word exists', () => {
+		setFeaturesForTests({ useInWord: false });
 		const text = wordNoteText();
 		expect(text).toMatch(/^Word needs one setting for gap fixes\. /);
 		expect(text).toMatch(/Nothing to do now/);

@@ -10,9 +10,7 @@
 	Help > Keyboard shortcuts is now wrong for P, E and Ctrl+O"):
 	  - Simple Help and About each have [Back to my letters] (mode.band.backToLetters), which opens
 	    the letter page with no Undo step
-	  - Simple Help is one "Help" tab: how to pick a letter, the tools with the keys Simple has
-	    (keys.js keysShown), Undo, Save and Open, the font file, and the full manual (pro words,
-	    said so)
+	  - (Simple Help is B15's page now: src/anyink/help/tests)
 	  - Simple About keeps every credit (Peter Selinger, Thomas Steiner, Glyphr Studio) in house
 	    words, the libraries' own names as quotes, and no "This project" card (name, ID, version)
 	  - Simple names a letter set in house words (words/letter_set.js), never a block name
@@ -59,7 +57,6 @@ function open(page, mode) {
 	if (!editor.editCanvas?.redraw) editor.editCanvas = { redraw() {} };
 	return editor;
 }
-const tabs = () => [...document.querySelectorAll('.tab-control__tab')].map((t) => t.textContent);
 const back = () => document.querySelector('[data-anyink-choice="backToLetters"]');
 const rightArea = () => document.querySelector('.content-page__right-area');
 const text = (element) => (element?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -91,30 +88,8 @@ describe.each(['Help', 'About'])('Simple %s: a way back to the letters', (page) 
 	});
 });
 
-describe('Simple Help', () => {
-	it('one "Help" tab', () => {
-		open('Help', 'simple');
-		expect(tabs()).toEqual([word('help.title')]);
-	});
-
-	it('says how: pick a letter, the tools with their keys, Undo, Save and Open, the font file', () => {
-		open('Help', 'simple');
-		const said = text(rightArea());
-		expect(said).toContain(word('help.howPick'));
-		expect(said).toContain(word('help.howUndo'));
-		expect(said).toContain(word('help.howSave'));
-		expect(said).toContain(word('help.howFontFile'));
-		keysShown({ mode: 'simple' })
-			.filter((key) => key.action === 'selectTool')
-			.forEach((key) =>
-				expect(said).toContain(
-					word('help.toolKey', { tool: word(`tool.${key.tool}`), key: key.keys[0] })
-				)
-			);
-		expect(said).toContain(word('help.fullManual'));
-		expect(findBanned(said, { strict: true })).toEqual([]);
-	});
-});
+// B14 + B15 integration: Simple Help is B15's page now (src/anyink/help/tests/help_page.test.js);
+// the old one-tab Help and its tests went with it
 
 describe('Simple About', () => {
 	function everyTab() {

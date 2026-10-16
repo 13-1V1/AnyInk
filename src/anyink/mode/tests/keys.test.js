@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md 7.6, 6.2 "Keys", 4.10): the one key map, the same in both modes, as data plus
 // the lookup events_keyboard.js asks. Tool keys: B Brush (N too), V Select (A too), E Edit points,
 // P Point pen (H and W too), R Rectangle (M too), O Oval (Q too), U Add a point (More tools only).
@@ -223,9 +225,10 @@ describe('Simple key gates (6.2 "Keys", 7.6)', () => {
 		expect(keyAction(press('g', { ctrl: true }), { where: 'page' }).action).toBe('exportSvgFont');
 		setModeForTests('simple');
 		expect(keyAction(press('g', { ctrl: true }), { where: 'page' })).toBe(null);
-		expect(keyAction(press('e', { ctrl: true }), { where: 'page' }).action).toBe('exportOtf');
-		setFeaturesForTests({ useInWord: true });
+		// B14 + B15 integration: Use in Word is on in the app, so Ctrl+E opens it; before B14 the .otf
 		expect(keyAction(press('e', { ctrl: true }), { where: 'page' }).action).toBe('useInWord');
+		setFeaturesForTests({ useInWord: false });
+		expect(keyAction(press('e', { ctrl: true }), { where: 'page' }).action).toBe('exportOtf');
 	});
 });
 

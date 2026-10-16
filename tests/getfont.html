@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>ANY-INK Use in Word (B14)</title>
+		<!-- the app's own order (src/index.html) -->
+		<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+		<link rel="stylesheet" href="../src/app/app.css" />
+		<link rel="stylesheet" href="../src/common/resets.css" />
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				background: var(--chrome-bg);
+				color: var(--chrome-text);
+				font-family: var(--font-ui);
+			}
+			body {
+				display: grid;
+				grid-template-columns: 360px 1fr;
+				height: 100vh;
+			}
+			#controls {
+				padding: var(--space-4);
+				border-right: var(--hairline);
+				overflow-y: auto;
+			}
+			#controls h1 {
+				font-size: var(--text-xl);
+				font-weight: normal;
+				margin: 0 0 var(--space-2);
+			}
+			#controls h2 {
+				font-size: var(--text-sm);
+				font-weight: 600;
+				color: var(--chrome-text-muted);
+				margin: var(--space-4) 0 var(--space-2);
+			}
+			#controls p {
+				color: var(--chrome-text-muted);
+				font-size: var(--text-sm);
+				margin: 0 0 var(--space-2);
+			}
+			.row {
+				display: flex;
+				flex-wrap: wrap;
+				gap: var(--space-2);
+				font-size: var(--text-sm);
+			}
+			label {
+				display: inline-flex;
+				gap: 4px;
+				align-items: center;
+			}
+			#files,
+			#log {
+				font-family: monospace;
+				font-size: var(--text-sm);
+				white-space: pre-wrap;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="controls">
+			<h1>Use in Word (B14)</h1>
+			<p>
+				The real Use in Word dialog (UX-BEGINNER.md 4.7, section 8) on "Brennan Hand": capital A and
+				small a written, capital B opened but empty. Make my font file runs the font check, builds
+				the .otf with the B1 options (empty letters left out, a space added) and shows the install
+				card. Pick "a folder in this page" to write into a folder kept in memory (listed below), or
+				"Chrome's folder picker" for a real folder on disk.
+			</p>
+			<h2>The font</h2>
+			<div class="row">
+				<label><input type="checkbox" id="gapFix" /> a gap fix between A and a</label>
+				<label><input type="checkbox" id="stray" /> a stray line in small a</label>
+				<label><input type="checkbox" id="empty" /> no letter written yet</label>
+				<label
+					><input type="checkbox" id="emptyPair" /> the gap fix is between A and the empty B</label
+				>
+				<button id="reset">Fresh font</button>
+			</div>
+			<h2>Where font files go</h2>
+			<div class="row">
+				<label
+					><input type="radio" name="where" value="fake" checked /> a folder in this page</label
+				>
+				<label><input type="radio" name="where" value="real" /> Chrome's folder picker</label>
+			</div>
+			<div class="row">
+				<label><input type="checkbox" id="refuse" /> the page folder needs Chrome's OK again</label>
+				<label><input type="checkbox" id="cancel" /> the picker closes with nothing picked</label>
+				<button id="addTest4">Put "BrennanHand-Test4.otf" in it</button>
+				<button id="forget">Forget the folder and the test number</button>
+			</div>
+			<h2>Open it</h2>
+			<div class="row">
+				<button id="door">The door (Ctrl+E, rail step 3, Menu)</button>
+				<button id="coach">The Next line's [Use in Word]</button>
+			</div>
+			<h2>Files in the page folder</h2>
+			<div id="files">(none)</div>
+			<h2>Log</h2>
+			<div id="log"></div>
+		</div>
+		<div id="stage"></div>
+
+		<script type="module">
+			window.log = () => {};
+			import { setCurrentProjectEditor } from '../src/app/main.js';
+			import { runCoachAction } from '../src/anyink/coach/actions.js';
+			import { forgetExportFolder } from '../src/anyink/files/export_folder.js';
+			import { resetFileApi, setFileApi } from '../src/anyink/files/file_api.js';
+			import { fakeApi, fakeDirectoryHandle } from '../src/anyink/files/tests/fakes.js';
+			import { openUseInWord } from '../src/anyink/mode/doors.js';
+			import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+			import { getMode, setMode } from '../src/anyink/mode/mode.js';
+			import { kvClear } from '../src/anyink/storage/kv.js';
+			import { initTheme } from '../src/anyink/theme/theme.js';
+			import { installUseInWord } from '../src/anyink/install/use_in_word_dialog.js';
+			import { openBrennanHand } from '../src/anyink/install/tests/install_fixture.js';
+
+			if (getMode() !== 'simple') setMode('simple');
+			setFeaturesForTests({ useInWord: true });
+			try {
+				initTheme();
+			} catch {
+				// the page still works on the default paper
+			}
+			const $ = (selector) => document.querySelector(selector);
+			const say = (text) => {
+				$('#log').textContent = `${text}\n${$('#log').textContent}`.slice(0, 2000);
+			};
+
+			let editor = null;
+			const fresh = () => {
+				const options = {
+					gapFix: $('#gapFix').checked || $('#emptyPair').checked,
+					strayInA: $('#stray').checked,
+					empty: $('#empty').checked,
+					kernRight: $('#emptyPair').checked ? '0x42' : '0x61',
+				};
+				editor = openBrennanHand(options);
+				setCurrentProjectEditor(editor);
+				say(`fresh font ${JSON.stringify(options)}`);
+			};
+
+			/** The page folder: in memory, listing its files like a real one */
+			let folder = null;
+			const makeFolder = () => {
+				const refuse = $('#refuse').checked;
+				folder = fakeDirectoryHandle('My Fonts', {
+					query: refuse ? 'prompt' : 'granted',
+					request: refuse ? 'prompt' : 'granted',
+				});
+				folder.keys = async function* keys() {
+					yield* folder.files.keys();
+				};
+				return folder;
+			};
+			const where = () => document.querySelector('input[name="where"]:checked').value;
+			const useWhere = () => {
+				if (where() === 'real') {
+					resetFileApi();
+					return;
+				}
+				if (!folder) makeFolder();
+				const closed = () => Object.assign(new Error('closed'), { name: 'AbortError' });
+				setFileApi(
+					fakeApi({
+						open: undefined,
+						save: undefined,
+						directory: () => ($('#cancel').checked ? closed() : folder),
+					})
+				);
+			};
+			const listFiles = () => {
+				const names = folder ? [...folder.files.keys()] : [];
+				$('#files').textContent = names.length ? names.join('\n') : '(none)';
+			};
+			setInterval(listFiles, 300);
+
+			$('#gapFix').onchange = fresh;
+			$('#stray').onchange = fresh;
+			$('#empty').onchange = fresh;
+			$('#emptyPair').onchange = fresh;
+			$('#cancel').onchange = () => say(`the picker ${$('#cancel').checked ? 'closes' : 'picks'}`);
+			$('#reset').onclick = fresh;
+			document.querySelectorAll('input[name="where"]').forEach((input) => {
+				input.onchange = () => {
+					useWhere();
+					say(
+						`font files go to: ${where() === 'real' ? "Chrome's folder picker" : 'the page folder'}`
+					);
+				};
+			});
+			$('#refuse').onchange = () => {
+				const files = folder?.files;
+				makeFolder();
+				files?.forEach((file, name) => folder.files.set(name, file));
+				useWhere();
+				say(`the page folder ${$('#refuse').checked ? 'needs' : "doesn't need"} Chrome's OK`);
+			};
+			$('#addTest4').onclick = () => {
+				if (!folder) makeFolder();
+				folder.addFile('BrennanHand-Test4.otf');
+				say('put BrennanHand-Test4.otf in the page folder');
+			};
+			$('#forget').onclick = async () => {
+				await kvClear();
+				await forgetExportFolder();
+				folder = null;
+				useWhere();
+				say('forgot the folder and the test number');
+			};
+			$('#door').onclick = () => openUseInWord('key');
+			$('#coach').onclick = () => runCoachAction('useInWord', {}, { editor });
+
+			installUseInWord({ getEditor: () => editor });
+			fresh();
+			useWhere();
+			window.anyinkGetFont = {
+				get editor() {
+					return editor;
+				},
+				get folder() {
+					return folder;
+				},
+			};
+		</script>
+	</body>
+</html>

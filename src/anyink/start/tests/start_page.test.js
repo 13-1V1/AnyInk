@@ -107,6 +107,8 @@ describe('the page keeps both ids', () => {
 
 describe('no card: Create my font is the one green button', () => {
 	it('nothing to continue', async () => {
+		// B14 + B15 integration: before B14 (the note names step 3 once Use in Word is on)
+		setFeaturesForTests({ useInWord: false });
 		await startScreen();
 		expect(card()).toBeNull();
 		expect(greens()).toEqual([word('startScreen.create')]);
@@ -115,6 +117,12 @@ describe('no card: Create my font is the one green button', () => {
 		expect(text(document.body)).toContain(word('startScreen.workFileNote'));
 		// before B14 the note names no step 3 (no doors to unbuilt rooms)
 		expect(text(document.body)).not.toContain('step 3');
+	});
+
+	it('once Use in Word lands (B14), the work-file note names step 3', async () => {
+		await startScreen();
+		expect(text(document.body)).toContain(word('startScreen.workFileNoteStep3'));
+		expect(greens()).toEqual([word('startScreen.create')]);
 	});
 
 	it('"Open a saved font..." shows even with no recent fonts', async () => {

@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK guides layer overlay (Milestone 5, D-008).
 	Draws only three things on top of the finished canvas: the hovered or dragged line in
@@ -9,9 +11,16 @@
 	B4: the readout says the house words in both modes ("small-letter line 1100", "right space
 	88"; UX-BEGINNER.md 2.4 B), from src/anyink/words; the tail line is never shown as a
 	negative number.
+	B15 fix (first-timer H1): setReadoutWords(fn) lets Move the guide lines (fontinfo/move_lines.js)
+	word a line's readout while it is on: the line's name, no unit number, and why it stopped
+	(fn returns '' or null to keep the usual words). In Simple's letter view the readout starts
+	right of the line labels' column (letter/guide_lines.js labelColumnRight), never on one; a
+	readout setReadoutWords words for a horizontal line sits just above that line, not by the
+	pointer (which may have gone on past where the line stopped).
 */
 import { getCurrentProject } from '../../app/main.js';
 import { drawGlyph } from '../../display_canvas/draw_paths.js';
+import { labelColumnRight, letterCanvasOn } from '../letter/guide_lines.js';
 import { token } from '../theme/theme.js';
 import { word } from '../words/words.js';
 import { LIVE_LABELS, metricValue } from './metrics_math.js';
@@ -19,6 +28,16 @@ import { guidesLayerState } from './state.js';
 
 const LABEL_FONT = '10px Tahoma, Verdana, sans-serif';
 const GHOST_ALPHA = 0.3;
+
+/** B15 fix: (line, value) -> String | null, while Move the guide lines is on */
+let readoutWords = null;
+
+/**
+ * @param {Function | null} fn - (line, value) -> the readout's words, or '' / null for the usual
+ */
+export function setReadoutWords(fn) {
+	readoutWords = typeof fn === 'function' ? fn : null;
+}
 
 /**
  * Called by edit_canvas.js after the guides on the glyph canvas and after the groups on
@@ -62,7 +81,10 @@ export function drawGuidesLayerOverlay(ctx, view, item) {
 		drawGlyph(item, ctx, ghostView, GHOST_ALPHA);
 	}
 
-	drawLiveLabel(ctx, labelText(line, value, item, state), state.pointer, width, height);
+	const minX = letterCanvasOn() ? labelColumnRight(ctx) : 0;
+	const onLine = line.orientation === 'h' && !!readoutWords?.(line, value);
+	const anchor = onLine ? { x: state.pointer.x, y: view.dy - value * dz } : state.pointer;
+	drawLiveLabel(ctx, labelText(line, value, item, state), anchor, width, height, minX);
 	ctx.restore();
 }
 
@@ -100,6 +122,8 @@ export function currentLineValue(line, item, font, state) {
  * @returns {String}
  */
 export function labelText(line, value, item, state) {
+	const own = readoutWords?.(line, value);
+	if (own) return own;
 	const readout = (label, shown) =>
 		word('canvas.readout', { label: String(label ?? ''), value: String(shown ?? '') });
 	switch (line.kind) {
@@ -128,13 +152,14 @@ function canGhost(item) {
 	return !!(item && item.objType !== 'KernGroup' && Array.isArray(item.shapes) && item.shapes.length);
 }
 
-function drawLiveLabel(ctx, text, pointer, width, height) {
+function drawLiveLabel(ctx, text, pointer, width, height, minX = 0) {
 	ctx.font = LABEL_FONT;
 	const textWidth = ctx.measureText ? ctx.measureText(text).width : text.length * 6;
 	let x = pointer.x + 12;
 	let y = pointer.y - 10;
 	if (x + textWidth + 4 > width) x = pointer.x - textWidth - 12;
 	if (x < 4) x = 4;
+	if (x < minX) x = minX;
 	if (y < 12) y = pointer.y + 20;
 	if (y > height - 4) y = height - 4;
 

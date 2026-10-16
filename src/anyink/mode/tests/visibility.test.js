@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md 6.2, 6.3, section 10 B5): which pages, choosers, panels, actions, tools, menu
 // rows, settings rows, strip controls and start-page parts show per mode, as data with a small
 // query API. The screens filter only where they are drawn (the wiring track), never in data or
@@ -383,10 +385,12 @@ describe('each flag adds only its own controls', () => {
 			expect.arrayContaining([
 				'menu.help-how',
 				'menu.help-words',
-				'menu.help-word',
 				'menu.help-keys',
 			])
 		);
+		// B14 + B15 integration: "Use your font in Word" opens Help's Word section, which needs B14
+		expect(gained('menuRow', flagsOn('coach', 'help'))).not.toContain('menu.help-word');
+		expect(gained('menuRow', flagsOn('coach', 'help', 'useInWord'))).toContain('menu.help-word');
 	});
 
 	it('tryIt: Big preview on the strip', () => {

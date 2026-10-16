@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
+     brennanmmeyer@gmail.com -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>ANY-INK Font details and Move the guide lines (B15)</title>
+	<link rel="stylesheet" href="../src/anyink/theme/tokens.css" />
+	<link rel="stylesheet" href="../src/app/app.css" />
+	<link rel="stylesheet" href="../src/common/resets.css" />
+	<style>
+		html, body { margin: 0; background: var(--chrome-bg); color: var(--chrome-text); font-family: var(--font-ui); }
+		/* the wrapper as the app has it, only 200 px tall: a stand-in Simple top bar, the banner's
+		   row when it shows, then a stand-in page */
+		#app__wrapper { height: 200px; min-height: 0; }
+		#app__top-bar.anyink-topbar { display: flex; align-items: center; gap: var(--space-3); height: 44px; padding: 0 var(--space-4); box-sizing: border-box; }
+		#app__main-content { min-width: 0; }
+		.page-stand-in { height: 100%; display: grid; place-items: center; color: var(--chrome-text-muted); background: var(--chrome-bg-raised); }
+		#controls { position: absolute; top: 200px; left: 0; right: 0; padding: var(--space-4) var(--space-5); }
+		h1 { font-size: var(--text-xl); font-weight: normal; margin: 0 0 var(--space-2); }
+		h2 { font-size: var(--text-sm); font-weight: 600; color: var(--chrome-text-muted); margin: var(--space-4) 0 var(--space-2); }
+		p { color: var(--chrome-text-muted); max-width: 90ch; margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+		.row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+		button.page-button { font: inherit; font-size: var(--text-sm); background: transparent; color: var(--chrome-text); border: 1px solid var(--chrome-border-strong); border-radius: var(--radius); padding: var(--space-1) var(--space-3); cursor: pointer; }
+		#state, #log { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--chrome-text-muted); background: var(--chrome-bg-sunken); border-radius: var(--radius); padding: var(--space-2); white-space: pre-wrap; }
+		#log { height: 140px; overflow-y: auto; }
+	</style>
+</head>
+<body>
+	<div id="app__wrapper">
+		<header id="app__top-bar" class="anyink-topbar">
+			<b>ANY-INK</b>
+			<button class="page-button" id="fontName" type="button">Spacing 1000</button>
+			<button class="page-button" id="menuMove" type="button">Menu &gt; Move the guide lines...</button>
+		</header>
+		<div id="app__main-content"><div class="page-stand-in">the letter view stands here (small n is open)</div></div>
+	</div>
+	<div id="controls">
+		<h1>Font details and Move the guide lines (B15)</h1>
+		<p>
+			Simple, with the <b>fontDetails</b> flag on, on a font at the 1,000-unit grid whose small n,
+			u and m are written 30 % taller than the small-letter line (650 against 500), and H; all four
+			use automatic spacing. The font name above (and Menu &gt; Move the guide lines...) send the
+			top bar's door events, which the two installers answer, as main.js will. In Font details,
+			each field is one Undo step when you leave it; Copyright fills itself from Your name until you
+			change it. Move the guide lines... shows the purple banner under the bar. There is no canvas
+			here: the buttons below make the guides layer's drag (the press, the ticks, the release's
+			settings step), so the release is the one whole-font step that refits the letters.
+		</p>
+		<h2>Lines (unlocked first)</h2>
+		<div class="row">
+			<button class="page-button" id="drag650" type="button">Drag the small-letter line to 650</button>
+			<button class="page-button" id="drag690" type="button">Drag the small-letter line to 690</button>
+			<button class="page-button" id="dragCaps" type="button">Drag the capitals line to 760</button>
+			<button class="page-button" id="undo" type="button">Undo</button>
+			<button class="page-button" id="redo" type="button">Redo</button>
+		</div>
+		<h2>The font</h2>
+		<div id="state"></div>
+		<h2>Log</h2>
+		<div id="log"></div>
+	</div>
+	<script type="module">
+		window.log = () => {};
+		import { fixEditor } from '../src/anyink/checks/tests/fix_fixtures.js';
+		import { shapesOf } from '../src/anyink/checks/tests/fix_fixtures.js';
+		import { impliedLine } from '../src/anyink/checks/fit_lines_to_writing.js';
+		import { useNeedsALook } from '../src/anyink/checks/fix_step.js';
+		import { commitSettingsHistory, setFontMetric } from '../src/anyink/metrics/font_metrics.js';
+		import { METRIC_LABELS } from '../src/anyink/metrics/metrics_math.js';
+		import { guidesLayerState } from '../src/anyink/metrics/state.js';
+		import { setFeaturesForTests } from '../src/anyink/mode/features.js';
+		import { getMode, setMode } from '../src/anyink/mode/mode.js';
+		import { guideLinesMoving } from '../src/anyink/mode/locks.js';
+		import { sitsAtFit } from '../src/anyink/spacing/auto_space.js';
+		import { inkBounds } from '../src/anyink/spacing/measure.js';
+		import { toastLog } from '../src/anyink/toast/toast.js';
+		import { FONT_DETAILS_EVENT, MOVE_GUIDE_LINES_EVENT, openDoor } from '../src/anyink/topbar/doors.js';
+		import { historyText } from '../src/anyink/words/history_text.js';
+		import { installFontDetails } from '../src/anyink/fontinfo/font_details_dialog.js';
+		import { installMoveLines } from '../src/anyink/fontinfo/move_lines.js';
+
+		if (getMode() !== 'simple') setMode('simple');
+		setFeaturesForTests({ fontDetails: true, checks: true });
+
+		const auto = { spacing: 'auto' };
+		const editor = fixEditor(
+			{
+				n: { shapes: shapesOf('n', { k: 1.3 }), anyink: auto },
+				u: { shapes: shapesOf('u', { k: 1.3 }), anyink: auto },
+				m: { shapes: shapesOf('m', { k: 1.3 }), anyink: auto },
+				H: { shapes: shapesOf('H'), anyink: auto },
+			},
+			{ open: 'n' }
+		);
+		editor.editCanvas = { redraw() {} };
+		window.anyinkFontinfoPage = { editor };
+		// a stand-in for the checks' size check: more than 25 % off the small-letter line
+		useNeedsALook((item, { editor: e }) => {
+			const implied = impliedLine(item, e.project.settings.font);
+			const line = e.project.settings.font.xHeight;
+			return !!implied && implied.line === 'small' && Math.abs(implied.value / line - 1) > 0.25;
+		});
+		installFontDetails({ getEditor: () => editor });
+		installMoveLines({ getEditor: () => editor });
+
+		const $ = (selector) => document.querySelector(selector);
+		const logLine = (text) => {
+			$('#log').textContent += `${text}\n`;
+			$('#log').scrollTop = $('#log').scrollHeight;
+		};
+		let toastsSeen = 0;
+		function show() {
+			const s = editor.project.settings;
+			const autos = Object.values(editor.project.glyphs).filter((g) => g.anyink?.spacing === 'auto' && inkBounds(g));
+			$('#fontName').textContent = s.project.name;
+			$('#state').textContent = [
+				`project name "${s.project.name}", family "${s.font.family}"`,
+				`your name "${s.font.designer || ''}", copyright "${s.font.copyright || ''}"`,
+				`lines: top ${s.font.ascent}, capitals ${s.font.capHeight}, small ${s.font.xHeight}, tail ${s.font.descent}`,
+				`widths: ${autos.map((g) => `${g.chars} ${Math.round(g.advanceWidth)}`).join(', ')}; all at their fit: ${autos.every((g) => sitsAtFit(g, editor.project))}`,
+				`guide lines unlocked: ${guideLinesMoving()}; Undo steps: ${editor.history.length}; newest: "${historyText(editor.history.queue.find((e) => e.title !== '_whole_project_change_post_state_')?.title || '')}"`,
+			].join('\n');
+			toastLog().slice(toastsSeen).forEach((record) => logLine(`toast: ${record.text}`));
+			toastsSeen = toastLog().length;
+		}
+		function drag(key, to) {
+			window.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+			guidesLayerState.line = { kind: 'metric', key, id: key };
+			setFontMetric(key, to, { history: false });
+			commitSettingsHistory(`Moved ${METRIC_LABELS[key]} to ${to}`);
+			guidesLayerState.line = false;
+			logLine(guideLinesMoving() ? `dragged ${key} to ${to}` : `dragged ${key} to ${to} (locked: a plain settings step, as before)`);
+			show();
+		}
+
+		$('#fontName').addEventListener('click', () => openDoor(FONT_DETAILS_EVENT, { cause: 'fontName' }));
+		$('#menuMove').addEventListener('click', () => openDoor(MOVE_GUIDE_LINES_EVENT));
+		$('#drag650').addEventListener('click', () => drag('xHeight', 650));
+		$('#drag690').addEventListener('click', () => drag('xHeight', 690));
+		$('#dragCaps').addEventListener('click', () => drag('capHeight', 760));
+		$('#undo').addEventListener('click', () => {
+			editor.history.restoreState();
+			logLine('Undo');
+			show();
+		});
+		$('#redo').addEventListener('click', () => {
+			editor.history.redoState?.();
+			logLine('Redo');
+			show();
+		});
+		window.addEventListener('anyink-save-status', show);
+		window.addEventListener('click', () => setTimeout(show, 0));
+		window.addEventListener('focusout', () => setTimeout(show, 0));
+		show();
+	</script>
+</body>
+</html>

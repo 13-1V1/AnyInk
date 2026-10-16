@@ -101,6 +101,7 @@
 	                                         the named parts (default all), placed in reading
 	                                         order, each one blocking the rest
 	Shared by the How card (one ANY-INK dialog at a time):
+	  (B14 + B15 finalize: show() first takes away any open menu, at once)
 	  openModal({ name, className, labelledBy, onCancel, onKey })   { dialog, show(focus),
 	                 close({ silent }), cancel(), closed }: a <dialog> shown modal (or open in a
 	                 browser without showModal), the coach told ('dialog' fact), the editor's
@@ -200,6 +201,9 @@ export function openModal({ name, className = '', labelledBy = '', onCancel, onK
 	const view = { name, dialog, before, closed: false, cleanups: [] };
 	const keys = (event) => blockKeys(view, event, onKey);
 	view.show = (focus) => {
+		// B14 + B15 finalize: a menu still open (Menu, then Ctrl+E) goes at once, not over the
+		// dialog's backdrop
+		closeOpenMenus(doc);
 		doc.body.appendChild(dialog);
 		try {
 			if (typeof dialog.showModal === 'function') dialog.showModal();
@@ -285,6 +289,17 @@ function blockClipboard(view, event) {
 }
 
 /** @returns {String} the open ANY-INK dialog's name, or '' */
+/**
+ * Takes away any open menu (upstream's #context-menu, Simple's Menu) at once, with no fade.
+ * @param {Document} doc
+ */
+function closeOpenMenus(doc) {
+	doc.querySelectorAll('#context-menu').forEach((menu) => {
+		menu.getAnimations?.().forEach((animation) => animation.cancel());
+		menu.remove();
+	});
+}
+
 export function openModalName() {
 	return openView ? openView.name : '';
 }
