@@ -27,7 +27,8 @@ beforeEach(() => {
 describe('tips', () => {
 	it('each tip names a words key and a feature flag; tools map to tips', () => {
 		Object.values(TIPS).forEach((tip) => {
-			expect(tip.key).toMatch(/^coach\.tip\./);
+			// S2: the sketch tools' tips live with the sketch's words
+			expect(tip.key).toMatch(/^(coach|sketch)\.tip\./);
 			expect(typeof tip.feature).toBe('string');
 		});
 		expect(TOOL_TIPS).toEqual({
@@ -36,6 +37,11 @@ describe('tips', () => {
 			newPath: 'pointPen',
 			newRectangle: 'shapes',
 			newOval: 'shapes',
+			sketchLine: 'sketchLine',
+			sketchArc: 'sketchArc',
+			sketchSpline: 'sketchSpline',
+			sketchCircle: 'sketchCircle',
+			sketchRectangle: 'sketchRectangle',
 		});
 		expect(MAX_TIPS_PER_SESSION).toBe(3);
 	});

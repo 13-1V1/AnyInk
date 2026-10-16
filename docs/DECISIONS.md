@@ -2140,3 +2140,40 @@ docs/SKETCH.md sections 2, 6, 8 and 11.
 geometry, so a stored sketch can never be wrong about it); plumb locks on the Mirror line.
 **Left for S3:** the spacing refit moving built ink after `beforeSketchStep` in Simple (follow plans),
 the sweep using `edgeThickness`, Flip / Mirror turning `aim.dir`.
+
+## D-049: S2 build choices (drawing sketched letters)
+**Decided:** 10/16/2026, at the end of S2 (build, integration, critic, fix and finalize passes).
+Design: docs/SKETCH.md sections 2, 6, 7 and 11.
+**Chose:**
+1. **The sketch tools live in Simple only.** All tools keeps its own column and keys with the
+   flag on; a sketch stays on its letter there, drawn read-only. A mode change finishes the open
+   piece and puts a hidden sketch tool back to Select (`sketch/tools/mode_watch.js`).
+2. **A piece is finished on its own letter**, as its own step, whatever ends it: another letter,
+   the board, a new font, an editor switch, a crash-copy restore, a mode change, a save (Ctrl+S,
+   Save As, a download) or Use in Word. The tools look the letter up by id each time
+   (`on_its_letter.js liveItemOf`), so an Undo that replaced it never strands the piece.
+3. **A stray first click is never stored.** Esc, another tool, another letter or a save let go of
+   a piece that is one point alone; a dot is deliberate (Enter on one point, a double-click in
+   place) and its Undo title says so ("put a dot on small i"). A press with click count 2 or more
+   and no piece open adds nothing.
+4. **A fresh 3-point Arc ends on its bend click.** Going on from its end is deliberate (over the
+   end and out again, or closing on the first point). After a corner the end click shows the bend
+   at once, the cursor says "click to set how far it bends", and finishing keeps the bend shown.
+5. **Only the real writing line pulls**; the faint ink line is where the dot lands. A snapped
+   point is checked against the sketch's points again (a loop closes on its first point); a
+   point on a piece and level / plumb with another lands on their crossing and keeps both.
+6. **Right press finishes a piece; the plain wheel zooms** in Simple with the flag on (Ctrl+wheel
+   as before everywhere else). The wheel is Brennan's call at Gate 2b.
+7. **Keys come from the event.** Ctrl, Shift and Alt for a sketch press come from the mouse event
+   only, and the app's held-key flags are reset from every key and mouse event, so a shortcut's
+   Ctrl never sticks. Esc goes to an open menu or dialog first.
+8. **Tips:** Arc right after a Line end shows the Arc tip while it is unseen, then the Line tip
+   (the pull-back) again; the sketch tips have their own 3 a session.
+9. **A sketched letter with no ink yet is not empty on screen** (`sketch/sketched.js`): no
+   empty-letter box, it opens on Line, and the Next line never says "empty, use the brush". Its
+   card keeps "Empty" until S3 builds ink.
+**Rejected:** a sketch tool on All tools' column (SKETCH.md section 2 keeps All tools as it is);
+storing a stray click as a dot when he leaves; reading upstream's held Ctrl for pointer presses.
+**Left for later:** S3 re-places snapped arc tops on a thickness change and builds ink (which ends
+the card's "Empty"); S4 picks and deletes pieces (until then a wrong piece comes off with Undo
+only) and keeps `onPiece` with level / plumb through drags; S9 lists the sketch keys in Help.

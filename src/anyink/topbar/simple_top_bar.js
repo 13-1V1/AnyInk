@@ -64,6 +64,7 @@ import { turnOnMoreTools } from '../mode/band.js';
 import { openUseInWord } from '../mode/doors.js';
 import { isFeatureOn } from '../mode/features.js';
 import { isSimpleMode } from '../mode/mode.js';
+import { SKETCH_PIECE_EVENT } from '../sketch/tools/undo_gate.js';
 import { TRY_IT_CHANGE_EVENT } from '../tryit/expand.js';
 import { word, wordEntry } from '../words/words.js';
 import { FONT_DETAILS_EVENT, openDoor, TRY_IT_EVENT } from './doors.js';
@@ -399,6 +400,9 @@ function listenOnce() {
 	if (listening || typeof globalThis.addEventListener !== 'function') return;
 	listening = true;
 	globalThis.addEventListener(SAVE_STATUS_EVENT, () => refreshSimpleTopBar(globalThis.document));
+	// S2 integration: Undo / Redo's tooltips follow an open sketch piece ("Take back the last
+	// point", "Finish the line first") as its clicks come and go
+	globalThis.addEventListener(SKETCH_PIECE_EVENT, () => refreshSimpleTopBar(globalThis.document));
 	globalThis.addEventListener(TRY_IT_CHANGE_EVENT, (event) => {
 		tryItShowing = !!event?.detail?.open;
 		refreshSimpleTopBar(globalThis.document);

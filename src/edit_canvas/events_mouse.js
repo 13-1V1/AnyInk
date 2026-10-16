@@ -4,8 +4,13 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { releaseFocus } from '../anyink/controls/focus_release.js';
 import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
+import { isFeatureOn } from '../anyink/mode/features.js';
+import { isSimpleMode } from '../anyink/mode/mode.js';
+import { activeSketchTool, sketchKey, sketchPointer } from '../anyink/sketch/tools/tool_route.js';
 import { handleTraceLayerEvent } from '../anyink/trace/trace_layer.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { closeAllNotations, closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
@@ -17,6 +22,7 @@ import { cXsX, cYsY } from './edit_canvas.js';
 import {
 	cancelDefaultEventActions,
 	eventHandlerData,
+	syncHeldKeys,
 	togglePanOff,
 	togglePanOn,
 } from './events.js';
@@ -44,6 +50,8 @@ export function handleMouseEvents(event) {
 
 	const ehd = eventHandlerData;
 	const editor = getCurrentProjectEditor();
+	// ANY-INK (S2 fix track): the held Ctrl / Shift / Alt flags follow the mouse event's own
+	syncHeldKeys(event);
 
 	ehd.mousePosition = getMousePositionData(event);
 
@@ -57,6 +65,12 @@ export function handleMouseEvents(event) {
 	// Mouse right-click
 	if (event.button === 2) {
 		// Right-click handler
+		// ANY-INK (S2 fix track): a right press with a sketch piece open finishes it, as Enter
+		// does (SolidWorks' right-click "End chain"); the browser menu is kept away (events.js)
+		if (event.type === 'mousedown' && finishSketchOnRightPress(editor)) {
+			cancelDefaultEventActions(event);
+			return;
+		}
 	}
 
 	// Mouse wheel-click
@@ -68,6 +82,15 @@ export function handleMouseEvents(event) {
 			togglePanOff(event);
 		}
 		// return;
+	}
+
+	// ANY-INK (S2, SKETCH.md 2): a picked sketch tool takes the left press and every move before
+	// the guides and trace layers (a drawing tool's press is the tool's, B16) and Select's handler.
+	// S2 fix track: Ctrl and Shift are read from the mouse event only (always current); upstream's
+	// held flags can be stale when a dialog ate the key-up (Ctrl+E, Esc: snapping stayed off)
+	if (sketchPointer(SKETCH_TYPES[event.type], event, { editor, at: ehd.mousePosition })) {
+		if (event.type === 'mousemove') setCursor('crosshair');
+		return;
 	}
 
 	// Mouse left-click
@@ -118,6 +141,44 @@ export function handleMouseEvents(event) {
 		ehd.currentToolHandler[event.type](event);
 	}
 	// log(`handleMouseEvents`, 'end');
+}
+
+/** ANY-INK (S2): the browser's mouse events as the sketch tools name them */
+const SKETCH_TYPES = Object.freeze({ mousedown: 'down', mousemove: 'move', mouseup: 'up' });
+
+/**
+ * ANY-INK (S2, SKETCH.md 2): a double-click on the canvas, for the picked sketch tool only (it
+ * finishes the piece). Upstream's tools never heard double-clicks, and still don't.
+ * @param {MouseEvent} event
+ */
+export function handleCanvasDoubleClick(event) {
+	const editor = getCurrentProjectEditor();
+	const at = getMousePositionData(event);
+	if (sketchPointer('double', event, { editor, at })) {
+		cancelDefaultEventActions(event);
+	}
+}
+
+/**
+ * ANY-INK (S2 fix track): a right press while a sketch tool is picked is Enter for its open
+ * piece (no held key counts: a synthetic Enter with no Ctrl).
+ * @param {Object} editor
+ * @returns {Boolean} the tool used it (a piece was open and is finished)
+ */
+function finishSketchOnRightPress(editor) {
+	if (!activeSketchTool(editor)) return false;
+	return sketchKey('down', { key: 'Enter' }, { editor });
+}
+
+/**
+ * ANY-INK (S2 fix track): in Simple with the sketch on, a plain wheel zooms about the cursor on
+ * the letter, as in SolidWorks (Ctrl+wheel still does). All tools and Simple without the sketch
+ * keep upstream's Ctrl+wheel only.
+ * @param {WheelEvent} event
+ * @returns {Boolean}
+ */
+function plainWheelZooms(event) {
+	return isSimpleMode() && isFeatureOn('sketch') && !event.shiftKey && !event.altKey;
 }
 
 // --------------------------------------------------------------
@@ -499,7 +560,7 @@ export function handleMouseWheel(event) {
 	// && document.querySelector('#dialog_box').style.display !== 'block';
 
 	if (canZoom) {
-		if (event.ctrlKey || event.metaKey) {
+		if (event.ctrlKey || event.metaKey || plainWheelZooms(event)) {
 			cancelDefaultEventActions(event);
 			closeAllNotations();
 			eventHandlerData.hoverPoint = false;

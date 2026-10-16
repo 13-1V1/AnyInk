@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B14: Use in Word (UX-BEGINNER.md 4.7, section 8), step 3. Opened by the rail's "3 Use in Word",
 	the Next line's [Use in Word] (coach action 'useInWord'), Menu > Make my font file... and Ctrl+E
@@ -66,6 +68,7 @@
 	Words: install.* (words/sets/install.js). Look: use_in_word_dialog.css, install_card.css and
 	the shared modal shell (photo/photo_dialog.css), tokens only.
 */
+import { endOpenPiece } from '../sketch/tools/undo_gate.js';
 import { getCurrentProjectEditor } from '../../app/main.js';
 import { ioFont_exportFont } from '../../formats_io/otf/font_export.js';
 import { boardLetters, hasInk } from '../board/letter_set.js';
@@ -262,6 +265,8 @@ export async function makeFontFile(
  */
 export function openUseInWord({ editor = getCurrentProjectEditor(), card = null } = {}) {
 	if (!isSimpleMode() || !isFeatureOn('useInWord') || !editor?.project) return null;
+	// S2 finalize: an open sketch piece is finished first, as its own step (the build reads it)
+	endOpenPiece();
 	if (building) {
 		// the dialog stepped aside for the build: say so, and start nothing new
 		toast('install.making', {}, { group: 'export' });

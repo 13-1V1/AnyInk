@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7: the box in the middle of an empty letter's canvas (UX-BEGINNER.md 4.3 "Empty letter").
 	  +-------------------------------+
@@ -71,11 +73,22 @@ import { word, wordEntry } from '../words/words.js';
 import { isEmptyLetter } from '../board/letter_set.js';
 import { openPathOf } from '../coach/open_shape.js';
 import { isLetterViewOn, setFineTuneOpen } from './view_switches.js';
+import { SKETCH_TOOLS } from '../sketch/tools/tool_names.js';
+import { hasSketchPieces } from '../sketch/sketched.js';
 
 export const OVERLAY_SUBSCRIBER = 'anyink.letter.overlay';
 
 /** Shape tools: picking one means he has chosen how to draw (the Brush: his own pick of it) */
-const SHAPE_TOOLS = Object.freeze(['newPath', 'newRectangle', 'newOval', 'pathAddPoint', 'nib']);
+const SHAPE_TOOLS = Object.freeze([
+	'newPath',
+	'newRectangle',
+	'newOval',
+	'pathAddPoint',
+	'nib',
+	// S2 integration: a sketch tool is a choice of how to draw too (the box must not sit where he
+	// clicks); S3's door replaces the box's buttons
+	...SKETCH_TOOLS,
+]);
 
 /** 'autoTrace': the photo flow (B9) says every change of step C on it */
 const TOPICS = [
@@ -140,6 +153,9 @@ export function overlayShows(editor = getCurrentProjectEditor()) {
 	if (!isLetterViewOn() || editor?.nav?.page !== 'Characters') return false;
 	const item = openLetter(editor);
 	if (!item || !isEmptyLetter(item, { open: openPathOf(editor) })) return false;
+	// S2 finalize: a sketched letter is not empty on screen (its ink comes with S3); the box would
+	// sit over the sketch
+	if (hasSketchPieces(item)) return false;
 	// B8 + B9 integration: the photo card holds the screen's green button while it runs
 	if (isFeatureOn('photo') && (isPhotoCardOpen() || getFlow(editor))) return false;
 	if (editor.selectedTool === 'nib' && isOpeningBrush(editor)) return true;

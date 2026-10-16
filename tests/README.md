@@ -326,3 +326,19 @@ extremes, ink and handles. `sketch.verify.mjs` (`npm run verify:sketch-page`) ch
 it draws, that the curves pass through every point and that every given direction is met; it
 starts its own server, or uses a running `npm run pages` with `SKETCH_ORIGIN=http://localhost:5174`.
 The `sketch` flag stays off until S9.
+
+Since S2 (10/16/2026) `sketch_draw.html` is the real Characters page in Simple with the `sketch`
+flag on for that page only: the five sketch tools on the tool column (Line L, Arc A, Spline S,
+Circle C, Rectangle R), snaps and their tags, chaining, the draw layer, and one Undo step per
+finished piece (`?standin=1` swaps in a stand-in that proves only the wiring).
+`sketch_draw.verify.mjs` (`npm run verify:sketch-draw`) runs the real app on its own Vite server,
+turns the flag on from the page (`mode/features.js setFeaturesForTests`), and in Simple sketches
+small n (stem, arch, stem), o (Circle between two lines), s (Spline), A (Lines) and a box
+(Rectangle); it checks the stored pieces, the join kinds, one step per piece, Undo with a piece
+open and after, Redo, Esc twice, saving and reopening the .gs2, All tools with the flag on, and
+that with the flag off the tool column and the keys P / E / L / S / C / R are as before.
+`sketch_layer_fixes.verify.mjs` (`npm run verify:sketch-layer`) checks the draw layer and wiring
+fixes in Chrome: a finished sketch stays drawn on Select, on the Brush and after leaving the
+letter (nothing with the flag off), Ctrl after a shortcut never sticks, a right press finishes a
+piece, Esc closes the Menu first, Space-pan gives the tool back, the plain wheel zooms in Simple
+with the flag on, and the Circle, Rectangle and Arc size readouts.

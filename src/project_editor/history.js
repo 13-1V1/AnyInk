@@ -45,6 +45,7 @@ import { notifyKernPairsChanged } from '../anyink/kerning/kern_lookup.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
 import { beforeStrokeStep } from '../anyink/nib/history_hook.js';
 import { beforeSketchStep } from '../anyink/sketch/history_hook.js';
+import { runUndo } from '../anyink/sketch/tools/undo_gate.js';
 import { carryPhotos } from '../anyink/photo/photo_registry.js';
 import { markDirty } from '../anyink/recovery/recovery.js';
 import { upstreamToast } from '../anyink/toast/toast.js';
@@ -602,6 +603,10 @@ export class History {
 			sayUndone(result, editor);
 			return result;
 		}
+		// ANY-INK (S2, SKETCH.md 7): All tools asks the sketch's Undo gate too: with a piece open,
+		// Undo takes back its last click and the history is not touched
+		const gatedUndo = runUndo('undo');
+		if (gatedUndo) return gatedUndo;
 		let q = this.queue;
 
 		// --------------------------------------------------------------
@@ -878,6 +883,9 @@ export class History {
 			sayUndone(result, editor, { redo: true });
 			return result;
 		}
+		// ANY-INK (S2): Redo waits until an open sketch piece is finished
+		const gatedRedo = runUndo('redo');
+		if (gatedRedo) return gatedRedo;
 
 		if (this.redoQueue.length === 0) {
 			const redoButton = document.querySelector('#actionButtonRedo');

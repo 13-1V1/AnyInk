@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 (UX-BEGINNER.md 6.2, 6.3): the visibility tables list today's controls by the ids the code
 // itself uses (page names, panel ids, getActionData icons, tool names, data-anyink-row ids,
 // settings properties). This reads them from the real code, so a control an upstream merge adds
@@ -51,8 +53,14 @@ describe("today's controls, read from the code", () => {
 		)[1];
 		const tools = [...block.matchAll(/\n\t\t(\w+): \{/g)].map((m) => m[1]);
 		// B8 + B9 integration: the Brush (B8) is listed first; the column puts it after New path
+		// S2: the sketch tools (Simple only, flag 'sketch') follow the Brush
 		expect(tools).toEqual([
 			'nib',
+			'sketchLine',
+			'sketchArc',
+			'sketchSpline',
+			'sketchCircle',
+			'sketchRectangle',
 			'newRectangle',
 			'newOval',
 			'newPath',
@@ -63,7 +71,7 @@ describe("today's controls, read from the code", () => {
 		expect(source('edit_canvas/tools/tools.js')).toMatch(/selectTool\('kern'\)/);
 		// the snapshot of today's controls was taken before B8: the Brush is the one tool it lacks
 		expect(sorted(todayIds('tool'))).toEqual(
-			sorted([...tools.filter((tool) => tool !== 'nib'), 'kern'])
+			sorted([...tools.filter((tool) => tool !== 'nib' && !tool.startsWith('sketch')), 'kern'])
 		);
 	});
 

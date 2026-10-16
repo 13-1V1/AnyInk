@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8: which tool a letter opens with in the Simple letter view (UX-BEGINNER.md 4.3 Tools: the
 	Brush is "Default on an empty letter", Select "Default on a letter with ink"). Pure; the letter
@@ -15,7 +17,9 @@
 	for by opening it, so the overlay, the coach and the tips read one answer:
 
 	  toolForOpenedLetter(item, { isOn, open })   'nib' | 'resize', or null while 'brush' is off
-	                                              (the tool stays as it is)
+	                                              (the tool stays as it is); S2 finalize:
+	                                              'sketchLine' for an empty letter with sketch
+	                                              pieces while 'sketch' is on
 	  pickOpeningTool(editor, tool, pick)   picks `tool` with pick(tool) as the letter opens; a
 	                                        'nib' pick is remembered as the opening Brush
 	  notePickedTool(editor)                a tool he picked (tools.js switchToolTo): the Brush is
@@ -26,16 +30,19 @@
 */
 import { isEmptyLetter } from '../board/letter_set.js';
 import { isFeatureOn } from '../mode/features.js';
+import { hasSketchPieces } from '../sketch/sketched.js';
 
 /**
  * @param {Object} item - Glyph
  * @param {{isOn?: (flag: String) => Boolean, open?: Object}} [options] - open: the shape the Point
  *   pen is still drawing, if any
- * @returns {'nib' | 'resize' | null}
+ * @returns {'nib' | 'resize' | 'sketchLine' | null}
  */
 export function toolForOpenedLetter(item, { isOn = isFeatureOn, open = null } = {}) {
 	if (!isOn('brush')) return null;
-	return !item || isEmptyLetter(item, { open }) ? 'nib' : 'resize';
+	if (!item || !isEmptyLetter(item, { open })) return item ? 'resize' : 'nib';
+	// S2 finalize: a letter he sketched (no ink until S3) opens on the Line, to go on sketching
+	return hasSketchPieces(item, { isOn }) ? 'sketchLine' : 'nib';
 }
 
 /** editor -> the letter id the Brush was picked for by opening it */

@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 09/23/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	ANY-INK project files (Milestone 6, D-012).
 	Owner: FILES track (open / save / recents).
@@ -76,6 +78,7 @@ import { showToast } from '../../controls/dialogs/dialogs.js';
 import { makeFileDateString, saveFile } from '../../project_editor/file_io.js';
 import { isSimpleMode } from '../mode/mode.js';
 import { markClean } from '../recovery/recovery.js';
+import { endOpenPiece } from '../sketch/tools/undo_gate.js';
 import { toast } from '../toast/toast.js';
 import { sayError } from '../words/error_box.js';
 import { openErrorWords, saveErrorWords } from '../words/error_words.js';
@@ -341,6 +344,7 @@ export async function saveProjectText(editor, text, saveAsCopy = false) {
  * @returns {Promise<Boolean>} true
  */
 export async function downloadProject(editor) {
+	endOpenPiece();
 	return downloadProjectText(editor, () => editor.makeProjectFileText());
 }
 
@@ -353,6 +357,8 @@ export async function downloadProject(editor) {
  * @returns {Promise<Boolean>}
  */
 async function saveFlow(editor, asCopy, getText) {
+	// S2 finalize: an open sketch piece is finished first, as its own step, so the file holds it
+	endOpenPiece();
 	const history = editor.history;
 	if (!hasFileSystemAccess()) return downloadProjectText(editor, getText);
 	let handle = editor.loadedFileHandle;

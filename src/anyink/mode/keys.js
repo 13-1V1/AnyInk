@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5: the one key map (UX-BEGINNER.md 7.6, 6.2 "Keys", 4.10), the same in both modes, as data
 	plus the lookup events_keyboard.js asks.
@@ -17,7 +19,9 @@
 	modes. A tool key in Simple says "Switched to Rectangle (R)", always with the key the tooltip
 	shows (H and W say P), and the key of a tool inside Fine-tune opens Fine-tune (once B7's
 	'letterView' is on). On the board (B10): a letter opens its tile (Shift for
-	capitals), arrows move, Enter opens. Guide line locks are locks.js. Upstream's dev-mode console
+	capitals), arrows move, Enter opens. S2 (SKETCH.md 2): in Simple with 'sketch' on, L Line,
+	A Arc, S and P Spline, C, O and Q Circle, R Rectangle, and E is Select (V too); All tools keeps
+	its keys, and Simple before the sketch is as above. Guide line locks are locks.js. Upstream's dev-mode console
 	clear (Ctrl+Q / Alt+Q) is not his key and stays in the handler as it is.
 
 	A rule: { id, combos, action, where, modes, feature, until, tool, arg, ignore }
@@ -50,6 +54,7 @@ import { isFeatureOn } from './features.js';
 import { getMode } from './mode.js';
 import { simplePlace } from './visibility.js';
 import { word } from '../words/words.js';
+import { toolWordKey } from '../sketch/tools/tool_names.js';
 
 /** Where a key can fire */
 export const PLACES = Object.freeze(['page', 'kerning', 'canvas', 'board']);
@@ -101,6 +106,19 @@ const rule = (id, combos, action, extra = {}) => ({
 /** A tool key: a letter canvas, no Ctrl, Shift and Alt don't matter */
 const toolRule = (tool, keys, extra = {}) =>
 	rule(`tool.${tool}`, keys, 'selectTool', { tool, where: LETTER_CANVAS, ignore: LOOSE, ...extra });
+
+/** S2: Simple with the sketch on, and Simple before it (each key in one place, so Help agrees) */
+const SIMPLE_SKETCH = Object.freeze({ modes: ['simple'], feature: 'sketch' });
+const SIMPLE_NO_SKETCH = Object.freeze({ modes: ['simple'], until: 'sketch' });
+
+/** S2 (SKETCH.md 2): the sketch tools' keys in Simple, the first one printed on the button */
+const SKETCH_KEYS = [
+	['sketchLine', ['l']],
+	['sketchArc', ['a']],
+	['sketchSpline', ['s', 'p']],
+	['sketchCircle', ['c', 'o', 'q']],
+	['sketchRectangle', ['r']],
+];
 
 const ARROWS = {
 	arrowleft: { dx: -1, dy: 0 },
@@ -154,13 +172,25 @@ const RULES = [
 
 	// A letter's canvas (not Kerning): tools
 	toolRule('nib', ['b', 'n'], { feature: 'brush' }),
-	toolRule('resize', ['v', 'a']),
-	toolRule('pathEdit', ['e']),
+	// S2 (SKETCH.md 2): in Simple with 'sketch' on every shape key makes a sketch; All tools keeps
+	// its keys (the sketch tools are Simple's only, visibility.js)
+	...SKETCH_KEYS.map(([tool, keys]) => toolRule(tool, keys, SIMPLE_SKETCH)),
+	toolRule('resize', ['v', 'a'], { modes: ['all'] }),
+	toolRule('resize', ['v', 'a'], SIMPLE_NO_SKETCH),
+	// E is Select on the sketch (S4 picks the sketch's own points; until then plain Select)
+	toolRule('resize', ['v', 'e'], SIMPLE_SKETCH),
+	toolRule('pathEdit', ['e'], { modes: ['all'] }),
+	toolRule('pathEdit', ['e'], SIMPLE_NO_SKETCH),
 	// upstream's B, All tools only: in Simple B waits for the Brush
 	toolRule('pathEdit', ['b'], { until: 'brush', modes: ['all'] }),
-	toolRule('newPath', ['p', 'h', 'w']),
-	toolRule('newRectangle', ['r', 'm']),
-	toolRule('newOval', ['o', 'q']),
+	toolRule('newPath', ['p', 'h', 'w'], { modes: ['all'] }),
+	toolRule('newPath', ['p', 'h', 'w'], SIMPLE_NO_SKETCH),
+	toolRule('newPath', ['h', 'w'], SIMPLE_SKETCH),
+	toolRule('newRectangle', ['r', 'm'], { modes: ['all'] }),
+	toolRule('newRectangle', ['r', 'm'], SIMPLE_NO_SKETCH),
+	toolRule('newRectangle', ['m'], SIMPLE_SKETCH),
+	toolRule('newOval', ['o', 'q'], { modes: ['all'] }),
+	toolRule('newOval', ['o', 'q'], SIMPLE_NO_SKETCH),
 	toolRule('pathAddPoint', ['u'], { modes: ['all'] }),
 
 	// A letter's canvas: shapes and points
@@ -437,7 +467,7 @@ export function toolKey(tool, options = {}) {
 export function toolSwitchToast(tool, options = {}) {
 	return {
 		key: 'mode.toolSwitched',
-		vars: { tool: word(`tool.${tool}`), key: toolKey(tool, options) ?? '' },
+		vars: { tool: word(toolWordKey(tool)), key: toolKey(tool, options) ?? '' },
 		options: { group: 'toolSwitch' },
 	};
 }

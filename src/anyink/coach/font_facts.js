@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: what the coach reads from the open font (UX-BEGINNER.md 4.0, 4.2). Pure functions over an
 	editor and its font; reading never changes the font (a letter's record is looked up, never
@@ -56,6 +58,7 @@ import { canFixProblem } from '../preview/fix_it.js';
 import { firstCheckProblem } from '../preview/font_status.js';
 import { collectReferencedAssetIds } from '../trace/trace_model.js';
 import { hasInk, isEmptyLetter } from '../board/letter_set.js';
+import { hasSketchPieces } from '../sketch/sketched.js';
 import { getBoardFilter } from '../board/filters.js';
 import { lettersInSet } from './letter_order.js';
 import { openPathOf, openShapeOf } from './open_shape.js';
@@ -115,7 +118,9 @@ export function letterFacts(
 	{ checks = null, checksOn = false, editor = null, open = null } = {}
 ) {
 	const ink = hasInk(item, { open });
-	const shapes = !isEmptyLetter(item, { open });
+	// S2 finalize: sketch pieces count as shapes (no ink until S3), so a sketched letter is never
+	// "empty, use the brush"
+	const shapes = !isEmptyLetter(item, { open }) || hasSketchPieces(item);
 	let needsLook = null;
 	if (ink && checksOn && typeof checks === 'function') {
 		try {

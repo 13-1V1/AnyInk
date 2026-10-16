@@ -291,6 +291,24 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   the dead-end replay `dead_end_a.gs2.json`); test page `tests/sketch.html`, `npm run
   verify:sketch-page`. S3 owes: Simple's spacing refit moves built ink after `beforeSketchStep`
   (an `it.todo`), the sweep uses `edgeThickness`, Flip / Mirror turn `aim.dir`.
+  S2 (D-049) `sketch/tools/`: the five tools in Simple only (`line.js` with the shared
+  `SketchTool`: open piece, a snapshot per click, `end()` lets a stray first click go, one commit
+  per piece; `arc_tool.js`, `spline_tool.js`, `circle_tool.js` + `TwoPressTool`, `rect_tool.js`),
+  `chain.js` (corner / tangent by how the pointer leaves, give-way, pull-back arc, `finishPiece`),
+  `snap.js` (datums through the edge rule, only the real line pulls, joins re-checked, on a piece
+  and level / plumb at once, Shift's rays, Ctrl from the event) with `snap_context.js` (edges only
+  while spacing is his) and `arc_snap.js` (arc tops on a line), `draw_layer.js` (the sketch,
+  hints, tags and readouts in purple / green; stored pieces read-only on other tools),
+  `undo_gate.js` (`runUndo` in front of every Undo / Redo entry: take back a click while a piece is
+  open; `endOpenPiece`), `on_its_letter.js` (a piece is stored on its own letter, looked up by id),
+  `tool_route.js` (events.js / events_mouse.js route presses and keys to the picked tool),
+  `install.js`, `tool_names.js`, `mode_watch.js`, `menu_open.js` (Esc goes to an open menu first).
+  A piece ends on another letter, the board, a new font, an editor switch, a restore, a mode change,
+  a save (`files/project_files.js saveFlow`, `downloadProject`) and Use in Word. `sketch/sketched.js`
+  `hasSketchPieces`: a sketched letter with no ink is no empty letter on screen (no overlay, opens
+  on Line, the Next line's facts count it as shapes; the card's "Empty" goes with S3's ink). Tips
+  in `coach/tips.js` (the sketch tips have their own 3 a session). Test page `tests/sketch_draw.html`;
+  `npm run verify:sketch-draw`, `npm run verify:sketch-layer`.
 - `test/` + `src/**/tests` — vitest (jsdom + vi-canvas-mock).
 
 ## ANY-INK rules
@@ -349,7 +367,8 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — DONE 10/16/2026, Gate 2 next 
    field; every real-Chrome check run one at a time; the launch default flipped to Simple; D-046).
    Gate 2 (Brennan's own session, docs/GATE2.md) run 10/16/2026: the Brush-only letter was a dead
    end, so sketched letters come first (docs/SKETCH.md, D-047, S1 to S9, flag `sketch`). S1 (model,
-   curves and measures) done 10/16/2026 (D-048); S2 (Draw) next; then Gate 2b, then M9.
+   curves and measures) done 10/16/2026 (D-048); S2 (Draw) done 10/16/2026 (D-049); S3 (Build and
+   stay in sync) next; then S4 to S9, Gate 2b, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Since B16 Simple is the launch default; All tools is `?ui=all` or More tools.
 9. Handwriting sheet — pending, next after Gate 2 (plugs into the letter board)

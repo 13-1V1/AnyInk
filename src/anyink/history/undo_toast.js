@@ -23,6 +23,12 @@
 	is always the newest press's.
 	With the 'coach' flag off (B6 not on), B5's toast stays exactly as it was
 	(undo_elsewhere.js: only a letter changed away from its page is said).
+	S2 (docs/SKETCH.md section 7): every press here reaches simple_undo.js, which asks the sketch's
+	Undo gate first, so while a sketch piece is open the top bar's Undo takes back its last click
+	and Redo (the bar's, a toast's [Redo]) does nothing, with no toast. A destructive toast's [Undo] is for
+	an older step: it runs with the open piece held aside, then the piece is finished as its own
+	step (undo_gate.js underOpenPiece). A finished piece is named by its own title ("Undid:
+	sketched a line on small n").
 
 	  changeWords(title, itemID, project)   the step in plain words ("traced Capital B"); "your
 	                                         last change" for a title no rule knows
@@ -57,6 +63,7 @@ import { dropStaleToasts, toast } from '../toast/toast.js';
 import { historyText } from '../words/history_text.js';
 import { letterPhrase } from '../words/letter_name.js';
 import { word } from '../words/words.js';
+import { underOpenPiece } from '../sketch/tools/undo_gate.js';
 import { sayUndoneElsewhere } from './undo_elsewhere.js';
 
 /** Results already said: one press, one toast. */
@@ -181,7 +188,9 @@ export function undoOffer(editor) {
 	const mark = Array.isArray(history?.queue) ? history.queue[0] : undefined;
 	const stillGood = () =>
 		!!mark && openEditor() === editor && editor.history === history && history.queue[0] === mark;
-	return { action: { key: 'letter.toast.undo', run: () => pressUndo(editor) }, stillGood };
+	// an older step: with a sketch piece open, the piece waits aside, then is its own step
+	const run = () => underOpenPiece(() => pressUndo(editor));
+	return { action: { key: 'letter.toast.undo', run }, stillGood };
 }
 
 /**

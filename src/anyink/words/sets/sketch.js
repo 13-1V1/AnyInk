@@ -17,6 +17,8 @@
 	  sketch.tip.*          first-use tips (section 2 Tips; the coach shows them)
 	  sketch.tag.*          words at the cursor while snapping (section 6 Hints)
 	  sketch.readout.line   a Line part's length and angle at the cursor, never typed
+	  sketch.readout.across / .size / .radius   a Circle's size across, an oval's or a
+	                        Rectangle's width x height, an Arc's radius, at the cursor
 	  sketch.label.*        canvas labels on pieces that make no ink
 	  sketch.mirrorLine / sketch.helperLine / sketch.more   the buttons under More
 	  sketch.thickness.*    the Thickness slider, its readout and Use on all (section 3)
@@ -53,7 +55,7 @@ const SKETCH = {
 	},
 	'sketch.tool.arc': {
 		text: 'Arc',
-		hint: 'A round curve. From an open end, one click sets where it ends.',
+		hint: 'A round curve. From an open end, one click sets where it ends; after a corner, click the end, then how far it bends.',
 		feature: F,
 	},
 	'sketch.tool.spline': { text: 'Spline', hint: 'Fewer points, smoother curve.', feature: F },
@@ -69,10 +71,20 @@ const SKETCH = {
 	},
 
 	'sketch.tip.line': {
-		text: 'Click, click. Double-click or Enter to finish. Drag once for a single line. Pull back over the last end for an arc.',
+		text: 'Click, click. Double-click, right-click or Enter to finish. Drag once for a single line. Pull back over the last end for an arc.',
 		feature: F,
 	},
 	'sketch.tip.spline': { text: 'Fewer points, smoother curve.', feature: F },
+	// S2: first-pick tips of the tools SKETCH.md section 2 gives none (its table's own words)
+	'sketch.tip.arc': {
+		text: 'From an open end, one click sets where the arc ends. Or click the start, the end, then how far it bends; that finishes the arc.',
+		feature: F,
+	},
+	'sketch.tip.circle': {
+		text: 'Click the center and drag the size. Or click one guide line, then another.',
+		feature: F,
+	},
+	'sketch.tip.rectangle': { text: 'Click one corner, then the other.', feature: F },
 	'sketch.tip.dots': {
 		text: 'Filled dot: stuck to a line or another piece. Hollow: free to move.',
 		feature: F,
@@ -91,7 +103,13 @@ const SKETCH = {
 	'sketch.tag.mirror': { text: 'mirror line', feature: F },
 	'sketch.tag.letGo': { text: 'let go of the {line}', feature: F },
 	'sketch.tag.letGoLevel': { text: 'let go of the level', feature: F },
+	// S2 finalize: after the Arc's end click (a fresh Arc, or one after a corner), the next click
+	'sketch.tag.bend': { text: 'click to set how far it bends', feature: F },
 	'sketch.readout.line': { text: '{length} in, {angle}°', feature: F },
+	// S2 fix: Circle, Arc and Rectangle say their size too (never typed)
+	'sketch.readout.across': { text: '{size} in across', feature: F },
+	'sketch.readout.size': { text: '{width} x {height} in', feature: F },
+	'sketch.readout.radius': { text: 'R {radius} in', feature: F },
 
 	'sketch.label.helper': { text: 'helper line', feature: F },
 	'sketch.label.gap': { text: 'gap: not filled yet', feature: F },
@@ -331,6 +349,8 @@ const SKETCH = {
 	'sketch.step.spline': { text: 'sketched a spline on {letter}', feature: F },
 	'sketch.step.circle': { text: 'sketched a circle on {letter}', feature: F },
 	'sketch.step.rectangle': { text: 'sketched a rectangle on {letter}', feature: F },
+	// S2 finalize: a 1-point piece (Enter on one point, or a double-click in place)
+	'sketch.step.dot': { text: 'put a dot on {letter}', feature: F },
 	'sketch.step.closed': { text: 'closed the outline of {letter}', feature: F },
 	'sketch.step.pointMoved': { text: 'moved a sketch point on {letter}', feature: F },
 	'sketch.step.bent': { text: 'bent a curve on {letter}', feature: F },

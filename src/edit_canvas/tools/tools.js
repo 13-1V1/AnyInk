@@ -4,14 +4,17 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import '../../anyink/letter/tool_labels.css';
 import { notePickedTool } from '../../anyink/nib/default_tool.js';
 import { fineTuneShows, isLetterViewOn } from '../../anyink/letter/view_switches.js';
 import { collectGuideLines, HIT_ZONE_PX, hitTestLines } from '../../anyink/metrics/hit_test.js';
 import { toolKey } from '../../anyink/mode/keys.js';
+import { isSketchTool, SKETCH_TOOLS, toolWordKey } from '../../anyink/sketch/tools/tool_names.js';
 import { toolTitle, viewToolTitle } from '../../anyink/mode/simple_labels.js';
 import { entryOf, isShown, simplePlace } from '../../anyink/mode/visibility.js';
-import { hasWord, word } from '../../anyink/words/words.js';
+import { hasWord, word, wordEntry } from '../../anyink/words/words.js';
 import { getCanvasTheme, toggleCanvasTheme } from '../../anyink/theme/theme.js';
 import { refreshPanel } from '../../panels/panels.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../../app/main.js';
@@ -59,6 +62,12 @@ export function makeEditToolsButtons() {
 	let toolButtonData = {
 		// ANY-INK (B8): the Brush, shown in both modes once 'brush' is on (visibility.js, 7.6)
 		nib: { title: 'Brush', disabled: false },
+		// ANY-INK (S2, SKETCH.md 2): the sketch tools, Simple only once 'sketch' is on
+		sketchLine: { title: 'Sketch line', disabled: false },
+		sketchArc: { title: 'Sketch arc', disabled: false },
+		sketchSpline: { title: 'Sketch spline', disabled: false },
+		sketchCircle: { title: 'Sketch circle', disabled: false },
+		sketchRectangle: { title: 'Sketch rectangle', disabled: false },
 		newRectangle: { title: 'New rectangle', disabled: false },
 		newOval: { title: 'New oval', disabled: false },
 		newPath: { title: 'New path', disabled: false },
@@ -97,7 +106,9 @@ export function makeEditToolsButtons() {
 		let newToolButton = makeElement({
 			tag: 'button',
 			// ANY-INK (B4 + B5 integration): Simple says the tool's house word and key
-			title: toolTitle(buttonName, toolButtonData[buttonName].title),
+			title: isSketchTool(buttonName)
+				? sketchToolTitle(buttonName)
+				: toolTitle(buttonName, toolButtonData[buttonName].title),
 			className: labeled ? `editor-page__tool ${LABELED_CLASS}` : 'editor-page__tool',
 			// ANY-INK: found by its id, never by its words (which differ by mode)
 			attributes: {
@@ -112,6 +123,15 @@ export function makeEditToolsButtons() {
 		});
 
 		newToolButton.addEventListener('click', () => selectTool(buttonName));
+		// ANY-INK (S2, SKETCH.md 2 Tips): the Line tip also shows on the Line button's hover (the
+		// coach is loaded on demand: a static import would make a cycle through the coach's actions)
+		if (buttonName === 'sketchLine') {
+			newToolButton.addEventListener('pointerenter', () => {
+				import('../../anyink/coach/coach_state.js')
+					.then(({ showTip }) => showTip('sketchLine'))
+					.catch(() => {});
+			});
+		}
 
 		if (isSelected) newToolButton.classList.add('editor-page__tool-selected');
 
@@ -148,6 +168,8 @@ export function makeEditToolsButtons() {
 		// ANY-INK (B8): the Brush after upstream's drawing tools, so theirs keep their places
 		// (hidden below while 'brush' is off)
 		content.push(toolButtonElements.nib);
+		// ANY-INK (S2): then the sketch tools (hidden below while 'sketch' is off, and in All tools)
+		SKETCH_TOOLS.forEach((tool) => content.push(toolButtonElements[tool]));
 	}
 
 	if (onComponentPage && selectedItem && !selectedItem.pathPoints) {
@@ -155,6 +177,7 @@ export function makeEditToolsButtons() {
 		content.push(toolButtonElements.newOval);
 		content.push(toolButtonElements.newPath);
 		content.push(toolButtonElements.nib);
+		SKETCH_TOOLS.forEach((tool) => content.push(toolButtonElements[tool]));
 	}
 
 	if (onGlyphEditPage || onComponentPage || onLigaturesPage) {
@@ -224,13 +247,30 @@ function isFineTuneTool(tool) {
  */
 function toolButtonContent(tool, { selected = false, disabled = false, labeled = false } = {}) {
 	const icon = makeToolButtonSVG({ name: tool, selected, disabled });
-	if (!labeled || !hasWord(`tool.${tool}`)) return icon;
+	// ANY-INK (S2): a sketch tool's word is its sketch.tool.* entry (sketch/tools/tool_names.js)
+	const wordKey = toolWordKey(tool);
+	if (!labeled || !hasWord(wordKey)) return icon;
 	const caption = hasWord(`letterTools.caption.${tool}`)
 		? `<span class="anyink-tool__caption">${escapeText(word(`letterTools.caption.${tool}`))}</span>`
 		: '';
 	const key = toolKey(tool);
 	const keyPrint = key ? `<span class="anyink-tool__key">${escapeText(key)}</span>` : '';
-	return `${icon}<span class="anyink-tool__word">${escapeText(word(`tool.${tool}`))}</span>${caption}${keyPrint}`;
+	return `${icon}<span class="anyink-tool__word">${escapeText(word(wordKey))}</span>${caption}${keyPrint}`;
+}
+
+/**
+ * ANY-INK (S2, SKETCH.md 2): a sketch tool's tooltip, its word, key and hint: "Line (L). Straight
+ * lines with corners...". Only Simple shows the sketch tools, so only Simple's words.
+ * @param {String} tool - one of SKETCH_TOOLS
+ * @returns {String}
+ */
+export function sketchToolTitle(tool) {
+	const wordKey = toolWordKey(tool);
+	if (!hasWord(wordKey)) return tool;
+	const key = toolKey(tool);
+	const name = key ? `${word(wordKey)} (${key})` : word(wordKey);
+	const hint = wordEntry(wordKey)?.hint || '';
+	return hint ? `${name}. ${hint}` : name;
 }
 
 /**
@@ -252,6 +292,25 @@ function labeledToolColumn(editor, toolButtonElements) {
 	const pick = (list) =>
 		list.filter((tool) => toolButtonElements[tool] && isShown('tool', tool));
 	const always = pick(ALWAYS_TOOLS).map((tool) => toolButtonElements[tool]);
+	// ANY-INK (S2, SKETCH.md 2): Brush, the small purple "Sketch" heading, the sketch tools with
+	// their keys printed, a rule, then Select; never behind Fine-tune
+	const sketch = pick(SKETCH_TOOLS).map((tool) => toolButtonElements[tool]);
+	const sketchGroup = sketch.length
+		? [
+				makeElement({
+					tag: 'div',
+					className: 'anyink-tool-rail__heading',
+					content: word('sketch.rail.heading'),
+					attributes: { 'data-anyink-tool-heading': 'sketch' },
+				}),
+				...sketch,
+				makeElement({
+					tag: 'div',
+					className: 'anyink-tool-rail__rule',
+					attributes: { 'aria-hidden': 'true' },
+				}),
+			]
+		: [];
 	const fineTune = pick(FINE_TUNE_TOOLS.filter(isFineTuneTool)).map((tool) => [
 		tool,
 		toolButtonElements[tool],
@@ -280,7 +339,14 @@ function labeledToolColumn(editor, toolButtonElements) {
 		callback: update,
 	});
 
-	return [...always, rule, ...fineTune.map(([, button]) => button)];
+	const [brush, ...rest] = always[0] === toolButtonElements.nib ? always : [null, ...always];
+	return [
+		...(brush ? [brush] : []),
+		...sketchGroup,
+		...rest,
+		rule,
+		...fineTune.map(([, button]) => button),
+	];
 }
 
 /**
@@ -969,6 +1035,45 @@ icons.nib = {
 		<rect x="2" y="16" width="3" height="2"></rect>
 		<rect x="1" y="17" width="2" height="2"></rect>
 		<rect x="7" y="17" width="12" height="2"></rect>
+	`,
+};
+
+// ANY-INK (S2, SKETCH.md 2): the sketch tools, a line with its points on the same 20 px grid
+const SKETCH_STROKE = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"';
+const sketchDot = (x, y) => `<rect x="${x - 1.5}" y="${y - 1.5}" width="3" height="3"></rect>`;
+icons.sketchLine = {
+	outline: `
+		<path d="M3.5 16.5 L16.5 3.5" ${SKETCH_STROKE}></path>
+		${sketchDot(3.5, 16.5)}
+		${sketchDot(16.5, 3.5)}
+	`,
+};
+icons.sketchArc = {
+	outline: `
+		<path d="M3.5 16.5 A 13 13 0 0 1 16.5 3.5" ${SKETCH_STROKE}></path>
+		${sketchDot(3.5, 16.5)}
+		${sketchDot(16.5, 3.5)}
+	`,
+};
+icons.sketchSpline = {
+	outline: `
+		<path d="M2.5 15.5 C 5 4, 9 4, 10 10 S 15 16, 17.5 4.5" ${SKETCH_STROKE}></path>
+		${sketchDot(2.5, 15.5)}
+		${sketchDot(10, 10)}
+		${sketchDot(17.5, 4.5)}
+	`,
+};
+icons.sketchCircle = {
+	outline: `
+		<circle cx="10" cy="10" r="7" ${SKETCH_STROKE}></circle>
+		${sketchDot(10, 10)}
+	`,
+};
+icons.sketchRectangle = {
+	outline: `
+		<rect x="3.5" y="5.5" width="13" height="9" ${SKETCH_STROKE}></rect>
+		${sketchDot(3.5, 5.5)}
+		${sketchDot(16.5, 14.5)}
 	`,
 };
 

@@ -4,12 +4,15 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { AssetStore } from '../anyink/assets/asset_store.js';
 import { spaceWidth } from '../anyink/fontcheck/export_list.js';
 import { systemGuidesFromList } from '../anyink/history/settings_snapshot.js';
 import { saveProject, saveProjectAs } from '../anyink/files/project_files.js';
 import { isProjectFileHandle } from '../anyink/files/write_file.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
+import { endOpenPiece } from '../anyink/sketch/tools/undo_gate.js';
 import { ASSET_PRUNING_READY, collectReferencedAssetIds } from '../anyink/trace/trace_model.js';
 import { decToHex } from '../common/character_ids.js';
 import { clone, getFirstID, round } from '../common/functions.js';
@@ -209,6 +212,8 @@ export class ProjectEditor {
 		// log(gsp);
 		if (gsp) {
 			// log(`Importing project...`);
+			// ANY-INK (S2): a sketch piece still open is finished on its letter before the font goes
+			endOpenPiece();
 			this._project = gsp;
 			// ANY-INK: the canvas and the guides layer read editor.systemGuides, so it must
 			// follow the project's saved list for every load (new, sample, file, restore),
@@ -524,6 +529,9 @@ export class ProjectEditor {
 		// ANY-INK (B6 + B7 finalize): opening another letter mid-shape (Simple) ends the Point
 		// pen's shape on the letter it is in, before the view moves (new_path.js leaveLetter)
 		if (id !== this._selectedGlyphID) this.eventHandlers?.tool_addPath?.leaveLetter?.(this);
+		// ANY-INK (S2, SKETCH.md 2): an open sketch piece is finished on the letter it is in, as
+		// its own step, before the view moves (sketch/tools/undo_gate.js endOpenPiece)
+		if (id !== this._selectedGlyphID) endOpenPiece();
 		if (typeof id !== 'string' || !id.startsWith('glyph-')) {
 			this._selectedGlyphID = false;
 		} else if (this.project.glyphs[id]) {
@@ -553,6 +561,8 @@ export class ProjectEditor {
 	 * @param {String | false} id - ID to select
 	 */
 	set selectedLigatureID(id) {
+		// ANY-INK (S2): an open sketch piece ends on its own ligature first
+		if (id !== this._selectedLigatureID) endOpenPiece();
 		if (typeof id !== 'string' || !id.startsWith('liga-')) {
 			this._selectedLigatureID = false;
 		} else if (this.project.ligatures[id]) {
@@ -583,6 +593,8 @@ export class ProjectEditor {
 	 * @param {String | false} id - ID to select
 	 */
 	set selectedComponentID(id) {
+		// ANY-INK (S2): an open sketch piece ends on its own component first
+		if (id !== this._selectedComponentID) endOpenPiece();
 		if (typeof id !== 'string' || !id.startsWith('comp-')) {
 			this._selectedComponentID = false;
 		} else if (this.project.components[id]) {

@@ -2,6 +2,9 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
+import { pageFromItemID } from '../anyink/history/history_helpers.js';
 import { arriveAt } from '../anyink/mode/band.js';
 import { hiddenAttributes } from '../anyink/mode/hide.js';
 import { heading, item, keepShown } from '../anyink/mode/sections.js';
@@ -9,6 +12,7 @@ import { isSimpleMode } from '../anyink/mode/mode.js';
 import { navSuperTitle, pageTitle } from '../anyink/mode/simple_labels.js';
 import { filterShown, isShown } from '../anyink/mode/visibility.js';
 import { token } from '../anyink/theme/theme.js';
+import { endOpenPiece, openPiece } from '../anyink/sketch/tools/undo_gate.js';
 import { installPageDropGuard } from '../anyink/trace/trace_drop.js';
 import { showAppErrorPage } from '../app/app.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
@@ -142,6 +146,10 @@ export class Navigator {
 			const editor = getCurrentProjectEditor();
 			editor?.eventHandlers?.tool_addPath?.leaveLetter?.(editor);
 		}
+		// ANY-INK (S2, SKETCH.md 2): leaving the piece's page mid-piece finishes the sketch piece
+		// on its own letter, as its own step (sketch/tools/on_its_letter.js puts the step there)
+		const piece = openPiece();
+		if (piece && pageFromItemID(piece.itemID) !== this.page) endOpenPiece();
 		// ANY-INK: undo and other code paths change the page without the page button, which is
 		// the only place upstream resets a panel the new page does not offer (Trace on Kerning)
 		this.panel = panelForPage(this.page, this.panel);

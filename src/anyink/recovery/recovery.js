@@ -117,6 +117,7 @@ import { isProjectFileHandle } from '../files/write_file.js';
 import { importProjectDataAndNavigate } from '../../app/open_project.js';
 import { runFileCommand } from '../files/run_command.js';
 import { toast } from '../toast/toast.js';
+import { endOpenPiece } from '../sketch/tools/undo_gate.js';
 import {
 	recClear,
 	recDel,
@@ -366,6 +367,8 @@ export async function restoreSession(id) {
 	// them before the font goes in, so the adopt below still runs right after it
 	const history = await inlineStates(record.history, recGet);
 
+	// S2 (docs/SKETCH.md 7): a sketch piece still open is finished as its own step first
+	endOpenPiece();
 	deps.importProject(record.project);
 	const editor = safeGetEditor();
 	// The queue recorded with this project describes exactly this project. Must run

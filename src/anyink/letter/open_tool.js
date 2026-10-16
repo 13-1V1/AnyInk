@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8 + B9 integration: the tool a letter opens with in the Simple letter view (UX-BEGINNER.md 4.3
 	Tools): the Brush on an empty letter, Select on a letter with ink (nib/default_tool.js
@@ -32,12 +34,13 @@ import { isOpeningBrush, pickOpeningTool, toolForOpenedLetter } from '../nib/def
 import { guideLinesMoving } from '../mode/locks.js';
 import { getFlow } from '../photo/photo_flow_state.js';
 import { isLetterViewOn } from './view_switches.js';
+import { SKETCH_TOOLS } from '../sketch/tools/tool_names.js';
 
 export const OPEN_TOOL_SUBSCRIBER = 'anyink.letter.openTool';
 export const STEP_C_TOOL_SUBSCRIBER = 'anyink.letter.stepCTool';
 
 /** The drawing tools step C puts down */
-const DRAWING_TOOLS = Object.freeze(['nib', 'newPath', 'newRectangle', 'newOval']);
+const DRAWING_TOOLS = Object.freeze(['nib', 'newPath', 'newRectangle', 'newOval', ...SKETCH_TOOLS]);
 
 /**
  * @param {Object} editor - ProjectEditor

@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B5: what each mode shows (UX-BEGINNER.md 6.2), as data tables with a small query API. Screens
 	filter only where they are drawn (6.3: the page and panel choosers, getActionData, the tool
@@ -14,6 +16,7 @@
 	  panel      panel ids (navigator.js listOfPanels), plus B7's letter card ('letterCard')
 	  action     getActionData icons, actionId(group, entry)    ('glyphActions.round')
 	  tool       drawing tools (tools.js), plus the Brush       ('newRectangle', 'nib')
+	             and the sketch tools (S2, Simple only)         ('sketchLine')
 	  viewTool   the buttons under the canvas                   ('zoom1to1')
 	  menu       top bar menus, plus B6's Menu (4.9)            ('projects', 'menu')
 	  menuRow    menuRowId(menu, data-anyink-row id)            ('file.font-ttf', 'menu.open-font')
@@ -223,6 +226,12 @@ const TOOLS = [
 		feature: 'brush',
 		why: '4.3: the Brush, always shown once B8 lands (both modes, 7.6)',
 	}),
+	// S2 (SKETCH.md 2): the sketch tools, on Simple's tool column, never behind Fine-tune
+	simpleOnly('sketchLine', 'sketch', { why: 'SKETCH.md 2: Line (L), always shown' }),
+	simpleOnly('sketchArc', 'sketch', { why: 'SKETCH.md 2: Arc (A), always shown' }),
+	simpleOnly('sketchSpline', 'sketch', { why: 'SKETCH.md 2: Spline (S), always shown' }),
+	simpleOnly('sketchCircle', 'sketch', { why: 'SKETCH.md 2: Circle (C), always shown' }),
+	simpleOnly('sketchRectangle', 'sketch', { why: 'SKETCH.md 2: Rectangle (R), always shown' }),
 	both('resize', { why: '4.3: Select, always shown' }),
 	both('pathEdit', { place: 'fineTune', why: '4.3: Edit points, inside Fine-tune' }),
 	both('newPath', { place: 'fineTune', why: '4.3: Point pen, inside Fine-tune' }),

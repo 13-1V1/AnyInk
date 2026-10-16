@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B6: the Next line's state (UX-BEGINNER.md 4.0 "Next line"). It lives here, not in the element,
 	so a top bar rebuilt on every navigate draws the line again at once, with no flicker.
@@ -69,7 +71,7 @@ import { isOpeningBrush } from '../nib/default_tool.js';
 import { openPathOf } from './open_shape.js';
 import { liveSkips, pickLine } from './rules.js';
 import { makeSkips } from './skips.js';
-import { makeTips, TOOL_TIPS } from './tips.js';
+import { makeTips, TOOL_TIPS, toolTipFor } from './tips.js';
 
 /** 4.0's list, then the tool topic the tips need */
 export const COACH_TOPICS = Object.freeze([
@@ -173,6 +175,8 @@ export function makeCoach({
 	let cachedLine = null;
 	let pendingNotify = 0;
 	let notifyToken = 0;
+	/** S2 integration: the tool picked before this one (Arc after the Line shows the Line tip) */
+	let lastTool = null;
 
 	const tracker = makeEditorTracker(onTopic);
 	const tips = makeTips({
@@ -365,9 +369,14 @@ export function makeCoach({
 		// tool's own sentence (rule 8)
 		if (topic === 'whichToolIsSelected' && isSimpleMode() && Object.hasOwn(TOOL_TIPS, data)) {
 			// B8 + B9 integration: the Brush an empty letter opens with is no pick of his; its tip
-			// waits for the Brush he picks himself
-			if (!(data === 'nib' && isOpeningBrush(getEditor()))) tips.show(TOOL_TIPS[data]);
+			// waits for the Brush he picks himself. S2 integration: Arc picked right after the
+			// Line brings the Line tip back (the pull-back arc, SKETCH.md 2 Tips)
+			const pick = toolTipFor(data, { afterLineEnd: lastTool === 'sketchLine' });
+			if (pick && !(data === 'nib' && isOpeningBrush(getEditor()))) {
+				tips.show(pick.name, { again: pick.again });
+			}
 		}
+		if (topic === 'whichToolIsSelected' && data !== 'pan') lastTool = data;
 	}
 
 	function onSaveStatus(event) {

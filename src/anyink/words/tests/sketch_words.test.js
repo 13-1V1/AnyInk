@@ -37,6 +37,10 @@ const VALUES = Object.freeze({
 	length: '0.62',
 	angle: '90',
 	width: '0.07',
+	// S2 fix track: Circle, Arc and Rectangle readouts
+	size: '0.40',
+	height: '0.75',
+	radius: '0.40',
 });
 
 // --------------------------------------------------------------
@@ -53,7 +57,7 @@ const NAMED = [
 	['sketch.tool.spline', {}, 'Spline'],
 	['sketch.tool.circle', {}, 'Circle'],
 	['sketch.tool.rectangle', {}, 'Rectangle'],
-	['sketch.tip.line', {}, 'Click, click. Double-click or Enter to finish. Drag once for a single line. Pull back over the last end for an arc.'],
+	['sketch.tip.line', {}, 'Click, click. Double-click, right-click or Enter to finish. Drag once for a single line. Pull back over the last end for an arc.'],
 	['sketch.tip.spline', {}, 'Fewer points, smoother curve.'],
 	['sketch.tip.dots', {}, 'Filled dot: stuck to a line or another piece. Hollow: free to move.'],
 	['sketch.tip.tailLine', {}, 'tail line: where g, p and y hang to'],
@@ -158,6 +162,7 @@ const TITLES = [
 	['sketch.step.spline', 'sketched a spline on small n'],
 	['sketch.step.circle', 'sketched a circle on small n'],
 	['sketch.step.rectangle', 'sketched a rectangle on small n'],
+	['sketch.step.dot', 'put a dot on small n'],
 	['sketch.step.closed', 'closed the outline of small n'],
 	['sketch.step.pointMoved', 'moved a sketch point on small n'],
 	['sketch.step.bent', 'bent a curve on small n'],

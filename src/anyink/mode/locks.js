@@ -41,9 +41,11 @@
 import { isFineTuneOpen } from '../letter/view_switches.js';
 import { isFeatureOn } from './features.js';
 import { getMode } from './mode.js';
+import { SKETCH_TOOLS } from '../sketch/tools/tool_names.js';
 
-/** The tools whose press draws; no line ever takes it (B6 + B7 in the letter view, B16 everywhere) */
-const DRAWING_TOOLS = Object.freeze(['newPath', 'newRectangle', 'newOval', 'nib']);
+/** The tools whose press draws; no line ever takes it (B6 + B7 in the letter view, B16 everywhere;
+ * S2: the sketch tools) */
+const DRAWING_TOOLS = Object.freeze(['newPath', 'newRectangle', 'newOval', 'nib', ...SKETCH_TOOLS]);
 
 /** Move the guide lines (4.8, B15) is open */
 let moving = false;

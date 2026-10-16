@@ -28,6 +28,11 @@
 	    its pre entry was recorded with, never the post entry's internal marker; showMe is
 	    { itemID, page } when the view stayed away from the changed letter, else null.
 	  options.inLetterView: default, editor.nav.page is an item page (B7 / B10 may pass their own).
+
+	S2 (docs/SKETCH.md section 7): both ask the sketch's Undo gate first (sketch/tools/undo_gate.js
+	runUndo). While a sketch piece is open, Undo takes back its last click and Redo is refused; the
+	history is not touched and the gate's result ({ done: false, gated: true, ... }) is returned,
+	so no toast is said. With no piece open (or the 'sketch' flag off) nothing changes.
 */
 import { markDirty } from '../recovery/recovery.js';
 import { notifyKernPairsChanged } from '../kerning/kern_lookup.js';
@@ -51,6 +56,7 @@ import {
 } from './history_helpers.js';
 import { itemIn, removeItem, writeItemState } from './item_state.js';
 import { findPreviousSettingsSnapshot } from './settings_snapshot.js';
+import { runUndo } from '../sketch/tools/undo_gate.js';
 
 /** @returns {Object} the result of a press that changed nothing */
 function nothing() {
@@ -65,6 +71,8 @@ function nothing() {
  */
 export function undoNewest(history, editor, { inLetterView } = {}) {
 	if (!history || !editor) return nothing();
+	const gated = runUndo('undo');
+	if (gated) return gated;
 	const queue = history.queue;
 	passOverLookingAround(history);
 	if (!queue.length) {
@@ -115,6 +123,8 @@ export function undoNewest(history, editor, { inLetterView } = {}) {
  */
 export function redoNewest(history, editor, { inLetterView } = {}) {
 	if (!history || !editor) return nothing();
+	const gated = runUndo('redo');
+	if (gated) return gated;
 	if (!history.redoQueue.length) {
 		setButton('#actionButtonRedo', false);
 		return nothing();

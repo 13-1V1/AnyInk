@@ -1,12 +1,15 @@
 /* Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
    brennanmmeyer@gmail.com */
+/* Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+   brennanmmeyer@gmail.com */
 /*
 	B7 (UX-BEGINNER.md 4.3 Tools): the Simple letter view's tool column, drawn by
 	edit_canvas/tools/tools.js. Each tool shows its icon, its word under it and its key in small
 	print; the Point pen adds "click to place points". The column widens to fit the words only
 	while it holds labeled tools, so All tools (40 px of icons) is untouched. Sentence case
 	everywhere (2.2): no text-transform. Colors are tokens; the picked tool keeps upstream's green
-	outline (.editor-page__tool-selected).
+	outline (.editor-page__tool-selected). S2 (SKETCH.md 2): with 'sketch' on, a small purple
+	"Sketch" heading sits over the sketch tools, between the Brush and Select.
 */
 
 html[data-ui-mode='simple'] .editor__page:has(.anyink-tool--labeled) {
@@ -81,4 +84,16 @@ html[data-ui-mode='simple'] .editor__page:has(.anyink-tool--labeled) #done-creat
 
 .anyink-tool-rail__rule[hidden] {
 	display: none;
+}
+
+/* S2: the small heading over the sketch tools; purple = structure */
+.anyink-tool-rail__heading {
+	width: 64px;
+	margin: 2px 0 2px 0;
+	font-family: var(--font-ui);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	color: var(--structure);
 }

@@ -56,7 +56,9 @@
 		"verify:close-soon": "node tests/close_soon.verify.mjs",
 		"verify:rail-words": "node tests/rail_words.verify.mjs",
 		"verify:start-name": "node tests/start_name.verify.mjs",
-		"verify:sketch-page": "node tests/sketch.verify.mjs"
+		"verify:sketch-page": "node tests/sketch.verify.mjs",
+		"verify:sketch-draw": "node tests/sketch_draw.verify.mjs",
+		"verify:sketch-layer": "node tests/sketch_layer_fixes.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

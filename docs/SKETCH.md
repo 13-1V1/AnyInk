@@ -123,11 +123,15 @@ A, Y and X are findable without a tip.
   bends to meet it. A Spline's end direction turns to match a following Line; an Arc followed by
   a tangent Line becomes a curve tangent at both ends (section 8). **A Line's clicked end is never
   moved.**
-- **Finish a piece:** Enter, **double-click** (the last click is not doubled), or Esc (open
-  piece); or click the piece's first point (closed loop; the first point grows a green ring when
-  the pointer is on it, reusing `new_path.js isOverFirstPoint`). **A second Esc** with no piece
-  open goes back to Select. Leaving the letter mid-piece finishes it on its own letter (the
-  `new_path.js leaveLetter` pattern).
+- **Finish a piece:** Enter, **double-click** (the last click is not doubled), a **right press**
+  (S2: the browser's menu is kept away while a sketch tool is picked), or Esc (open piece); or
+  click the piece's first point (closed loop; the first point grows a green ring when the pointer
+  is on it, reusing `new_path.js isOverFirstPoint`). **A second Esc** with no piece open goes back
+  to Select. Leaving the letter mid-piece finishes it on its own letter (the `new_path.js
+  leaveLetter` pattern), and so do another tool, a save (Ctrl+S, Save As, a download) and Use in
+  Word. **A stray first click** alone is let go of, never stored: by Esc, by leaving, by another
+  tool (S2 finalize); a dot is deliberate (Enter on one point, or a double-click in place, "put a
+  dot on small i").
 - **Take back:** while a piece is open, every Undo (Ctrl+Z, Backspace, the top bar's Undo button,
   the Undo toast) takes back the last click; the top bar Undo's tooltip says "Take back the last
   point". Details and the other entry points: section 7, Undo while a piece is open.
@@ -182,8 +186,14 @@ As built in S1 (`sketch/extremes.js lockFor`, D-048):
 ### Tips (`coach/tips.js`)
 
 - **First Line pick, on hover of the Line button, and whenever Arc is picked right after a Line
-  end:** "Click, click. Double-click or Enter to finish. Drag once for a single line. Pull back
-  over the last end for an arc."
+  end once the Arc tip has been seen:** "Click, click. Double-click, right-click or Enter to
+  finish. Drag once for a single line. Pull back over the last end for an arc."
+- **Arc** (first pick, and first on Arc right after a Line end, where its end click waits for a
+  bend click after a corner): "From an open end, one click sets where the arc ends. Or click the
+  start, the end, then how far it bends; that finishes the arc." While the bend waits, the cursor
+  says "click to set how far it bends". (S2 finalize.)
+- The sketch tips have **their own 3 a session**, apart from the other tips' 3 (S2 finalize), so
+  the Brush and photo tips never use them up.
 - First Spline pick: "Fewer points, smoother curve."
 - First pick of anything on a sketch: "Filled dot: stuck to a line or another piece. Hollow: free
   to move." (also in the glossary)
@@ -533,7 +543,26 @@ One rule, written down as decision D-047 point 3:
   shows the direction the next part will leave (section 2, chaining).
 - **Between two lines (Circle):** click on one writing line, then on another: a circle whose ink
   edges touch both lines (Centerline: the edge rule; plus the overshoot), centered on the click.
-- Hold **Ctrl**: no snapping for that click or drag.
+- Hold **Ctrl**: no snapping for that click or drag (read from the mouse event only, never from
+  a key flag left over from a shortcut).
+
+As built in S2 (`sketch/tools/snap.js`, `arc_snap.js`, the fix pass):
+
+- **Only the real line pulls.** The faint ink line is where the dot lands, never a second target,
+  so the snap band is the snap radius either side of the real line.
+- **After a line, edge, level / plumb or Shift snap** places the point, it is checked against the
+  sketch's points again: within the radius of one it joins that point (clicking where a loop
+  started closes it, never a duplicate point).
+- **On a piece and level / plumb at once:** with the pointer on a piece and another point level or
+  plumb with it, the point goes where that level / plumb line crosses the piece, and both
+  relations are stored (A's bar: level and on both legs). Under Shift, a piece the ray crosses
+  within the radius catches the point.
+- **Arc tops:** the 3-point Arc's bend and a tangent arc's end (Arc, the Line's pull-back) snap so
+  the arc's top or bottom sits where the edge rule puts a round top (tops to the top, capitals
+  and small-letter lines; bottoms to the writing and tail lines), the line's name at the top.
+  Stored as the arc's bulge / end only (S3 re-places it on a thickness change).
+- **Letter edges and middle** snap only while the spacing is set by him; a letter with no
+  spacing owner yet counts as automatic in Simple and as set by him in All tools.
 
 ### Relations kept after you let go (v1: drag rules, no solver)
 
@@ -715,7 +744,8 @@ whole-font Undo (History's `swapProject`) and a crash-copy restore. While a piec
   history is not touched. The top bar Undo's tooltip reads "Take back the last point".
 - **Redo** is off; tooltip "Finish the line first".
 - **Anything else** (a toast's [Undo] for an older step, a whole-font Undo, a restore) first ends
-  the open piece as its own step (the `new_path.js leaveLetter` way), then runs.
+  the open piece as its own step (the `new_path.js leaveLetter` way), then runs. A save (Ctrl+S,
+  Save As, a download) and Use in Word do the same before the file is written (S2 finalize).
 - The tool keeps its **own copy** of the point it started from (id and position). If an Undo
   removed that point, the piece makes a new point at the copy when it finishes.
 
@@ -971,9 +1001,9 @@ S3).
 | S | Scope | New / changed files | Tests and checks | Size |
 |---|---|---|---|---|
 | **S1** Model, curves and measures (**done 10/16/2026**) | Fixture copy; sketch format and migration; in-house Hobby spline with directions and tensions; arc (ends + bulge) and curve parts to cubics; extremes and level / plumb locks; the edge rule math (ink lines, overshoot, re-place on thickness); Bumpy measure; outline depth and orientation (no clipper yet); tags, reconcile, `builtHash`; `beforeSketchStep` hook; words and Undo titles; flag | see S1 below | vitest on all pure math; `tests/sketch.html` draws a stored sketch and its built centerline | L |
-| **S2** Draw | Line (click-drag single line, pull-back arc, readout), Arc (A), Spline, Circle (live circle, between two lines, half-way snap), Rectangle; autotransition chaining and give-way; level locks; Enter / double-click / Esc / second Esc; the undo gate for open pieces at every entry; snaps, ink lines and hints; Simple key remaps; printed keys; tips; draw layer | `sketch/tools/line.js`, `arc_tool.js`, `spline_tool.js`, `circle_tool.js`, `rect_tool.js`, `chain.js`, `snap.js`, `draw_layer.js`, `undo_gate.js`; `edit_canvas/events.js`, `events_mouse.js`, `edit_canvas.js redrawGlyphEdit`, `tools/tools.js`, `mode/visibility.js`, `mode/keys.js`, `topbar/undo_buttons.js`, `history/undo_toast.js`, `history/simple_undo.js`, `coach/tips.js` | vitest: snaps, chaining angle rule, give-way, Escape order, undo gate; `tests/sketch_draw.verify.mjs` (n's stem and arch, corners where it left at an angle) | L |
-| **S3** Build and stay in sync | Centerline build (edge rule, Round / Flat, Flat cut along a line, dots, closed loops), Outline build (clipper on crossings), rebuild per step; `followShapes` plans for spacing, line shifts, Sit on the line, Match size (`grow`), Shrink to fit, refit fix, Flip; `followLine` for B15; hash detach and Simple key routing; paste reconcile; `penAllowance` 0; export merge on every path; thickness slider (real-sweep preview, font thickness, Use on all in chunks); top card section; empty-letter door; rules 19, 20, 24, 25; See-through rename | `sketch/build.js`, `build_center.js`, `build_outline.js`, `thickness.js`, `follow.js`, `detach.js`, `card_section.js`; `letter/letter_card.js`, `letter/empty_overlay.js`, `letter/open_tool.js`, `letter/auto_hole.js`, `nib/default_tool.js`, `coach/rules.js`, `spacing/trace_follow.js`, `metrics/font_metrics.js`, `checks/fixes.js`, `checks/fix_shapes.js`, `checks/body_bottom.js`, `board/tile_state.js`, `formats_io/otf/font_export.js`, `words/sets/mode.js` | vitest: o / B hole counts, o / n / v / A through B11 `measureLetter`, every follow (sketch and ink within 1 unit), outline o Match size widths, hash detach, Flat corners kept; `tests/sketch_build.verify.mjs` incl. File-menu export; B3 / B10 / B11 / B14 suites green | L |
-| **S4** Edit | Select on the sketch: window and Ctrl picks, move / scale picks, drag point, Bend (arcs keep bulge), grips, Let it flow, circle resize, add / delete point, Smooth / Corner, nudge; drag rules and the can't-keep-both toast; picked point / piece card with More | `sketch/select_tool.js`, `pick.js`, `rules.js`, `bend.js`, `grips.js`, `piece_card.js`; `letter/point_kind.js`, `letter/delete_toast.js` | vitest per drag rule and order, n arch with unequal stems, window picks; `tests/sketch_edit.verify.mjs` (K5, K6) | L |
+| **S2** Draw (**done 10/16/2026**) | Line (click-drag single line, pull-back arc, readout), Arc (A), Spline, Circle (live circle, between two lines, half-way snap), Rectangle; autotransition chaining and give-way; level locks; Enter / double-click / Esc / second Esc; the undo gate for open pieces at every entry; snaps, ink lines and hints; Simple key remaps; printed keys; tips; draw layer | `sketch/tools/line.js`, `arc_tool.js`, `spline_tool.js`, `circle_tool.js`, `rect_tool.js`, `chain.js`, `snap.js`, `draw_layer.js`, `undo_gate.js`; `edit_canvas/events.js`, `events_mouse.js`, `edit_canvas.js redrawGlyphEdit`, `tools/tools.js`, `mode/visibility.js`, `mode/keys.js`, `topbar/undo_buttons.js`, `history/undo_toast.js`, `history/simple_undo.js`, `coach/tips.js` | vitest: snaps, chaining angle rule, give-way, Escape order, undo gate; `tests/sketch_draw.verify.mjs` (n's stem and arch, corners where it left at an angle) | L |
+| **S3** Build and stay in sync | Centerline build (edge rule, Round / Flat, Flat cut along a line, dots, closed loops), Outline build (clipper on crossings), rebuild per step; `followShapes` plans for spacing, line shifts, Sit on the line, Match size (`grow`), Shrink to fit, refit fix, Flip; `followLine` for B15; hash detach and Simple key routing; paste reconcile; `penAllowance` 0; export merge on every path; arc tops snapped to a line re-placed on a thickness change (a `top: { on, inset }` tag on the arc part, S2 stores only the bulge / end); the card's state for a sketched letter (S2 leaves "Empty" until there is ink) and a Next line sentence while a sketch tool is picked on an empty letter; re-check the snap band against real ink; thickness slider (real-sweep preview, font thickness, Use on all in chunks); top card section; empty-letter door; rules 19, 20, 24, 25; See-through rename | `sketch/build.js`, `build_center.js`, `build_outline.js`, `thickness.js`, `follow.js`, `detach.js`, `card_section.js`; `letter/letter_card.js`, `letter/empty_overlay.js`, `letter/open_tool.js`, `letter/auto_hole.js`, `nib/default_tool.js`, `coach/rules.js`, `spacing/trace_follow.js`, `metrics/font_metrics.js`, `checks/fixes.js`, `checks/fix_shapes.js`, `checks/body_bottom.js`, `board/tile_state.js`, `formats_io/otf/font_export.js`, `words/sets/mode.js` | vitest: o / B hole counts, o / n / v / A through B11 `measureLetter`, every follow (sketch and ink within 1 unit), outline o Match size widths, hash detach, Flat corners kept; `tests/sketch_build.verify.mjs` incl. File-menu export; B3 / B10 / B11 / B14 suites green | L |
+| **S4** Edit | Pick a piece and Delete it as one step (until S4 a wrong piece comes off with Undo only: say so at Gate 2b); drag rules keep a point's `onPiece` and its level / plumb pair together (S2 stores both on A's bar); Select on the sketch: window and Ctrl picks, move / scale picks, drag point, Bend (arcs keep bulge), grips, Let it flow, circle resize, add / delete point, Smooth / Corner, nudge; drag rules and the can't-keep-both toast; picked point / piece card with More | `sketch/select_tool.js`, `pick.js`, `rules.js`, `bend.js`, `grips.js`, `piece_card.js`; `letter/point_kind.js`, `letter/delete_toast.js` | vitest per drag rule and order, n arch with unequal stems, window picks; `tests/sketch_edit.verify.mjs` (K5, K6) | L |
 | **S5** Guide, parts and Compare | Guide letter behind the sketch; `letter_parts.js` for the Quick set; rules 23 and 26; Save gating and "still being drawn"; Parts (More ways and the missing-part button); Try it on neighbor text | `sketch/letter_parts.js`, `compare.js`, `parts.js`; `letter/guide_letter.js`, `coach/rules.js`, `board/tile_state.js`, Try it entry | vitest: every Quick-set template matches its own guide letter and flags one removed stroke; Compare sentences on bent fixtures; `tests/sketch_guide.verify.mjs` | M |
 | **S6** Brush bridge | Brush record follows every plan; Make it a sketch (with ink fallback); Bumpy check (B11) and its fixes; no Ready while bumpy; [Make it a sketch] on rule 15; Fewer points; Redraw this piece | `sketch/from_brush.js`, `thin.js`, `fewer_points.js`, `redraw.js`; `nib/stroke_record.js`, `checks/*`, `coach/rules.js` | vitest on the replay fixture: both strokes bumpy before, 4-8 points and not bumpy after; record follows Match size and Flip; `tests/sketch_brush.verify.mjs` (K8) | M |
 | **S7** Outline extras | Make it an outline (hidden centerline, Show toggle, rule 27), Inside loop (linked), per-piece switch under More, Close it, rules 21 and 22, canvas labels for pieces with no ink | `sketch/to_outline.js`, `inside_loop.js`, `close_it.js`, `loose.js` | vitest: o centerline to outline gives 2 loops, 1 hole; inside loop follows outer edits; `tests/sketch_outline.verify.mjs` (K7 short) | M |
@@ -1043,6 +1073,25 @@ counted; outline depth for o, B and an island; reconcile and hash; save / load r
 every field; migration of a hand-made v0. Every new file starts with the two-line header.
 
 **Not in S1:** any tool, any screen in Simple, clipper builds, follow plans.
+
+### S2 as built
+
+**Done 10/16/2026** (D-049): `src/anyink/sketch/tools/` (Line, Arc, Spline, Circle, Rectangle;
+chain, snap, arc_snap, snap_context, draw_layer, undo_gate, tool_route, install, on_its_letter,
+mode_watch, menu_open, tool_names) and `sketch/sketched.js`; the five tools draw, chain, snap,
+finish, take back, Undo and Redo in Simple with the flag on, each finished piece one step in
+`glyph.anyink.sketch`, kept through a .gs2 save and reopen. Flag `sketch` off. Real-Chrome checks:
+`npm run verify:sketch-draw`, `npm run verify:sketch-layer`.
+
+Beyond the plan, from the critics: a right press finishes a piece; the plain wheel zooms in
+Simple with the flag on (Brennan's call at Gate 2b); Esc closes an open menu before it touches
+the piece; Space-pan gives the tool back; a stray first click is let go of on leaving; a save
+and Use in Word finish the open piece; a sketched letter with no ink yet hides the empty-letter
+box, opens on Line and is never "empty, use the brush" (its "Empty" card state goes with S3's ink).
+
+Moved on: to S3, arc tops re-placed on a thickness change, the card state and the sketch-tool
+sentence on an empty letter, the snap band against real ink; to S4, pick and Delete a piece and
+keeping `onPiece` with level / plumb through drags; to S9, Help's list of the sketch keys.
 
 ---
 

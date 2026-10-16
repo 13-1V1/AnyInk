@@ -38,6 +38,7 @@ import asciiLogo from '../common/graphics/anyink-ascii-wordmark.txt?raw';
 import { closeAllInfoBubbles, closeAllOptionChoosers } from '../controls/dialogs/dialogs.js';
 import { GlyphrStudioProject } from '../project_data/glyphr_studio_project.js';
 import { closeAllNavMenus } from '../project_editor/navigator.js';
+import { endOpenPiece } from '../anyink/sketch/tools/undo_gate.js';
 import { ProjectEditor } from '../project_editor/project_editor.js';
 import { GlyphrStudioApp, showAppErrorPage, updateWindowUnloadEvent } from './app.js';
 
@@ -225,6 +226,9 @@ export function getCurrentProjectEditor() {
  */
 export function setCurrentProjectEditor(newEditor) {
 	const app = getGlyphrStudioApp();
+	// ANY-INK (S2): a sketch piece open in the font being left is finished there first
+	// (read the field: the getter would make an editor when there is none yet)
+	if (app._selectedProjectEditor && app._selectedProjectEditor !== newEditor) endOpenPiece();
 	app.selectedProjectEditor = newEditor;
 }
 

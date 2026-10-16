@@ -23,6 +23,9 @@
 	      { undo: { enabled, tip, change }, redo: { enabled, tip, change } }
 	      openItemID: the item open in a letter view, false with none open (the board); left
 	      out, no letter is named
+	      pieceOpen: a sketch piece is open (default: sketch/tools/undo_gate.js isPieceOpen).
+	      S2 (docs/SKETCH.md section 7): while it is, Undo is live with "Take back the last
+	      point" and Redo greyed with "Finish the line first"; neither names a step
 */
 import {
 	indexOfPairedPre,
@@ -31,6 +34,7 @@ import {
 	WHOLE_PROJECT_POST_TITLE,
 } from '../history/history_helpers.js';
 import { changeWords, letterToName } from '../history/undo_toast.js';
+import { isPieceOpen } from '../sketch/tools/undo_gate.js';
 import { word } from '../words/words.js';
 
 /**
@@ -105,11 +109,18 @@ function tipFor(kind, step, change, project, openItemID) {
 /**
  * @param {Object} history - History (queue, redoQueue)
  * @param {Object} [project]
- * @param {{openItemID?: String | false}} [open] - the item open in a letter view (false: none)
+ * @param {{openItemID?: String | false, pieceOpen?: Boolean}} [open] - the item open in a letter
+ *   view (false: none); whether a sketch piece is open (default: the Undo gate says)
  * @returns {{undo: {enabled: Boolean, tip: String, change: String},
  *   redo: {enabled: Boolean, tip: String, change: String}}}
  */
-export function undoButtonsState(history, project, { openItemID } = {}) {
+export function undoButtonsState(history, project, { openItemID, pieceOpen = isPieceOpen() } = {}) {
+	if (pieceOpen) {
+		return {
+			undo: { enabled: true, change: '', tip: word('sketch.undo.takeBack') },
+			redo: { enabled: false, change: '', tip: word('sketch.undo.finishFirst') },
+		};
+	}
 	const undoStep = nextUndoStep(history?.queue || []);
 	const redoStep = nextRedoStep(history?.redoQueue || []);
 	const undoChange = undoStep ? stepChange(undoStep, project) : '';

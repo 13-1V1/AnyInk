@@ -4,6 +4,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 import { drawAutoTracePreview } from '../anyink/autotrace/preview_draw.js';
 import { drawKernPairView } from '../anyink/kerning/pair_view.js';
 import { onDisplayScaleChange } from '../anyink/metrics/display_scale.js';
@@ -18,6 +20,7 @@ import { drawGuideLetter } from '../anyink/letter/guide_letter.js';
 import { drawSimpleGuideLines, letterCanvasOn } from '../anyink/letter/guide_lines.js';
 import { drawNeighbors } from '../anyink/letter/neighbors.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
+import { drawSketchLayer } from '../anyink/sketch/tools/draw_layer.js';
 import { labelCase, word } from '../anyink/words/words.js';
 import { getCurrentProject, getCurrentProjectEditor } from '../app/main.js';
 import { transparencyToAlpha } from '../common/colors.js';
@@ -332,6 +335,18 @@ export class EditCanvas extends HTMLElement {
 
 			// ANY-INK (M8): auto-trace preview (only while a session has a result for this item)
 			drawAutoTracePreview(ctx, view, currentItem, editor);
+
+			// ANY-INK (S2, SKETCH.md 2): the sketch, its built centerline, the piece being drawn,
+			// snap hints and the readout at the pointer (only while 'sketch' is on; with another
+			// tool picked, the stored pieces read-only)
+			// (a Space-pan mid-piece keeps the piece and its hints showing: the tool it gives back)
+			drawSketchLayer(ctx, view, currentItem, editor, {
+				pointer: eventHandlerData.isMouseOverCanvas ? eventHandlerData.mousePosition : null,
+				tool:
+					editor.selectedTool === 'pan' && eventHandlerData.lastTool
+						? eventHandlerData.lastTool
+						: editor.selectedTool,
+			});
 
 			// Highlighted points
 			drawAllHighlightedPoints(ctx);
