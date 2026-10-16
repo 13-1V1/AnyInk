@@ -61,6 +61,12 @@
 	  inkLines     true / false: force the ink lines on or off (default: on while a Centerline
 	               piece is open, or when the hints carry them)
 	  thickness    the thickness the ink lines use (default the sketch's, then the font's)
+	S4, Select on a sketch (select_tool.js drawState; tool_route.js sketchSelectApplies):
+	  box          { x0, y0, x1, y1, crossing }: the window being dragged (crossing: dashed)
+	  handles      [{ x, y }]: the picked group's box corners, small purple squares
+	  grips        grips.js gripsFor: the picked point's handles, circle / diamond / arrow, green
+	  inkPreview   { cover, ink }: outlines (font units) while a drag is under way: the ink as it
+	               is, painted with the paper, then the ink as the drag makes it
 
 	  sketchLayerShows(editor, { isOn })            true while a sketch tool draws the full layer
 	  storedSketchShows(editor, item, { isOn })     true while another tool shows the stored
@@ -86,8 +92,9 @@ import { token, withAlpha } from '../../theme/theme.js';
 import { hasWord, word } from '../../words/words.js';
 import { pieceSkeleton } from '../curves.js';
 import { inkLines } from '../edge_rule.js';
+import { drawPreview } from '../../nib/preview.js';
 import { isJoined, piecePointIds, sketchOf, sketchThickness } from '../model.js';
-import { sketchToolHandler } from './tool_route.js';
+import { sketchSelectApplies, sketchSelectHandler, sketchToolHandler } from './tool_route.js';
 import { isSketchTool } from './tool_names.js';
 
 /** Screen pixels */
@@ -103,6 +110,8 @@ export const STYLE = Object.freeze({
 	dash: Object.freeze([6, 4]),
 	dots: Object.freeze([2, 3]),
 	readout: Object.freeze({ x: 14, y: 22 }),
+	handle: 7,
+	grip: 9,
 	tag: Object.freeze({ x: 14, y: -10 }),
 	font: '11px "Segoe UI", Tahoma, Verdana, sans-serif',
 });
@@ -481,6 +490,10 @@ export function sketchPicture(item, project, state = {}) {
 	// bends") keep the size beside them
 	if (state.readout?.key && size && readoutWordsNow) readoutWordsNow = `${size}, ${readoutWordsNow}`;
 	return {
+		box: state.box || null,
+		handles: Array.isArray(state.handles) ? state.handles : null,
+		grips: state.grips || null,
+		ink: state.inkPreview || null,
 		inkLines: lines,
 		pieces,
 		open,
@@ -612,6 +625,13 @@ export function paintPicture(
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
 
+	// S4: the ink while a drag is under way (the old ink covered with the paper first)
+	if (picture.ink) {
+		drawPreview(ctx, picture.ink.cover || [], view, token('--canvas-bg'));
+		drawPreview(ctx, picture.ink.ink || [], view, token('--canvas-ink'));
+		marks += 1;
+	}
+
 	// Ink lines: faint, dashed, the full width
 	picture.inkLines.forEach((line) => {
 		const y = view.dy - line.y * view.dz;
@@ -738,7 +758,90 @@ export function paintPicture(
 		marks += 1;
 	}
 
+	marks += paintSelect(ctx, picture, at, c);
 	ctx.restore();
+	return marks;
+}
+
+/**
+ * S4: Select's window, the group's corner handles and the picked point's grips.
+ * @returns {Number} marks
+ */
+function paintSelect(ctx, picture, at, c) {
+	let marks = 0;
+	if (picture.box) {
+		const [x0, y0] = at([picture.box.x0, picture.box.y0]);
+		const [x1, y1] = at([picture.box.x1, picture.box.y1]);
+		ctx.beginPath();
+		ctx.setLineDash(picture.box.crossing ? [...STYLE.dash] : []);
+		ctx.lineWidth = 1;
+		ctx.fillStyle = withAlpha(c.structure, 0.08);
+		ctx.strokeStyle = c.structure;
+		ctx.rect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+		ctx.fill();
+		ctx.stroke();
+		ctx.setLineDash([]);
+		marks += 1;
+	}
+	(picture.handles || []).forEach((handle) => {
+		const [x, y] = at([handle.x, handle.y]);
+		const half = STYLE.handle / 2;
+		ctx.beginPath();
+		ctx.rect(x - half, y - half, STYLE.handle, STYLE.handle);
+		ctx.fillStyle = c.structure;
+		ctx.fill();
+		marks += 1;
+	});
+	const grips = picture.grips;
+	if (grips?.at) {
+		const [px, py] = at([grips.at.x, grips.at.y]);
+		ctx.lineWidth = 1;
+		ctx.strokeStyle = c.touch;
+		[grips.out, grips.back].forEach((end) => {
+			if (!end) return;
+			const [x, y] = at([end.x, end.y]);
+			ctx.beginPath();
+			ctx.moveTo(px, py);
+			ctx.lineTo(x, y);
+			ctx.stroke();
+			marks += 1;
+		});
+		const r = STYLE.grip / 2;
+		if (grips.out) {
+			const [x, y] = at([grips.out.x, grips.out.y]);
+			ctx.beginPath();
+			ctx.arc(x, y, r, 0, Math.PI * 2);
+			ctx.fillStyle = c.hollow;
+			ctx.fill();
+			ctx.lineWidth = 1.5;
+			ctx.stroke();
+			marks += 1;
+		}
+		if (grips.diamond) {
+			const [x, y] = at([grips.diamond.x, grips.diamond.y]);
+			ctx.beginPath();
+			ctx.moveTo(x, y - r);
+			ctx.lineTo(x + r, y);
+			ctx.lineTo(x, y + r);
+			ctx.lineTo(x - r, y);
+			ctx.closePath();
+			ctx.fillStyle = c.touch;
+			ctx.fill();
+			marks += 1;
+		}
+		if (grips.back) {
+			const [x, y] = at([grips.back.x, grips.back.y]);
+			const angle = Math.atan2(y - py, x - px);
+			ctx.beginPath();
+			ctx.moveTo(x + Math.cos(angle) * r * 1.4, y + Math.sin(angle) * r * 1.4);
+			ctx.lineTo(x + Math.cos(angle + 2.4) * r, y + Math.sin(angle + 2.4) * r);
+			ctx.lineTo(x + Math.cos(angle - 2.4) * r, y + Math.sin(angle - 2.4) * r);
+			ctx.closePath();
+			ctx.fillStyle = c.touch;
+			ctx.fill();
+			marks += 1;
+		}
+	}
 	return marks;
 }
 
@@ -780,6 +883,15 @@ export function drawSketchLayer(
 	{ isOn = isFeatureOn, state, pointer, tool = editor?.selectedTool } = {}
 ) {
 	if (!item) return null;
+	// S4: Select on a sketch draws everything it picks and drags
+	if (state === undefined && tool === editor?.selectedTool && sketchSelectApplies(editor, { isOn })) {
+		const drawn = toolState(sketchSelectHandler(), item);
+		if (drawn) {
+			const picture = sketchPicture(item, editor.project, { ...drawn, tool });
+			paintPicture(ctx, view, picture);
+			return picture;
+		}
+	}
 	if (storedSketchShows(editor, item, { isOn, tool })) {
 		// another tool: the stored pieces, read-only (no dots, hints or readout)
 		const picture = { ...sketchPicture(item, editor.project, {}), points: [] };

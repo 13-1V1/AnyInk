@@ -10,7 +10,12 @@ import { releaseFocus } from '../anyink/controls/focus_release.js';
 import { handleGuidesLayerEvent } from '../anyink/metrics/guides_layer.js';
 import { isFeatureOn } from '../anyink/mode/features.js';
 import { isSimpleMode } from '../anyink/mode/mode.js';
-import { activeSketchTool, sketchKey, sketchPointer } from '../anyink/sketch/tools/tool_route.js';
+import {
+	activeSketchTool,
+	sketchKey,
+	sketchPointer,
+	sketchSelectPointer,
+} from '../anyink/sketch/tools/tool_route.js';
 import { handleTraceLayerEvent } from '../anyink/trace/trace_layer.js';
 import { getCurrentProjectEditor } from '../app/main.js';
 import { closeAllNotations, closeEveryTypeOfDialog } from '../controls/dialogs/dialogs.js';
@@ -82,6 +87,19 @@ export function handleMouseEvents(event) {
 			togglePanOff(event);
 		}
 		// return;
+	}
+
+	// ANY-INK (S4, SKETCH.md 5): Select on a live sketch (Simple) picks and drags the sketch, never
+	// the built ink; a press on nothing of the sketch tries the guides layer, then starts a window
+	if (
+		sketchSelectPointer(SKETCH_TYPES[event.type], event, {
+			editor,
+			at: ehd.mousePosition,
+			guides: handleGuidesLayerEvent,
+			cursor: setCursor,
+		})
+	) {
+		return;
 	}
 
 	// ANY-INK (S2, SKETCH.md 2): a picked sketch tool takes the left press and every move before

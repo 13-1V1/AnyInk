@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B7 tool column (UX-BEGINNER.md 4.3 Tools, 2.4 D, section 10 B7 "tools.js: word labels, the
 // Point pen caption, Fine-tune grouping"): in the Simple letter view each tool shows its icon,
 // its house word under it and its key in small print; the Point pen says "click to place points";
@@ -17,6 +19,12 @@ import { isVisible, sampleEditor } from '../../mode/tests/controls_probe.js';
 import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { word } from '../../words/words.js';
 import { resetLetterViewForTests, setFineTuneOpen } from '../view_switches.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 const FINE_TUNE = ['pathEdit', 'newPath', 'newRectangle', 'newOval'];
 

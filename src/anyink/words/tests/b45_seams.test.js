@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration: the seams between the modules the five tracks built, each checked across
 	two or more of them (UX-BEGINNER.md 2.2, 2.3, 4.0, 6.2, 7.6):
@@ -33,6 +35,7 @@ import { findBanned, scanTexts } from '../banned.js';
 import { historyText, isHiddenHistoryTitle } from '../history_text.js';
 import { hasWord, wordEntry, wordKeys, word } from '../words.js';
 import { expectNoBanned } from './banned_scan.js';
+import { toolWordKey } from '../../sketch/tools/tool_names.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = join(here, '../../..');
@@ -139,12 +142,13 @@ describe('mode -> keys -> words', () => {
 		expect(rows.length).toBeGreaterThanOrEqual(5);
 		rows.forEach(({ tool, keys }) => {
 			expect(isShown('tool', tool), tool).toBe(true);
-			expect(hasWord(`tool.${tool}`), tool).toBe(true);
+			// S4 turned 'sketch' on: a sketch tool's name is its own words entry (toolWordKey)
+			expect(hasWord(toolWordKey(tool)), tool).toBe(true);
 			if (mode === 'simple') {
 				const { key, vars } = toolSwitchToast(tool, keys[0]);
 				expect(findBanned(word(key, vars))).toEqual([]);
 				expect(findBanned(toolTitle(tool, 'upstream path'))).toEqual([]);
-				expect(toolTitle(tool, 'upstream path')).toBe(`${word(`tool.${tool}`)} (${keys[0]})`);
+				expect(toolTitle(tool, 'upstream path')).toBe(`${word(toolWordKey(tool))} (${keys[0]})`);
 			}
 		});
 		setModeForTests('all');

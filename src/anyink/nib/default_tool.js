@@ -38,9 +38,10 @@
 	                                        on, the Line) is picked only because the open letter
 	                                        opened with it
 	  OPENING_TOOLS                         ['nib', 'sketchLine']
-	S3 fix pass: a letter with a live sketch (not set aside) opens on the Line even once it has
-	built ink, until S4 brings Select on the sketch: Select on built shapes sets the sketch aside.
-	With 'sketch' off, nothing here changes.
+	S3 fix pass: a letter with a live sketch (not set aside) opened on the Line even once it had
+	built ink, because Select on built shapes set the sketch aside. S4 lifts it: Select on a live
+	sketch picks and drags the sketch (sketch/select_tool.js), so a sketched letter with ink opens
+	on Select like any letter with ink. With 'sketch' off, nothing here changes.
 */
 import { isEmptyLetter } from '../board/letter_set.js';
 import { isFeatureOn } from '../mode/features.js';
@@ -56,10 +57,8 @@ export function toolForOpenedLetter(item, { isOn = isFeatureOn, open = null } = 
 	const sketch = isOn('sketch') === true;
 	if (!isOn('brush') && !sketch) return null;
 	const empty = isEmptyLetter(item, { open });
-	// S3 fix pass: a letter whose sketch is live opens on the Line even with ink. Select on its
-	// built shapes moves them behind the sketch's back and sets the sketch aside (found in Chrome:
-	// one drag of Capital B's bowl); S4's Select on the sketch lifts this
-	if (item && !empty && hasSketchPieces(item, { isOn })) return 'sketchLine';
+	// S4: a sketched letter with ink opens on Select, which edits its sketch (S3 opened it on
+	// the Line: Select on its built shapes set the sketch aside)
 	if (!item || !empty) return item ? 'resize' : sketch ? 'sketchLine' : 'nib';
 	// S3: with 'sketch' on every empty letter opens on the Line (the door's [Sketch it] tool);
 	// S2 finalize: a letter he sketched (no ink yet) opens on it too, to go on sketching

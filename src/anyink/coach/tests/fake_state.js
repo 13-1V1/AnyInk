@@ -8,9 +8,9 @@
 	B6 + B7 fix pass: drawing (a number of points) puts a Point pen shape, still open, in the
 	open letter (it has ink and is not ready); tool is the picked tool's internal name.
 	  ALL_FLAGS                    every feature flag on
-	  SHIPPED_FLAGS                every flag on but the ones still being built ('sketch' until
-	                               S9): fakeState's default (S3 integration: the sketch words now
-	                               exist, so the B-series rules are read as they ship)
+	  SHIPPED_FLAGS                every flag on but 'sketch': fakeState's default, the B-series
+	                               rules as B16 shipped them (S3 integration). S4 turned 'sketch'
+	                               on in the app; the sketch rules' tests pass ALL_FLAGS
 	  flags(...names)              only these on (plus 'coach')
 */
 import { FEATURE_NAMES } from '../../mode/features.js';

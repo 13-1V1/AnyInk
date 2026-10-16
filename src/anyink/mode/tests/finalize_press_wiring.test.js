@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 finalize, through the real key and mouse handlers (edit_canvas/events_keyboard.js,
 // events_mouse.js):
 //   - a strip toggle (a checkbox) with focus no longer swallows the app's keys: Ctrl+Z undoes
@@ -17,6 +19,13 @@ import { handleMouseEvents } from '../../../edit_canvas/events_mouse.js';
 import { resetToastsForTests, toast } from '../../toast/toast.js';
 import { setModeForTests } from '../mode.js';
 import { sampleEditor } from './controls_probe.js';
+import { setFeaturesForTests } from '../../mode/features.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 let editor;
 let warn;

@@ -33,6 +33,10 @@
 	  circleCubics(circle, points)      the circle or oval through points (in their order), or
 	                                    the whole oval from its right side counterclockwise
 	  endDirection(cubic), startDirection(cubic)   degrees
+	  piecePartCubics(piece, sketch)    S4: the same cubics part by part, [{ part, a, b, cubics }]
+	                                    (part: index into piece.parts; a / b: the point ids the
+	                                    cubics run between). A circle, a let-go oval and a dot are
+	                                    one entry for part 0. Select's picks and Bend read it.
 */
 import { arcCubics, arcDirs, curveCubic, tangentBulge } from './arc.js';
 import { hobby } from './hobby.js';
@@ -296,7 +300,32 @@ export function pieceSkeleton(piece, sketch) {
 		const p = xy(pts[ids[0]]);
 		return [[p, [...p], [...p], [...p]]];
 	}
-	return buildSegments(segs, pts, !!piece.closed);
+	return buildSegments(segs, pts, !!piece.closed).flat();
+}
+
+/**
+ * S4: pieceSkeleton part by part.
+ * @param {Object} piece
+ * @param {Object} sketch - the sketch, or its points map
+ * @returns {Array<{part: Number, a: String | null, b: String | null, cubics: Array}>}
+ */
+export function piecePartCubics(piece, sketch) {
+	const pts = pointsMap(sketch);
+	if (!piece) return [];
+	const parts = piece.parts || [];
+	const whole = () => {
+		const cubics = pieceSkeleton(piece, sketch);
+		return cubics.length ? [{ part: 0, a: null, b: null, cubics }] : [];
+	};
+	if (piece.circle) return whole();
+	if (piece.closed && parts.length === 1 && parts[0]?.type === 'spline') {
+		const ring = loopIds(parts[0], pts, true);
+		if (ellipseRing(ring.slice(0, -1), pts)) return whole();
+	}
+	const segs = segmentsOf(piece, pts);
+	if (!segs.length) return whole();
+	const out = buildSegments(segs, pts, !!piece.closed);
+	return segs.map((seg, i) => ({ part: seg.part, a: seg.a, b: seg.b, cubics: out[i] || [] }));
 }
 
 /**
@@ -396,7 +425,7 @@ function buildSegments(segs, pts, closedFlag) {
 			if (kind.every((k) => k === 'hobby')) {
 				const ring = [];
 				for (let i = 0; i < n; i++) ring.push(hobbyPoint(pts[node(i)], P(i), null, false));
-				return hobby(ring, { cyclic: true });
+				return hobby(ring, { cyclic: true }).map((cubic) => [cubic]);
 			}
 			// a loop of splines and tangent arcs only: the first arc in drawing order keeps its
 			// stored bulge, the rest follow it tangent, and the part that closes the loop back
@@ -478,7 +507,7 @@ function buildSegments(segs, pts, closedFlag) {
 			j = k;
 		}
 	}
-	return out.flat();
+	return out;
 }
 
 /**

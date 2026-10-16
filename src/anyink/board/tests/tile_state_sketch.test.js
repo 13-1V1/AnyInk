@@ -12,6 +12,7 @@ import { GlyphTile } from '../../../controls/glyph-tile/glyph_tile.js';
 import { Glyph } from '../../../project_data/glyph.js';
 import { GlyphrStudioProject } from '../../../project_data/glyphr_studio_project.js';
 import { Path } from '../../../project_data/path.js';
+import { setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { addPiece, addPoint, newSketch, setSketch } from '../../sketch/model.js';
 import { tagBuilt } from '../../sketch/sketch_record.js';
@@ -50,7 +51,10 @@ function sketchedN({ built = true, trace = false } = {}) {
 }
 
 describe("a sketched letter's tile", () => {
+	// S4 turned 'sketch' on: a stem alone is then plainly unfinished (sketch_unfinished.js, its own
+	// tests); the ink rule is read here with the flag off, as written
 	it('built ink: Ready, by the one ink rule', () => {
+		setFeaturesForTests({ sketch: false });
 		setModeForTests('simple');
 		const { project, glyph } = sketchedN();
 		expect(hasInk(glyph)).toBe(true);
@@ -68,6 +72,7 @@ describe("a sketched letter's tile", () => {
 	});
 
 	it('built over a photo: drawn, never "from a photo"', () => {
+		setFeaturesForTests({ sketch: false });
 		setModeForTests('simple');
 		const { project } = sketchedN({ trace: true });
 		const info = tileStateOf(project, 'n', { checksOn: false });

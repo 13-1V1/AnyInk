@@ -178,7 +178,7 @@ const RULES = [
 	...SKETCH_KEYS.map(([tool, keys]) => toolRule(tool, keys, SIMPLE_SKETCH)),
 	toolRule('resize', ['v', 'a'], { modes: ['all'] }),
 	toolRule('resize', ['v', 'a'], SIMPLE_NO_SKETCH),
-	// E is Select on the sketch (S4 picks the sketch's own points; until then plain Select)
+	// E is Select on the sketch (S4: on a sketched letter it picks the sketch's own points)
 	toolRule('resize', ['v', 'e'], SIMPLE_SKETCH),
 	toolRule('pathEdit', ['e'], { modes: ['all'] }),
 	toolRule('pathEdit', ['e'], SIMPLE_NO_SKETCH),

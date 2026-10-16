@@ -66,9 +66,15 @@
 	  Built shapes   (sketch_record.js isBuiltShape) are like brush strokes here: never Merged,
 	                 no Solid / Hole switch (the sketch says what is a hole)
 	  Clear letter   clears the sketch too, in the same step
-	  One slider     (S3 fix) a sketched letter has no [Draw over it] (S4 brings [Edit sketch]),
-	                 and the Brush section's slider reads "Size of new Brush strokes" beside
-	                 Thickness, so it never looks like a second thickness for the letter
+	  One slider     (S3 fix) a sketched letter has no [Draw over it], and the Brush section's
+	                 slider reads "Size of new Brush strokes" beside Thickness, so it never looks
+	                 like a second thickness for the letter
+	S4 (docs/SKETCH.md sections 5 and 7; sketch/piece_card.js):
+	  Sketch piece   right under Sketch while Select on the sketch has something picked: a
+	                 point's [Smooth] [Corner] [Delete] ([Let it flow] while locked), a piece's
+	                 [Delete], More folded under them; the card follows the pick ('sketchPick')
+	  Edit sketch    a sketched letter with ink offers [Edit sketch] (Select on the sketch)
+	                 while another tool is picked
 	Every change is one Undo step with a plain title (2.2): Merge, Flip, Clear letter and Back to
 	automatic name the letter (7.3); Solid / Hole and Smooth / Corner write the letter-tools
 	track's titles. Clear letter says so in a toast with [Undo] (7.3: destructive actions use an
@@ -86,9 +92,9 @@
 
 	Pure:
 	  letterCardState(editor)      what the card shows, read from the editor
-	  cardSections(state, isOn)    ['header', 'sketch'?, 'look'?, 'main'?, 'photo'? | 'brush'?,
-	                               'fineTune'?]
-	  mainButtons(state, isOn)     ['traceAgain'?, 'drawOver'?]
+	  cardSections(state, isOn)    ['header', 'sketch'?, 'sketchPiece'?, 'look'?, 'main'?,
+	                               'photo'? | 'brush'?, 'fineTune'?]
+	  mainButtons(state, isOn)     ['traceAgain'?, 'drawOver'?, 'editSketch'?]
 	  fineTuneParts(state)         ['photo'?, 'sketch'?, 'shapes'?, 'spacing', 'tail'?, 'point'?,
 	                               'moreTools'] (shapes only once there are shapes)
 	  shapeOptions(state)          ['merge'?, 'flipLeftRight', 'flipUpsideDown', 'clear']
@@ -143,6 +149,7 @@ import {
 	sketchCardState,
 } from '../sketch/card_section.js';
 import { setSketch } from '../sketch/model.js';
+import { makeSketchPieceSection, sketchPieceState } from '../sketch/piece_card.js';
 import { isBuiltShape } from '../sketch/sketch_record.js';
 
 export const CARD_SUBSCRIBER = 'anyink.letter.card';
@@ -159,6 +166,8 @@ const CARD_TOPICS = [
 	'traceLayer',
 	// B10 + B11 integration: a font-file problem is "Needs a look" too, and comes 2 s later
 	'fontCheck',
+	// S4: Select on a sketch picked something else
+	'sketchPick',
 ];
 
 /** The drawing tools whose picked point gets This point */
@@ -166,6 +175,9 @@ const POINT_TOOL = 'pathEdit';
 
 /** The Brush (B8): its section shows while it is picked */
 const BRUSH_TOOL = 'nib';
+
+/** Select (S4: on a sketched letter, Select on the sketch) */
+const SELECT_TOOL = 'resize';
 
 /** Shape options: closed by default, as he left it for the session */
 let shapeOptionsOpen = false;
@@ -253,7 +265,19 @@ export function letterCardState(editor = getCurrentProjectEditor()) {
 		shapeOptionsOpen,
 		// S3: the sketch's parts of the card (Simple with 'sketch' on), else null
 		sketch: sketchStateOf(editor),
+		// S4: what Select on the sketch has picked (sketch/piece_card.js), else null
+		sketchPiece: sketchPieceOf(editor),
 	};
+}
+
+/** S4: sketch/piece_card.js's state, null when it can't be read */
+function sketchPieceOf(editor) {
+	try {
+		return sketchPieceState(editor);
+	} catch (error) {
+		console.warn('ANY-INK letter card: the sketch pick could not be read', error);
+		return null;
+	}
 }
 
 /** S3: sketch/card_section.js's state, null when it can't be read */
@@ -311,6 +335,8 @@ export function cardSections(state, isOn = isFeatureOn) {
 	const sections = ['header'];
 	// S3: Thickness alone at the top, right under the header (SKETCH.md section 5)
 	if (isOn('sketch') && showsSketchSection(state.sketch)) sections.push('sketch');
+	// S4: the picked point or piece of the sketch, right under it
+	if (isOn('sketch') && state.sketchPiece) sections.push('sketchPiece');
 	// B10 + B11 integration: [Looks fine to me] and the soft notes, never beside the photo
 	// card's step C (its [Use it] is about the new trace, not the ink he has now)
 	if (!state.photoCardOpen && (state.look || state.notes?.length)) sections.push('look');
@@ -335,9 +361,11 @@ export function mainButtons(state, isOn = isFeatureOn) {
 	const buttons = [];
 	if (isOn('photo') && state.hasPhoto) buttons.push('traceAgain');
 	// B8 + B9 integration: [Draw over it] picks the Brush, so it goes while the Brush is picked.
-	// S3 fix: never on a sketched letter (freehand ink over a sketch; S4 brings [Edit sketch])
+	// S3 fix: never on a sketched letter (freehand ink over a sketch)
 	const sketched = isOn('sketch') && !!state.sketch?.pieces;
 	if (isOn('brush') && state.tool !== BRUSH_TOOL && !sketched) buttons.push('drawOver');
+	// S4 (SKETCH.md section 7): [Edit sketch] picks Select on the sketch
+	if (sketched && state.tool !== SELECT_TOOL) buttons.push('editSketch');
 	return buttons;
 }
 
@@ -566,6 +594,7 @@ function render(view) {
 		photo: () => makePhotoSection(),
 		brush: () => brushSectionFor(state),
 		sketch: () => makeSketchSection(state.sketch, editor),
+		sketchPiece: () => makeSketchPieceSection(state.sketchPiece, editor),
 		fineTune: () => makeFineTune(state, editor, view),
 	};
 	cardSections(state).forEach((section) => {
@@ -677,8 +706,13 @@ function makeMainButtons(state) {
 				new CustomEvent(TRACE_AGAIN_EVENT, { detail: { itemId: state.itemId } })
 			),
 		drawOver: () => selectTool('nib'),
+		editSketch: () => selectTool(SELECT_TOOL),
 	};
-	const keys = { traceAgain: 'letter.action.traceAgain', drawOver: 'letter.action.drawOver' };
+	const keys = {
+		traceAgain: 'letter.action.traceAgain',
+		drawOver: 'letter.action.drawOver',
+		editSketch: 'sketch.card.editSketch',
+	};
 	mainButtons(state).forEach((name) => {
 		row.appendChild(actionButton(name, keys[name], actions[name]));
 	});

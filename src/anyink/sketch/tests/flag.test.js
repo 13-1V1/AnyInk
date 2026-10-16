@@ -1,7 +1,8 @@
 // Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
-// S1 (docs/SKETCH.md section 11 step 13): the 'sketch' flag exists, names S1, and is off until S9
-// turns it on. Written to fail first (before features.js had the flag: 3 failed).
+// S1 (docs/SKETCH.md section 11 step 13): the 'sketch' flag exists, names S1. S4 turned it on
+// (10/16/2026, ahead of S9) for Gate 2b; a test can still turn it off. Written to fail first
+// (before features.js had the flag: 3 failed).
 import { describe, expect, it } from 'vitest';
 import {
 	FEATURE_LIST,
@@ -22,15 +23,15 @@ describe("the 'sketch' flag", () => {
 		});
 	});
 
-	it('is off by default', () => {
-		expect(FEATURES.sketch).toBe(false);
-		expect(isFeatureOn('sketch')).toBe(false);
+	it('is on as shipped since S4', () => {
+		expect(FEATURES.sketch).toBe(true);
+		expect(isFeatureOn('sketch')).toBe(true);
 	});
 
-	it('a test can turn it on, and the reset turns it off again', () => {
-		setFeaturesForTests({ sketch: true });
-		expect(isFeatureOn('sketch')).toBe(true);
-		resetFeaturesForTests();
+	it('a test can turn it off, and the reset turns it on again', () => {
+		setFeaturesForTests({ sketch: false });
 		expect(isFeatureOn('sketch')).toBe(false);
+		resetFeaturesForTests();
+		expect(isFeatureOn('sketch')).toBe(true);
 	});
 });

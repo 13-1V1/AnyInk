@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 empty-letter overlay (UX-BEGINNER.md 4.3 "Empty letter"): one box in the middle of an empty
 	letter's canvas says the letter is empty and holds the screen's one green button (principle 1;
@@ -22,6 +24,12 @@ import { ROW } from '../../photo/tests/photo_dialog_fixture.js';
 import { makeEmptyOverlay, overlayButtons, overlayShows } from '../empty_overlay.js';
 import { makeLetterCard, resetLetterCardForTests } from '../letter_card.js';
 import { isFineTuneOpen, resetLetterViewForTests } from '../view_switches.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 const square = () =>
 	new Path({

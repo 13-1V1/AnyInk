@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B4 + B5 fix track (UX-BEGINNER.md 6.2 "Keys", 7.6, 2.4 C, 4.10), the key map as data:
 //   - Ctrl+R (round every point) is off in Simple: tidy points is automatic (2.4 C) and Ctrl+R is
 //     not one of Simple's keys (6.2), so Chrome's own reload key reaches Chrome; All tools keeps it
@@ -9,12 +11,18 @@
 //     M), so one tool never seems to have two keys
 //   - Ctrl+E in Simple makes the .otf, the one font file row Simple's File menu shows, whatever
 //     format the font was imported from; All tools keeps the imported format
-import { afterEach, describe, expect, it } from 'vitest';
-import { flagsOn, resetFeaturesForTests } from '../features.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { flagsOn, resetFeaturesForTests, setFeaturesForTests } from '../features.js';
 import { fontFileKeyFormat, keyAction, keysShown, toolKey, toolSwitchToast } from '../keys.js';
 import { setModeForTests } from '../mode.js';
 import { toolTitle } from '../simple_labels.js';
 import { word } from '../../words/words.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 afterEach(() => {
 	setModeForTests('all');

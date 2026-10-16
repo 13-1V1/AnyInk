@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 wiring (UX-BEGINNER.md 4.3, 6.3): the real Characters page drawn by the real Navigator.
 	In Simple with the letter view, the left area's letter and panel buttons give way to the letter
@@ -23,6 +25,12 @@ import { scanSimpleScreen } from '../../words/tests/banned_scan.js';
 import { word } from '../../words/words.js';
 import { resetLetterCardForTests } from '../letter_card.js';
 import { resetLetterViewForTests, setFineTuneOpen } from '../view_switches.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = (path) => readFileSync(join(here, '../../..', path), 'utf8');

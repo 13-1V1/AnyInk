@@ -39,7 +39,8 @@ afterEach(() => {
 
 describe('the guide lines unlocked on an empty letter', () => {
 	it('the Brush the letter opened with gives way to Select', () => {
-		expect(applyOpenTool(editor)).toBe('nib');
+		// S4: with 'sketch' on the letter opens on the Line, which gives way the same
+		expect(['nib', 'sketchLine']).toContain(applyOpenTool(editor));
 		expect(startMovingLines({ editor })).toBe(true);
 		expect(editor.selectedTool).toBe('resize');
 	});
@@ -50,6 +51,6 @@ describe('the guide lines unlocked on an empty letter', () => {
 		editor.selectedGlyph.shapes = [];
 		expect(applyOpenTool(editor)).toBe('resize');
 		stopMovingLines();
-		expect(applyOpenTool(editor)).toBe('nib');
+		expect(['nib', 'sketchLine']).toContain(applyOpenTool(editor));
 	});
 });

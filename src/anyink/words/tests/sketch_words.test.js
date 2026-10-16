@@ -24,6 +24,8 @@ import { scanSimpleScreen } from './banned_scan.js';
 
 /** Flags on as shipped, plus 'sketch' (a flag the S1 flag track adds; off until S9). */
 const withSketch = (flag) => flag === 'sketch' || isFeatureOn(flag);
+/** S4: the flag is on as shipped; Help with it off still shows none of its words */
+const withoutSketch = (flag) => flag !== 'sketch' && isFeatureOn(flag);
 const sketchKeys = () => wordKeys().filter((key) => wordEntry(key).feature === 'sketch');
 
 /** Real values for every placeholder the sketch's words use. */
@@ -329,7 +331,7 @@ describe('the sketch glossary lines (Help shows no entry whose flag is off)', ()
 	});
 
 	it('are left out while the sketch flag is off, and all there when it is on', () => {
-		const off = glossary().map((entry) => entry.key);
+		const off = glossary(withoutSketch).map((entry) => entry.key);
 		SKETCH_GLOSSARY.forEach((key) => expect(off).not.toContain(key));
 		const on = glossary(withSketch).map((entry) => entry.key);
 		SKETCH_GLOSSARY.forEach((key) => expect(on).toContain(key));
@@ -370,7 +372,7 @@ describe('Help with and without the sketch', () => {
 
 	it('shows no sketch word while the flag is off', () => {
 		setModeForTests('simple');
-		const shown = terms(help(isFeatureOn));
+		const shown = terms(help(withoutSketch));
 		SKETCH_GLOSSARY.forEach((key) => expect(shown).not.toContain(key));
 	});
 

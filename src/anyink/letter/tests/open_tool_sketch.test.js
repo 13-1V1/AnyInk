@@ -133,10 +133,10 @@ describe('the letter view opens an empty letter on the Line', () => {
 	});
 });
 
-describe('S3 fix pass: a sketched letter with ink opens on the Line, never Select', () => {
-	// Found in Chrome: Capital B, sketched, opened on Select; one drag of a bowl moved a built
-	// shape, the sketch was set aside and the Thickness slider left the card. Until S4's Select on
-	// the sketch, a sketched letter opens on the Line (written to fail first).
+describe('S4: a sketched letter with ink opens on Select, which edits its sketch', () => {
+	// S3 fix pass found in Chrome: Capital B, sketched, opened on Select; one drag of a bowl moved a
+	// built shape and the sketch was set aside, so S3 opened it on the Line. S4's Select on the
+	// sketch (sketch/select_tool.js) never touches the built shapes, so the S3 rule is lifted.
 	function sketchedB({ aside = false } = {}) {
 		open();
 		const sketch = newSketch({ thickness: 99 });
@@ -151,17 +151,18 @@ describe('S3 fix pass: a sketched letter with ink opens on the Line, never Selec
 		return editor;
 	}
 
-	it('toolForOpenedLetter: the Line for a sketched letter with built ink', () => {
+	it('toolForOpenedLetter: Select for a sketched letter with built ink', () => {
 		sketchedB();
 		expect(toolForOpenedLetter(editor.selectedGlyph, { isOn: flagsOn('brush', 'sketch') })).toBe(
-			'sketchLine'
+			'resize'
 		);
 	});
 
-	it('applyOpenTool picks the Line; no empty-letter box over the ink', () => {
+	it('applyOpenTool picks Select; no empty-letter box over the ink', () => {
 		sketchedB();
-		expect(applyOpenTool(editor)).toBe('sketchLine');
-		expect(editor.selectedTool).toBe('sketchLine');
+		editor.selectedTool = 'sketchLine';
+		expect(applyOpenTool(editor)).toBe('resize');
+		expect(editor.selectedTool).toBe('resize');
 		expect(overlayShows(editor)).toBe(false);
 	});
 

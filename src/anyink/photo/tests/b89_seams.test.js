@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8 + B9 integration: the seams between the brush, photo-core, photo-ui and photo-flow tracks and
 	the B6 Next line and B7 letter view, each checked on one Simple letter screen as the app draws
@@ -28,7 +30,7 @@ import { CoachElement } from '../../coach/coach_element.js';
 import { resetCoachForTests } from '../../coach/coach_state.js';
 import { SaveStatusElement } from '../../files/save_status_element.js';
 import { letterCardState, shapeOptions } from '../../letter/letter_card.js';
-import { isFeatureOn } from '../../mode/features.js';
+import { isFeatureOn, setFeaturesForTests } from '../../mode/features.js';
 import { setModeForTests } from '../../mode/mode.js';
 import { sampleEditor } from '../../mode/tests/controls_probe.js';
 import { isOpeningBrush } from '../../nib/default_tool.js';
@@ -42,6 +44,12 @@ import { closePhotoCard, openPhotoCard, resetPhotoCardForTests } from '../photo_
 import { openPhotoDoor } from '../photo_doors.js';
 import { addPhoto } from '../photo_registry.js';
 import { ROW } from './photo_dialog_fixture.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = (path) => readFileSync(join(here, '../../..', path), 'utf8');

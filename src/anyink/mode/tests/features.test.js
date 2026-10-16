@@ -57,6 +57,8 @@ const LANDED = [
 	'useInWord',
 	'fontDetails',
 	'help',
+	// S4 (10/16/2026): sketched letters, on ahead of S9 for Gate 2b
+	'sketch',
 ];
 
 describe('feature flags', () => {
@@ -68,7 +70,7 @@ describe('feature flags', () => {
 	});
 
 	// B6 + B7 integration: each B turned on only its own flag; every later one is still off
-	it('are on for the Bs that have landed (B6 to B15) and off for the rest', () => {
+	it('are on for the Bs that have landed (B6 to B15, and the sketch since S4) and off for the rest', () => {
 		SPEC_FLAGS.forEach((name) => {
 			const on = LANDED.includes(name);
 			expect(FEATURES[name], name).toBe(on);

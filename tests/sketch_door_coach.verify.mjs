@@ -8,14 +8,14 @@
 //   - Capital B's stem alone: not Ready (the rail stays 0), the Next line never says "matches the
 //     gray guide letter"; a wider B (a top bar and a right side) is Ready (the rail says 1)
 //   - small i's stem alone: "small i still needs its dot.", never "looks done"
-//   - a sketched letter with ink opens on the Line, never Select (Select on built shapes sets the
-//     sketch aside until S4)
+//   - a sketched letter with ink opens on Select (S4: Select edits the sketch; before S4 it
+//     opened on the Line)
 // S3 finalize adds:
 //   - small i's stem alone: the letter card says Needs a look too (B11's cache has the look)
 //   - the Thickness slider with the Line picked: Esc mid-drag records nothing and the slider shows
 //     the letter's thickness; the arrow keys move it, one step after a pause, the keyboard kept
-//   - V and a drag on B's built stem sets the sketch aside; the card's [Use the sketch again] is
-//     one step that brings the sketch and its own ink back
+//   - V and a drag on B edits the sketch (S4); it is never set aside
+//     (set-aside and [Use the sketch again] stay covered by unit tests)
 // Prints PASS / FAIL lines; exits 1 on any FAIL.
 // Usage: node tests/sketch_door_coach.verify.mjs [screenshot folder]   (default: the OS temp folder)
 import { chromium } from '@playwright/test';
@@ -247,7 +247,7 @@ try {
 	await openLetter('n');
 	await openLetter('B');
 	const opened = await tool();
-	check('B with ink opens on the Line, never Select', opened === 'sketchLine', opened);
+	check('B with ink opens on Select (S4: Select edits the sketch)', opened === 'resize', opened);
 	await shot('03-B-reopened');
 
 	// ---- small i: the stem alone ---------------------------------------------------------------
@@ -336,25 +336,13 @@ try {
 	await page.mouse.up();
 	await settle(800);
 	const aside = await letterState();
-	check('V and a drag on B: the sketch is set aside', aside.setAside === true, JSON.stringify(aside));
-	const again = page.locator('[data-anyink-sketch="useAgain"]');
-	const offered = await again.isVisible().catch(() => false);
-	check('the card offers [Use the sketch again]', offered);
-	await shot('06-B-set-aside');
-	if (offered) {
-		await again.click();
-		await settle(900);
-		const back = await letterState();
-		check(
-			"[Use the sketch again]: one step, the sketch live, its own ink back",
-			back.setAside === false &&
-				back.matches === true &&
-				back.steps === aside.steps + 1 &&
-				back.title === "used Capital B's sketch again",
-			JSON.stringify(back)
-		);
-		await shot('07-B-used-again');
-	}
+	// S4: Select edits the sketch itself, so a drag never sets it aside
+	check(
+		'V and a drag on B edits the sketch: never set aside, ink matches, one step',
+		aside.setAside === false && aside.matches === true,
+		JSON.stringify(aside)
+	);
+	await shot('06-B-edited');
 
 	check('no page errors', errors.length === 0, errors.slice(0, 5).join(' | '));
 } catch (error) {

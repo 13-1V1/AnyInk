@@ -38,10 +38,34 @@
 	      an Escape the tool does not use calls onEscape (a second Esc goes back to Select)
 	  sketchPointerOut(editor, { isOn })
 	  followSketchTools(editor)           tells handlers when their tool is picked or left
+
+	S4 (docs/SKETCH.md section 5): Select on a sketch. In Simple with the flag on, Select ('resize',
+	V and E) on a letter whose sketch is live (sketched.js hasSketchPieces: not set aside, with a
+	piece) is Select on the sketch: activeSketchTool answers { tool: SELECT_TOOL, handler } with
+	the handler select_tool.js registers, so keys (Delete, the arrows, Esc) reach it first, and
+	upstream's Select never touches the built shapes (which would set the sketch aside). With no
+	live sketch, in All tools, or with the flag off, Select is upstream's as before.
+	  SELECT_TOOL                         'sketchSelect': the name Select on a sketch goes by here
+	  registerSketchSelect(handler)       returns the undo of the registration
+	  sketchSelectHandler()
+	  sketchSelectApplies(editor, { isOn, simple })   true while Select is on a live sketch
+	  sketchSelectPointer(type, event, { editor, at, guides, cursor, isOn, simple })   true when
+	      Select on the sketch took the mouse event. A left press on nothing of the sketch goes
+	      to the guides layer first (guides: its handler; Move the guide lines and the letter's
+	      edges keep working), then starts a window; moves and the release follow whoever took
+	      the press; a right or middle press is never taken. cursor(name) sets the pointer's look.
 */
 import { isFeatureOn } from '../../mode/features.js';
 import { pressFromEvent } from '../../mode/keys.js';
+import { isSimpleMode } from '../../mode/mode.js';
+import { hasSketchPieces } from '../sketched.js';
 import { isSketchTool, SKETCH_TOOLS } from './tool_names.js';
+
+/** S4: Select on a sketch, as this file names it */
+export const SELECT_TOOL = 'sketchSelect';
+
+/** S4: Select on a sketch's handler (select_tool.js) */
+let selectHandler = null;
 
 /** tool name -> handler */
 const handlers = new Map();
@@ -95,9 +119,14 @@ export function sketchToolHandler(tool) {
  * @param {(name: String) => Boolean} [options.isOn]
  * @returns {{tool: String, handler: Object | null} | null}
  */
-export function activeSketchTool(editor, { isOn = isFeatureOn } = {}) {
+export function activeSketchTool(editor, { isOn = isFeatureOn, simple } = {}) {
 	if (!isOn('sketch')) return null;
 	const tool = editor?.selectedTool;
+	if (tool === 'resize') {
+		return sketchSelectApplies(editor, { isOn, simple })
+			? { tool: SELECT_TOOL, handler: selectHandler }
+			: null;
+	}
 	if (!isSketchTool(tool)) return null;
 	if (!onLetterCanvas(editor)) return null;
 	return { tool, handler: sketchToolHandler(tool) };
@@ -124,6 +153,8 @@ function onLetterCanvas(editor) {
 export function sketchPointer(type, event, { editor, at, isOn = isFeatureOn } = {}) {
 	const active = activeSketchTool(editor, { isOn });
 	if (!active || !METHODS[type]) return false;
+	// S4: Select on a sketch takes its presses through sketchSelectPointer; only the double-click
+	if (active.tool === SELECT_TOOL && type !== 'double') return false;
 	// a middle press pans and a right press is the browser's: only the left button draws
 	if (type !== 'move' && typeof event?.button === 'number' && event.button !== 0) return false;
 	const ev = pointerEventOf(type, event, { editor, at, tool: active.tool });
@@ -244,9 +275,9 @@ export function followSketchTools(editor) {
 			if (tool === PAN || tool === last) return;
 			const from = last;
 			last = tool;
-			const before = sketchToolHandler(from);
+			const before = from === 'resize' ? selectHandler : sketchToolHandler(from);
 			if (typeof before?.toolOff === 'function') before.toolOff({ to: tool });
-			const after = sketchToolHandler(tool);
+			const after = tool === 'resize' ? selectHandler : sketchToolHandler(tool);
 			if (typeof after?.toolOn === 'function') after.toolOn({ from });
 		},
 	});
@@ -260,4 +291,83 @@ function redraw(editor) {
 /** Tests: forget every handler */
 export function clearSketchToolsForTests() {
 	handlers.clear();
+	selectHandler = null;
+}
+
+// --------------------------------------------------------------
+// S4: Select on a sketch
+// --------------------------------------------------------------
+
+/**
+ * @param {Object} handler - select_tool.js's
+ * @returns {Function} undoes this registration (only while it is still the one registered)
+ */
+export function registerSketchSelect(handler) {
+	if (!handler || typeof handler !== 'object') {
+		throw new Error('sketch tools: the Select handler must be an object');
+	}
+	selectHandler = handler;
+	return () => {
+		if (selectHandler === handler) selectHandler = null;
+	};
+}
+
+/** @returns {Object | null} */
+export function sketchSelectHandler() {
+	return selectHandler;
+}
+
+/**
+ * @param {Object} editor
+ * @param {{isOn?: Function, simple?: Boolean}} [options]
+ * @returns {Boolean}
+ */
+export function sketchSelectApplies(editor, { isOn = isFeatureOn, simple } = {}) {
+	if (!selectHandler || !isOn('sketch')) return false;
+	if ((simple ?? isSimpleMode()) !== true) return false;
+	if (editor?.selectedTool !== 'resize' || !onLetterCanvas(editor)) return false;
+	let item = null;
+	try {
+		item = editor.selectedItem;
+	} catch {
+		return false;
+	}
+	return hasSketchPieces(item, { isOn });
+}
+
+/**
+ * @param {'down' | 'move' | 'up'} type
+ * @param {MouseEvent} event
+ * @param {Object} options
+ * @returns {Boolean} true when Select on the sketch took the event
+ */
+export function sketchSelectPointer(
+	type,
+	event,
+	{ editor, at, guides, cursor, isOn = isFeatureOn, simple } = {}
+) {
+	if (!METHODS[type] || type === 'double') return false;
+	if (!sketchSelectApplies(editor, { isOn, simple })) return false;
+	if (type === 'down' && typeof event?.button === 'number' && event.button !== 0) return false;
+	const handler = selectHandler;
+	const ev = pointerEventOf(type, event, { editor, at, tool: SELECT_TOOL });
+	if (!ev) return true;
+	const toGuides = () => (typeof guides === 'function' ? !!guides(event) : false);
+	const busy = typeof handler.busy === 'function' && handler.busy();
+	const hits = () => typeof handler.hits === 'function' && handler.hits(ev);
+	if (type === 'down') {
+		if (hits() || !toGuides()) handler.down?.(ev);
+	} else if (type === 'move') {
+		if (busy || hits()) handler.move?.(ev);
+		else if (toGuides()) handler.pointerOut?.();
+		else handler.move?.(ev);
+	} else if (busy || !toGuides()) {
+		handler.up?.(ev);
+	}
+	if (typeof cursor === 'function' && typeof handler.cursor === 'function') {
+		const look = handler.cursor();
+		if (look) cursor(look);
+	}
+	redraw(editor);
+	return true;
 }

@@ -240,6 +240,8 @@ try {
 	await page.waitForTimeout(500);
 
 	// ---- flag off first: today's column and keys (Simple) ----------------------------------
+	// (the flag ships on since S4, so the script turns it off here)
+	await setFlag(page, false);
 	await openLetter(page, 'n');
 	const columnOff = await toolColumn(page);
 	check(
@@ -732,8 +734,9 @@ try {
 		// S3: the sketch builds its ink; a letter with a live sketch opens on the Line until S4
 		// brings Select on the sketch (nib/default_tool.js: Select on built ink sets the sketch
 		// aside), with no empty-letter box and no brush steer
-		'n: a sketched letter (its ink built, S3) opens on the Line, with no empty-letter box and no brush steer',
-		s.tool === 'sketchLine' && !reopenedN.box && !/is empty/.test(reopenedN.line),
+		// S4: Select edits the sketch, so a sketched letter with ink opens on Select
+		'n: a sketched letter (its ink built) opens on Select, with no empty-letter box and no brush steer',
+		s.tool === 'resize' && !reopenedN.box && !/is empty/.test(reopenedN.line),
 		`tool ${s.tool}; box ${reopenedN.box}; line "${reopenedN.line.trim().slice(0, 80)}"`
 	);
 

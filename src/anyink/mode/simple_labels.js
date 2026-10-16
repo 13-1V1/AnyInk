@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B4 + B5 integration: the words Simple shows on today's letter page (the Characters page, until
 	B7's letter view replaces it), so the banned-word scan finds nothing on what exists in Simple
@@ -27,6 +29,7 @@
 	                                   leaves as it was. item: default the open font's record.
 	simple_labels.css keeps the small label in sentence case in Simple.
 */
+import { toolWordKey } from '../sketch/tools/tool_names.js';
 import './simple_labels.css';
 import { getCurrentProject } from '../../app/main.js';
 import { isFeatureOn } from './features.js';
@@ -41,9 +44,11 @@ import { hasWord, word } from '../words/words.js';
  * @returns {String}
  */
 export function toolTitle(tool, upstream) {
-	if (!isSimpleMode() || !hasWord(`tool.${tool}`)) return upstream;
+	// S4: a sketch tool's name is its own words entry (sketch/tools/tool_names.js toolWordKey)
+	const wordKey = toolWordKey(tool);
+	if (!isSimpleMode() || !hasWord(wordKey)) return upstream;
 	const key = toolKey(tool);
-	const name = word(`tool.${tool}`);
+	const name = word(wordKey);
 	return key ? `${name} (${key})` : name;
 }
 

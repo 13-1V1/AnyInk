@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B8 + B9 integration: the tool a letter opens with in the Simple letter view (open_tool.js,
 	UX-BEGINNER.md 4.3 Tools): the Brush on an empty letter (remembered as the opening Brush, so the
@@ -27,6 +29,9 @@ function square() {
 
 let editor;
 beforeEach(() => {
+	// B8's Brush opening; with 'sketch' on (S4) an empty letter opens on the Line instead
+	// (open_tool_sketch.test.js)
+	setFeaturesForTests({ sketch: false });
 	setModeForTests('simple');
 	resetOpeningToolForTests();
 	editor = twoLetterEditor();

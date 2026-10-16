@@ -62,7 +62,8 @@
 		"verify:sketch-thickness": "node tests/sketch_thickness.verify.mjs",
 		"verify:sketch-door": "node tests/sketch_door.verify.mjs",
 		"verify:sketch-build": "node tests/sketch_build.verify.mjs",
-		"verify:sketch-door-coach": "node tests/sketch_door_coach.verify.mjs"
+		"verify:sketch-door-coach": "node tests/sketch_door_coach.verify.mjs",
+		"verify:sketch-edit": "node tests/sketch_edit.verify.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.4",

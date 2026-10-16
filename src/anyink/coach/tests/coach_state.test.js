@@ -180,7 +180,12 @@ describe('the coach on a real font', () => {
 		twoLetterEditor({ page: 'Overview' });
 		const line = startCoach().line();
 		expect(line.rule).toBe(11);
-		expect(line.sentence).toBe(word('coach.rule.firstPhoto'));
+		// S4 turned 'sketch' on: rule 11's first line offers the sketch too (S3's firstLetter)
+		expect(line.sentence).toMatch(/^Start by sketching .+, or write your letters on paper/);
+		setFeaturesForTests({ sketch: false });
+		coach.refresh();
+		coach.flush?.();
+		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
 	});
 
 	it('ink with no work file asks for Save; a font with a work file that saves does not', () => {
@@ -670,10 +675,13 @@ describe('Something else, hide, facts and sources', () => {
 				'startScreen',
 				'useInWord',
 				'fontDetails',
-				'help'
+				'help',
+				// S4: sketched letters
+				'sketch'
 			)
 		);
-		expect(coach.line()).toMatchObject({ rule: 11, sentence: word('coach.rule.firstPhoto') });
+		expect(coach.line().rule).toBe(11);
+		expect(coach.line().sentence).toMatch(/^Start by sketching/);
 		// before B9 (photo off) the same font says rule 15, as it did
 		setFeaturesForTests({ photo: false });
 		coach.refresh();

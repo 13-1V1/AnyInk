@@ -263,7 +263,9 @@ describe('model + sketch_record + history_hook through History, flag off and on'
 		vi.spyOn(console, 'warn').mockImplementation(() => {});
 	});
 
-	it('the flag is off as shipped, and the same steps give the same letters off and on', () => {
+	it('the flag is on as shipped (S4), and the same steps give the same letters off and on', () => {
+		expect(isFeatureOn('sketch')).toBe(true);
+		setFeaturesForTests({ sketch: false });
 		expect(isFeatureOn('sketch')).toBe(false);
 		const off = runSteps().seen;
 		setFeaturesForTests({ sketch: true });

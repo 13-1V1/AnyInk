@@ -258,7 +258,7 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   dialog opens (Menu open, then Ctrl+E).
 - Feature flags on: `coach` (B6), `letterView` (B7), `brush` (B8), `photo` (B9), `board` (B10),
   `checks` (B11), `tryIt` (B12), `startScreen` (B13), `useInWord` (B14), `fontDetails` and `help`
-  (B15); `alternates`, `weight`, `roughen` off until M11 to M13. Tests that check Simple "with no
+  (B15), `sketch` (S4); `alternates`, `weight`, `roughen` off until M11 to M13. Tests that check Simple "with no
   flag" (B5's stub) call `noFlags()` (`src/anyink/mode/tests/no_flags.js`).
 - B16 (D-046) — `history/simple_undo.js markStepBefore` (a step that carries its own earlier state:
   one Undo after Use it on an empty letter keeps the photo; both modes, kept in crash copies);
@@ -274,8 +274,8 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   build) with `tests/beginner_weight.mjs` and `tests/fixtures/brenna-loose.*`, `brenna-tight.*`;
   B16 real-Chrome checks `close_soon`, `rail_words`, `drawing_tools_lines`, `start_name`. Brennan's
   own session: `docs/GATE2.md`.
-- `src/anyink/sketch` (S1, docs/SKETCH.md, D-047 + D-048) — sketched letters' pure core, flag
-  `sketch` off, nothing on screen yet: `model.js` (`glyph.anyink.sketch` v1: points, pieces, parts
+- `src/anyink/sketch` (S1, docs/SKETCH.md, D-047 + D-048) — sketched letters, flag `sketch` ON
+  since S4 (10/16/2026). The pure core (S1): `model.js` (`glyph.anyink.sketch` v1: points, pieces, parts
   line / arc / curve / spline, relations, `ON_PLACES`; `sketchOf` repairs a damaged v1 in place, an
   unreadable `v` is kept untouched; `validateSketch(sketch, { project })`; `sketchThickness` /
   `setSketchThickness`, `thicknessRange`), `hobby.js` (in-house Hobby / MetaPost spline with
@@ -322,6 +322,22 @@ Platform: Windows 11, Chrome or Edge only (PWA install + File System Access API)
   takes the keyboard back after its card is drawn again). Real-Chrome: `npm run
   verify:sketch-build`, `verify:sketch-thickness`, `verify:sketch-door`,
   `verify:sketch-door-coach`.
+  S4 (Edit, SKETCH.md "S4 as built"): Select (V, E) on a live sketch in Simple is Select on the
+  sketch (`tools/tool_route.js sketchSelectApplies` / `sketchSelectPointer`: the guides layer
+  first for a press on nothing; All tools and a letter with no live sketch keep upstream's
+  Select). `pick.js` (hit points then pieces with their part and stretch, Ctrl, window inside /
+  crossing), `rules.js` (`applyDrag`, the drag rules in their fixed order once each; conflicts
+  -> "Can't keep both" toast with [Undo]), `bend.js` (Arc bulge, curve / Spline aims and tension,
+  a Line moves whole), `grips.js` (circle / diamond / arrow, `gripTension`, Let it flow),
+  `edit_ops.js` (move, scale, circle resize, kinds, add / delete points and pieces, This end,
+  Helper line), `select_tool.js` (the handler: one named step per drag on release, `sketchEdit`
+  per tick and `sketchPick` topics, swept-ink preview while dragging, arrow nudges one step per
+  run, Delete via `letter/delete_toast.js` with [Undo]; a deleted piece's built ink goes in the
+  same step so the hash holds), `piece_card.js` (card section `sketchPiece`); `curves.js
+  piecePartCubics`; the card's [Edit sketch]; Help lists the sketch keys; a sketched letter with
+  ink opens on Select. Tests `sketch/tests/{pick,rules,bend,grips,edit_ops,select_tool,
+  select_wiring}.test.js`; real Chrome `tests/sketch_edit.verify.mjs`. B-era tests that read
+  Simple as B16 shipped it pin `sketch` off with `setFeaturesForTests`.
   S2 (D-049) `sketch/tools/`: the five tools in Simple only (`line.js` with the shared
   `SketchTool`: open piece, a snapshot per click, `end()` lets a stray first click go, one commit
   per piece; `arc_tool.js`, `spline_tool.js`, `circle_tool.js` + `TwoPressTool`, `rect_tool.js`),
@@ -399,7 +415,8 @@ B. Beginner-proof (docs/UX-BEGINNER.md, D-031) — DONE 10/16/2026, Gate 2 next 
    Gate 2 (Brennan's own session, docs/GATE2.md) run 10/16/2026: the Brush-only letter was a dead
    end, so sketched letters come first (docs/SKETCH.md, D-047, S1 to S9, flag `sketch`). S1 (model,
    curves and measures) done 10/16/2026 (D-048); S2 (Draw) done 10/16/2026 (D-049); S3 (Build and
-   stay in sync) done 10/16/2026 (D-050); S4 (Edit) next; then S5 to S9, Gate 2b, then M9.
+   stay in sync) done 10/16/2026 (D-050); S4 (Edit: Select on the sketch) done 10/16/2026, flag
+   `sketch` turned on; S5 next; then S6 to S9, Gate 2b, then M9.
    Brennan has never made a font: plain words, one next step per screen, nothing advanced on the main path.
    Since B16 Simple is the launch default; All tools is `?ui=all` or More tools.
 9. Handwriting sheet — pending, next after Gate 2 (plugs into the letter board)

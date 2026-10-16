@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B15 Help (UX-BEGINNER.md 4.10): Simple's Help page.
 	  - the glossary is words.js glossary() for the flags on: no entry whose flag is off
@@ -19,6 +21,7 @@ import { HELP_EVENT, openDoor } from '../../topbar/doors.js';
 import { findBanned, QUOTE_CLASS, PRO_WORD_CLASS } from '../../words/banned.js';
 import { glossary, labelCase, word } from '../../words/words.js';
 import { keysShown } from '../../mode/keys.js';
+import { toolWordKey } from '../../sketch/tools/tool_names.js';
 import { helpKeyRows } from '../help_keys.js';
 import { HELP_SECTIONS, makeHelpPage } from '../help_page.js';
 
@@ -175,7 +178,7 @@ describe('section 4: keyboard keys', () => {
 			.forEach((key) => {
 				const row = helpKeyRows().find((r) => r.id === key.id);
 				expect(row?.keys).toBe(key.keys[0]);
-				expect(row?.label).toBe(word('helpPage.keys.tool', { tool: word(`tool.${key.tool}`) }));
+				expect(row?.label).toBe(word('helpPage.keys.tool', { tool: word(toolWordKey(key.tool)) }));
 			});
 	});
 

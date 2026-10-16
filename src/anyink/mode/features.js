@@ -68,8 +68,8 @@ export const FEATURES = Object.freeze({
 	alternates: false,
 	weight: false,
 	roughen: false,
-	// S1 (D-047, docs/SKETCH.md): off until S9 turns it on
-	sketch: false,
+	// S1 (D-047, docs/SKETCH.md); on since S4 (10/16/2026), ahead of S9, for Gate 2b
+	sketch: true,
 });
 
 /** Test overrides: { name: Boolean } */

@@ -390,6 +390,11 @@ const SKETCH = {
 		text: "Can't keep both: a point of {letter} let go of the {line}.",
 		feature: F,
 	},
+	// S4: a later drag rule moved a point off the piece it was on
+	'sketch.toast.cantKeepPiece': {
+		text: "Can't keep both: a point of {letter} came off its piece.",
+		feature: F,
+	},
 	'sketch.toast.insideLoopFree': {
 		text: 'The inside loop of {letter} is on its own now.',
 		feature: F,
@@ -400,6 +405,9 @@ const SKETCH = {
 	},
 	'sketch.toast.pointDeleted': { text: 'Deleted a sketch point of {letter}.', feature: F },
 	'sketch.toast.pieceDeleted': { text: 'Deleted a piece of {letter}.', feature: F },
+	// S4: Delete on a pick of several
+	'sketch.toast.pointsDeleted': { text: 'Deleted {count} sketch points of {letter}.', feature: F },
+	'sketch.toast.piecesDeleted': { text: 'Deleted {count} pieces of {letter}.', feature: F },
 	'sketch.toast.undo': { text: 'Undo', feature: F },
 	'sketch.undo.takeBack': { text: 'Take back the last point', feature: F },
 	'sketch.undo.finishFirst': { text: 'Finish the line first', feature: F },

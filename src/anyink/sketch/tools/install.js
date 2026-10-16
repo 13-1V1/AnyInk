@@ -10,7 +10,9 @@
 
 	  installSketchTools()      registers them (a second call does nothing); returns the handlers
 	  uninstallSketchToolsForTests()
+	S4: Select on a sketch (select_tool.js) is registered here too.
 */
+import { installSketchSelect, uninstallSketchSelectForTests } from '../select_tool.js';
 import { makeArcTool } from './arc_tool.js';
 import { makeCircleTool } from './circle_tool.js';
 import { makeLineTool } from './line.js';
@@ -42,6 +44,7 @@ export function installSketchTools() {
 		handlers[tool] = make({ snapContext: snapContextOf });
 		undo.push(registerSketchTool(tool, handlers[tool]));
 	});
+	installSketchSelect();
 	installed = { handlers, undo };
 	return handlers;
 }
@@ -49,5 +52,6 @@ export function installSketchTools() {
 /** Tests: take them off again */
 export function uninstallSketchToolsForTests() {
 	installed?.undo.forEach((forget) => forget());
+	uninstallSketchSelectForTests();
 	installed = null;
 }

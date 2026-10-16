@@ -1,5 +1,7 @@
 // Created by: Brennan Meyer with use of Claude Code 10/14/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 /**
 	B7 view switches (UX-BEGINNER.md 4.3 Canvas): "Fine-tune this letter" is closed by default and
 	hides the edges, the neighbors and the extra tools until it is opened; a tool key for a tool
@@ -32,6 +34,12 @@ import {
 	setNeighbors,
 	switchStates,
 } from '../view_switches.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 /** A letter with ink, and one with none */
 const inked = { id: 'glyph-0x61', shapes: [{}] };

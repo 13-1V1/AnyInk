@@ -23,7 +23,8 @@
 //       each letter's pen kept as written within 10 %; the photo
 //       lines up under the ink after Use it, after a left-edge drag and after a letter-spacing
 //       change
-//   T4  A small o drawn with the Brush: ink, a width, Brush strokes, no photo
+//   T4  A small o drawn with the Brush: ink, a width, Brush strokes, no photo (S4: with 'sketch'
+//       on as shipped the empty o opens on the Line; the Brush comes from More ways)
 //   T5  Try it shows "Brennan Hand" in his letters, no neighbours overlapping (principle 5)
 //   T6  The e|n gap made closer with the real handle: one gap fix, nothing else changed
 //   T7  The top bar's Undo takes it away, Redo puts it back
@@ -74,6 +75,7 @@ const PROBE_MODULES = [
 	'/anyink/tryit/expand.js',
 	'/anyink/tryit/gap_handle.js',
 	'/anyink/mode/mode.js',
+	'/anyink/mode/features.js',
 	'/controls/font-preview/font_preview.js',
 ];
 const PROBE_ID = '/@anyink-beginner-probe.js';
@@ -882,10 +884,18 @@ try {
 	startTask('T4');
 	await openTile('o');
 	st = await editorState();
-	assert.equal(st.tool, 'nib', 'an empty letter opens with the Brush');
+	// S4 turned 'sketch' on: an empty letter opens on the Line with [Sketch it] at its door, and
+	// the Brush is under More ways (docs/SKETCH.md section 7); with the flag off, the B16 Brush
+	const sketchOn = await page.evaluate(() => M('/anyink/mode/features.js').isFeatureOn('sketch'));
+	assert.equal(st.tool, sketchOn ? 'sketchLine' : 'nib', 'an empty letter opens with its opening tool');
 	s = await checkState('T4 empty small o');
 	await shot('T4-1-empty-o');
-	await page.locator('[data-anyink-overlay-action="drawBrush"]').click();
+	if (sketchOn) {
+		await page.locator('[data-anyink-overlay-link="more"]').click();
+		await page.locator('[data-anyink-overlay-link="brush"]').click();
+	} else {
+		await page.locator('[data-anyink-overlay-action="drawBrush"]').click();
+	}
 	await offCanvas();
 	await settle(500);
 	await checkState('T4 the Brush on an empty o, before its first mark', 0);
@@ -925,7 +935,7 @@ try {
 	await settle(400);
 	await checkState('T4 small o drawn, Select picked');
 	await shot('T4-2-o-drawn');
-	pass(`T4 small o opened with the Brush (the one green [Use a photo] on the empty letter, none once Draw with the brush was pressed); one real drag drew it: ink, width ${o.width}, 1 Brush stroke, no photo; with the Brush still picked the Next line "${brushed.sentence}" [${[...brushed.greens, ...brushed.outlinedNext.map((t) => `${t}, outlined`)].join('')}], with Select picked one green`);
+	pass(`T4 small o opened on ${sketchOn ? 'the Line (the sketch door; the Brush from More ways)' : 'the Brush'} (the one green [${s.greens?.[0] ?? ''}] on the empty letter, none once the Brush was picked); one real drag drew it: ink, width ${o.width}, 1 Brush stroke, no photo; with the Brush still picked the Next line "${brushed.sentence}" [${[...brushed.greens, ...brushed.outlinedNext.map((t) => `${t}, outlined`)].join('')}], with Select picked one green`);
 	await toBoard();
 
 	// ------------------------------------------------------------------

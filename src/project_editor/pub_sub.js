@@ -44,6 +44,11 @@ import { glyphChanged } from './cross_item_actions.js';
 		* - 'sketchThickness' - the sketch Thickness slider moved on the open letter:
 		*                 { itemId, thickness, dragging } per drag tick (dragging true) and once
 		*                 on release (S3, src/anyink/sketch/thickness_drag.js)
+		* - 'sketchEdit' - Select on a sketch is dragging (or nudging) on the open letter:
+		*                 { itemId, kind, dragging } per tick (dragging true) and once on
+		*                 release (S4, src/anyink/sketch/select_tool.js)
+		* - 'sketchPick' - Select on a sketch picked something else: { itemId, points, pieces }
+		*                 (S4, src/anyink/sketch/select_tool.js)
 */
 const allTopics = [
 	'editCanvasView',
@@ -85,6 +90,9 @@ const allTopics = [
 	'letterSpacing', // letter-spacing slider { extra, dragging } (src/anyink/tryit/letter_spacing.js)
 	// ANY-INK topics (S3)
 	'sketchThickness', // sketch Thickness slider { itemId, thickness, dragging } (src/anyink/sketch/thickness_drag.js)
+	// ANY-INK topics (S4)
+	'sketchEdit', // Select on a sketch drag tick { itemId, kind, dragging } (src/anyink/sketch/select_tool.js)
+	'sketchPick', // Select on a sketch's pick { itemId, points, pieces } (src/anyink/sketch/select_tool.js)
 ];
 
 /**

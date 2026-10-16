@@ -2,6 +2,8 @@
 // brennanmmeyer@gmail.com
 // Created by: Brennan Meyer with use of Claude Code 10/15/2026 Santa Clarita, CA
 // brennanmmeyer@gmail.com
+// Created by: Brennan Meyer with use of Claude Code 10/16/2026 Santa Clarita, CA
+// brennanmmeyer@gmail.com
 // B5 wiring (UX-BEGINNER.md 7.6, 6.2 "Keys", section 10 B5 "the Simple key gates"): the real key
 // handler (edit_canvas/events_keyboard.js) asks the one key map (keys.js) in both modes. All
 // tools: P picks the Point pen and E Edit points (both modes, 7.6), the rest as upstream;
@@ -22,6 +24,12 @@ import { FINE_TUNE_EVENT, USE_IN_WORD_EVENT } from '../doors.js';
 import { setFeaturesForTests } from '../features.js';
 import { getVisit, setModeForTests } from '../mode.js';
 import { sampleEditor } from './controls_probe.js';
+
+// S4 turned 'sketch' on; these tests read Simple as B16 shipped it, with the
+// flag off (the sketch's own column, keys and door are the S2 / S3 tests)
+beforeEach(() => {
+	setFeaturesForTests({ sketch: false });
+});
 
 // The handler's own imports are the real ones (the vitest setup loads the app first), so each
 // key is checked by what it really does: a download, a picker, a toast, an event.
